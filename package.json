@@ -1,0 +1,20 @@
+{
+  "name": "transport-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "seed": "npm run seed --workspace=apps/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}
