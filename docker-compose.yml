@@ -41,6 +41,9 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - MONGODB_URI=mongodb://root:secret@mongodb:27017/dride?authSource=admin
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
         condition: service_healthy
@@ -56,7 +59,7 @@ services:
       dockerfile: apps/client-app/Dockerfile
     container_name: dride_client_app
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       - api
     restart: unless-stopped
@@ -67,7 +70,7 @@ services:
       dockerfile: apps/admin-dashboard/Dockerfile
     container_name: dride_admin_dashboard
     ports:
-      - "8080:80"
+      - "5174:80"
     depends_on:
       - api
     restart: unless-stopped
@@ -78,7 +81,7 @@ services:
       dockerfile: apps/driver-portal/Dockerfile
     container_name: dride_driver_portal
     ports:
-      - "8081:80"
+      - "5175:80"
     depends_on:
       - api
     restart: unless-stopped
