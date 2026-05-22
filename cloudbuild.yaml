@@ -1,0 +1,35 @@
+steps:
+  # Build API
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/dride-api:$COMMIT_SHA', '-f', 'apps/api/Dockerfile', '.']
+  
+  # Push API
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/dride-api:$COMMIT_SHA']
+    
+  # Deploy API to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'dride-api'
+      - '--image'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/dride-api:$COMMIT_SHA'
+      - '--region'
+      - '$_REGION'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3000'
+
+  # Note: A fully automated CI/CD pipeline requires passing the dynamic API URL back to the build process for the frontends.
+  # For a complete setup, consider a multi-stage pipeline or fetching the service URL before building the Client and Admin.
+
+substitutions:
+  _REGION: us-central1
+  _REPO_NAME: d-ride-repo
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/dride-api:$COMMIT_SHA'

@@ -1,0 +1,111 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import HomePage from './pages/Home';
+import LoginPage from './pages/Login';
+import RegisterPage from './pages/Register';
+import MyTripsPage from './pages/MyTrips';
+import TripSearchPage from './pages/TripSearch';
+import CheckoutPage from './pages/Checkout';
+import LiveTrackingPage from './pages/LiveTracking';
+import PaymentCallbackPage from './pages/PaymentCallback';
+import ContactPage from './pages/ContactPage';
+import './App.css';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--background)',
+        color: 'var(--primary)',
+        fontSize: '1.2rem',
+        fontWeight: 600,
+      }}>
+        ⏳ Loading...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+import Navbar from './components/Navbar';
+
+function AppRoutes() {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/search" element={<TripSearchPage />} />
+      <Route
+        path="/contact"
+        element={
+          <ProtectedRoute>
+            <ContactPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-trips"
+        element={
+          <ProtectedRoute>
+            <MyTripsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/checkout"
+        element={
+          <ProtectedRoute>
+            <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/track"
+        element={
+          <ProtectedRoute>
+            <LiveTrackingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/payment/callback"
+        element={
+          <ProtectedRoute>
+            <PaymentCallbackPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+    </>
+  );
+}
+
+import { LanguageProvider } from './context/LanguageContext';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </LanguageProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
