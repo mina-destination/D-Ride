@@ -14,14 +14,14 @@ export const lightPalette = {
     dark: '#B8860B',
   },
   surfaces: {
-    background: '#F0F1F5',
+    background: '#F4F5F7',
     surface: '#FFFFFF',
     surfaceElevated: '#F8F9FA',
-    surfaceHover: '#F3F4F6',
+    surfaceHover: '#F0F2F5',
   },
   typography: {
-    textPrimary: '#1A1A2E',
-    textSecondary: '#6B7280',
+    textPrimary: '#111827',
+    textSecondary: '#4B5563',
     textMuted: '#9CA3AF',
     textOnPrimary: '#1A1A2E',
   },
@@ -30,10 +30,10 @@ export const lightPalette = {
     borderFocus: '#F5B731',
   },
   sidebar: {
-    bg: '#1A1A2E',
-    text: '#CBD5E1',
+    bg: '#111827',
+    text: '#D1D5DB',
     textActive: '#F5B731',
-    itemHover: '#22223A',
+    itemHover: '#1F2937',
   },
 };
 
@@ -265,5 +265,23 @@ export const antThemeConfigDark = {
     colorTextBase: darkPalette.typography.textPrimary,
     colorTextSecondary: darkPalette.typography.textSecondary,
     colorBorder: darkPalette.borders.border,
+  },
+  components: {
+    ...antThemeConfig.components,
+    Layout: {
+      siderBg: darkPalette.sidebar.bg,
+      headerBg: darkPalette.surfaces.surface,
+      bodyBg: darkPalette.surfaces.background,
+    },
+    Menu: {
+      darkItemBg: darkPalette.sidebar.bg,
+      darkItemColor: darkPalette.sidebar.text,
+      darkItemSelectedBg: darkPalette.sidebar.itemHover,
+      darkItemSelectedColor: darkPalette.primary.DEFAULT,
+      darkItemHoverBg: darkPalette.sidebar.itemHover,
+    },
+    Button: {
+      primaryShadow: '0 2px 8px rgba(245, 183, 49, 0.35)',
+    },
   },
 };

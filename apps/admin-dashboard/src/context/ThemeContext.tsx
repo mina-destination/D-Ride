@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getCSSVariables } from '@transport/shared-theme';
 
 type Theme = 'light' | 'dark';
 
@@ -14,16 +15,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem('dride-theme');
     if (stored === 'light' || stored === 'dark') return stored;
-
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+    return 'dark';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('dride-theme', theme);
+
+    // Dynamically inject CSS variables from shared-theme to ensure consistency
+    try {
+      const vars = getCSSVariables(theme);
+      Object.entries(vars).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(key, value);
+      });
+    } catch (error) {
+      console.error('Failed to apply shared theme CSS variables:', error);
+    }
   }, [theme]);
 
   const toggleTheme = () => {
