@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/d-ride-logo.jpeg';
+import { LogIn, RefreshCw } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -59,8 +60,18 @@ export default function LoginPage() {
               required
             />
           </div>
-          <button type="submit" className="btn-primary auth-btn" disabled={loading}>
-            {loading ? '⏳ Signing in...' : '🔐 Sign In'}
+          <button type="submit" className="btn-primary auth-btn" disabled={loading} id="login-submit-btn">
+            {loading ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                Signing In...
+              </>
+            ) : (
+              <>
+                <LogIn size={18} />
+                Sign In
+              </>
+            )}
           </button>
         </form>
 

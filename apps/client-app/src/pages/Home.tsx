@@ -70,11 +70,12 @@ function RouteSearchForm() {
           <select 
             value={selectedRoute} 
             onChange={(e) => setSelectedRoute(e.target.value)}
-            style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', padding: '0.5rem', color: 'var(--text-primary)' }}
+            className="select-input"
+            id="route-select"
           >
-            <option value="" disabled style={{ color: 'var(--text-secondary)' }}>Select a Route</option>
+            <option value="" disabled>Select a Route</option>
             {routes.map(r => (
-              <option key={r._id} value={r._id} style={{ color: 'var(--text-primary)', background: 'var(--surface)' }}>{r.name}</option>
+              <option key={r._id} value={r._id}>{r.name}</option>
             ))}
           </select>
         </div>
@@ -85,11 +86,12 @@ function RouteSearchForm() {
             <select 
               value={selectedCheckpoint} 
               onChange={(e) => setSelectedCheckpoint(e.target.value)}
-              style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', padding: '0.5rem', color: 'var(--text-primary)' }}
+              className="select-input"
+              id="checkpoint-select"
             >
-              <option value="" style={{ color: 'var(--text-secondary)', background: 'var(--surface)' }}>Any Boarding Checkpoint (Default)</option>
+              <option value="">Any Boarding Checkpoint (Default)</option>
               {selectedRouteDetails.checkpoints.map((cp: any) => (
-                <option key={cp.name} value={cp.name} style={{ color: 'var(--text-primary)', background: 'var(--surface)' }}>
+                <option key={cp.name} value={cp.name}>
                   {cp.name} {cp.nameAr ? `(${cp.nameAr})` : ''}
                 </option>
               ))}
@@ -121,11 +123,10 @@ function RouteSearchForm() {
         className="search-btn" 
         onClick={handleSearch}
         disabled={!selectedRoute}
-        style={{ opacity: selectedRoute ? 1 : 0.5, cursor: selectedRoute ? 'pointer' : 'not-allowed', marginTop: '0.5rem' }}
+        id="search-trips-btn"
+        style={{ marginTop: '0.5rem' }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-          Search Trips <Search size={18} />
-        </span>
+        Search Trips <Search size={18} />
       </button>
     </>
   );

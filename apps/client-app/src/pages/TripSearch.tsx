@@ -76,9 +76,9 @@ export default function TripSearchPage() {
 
         {/* Results */}
         {loading ? (
-          <div className="glass" style={{ textAlign: 'center', padding: '3rem', borderRadius: 'var(--radius-xl)' }}>
-            <div style={{ fontSize: '2rem', animation: 'pulse 1.5s infinite' }}>🚌</div>
-            <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Searching for the best rides...</p>
+          <div className="glass" style={{ textAlign: 'center', padding: '3rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem' }}>
+            <div className="app-loading-spinner"></div>
+            <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Searching for the best rides...</p>
           </div>
         ) : trips.length === 0 ? (
           <div className="glass" style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: 'var(--radius-xl)' }}>
@@ -164,7 +164,7 @@ export default function TripSearchPage() {
                     {/* Right Column: Pricing & Booking */}
                     <div className="trip-card-right" style={{ padding: '2rem 1.5rem', minWidth: '220px' }}>
                       <div className="trip-price">{trip.priceEGP} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>EGP</span></div>
-                      <div className="trip-seats" style={{ color: seatsLeft <= 5 ? '#ff6b6b' : 'var(--success)' }}>
+                      <div className="trip-seats" style={{ color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)' }}>
                         <span className="seat-icon">💺</span> {seatsLeft} seats left
                       </div>
                       <div className="trip-amenities">

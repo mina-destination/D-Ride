@@ -217,16 +217,6 @@ export default function ContactPage() {
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="e.g., Booking double billing issue"
                     required
-                    style={{
-                      width: '100%',
-                      padding: '0.8rem 1rem',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-lg)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      fontSize: '0.9rem'
-                    }}
                   />
                 </div>
 
@@ -239,28 +229,19 @@ export default function ContactPage() {
                     placeholder="Please provide details about your concern..."
                     required
                     rows={5}
-                    style={{
-                      width: '100%',
-                      padding: '0.8rem 1rem',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-lg)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      fontFamily: 'var(--font-family)',
-                      fontSize: '0.9rem',
-                      resize: 'vertical'
-                    }}
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="btn-primary auth-btn"
                   disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}
                 >
-                  {loading ? '⏳ Submitting...' : (
+                  {loading ? (
+                    <>
+                      <span className="btn-loading-spinner" /> Submitting...
+                    </>
+                  ) : (
                     <>
                       <Send size={16} /> Submit Ticket
                     </>
@@ -272,14 +253,7 @@ export default function ContactPage() {
         </div>
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .contact-container {
-            grid-template-columns: 1fr !important;
-            gap: 2rem !important;
-          }
-        }
-      `}</style>
+
     </div>
   );
 }
