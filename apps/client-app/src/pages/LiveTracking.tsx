@@ -134,10 +134,7 @@ export default function LiveTrackingPage() {
 
       <div style={{ flex: 1, position: 'relative' }}>
         {!location && (
-          <div style={{ 
-            position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', 
-            zIndex: 1000, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px 20px', borderRadius: '20px' 
-          }}>
+          <div className="tracking-gps-banner">
             Waiting for GPS signal from vehicle...
           </div>
         )}
@@ -161,12 +158,7 @@ export default function LiveTrackingPage() {
         </MapContainer>
 
         {/* Floating Developer Sandbox Controller */}
-        <div style={{ 
-          position: 'absolute', bottom: 20, right: 20, 
-          zIndex: 1000, background: 'var(--surface-elevated)', border: '1px solid var(--border)',
-          padding: '12px 16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.3)', width: '220px'
-        }}>
+        <div className="tracking-sandbox-panel">
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span><Microscope size={14} /></span> TELEMETRY SANDBOX
           </div>
@@ -176,8 +168,8 @@ export default function LiveTrackingPage() {
           {isSimulating ? (
             <button 
               onClick={stopLocalSimulation}
-              className="auth-button"
-              style={{ background: 'var(--danger)', color: 'white', padding: '8px 12px', fontSize: '11px', borderRadius: '6px', width: '100%' }}
+              className="btn-danger-outline"
+              style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                 Stop Sandbox <Square size={12} fill="currentColor" />
@@ -186,8 +178,8 @@ export default function LiveTrackingPage() {
           ) : (
             <button 
               onClick={startLocalSimulation}
-              className="auth-button"
-              style={{ padding: '8px 12px', fontSize: '11px', borderRadius: '6px', width: '100%' }}
+              className="btn-primary"
+              style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                 Simulate Live Drive <Rocket size={12} />

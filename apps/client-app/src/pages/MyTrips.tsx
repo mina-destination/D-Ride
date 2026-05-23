@@ -89,67 +89,34 @@ export default function MyTripsPage() {
 
   return (
     <>
-      {/* Dynamic Keyframes Injection */}
-      <style>{`
-        @keyframes slide-down {
-          0% { transform: translate(-50%, -100px); opacity: 0; }
-          100% { transform: translate(-50%, 0); opacity: 1; }
-        }
-      `}</style>
+
 
       {/* ── WhatsApp Push Notification Simulation Toast ────── */}
       {showWhatsAppToast && recentBooking && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 9999,
-          background: '#075E54', // Official WhatsApp green
-          color: 'white',
-          padding: '16px 20px',
-          borderRadius: '16px',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          maxWidth: '440px',
-          width: '90%',
-          animation: 'slide-down 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-          border: '1px solid var(--border)'
-        }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '50%',
-            background: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
-          }}>
+        <div className="whatsapp-toast">
+          <div className="whatsapp-toast-avatar">
             <MessageCircle size={24} color="#075E54" />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.7px', color: '#f5b731' }}>
+          <div className="whatsapp-toast-content">
+            <div className="whatsapp-toast-header">
+              <span className="whatsapp-toast-title">
                 WhatsApp Dispatch • D-Ride Hub
               </span>
               <button 
                 onClick={() => setShowWhatsAppToast(false)}
-                style={{ background: 'transparent', border: 'none', color: '#ffffff', cursor: 'pointer', fontSize: '14px', opacity: 0.8 }}
+                className="whatsapp-toast-close"
               >
                 ✕
               </button>
             </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', lineHeight: '1.4', color: '#eef2f3' }}>
+            <p className="whatsapp-toast-body">
               Hi <strong>{user?.name || 'Rider'}</strong>! Your ticket is confirmed. Assigned <strong>Seat #{recentBooking.seatNumbers?.join(', ') || recentBooking.seatNumber || 1}</strong> on route <strong>{recentBooking.tripId?.routeId?.name}</strong>. Pickup from <strong>{recentBooking.pickupCheckpoint?.name || 'Route Start'}</strong>.
             </p>
-            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+            <div className="whatsapp-toast-actions">
               <Link 
                 to={`/track?vehicleId=${recentBooking.tripId?.vehicleId || 'mock-vehicle-123'}`}
                 onClick={() => setShowWhatsAppToast(false)}
-                style={{ fontSize: '12px', fontWeight: 'bold', color: '#f5b731', textDecoration: 'none' }}
+                className="whatsapp-toast-link"
               >
                 Track Live Ride <MapPin size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
               </Link>
@@ -201,7 +168,7 @@ export default function MyTripsPage() {
                           </span>
                           <span style={{ 
                             fontSize: '0.8rem', 
-                            color: booking.status === 'CANCELLED' ? '#ff6b6b' : 'var(--success)', 
+                            color: booking.status === 'CANCELLED' ? 'var(--danger)' : 'var(--success)', 
                             fontWeight: 'bold',
                             background: 'var(--surface-hover)',
                             padding: '3px 8px',
@@ -258,30 +225,7 @@ export default function MyTripsPage() {
                         
                         <button 
                           onClick={() => toggleFlip(booking._id)}
-                          style={{
-                            background: 'transparent',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text-secondary)',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            transition: 'all 0.2s ease',
-                            width: '100%',
-                            justifyContent: 'center'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--primary)';
-                            e.currentTarget.style.color = 'var(--primary)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
-                          }}
+                          className="btn-ghost"
                         >
                           <RefreshCw size={12} /> {t('optionsBtn')}
                         </button>
@@ -351,20 +295,7 @@ export default function MyTripsPage() {
                               </Link>
                               <button 
                                 onClick={() => handleCancel(booking._id)}
-                                style={{ 
-                                  background: 'transparent', 
-                                  border: '1px solid rgba(255,100,100,0.3)', 
-                                  color: '#ff6b6b',
-                                  padding: '0.45rem 0.8rem',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.8rem',
-                                  width: '100%',
-                                  fontWeight: '600',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,107,107,0.1)'}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                className="btn-danger-outline"
                               >
                                 {t('cancelSeat')}
                               </button>
@@ -429,95 +360,37 @@ export default function MyTripsPage() {
 
       {/* ── QR CODE BOARDING PASS MODAL ────── */}
       {showQrModal && qrValue && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}
-        onClick={() => setShowQrModal(false)}
-        >
-          <div style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: '24px',
-            padding: '2.5rem 2rem 2rem 2rem',
-            maxWidth: '400px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-            position: 'relative',
-            animation: 'slide-down 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-          }}
-          onClick={e => e.stopPropagation()}
-          >
+        <div className="qr-modal-overlay" onClick={() => setShowQrModal(false)}>
+          <div className="qr-modal-content" onClick={e => e.stopPropagation()}>
             <button 
               onClick={() => setShowQrModal(false)}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'var(--surface-hover)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold'
-              }}
+              className="qr-modal-close-btn"
             >
               ✕
             </button>
 
-            <h3 style={{ color: 'var(--text-primary)', fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+            <h3 className="qr-modal-title">
               Boarding Pass QR 🎫
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.4' }}>
+            <p className="qr-modal-subtitle">
               Present this QR code to the D-Ride driver upon boarding the minibus.
             </p>
 
             {/* QR Code Container */}
-            <div style={{
-              background: 'white',
-              padding: '16px',
-              borderRadius: '20px',
-              display: 'inline-block',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-              marginBottom: '1.5rem'
-            }}>
-              <img src={qrValue} alt="Ticket QR Code" style={{ width: '200px', height: '200px', display: 'block' }} />
+            <div className="qr-modal-qr-container">
+              <img src={qrValue} alt="Ticket QR Code" />
             </div>
 
-            <div style={{
-              background: 'var(--surface-hover)',
-              border: '1px solid var(--border)',
-              borderRadius: '14px',
-              padding: '14px',
-              textAlign: 'left',
-              fontSize: '0.85rem',
-              color: 'var(--text-secondary)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <div className="qr-modal-info-panel">
+              <div className="qr-modal-info-row">
                 <span>Ticket ID:</span>
-                <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                <strong className="qr-modal-info-value monospace">
                   #{activeBookingId?.toUpperCase()}
                 </strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div className="qr-modal-info-row">
                 <span>Verification Status:</span>
-                <strong style={{ 
+                <strong className="qr-modal-info-value" style={{ 
                   color: bookings.find(b => b._id === activeBookingId)?.status === 'BOARDED' 
                     ? 'var(--success)' 
                     : 'var(--primary)' 

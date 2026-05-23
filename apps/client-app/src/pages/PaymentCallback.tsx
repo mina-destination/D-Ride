@@ -53,7 +53,7 @@ export default function PaymentCallbackPage() {
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
               We could not process your payment. Please try again.
             </p>
-            <button onClick={() => navigate('/')} className="auth-button" style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
+            <button onClick={() => navigate('/')} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
               Return to Home
             </button>
           </>

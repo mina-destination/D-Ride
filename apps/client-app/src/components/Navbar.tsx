@@ -35,6 +35,16 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  // Helper to check if a hash-link is active (for anchor sections on home page)
+  const isHashActive = (hash: string) => {
+    return location.pathname === '/' && location.hash === hash;
+  };
+
+  // Helper to check if a route-link is active
+  const isRouteActive = (path: string) => {
+    return location.pathname === path;
+  };
+
   return (
     <nav className="nav">
       <Link to="/" style={{ display: 'flex', alignItems: 'center' }} onClick={() => setIsOpen(false)}>
@@ -45,30 +55,55 @@ export default function Navbar() {
         className="mobile-menu-toggle" 
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Toggle Menu"
-        style={{
-          display: 'none',
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-          padding: '4px',
-          borderRadius: '4px',
-        }}
+        aria-expanded={isOpen}
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
       <ul className={`nav-links ${isOpen ? 'mobile-open' : ''}`}>
-        <li><a href="/#how-it-works" onClick={() => setIsOpen(false)}>{t('howItWorks')}</a></li>
-        <li><a href="/#features" onClick={() => setIsOpen(false)}>{t('features')}</a></li>
-        <li><a href="/#routes" onClick={() => setIsOpen(false)}>{t('routes')}</a></li>
-        <li><Link to="/contact" onClick={() => setIsOpen(false)}>{t('contactUs')}</Link></li>
+        <li>
+          <a 
+            href="/#how-it-works" 
+            onClick={() => setIsOpen(false)}
+            className={isHashActive('#how-it-works') ? 'nav-link-active' : ''}
+          >
+            {t('howItWorks')}
+          </a>
+        </li>
+        <li>
+          <a 
+            href="/#features" 
+            onClick={() => setIsOpen(false)}
+            className={isHashActive('#features') ? 'nav-link-active' : ''}
+          >
+            {t('features')}
+          </a>
+        </li>
+        <li>
+          <a 
+            href="/#routes" 
+            onClick={() => setIsOpen(false)}
+            className={isHashActive('#routes') ? 'nav-link-active' : ''}
+          >
+            {t('routes')}
+          </a>
+        </li>
+        <li>
+          <Link 
+            to="/contact" 
+            onClick={() => setIsOpen(false)}
+            className={isRouteActive('/contact') ? 'nav-link-active' : ''}
+          >
+            {t('contactUs')}
+          </Link>
+        </li>
         {isAuthenticated ? (
           <li className="profile-dropdown-container" ref={dropdownRef}>
             <button 
               className="profile-avatar-btn" 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               aria-label="User profile"
+              aria-expanded={isDropdownOpen}
             >
               {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
             </button>
@@ -114,7 +149,7 @@ export default function Navbar() {
           </li>
         ) : (
           <>
-            <li><Link to="/login" onClick={() => setIsOpen(false)}>{t('signIn')}</Link></li>
+            <li><Link to="/login" className="nav-secondary" onClick={() => setIsOpen(false)}>{t('signIn')}</Link></li>
             <li><Link to="/register" className="nav-cta" onClick={() => setIsOpen(false)}>{t('getStarted')}</Link></li>
           </>
         )}
@@ -123,29 +158,15 @@ export default function Navbar() {
             className="theme-toggle-btn"
             onClick={toggleTheme} 
             title="Toggle Theme"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </li>
         <li>
           <button 
-            className="theme-toggle-btn"
+            className="lang-toggle-btn"
             onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} 
             title="Switch Language / تغيير اللغة"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '11px',
-              border: '1px solid var(--border)',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              height: '38px',
-              color: 'var(--text-primary)',
-              gap: '4px'
-            }}
           >
             <Globe size={14} />
             <span>{language === 'en' ? 'العربية' : 'EN'}</span>

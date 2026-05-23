@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ============================================================
    D-Ride Client App — Futuristic Neon Design System
@@ -58,8 +58,13 @@
   --glow-blue: rgba(59, 130, 246, 0.2);
   --glow-purple: rgba(168, 85, 247, 0.15);
 
+  /* Focus & Transitions */
+  --focus-ring: 0 0 0 3px rgba(245, 183, 49, 0.35);
+  --transition-base: all 0.2s ease-in-out;
+  --transition-spring: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+
   /* Font */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Inter', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 [data-theme="dark"] {
@@ -83,6 +88,14 @@
   --glow-blue: rgba(59, 130, 246, 0.12);
   --glow-purple: rgba(168, 85, 247, 0.1);
   --primary-color: var(--primary);
+
+  /* Dark mode semantic overrides */
+  --success: #34D399;
+  --danger: #F87171;
+  --warning: #FBBF24;
+  --info: #60A5FA;
+
+  --focus-ring: 0 0 0 3px rgba(245, 183, 49, 0.25);
 }
 
 /* ── Reset & Base ──────────────────────────────────────────── */
@@ -114,8 +127,8 @@ body {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(245, 183, 49, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 183, 49, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(245, 183, 49, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 183, 49, 0.015) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none;
   z-index: 0;
@@ -131,6 +144,23 @@ a {
 
 a:hover {
   color: var(--primary-hover);
+}
+
+/* ── Global Focus Visible ─────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 /* ── Keyframe Animations ───────────────────────────────────── */
@@ -220,29 +250,24 @@ a:hover {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Subtle animated grid background for dark mode */
-[data-theme="dark"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(245, 183, 49, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 183, 49, 0.015) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
-  mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-@keyframes borderGlow {
-  0%, 100% { border-color: rgba(245, 183, 49, 0.1); }
-  50% { border-color: rgba(245, 183, 49, 0.3); }
+@keyframes slide-down {
+  0% { transform: translate(-50%, -100px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
 }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 /* ── Utility Classes ───────────────────────────────────────── */
@@ -278,12 +303,36 @@ a:hover {
   animation: slideInRight 0.6s ease-out forwards;
 }
 
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Staggered delay utilities */
 .delay-1 { animation-delay: 0.1s; opacity: 0; }
 .delay-2 { animation-delay: 0.2s; opacity: 0; }
 .delay-3 { animation-delay: 0.3s; opacity: 0; }
 .delay-4 { animation-delay: 0.4s; opacity: 0; }
 .delay-5 { animation-delay: 0.5s; opacity: 0; }
+
+/* Loading spinner inline utility */
+.btn-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Skeleton loading placeholder */
+.loading-skeleton {
+  background: linear-gradient(90deg, var(--surface-hover) 25%, var(--surface-elevated) 50%, var(--surface-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
 
@@ -366,7 +415,7 @@ a:hover {
   margin-bottom: 1rem;
   border-radius: var(--radius-xl);
   box-shadow: 0 0 30px var(--glow-amber);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+  transition: var(--transition-spring);
 }
 
 .auth-logo:hover {
@@ -388,7 +437,7 @@ a:hover {
 
 .auth-error {
   background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
+  color: var(--danger);
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
   font-size: 0.85rem;
@@ -417,7 +466,9 @@ a:hover {
   letter-spacing: 0.08em;
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field textarea,
+.auth-field select {
   padding: 0.8rem 1rem;
   background: var(--surface-elevated);
   border: 1px solid var(--border);
@@ -426,17 +477,34 @@ a:hover {
   font-size: 0.9rem;
   color: var(--text-primary);
   outline: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: var(--transition-spring);
+  min-height: 44px;
 }
 
-.auth-field input:focus {
+.auth-field input:focus,
+.auth-field textarea:focus,
+.auth-field select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(245, 183, 49, 0.1), 0 0 20px rgba(245, 183, 49, 0.05);
   transform: translateY(-1px);
 }
 
-.auth-field input::placeholder {
+.auth-field input:disabled,
+.auth-field textarea:disabled,
+.auth-field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-hover);
+}
+
+.auth-field input::placeholder,
+.auth-field textarea::placeholder {
   color: var(--text-muted);
+}
+
+.auth-field textarea {
+  resize: vertical;
+  min-height: 120px;
 }
 
 .auth-btn {
@@ -480,6 +548,30 @@ a:hover {
   font-weight: 600;
 }
 
+/* ── Select Input (Custom) ────────────────────────────────── */
+
+.select-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0.5rem;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-height: 44px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.select-input option {
+  color: var(--text-primary);
+  background: var(--surface);
+  padding: 0.5rem;
+}
+
 /* ── Mobile Layout Responsiveness Overrides ── */
 @media (max-width: 480px) {
   .auth-page {
@@ -512,13 +604,14 @@ a:hover {
   font-size: 0.95rem;
   border: none;
   cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: var(--transition-spring);
   text-decoration: none;
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 15px rgba(245, 183, 49, 0.25);
   width: 100%;
   outline: none;
+  min-height: 44px;
 }
 
 .auth-button::after {
@@ -543,10 +636,18 @@ a:hover {
   left: 100%;
 }
 
+.auth-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 10px rgba(245, 183, 49, 0.2);
+}
+
+.auth-button:focus-visible {
+  box-shadow: var(--focus-ring), 0 4px 15px rgba(245, 183, 49, 0.25);
+}
+
 .auth-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
-

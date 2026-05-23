@@ -8,12 +8,23 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker } from '
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix default marker icon in Vite react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+// Define custom markers to bypass broken Leaflet default icon issues in bundler/test runtimes
+const blueIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const goldIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
 });
 
 export default function CheckoutPage() {
@@ -300,14 +311,7 @@ export default function CheckoutPage() {
                           eventHandlers={{
                             click: () => setSelectedCheckpoint(cp)
                           }}
-                          icon={isSelected ? new L.Icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
-                          }) : undefined}
+                          icon={isSelected ? goldIcon : blueIcon}
                         >
                           <Popup>
                             <strong>{cp.name}</strong>
@@ -360,7 +364,7 @@ export default function CheckoutPage() {
                   <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                      <User size={16} />
                   </div>
-                  <div className="cabin-aisle" style={{ width: '38px' }} />
+                  <div className="cabin-aisle" style={{ width: '44px' }} />
                   {renderSeat(1)}
                 </div>
 
@@ -375,7 +379,7 @@ export default function CheckoutPage() {
                 <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   {renderSeat(2)}
                   {renderSeat(3)}
-                  <div className="cabin-aisle" style={{ width: '38px' }} />
+                  <div className="cabin-aisle" style={{ width: '44px' }} />
                   {renderSeat(4)}
                 </div>
 
@@ -383,7 +387,7 @@ export default function CheckoutPage() {
                 <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   {renderSeat(5)}
                   {renderSeat(6)}
-                  <div className="cabin-aisle" style={{ width: '38px' }} />
+                  <div className="cabin-aisle" style={{ width: '44px' }} />
                   {renderSeat(7)}
                 </div>
 
@@ -391,7 +395,7 @@ export default function CheckoutPage() {
                 <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   {renderSeat(8)}
                   {renderSeat(9)}
-                  <div className="cabin-aisle" style={{ width: '38px' }} />
+                  <div className="cabin-aisle" style={{ width: '44px' }} />
                   {renderSeat(10)}
                 </div>
 
@@ -426,28 +430,21 @@ export default function CheckoutPage() {
 
               {/* High-Fidelity Reactive Seat Characteristic Cards */}
               {selectedSeats.length > 0 && (
-                <div style={{
-                  marginTop: '1.5rem',
-                  background: 'rgba(245, 183, 49, 0.08)',
-                  border: '1px solid rgba(245, 183, 49, 0.25)',
-                  borderRadius: '12px',
-                  padding: '14px 16px',
-                  animation: 'slide-down 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <div className="seat-characteristic-card">
+                  <div className="seat-characteristic-card-header">
                     <span style={{ display: 'flex', alignItems: 'center' }}><Ticket size={24} color="var(--primary)" /></span>
-                    <strong style={{ color: 'var(--primary)', fontSize: '13px' }}>
+                    <strong className="seat-characteristic-card-title">
                       Selected Slots ({selectedSeats.length} {selectedSeats.length === 1 ? 'Seat' : 'Seats'})
                     </strong>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                  <div className="seat-characteristic-card-slots">
                     {selectedSeats.map(num => (
-                      <span key={num} style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>
+                      <span key={num} className="seat-characteristic-card-slot">
                         Seat #{num}
                       </span>
                     ))}
                   </div>
-                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
+                  <p className="seat-characteristic-card-desc">
                     {selectedSeats.length === 1 
                       ? getSeatLabel(selectedSeats[0]).desc
                       : "Booking multiple spaces in a single transaction. All boarding passes will be dispatched simultaneously!"
@@ -474,54 +471,21 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CARD')}
-                  style={{
-                    padding: '12px 8px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: paymentMethod === 'CARD' ? 'var(--primary)' : 'var(--border)',
-                    background: paymentMethod === 'CARD' ? 'rgba(245,183,49,0.08)' : 'transparent',
-                    color: paymentMethod === 'CARD' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: paymentMethod === 'CARD' ? 'bold' : 'normal',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`payment-method-btn ${paymentMethod === 'CARD' ? 'active' : ''}`}
                 >
                   💳 Card
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('WALLET')}
-                  style={{
-                    padding: '12px 8px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: paymentMethod === 'WALLET' ? 'var(--primary)' : 'var(--border)',
-                    background: paymentMethod === 'WALLET' ? 'rgba(245,183,49,0.08)' : 'transparent',
-                    color: paymentMethod === 'WALLET' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: paymentMethod === 'WALLET' ? 'bold' : 'normal',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`payment-method-btn ${paymentMethod === 'WALLET' ? 'active' : ''}`}
                 >
                   📱 Wallet
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CASH')}
-                  style={{
-                    padding: '12px 8px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: paymentMethod === 'CASH' ? 'var(--primary)' : 'var(--border)',
-                    background: paymentMethod === 'CASH' ? 'rgba(245,183,49,0.08)' : 'transparent',
-                    color: paymentMethod === 'CASH' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: paymentMethod === 'CASH' ? 'bold' : 'normal',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
                 >
                   💵 Cash
                 </button>
@@ -587,7 +551,7 @@ export default function CheckoutPage() {
               onClick={handleCheckout} 
               className="auth-button" 
               disabled={processing || selectedSeats.length === 0}
-              style={{ marginTop: '2rem', opacity: (processing || selectedSeats.length === 0) ? 0.6 : 1 }}
+              style={{ marginTop: '2rem' }}
             >
               {processing 
                 ? 'Processing Securely...' 

@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import Navbar from './components/Navbar';
 import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
@@ -16,17 +18,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: 'var(--background)',
-        color: 'var(--primary)',
-        fontSize: '1.2rem',
-        fontWeight: 600,
-      }}>
-        ⏳ Loading...
+      <div className="app-loading">
+        <div className="app-loading-spinner" />
+        <span className="app-loading-text">Loading...</span>
       </div>
     );
   }
@@ -37,7 +31,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-import Navbar from './components/Navbar';
 
 function AppRoutes() {
   return (
@@ -93,8 +86,6 @@ function AppRoutes() {
     </>
   );
 }
-
-import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
   return (

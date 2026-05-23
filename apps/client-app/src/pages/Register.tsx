@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/d-ride-logo.jpeg';
+import { UserPlus, RefreshCw } from 'lucide-react';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -84,8 +85,18 @@ export default function RegisterPage() {
               minLength={6}
             />
           </div>
-          <button type="submit" className="btn-primary auth-btn" disabled={loading}>
-            {loading ? '⏳ Creating account...' : '🚌 Get Started'}
+          <button type="submit" className="btn-primary auth-btn" disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            {loading ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              <>
+                <UserPlus size={18} />
+                Get Started
+              </>
+            )}
           </button>
         </form>
 
