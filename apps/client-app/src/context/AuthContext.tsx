@@ -30,7 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('dride_user');
     if (storedUser && token) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];
+        if (adminRoles.includes(parsedUser?.role?.toUpperCase())) {
+          localStorage.removeItem('dride_user');
+          localStorage.removeItem('dride_token');
+          setUser(null);
+        } else {
+          setUser(parsedUser);
+        }
       } catch {
         localStorage.removeItem('dride_user');
         localStorage.removeItem('dride_token');
@@ -42,6 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const result: any = await authAPI.login(email, password);
     const { user: userData, accessToken } = result;
+    
+    const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];
+    if (adminRoles.includes(userData?.role?.toUpperCase())) {
+      throw new Error('Access denied. Administrators cannot sign in to the client application.');
+    }
+
     setUser(userData);
     setToken(accessToken);
     localStorage.setItem('dride_token', accessToken);

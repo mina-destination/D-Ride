@@ -1,36 +1,23 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:7.0
-    container_name: dride_mongodb
+  postgres:
+    image: postgres:16-alpine
+    container_name: dride_postgres
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongodb_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=secret
-      - MONGO_INITDB_DATABASE=dride
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=dride
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "pg_isready -U root -d dride"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-
-  redis:
-    image: redis:7-alpine
-    container_name: dride_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      start_period: 10s
 
   api:
     build:
@@ -42,12 +29,9 @@ services:
     env_file:
       - .env
     environment:
-      - MONGODB_URI=mongodb://root:secret@mongodb:27017/dride?authSource=admin
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://root:secret@postgres:5432/dride?schema=public
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
+      postgres:
         condition: service_healthy
     volumes:
       - ./apps/api/src:/app/apps/api/src
@@ -88,5 +72,5 @@ services:
 
 
 volumes:
-  mongodb_data:
-  redis_data:
+  postgres_data:
+

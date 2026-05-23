@@ -1,23 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
 import { RoutesService } from './routes.service';
-import { Route } from '../schemas/route.schema';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('RoutesService', () => {
   let service: RoutesService;
-  let mockRouteModel: any;
+  let mockPrismaService: any;
 
   beforeEach(async () => {
-    mockRouteModel = {
-      findById: jest.fn(),
+    mockPrismaService = {
+      route: {
+        findUnique: jest.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoutesService,
         {
-          provide: getModelToken(Route.name),
-          useValue: mockRouteModel,
+          provide: PrismaService,
+          useValue: mockPrismaService,
         },
       ],
     }).compile();
@@ -32,7 +33,7 @@ describe('RoutesService', () => {
   describe('findNearestCheckpoint', () => {
     it('should return the closest checkpoint by distance', async () => {
       const mockRoute = {
-        _id: 'route-1',
+        id: 'route-1',
         checkpoints: [
           {
             name: 'Far Point',
@@ -53,9 +54,7 @@ describe('RoutesService', () => {
         ],
       };
 
-      mockRouteModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockRoute),
-      });
+      mockPrismaService.route.findUnique.mockResolvedValue(mockRoute);
 
       // User location close to "Close Point" (31.23, 30.04)
       const result = await service.findNearestCheckpoint(
@@ -70,13 +69,11 @@ describe('RoutesService', () => {
 
     it('should return null if route has no checkpoints', async () => {
       const mockRoute = {
-        _id: 'route-2',
+        id: 'route-2',
         checkpoints: [],
       };
 
-      mockRouteModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockRoute),
-      });
+      mockPrismaService.route.findUnique.mockResolvedValue(mockRoute);
 
       const result = await service.findNearestCheckpoint(
         'route-2',

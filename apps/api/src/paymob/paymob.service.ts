@@ -6,15 +6,11 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import * as crypto from 'crypto';
-import {
-  Transaction,
-  TransactionDocument,
-} from '../schemas/transaction.schema';
+import { PrismaService } from '../prisma/prisma.service';
 import { PaymobWebhookPayload } from '@transport/shared-types';
 import { BookingsService } from '../bookings/bookings.service';
+import { PaymentStatus } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
@@ -28,8 +24,7 @@ export class PaymobService {
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectModel(Transaction.name)
-    private transactionModel: Model<TransactionDocument>,
+    private prisma: PrismaService,
     @Inject(forwardRef(() => BookingsService))
     private readonly bookingsService: BookingsService,
   ) {
@@ -82,8 +77,8 @@ export class PaymobService {
     const bookingId = (payload.obj.order as any).merchant_order_id; // we passed bookingId here
 
     // Step 2: Idempotency lock — prevent race conditions and double-charging
-    const existingTx = await this.transactionModel.findOne({
-      paymobOrderId: orderId,
+    const existingTx = await this.prisma.transaction.findFirst({
+      where: { paymobOrderId: orderId },
     });
     if (existingTx) {
       this.logger.warn(
@@ -92,11 +87,29 @@ export class PaymobService {
       return;
     }
 
+    // Retrieve userId from booking if available
+    let userId = '';
+    if (bookingId) {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+      if (booking) {
+        userId = booking.userId;
+      }
+    }
+
     // Step 3: Record the transaction
-    await this.transactionModel.create({
-      paymobOrderId: orderId,
-      amountCents,
-      status: success ? 'SUCCESS' : 'FAILED',
+    await this.prisma.transaction.create({
+      data: {
+        paymobOrderId: orderId,
+        amountEGP: amountCents / 100,
+        status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
+        paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+        paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
+        userId: userId,
+        bookingId: bookingId || null,
+        rawResponse: payload as any,
+      },
     });
 
     this.logger.log(
@@ -126,16 +139,27 @@ export class PaymobService {
       `Initializing checkout for booking: ${data.bookingId} using method: ${paymentMethod}`,
     );
 
+    // Get userId from booking
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: data.bookingId },
+    });
+    const userId = booking ? booking.userId : '';
+
     // Handle Cash on Board Directly
     if (paymentMethod === 'CASH') {
       this.logger.log(`Cash booking selected. Direct confirmation for booking ${data.bookingId}`);
       await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
       
       // Save direct mock success transaction
-      await this.transactionModel.create({
-        paymobOrderId: Math.floor(Math.random() * 1000000),
-        amountCents: data.amountCents,
-        status: 'SUCCESS',
+      await this.prisma.transaction.create({
+        data: {
+          paymobOrderId: Math.floor(Math.random() * 1000000),
+          amountEGP: data.amountCents / 100,
+          status: PaymentStatus.SUCCESS,
+          paymentMethod: 'CASH',
+          userId: userId,
+          bookingId: data.bookingId,
+        },
       });
 
       return {

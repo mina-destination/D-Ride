@@ -1,8 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Route, RouteDocument } from '../schemas/route.schema';
-import { StopEntity } from '../schemas/stop.schema';
+import { PrismaService } from '../prisma/prisma.service';
 
 function getDistance(
   lng1: number,
@@ -31,41 +28,62 @@ function getDistance(
 export class RoutesService {
   private readonly logger = new Logger(RoutesService.name);
 
-  constructor(
-    @InjectModel(Route.name) private routeModel: Model<RouteDocument>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<RouteDocument[]> {
+  async findAll(): Promise<any[]> {
     this.logger.log('Fetching all routes');
-    return this.routeModel.find().exec();
+    const routes = await this.prisma.route.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return routes.map((r) => ({ ...r, _id: r.id }));
   }
 
-  async findById(id: string): Promise<RouteDocument> {
-    const route = await this.routeModel.findById(id).exec();
+  async findById(id: string): Promise<any> {
+    const route = await this.prisma.route.findUnique({ where: { id } });
     if (!route) {
       throw new NotFoundException(`Route with ID ${id} not found`);
     }
-    return route;
+    return { ...route, _id: route.id };
   }
 
-  async create(data: Partial<Route>): Promise<RouteDocument> {
+  async create(data: any): Promise<any> {
     this.logger.log(`Creating route: ${data.name}`);
-    return this.routeModel.create(data);
+    const route = await this.prisma.route.create({
+      data: {
+        name: data.name,
+        path: data.path,
+        coverImage: data.coverImage,
+        checkpoints: data.checkpoints || [],
+        distanceKm: data.distanceKm || 0,
+        estimatedDurationMinutes: data.estimatedDurationMinutes || 0,
+      },
+    });
+    return { ...route, _id: route.id };
   }
 
-  async update(id: string, data: Partial<Route>): Promise<RouteDocument> {
-    const route = await this.routeModel
-      .findByIdAndUpdate(id, data, { new: true })
-      .exec();
-    if (!route) {
+  async update(id: string, data: any): Promise<any> {
+    try {
+      const route = await this.prisma.route.update({
+        where: { id },
+        data: {
+          name: data.name,
+          path: data.path,
+          coverImage: data.coverImage,
+          checkpoints: data.checkpoints,
+          distanceKm: data.distanceKm,
+          estimatedDurationMinutes: data.estimatedDurationMinutes,
+        },
+      });
+      return { ...route, _id: route.id };
+    } catch (err) {
       throw new NotFoundException(`Route with ID ${id} not found`);
     }
-    return route;
   }
 
   async delete(id: string): Promise<void> {
-    const result = await this.routeModel.findByIdAndDelete(id).exec();
-    if (!result) {
+    try {
+      await this.prisma.route.delete({ where: { id } });
+    } catch (err) {
       throw new NotFoundException(`Route with ID ${id} not found`);
     }
   }
@@ -74,39 +92,35 @@ export class RoutesService {
     lng: number,
     lat: number,
     radiusMeters: number = 5000,
-  ): Promise<RouteDocument[]> {
+  ): Promise<any[]> {
     this.logger.log(
       `Finding routes near [${lng}, ${lat}] within ${radiusMeters}m`,
     );
-    return this.routeModel
-      .find({
-        path: {
-          $nearSphere: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [lng, lat],
-            },
-            $maxDistance: radiusMeters,
-          },
-        },
+    const routes = await this.prisma.route.findMany();
+    return routes
+      .filter((route: any) => {
+        if (!route.path || !route.path.coordinates) return false;
+        return route.path.coordinates.some(([rLng, rLat]: [number, number]) => {
+          return getDistance(lng, lat, rLng, rLat) <= radiusMeters;
+        });
       })
-      .exec();
+      .map((r) => ({ ...r, _id: r.id }));
   }
 
   async findNearestCheckpoint(
     id: string,
     lng: number,
     lat: number,
-  ): Promise<StopEntity | null> {
+  ): Promise<any | null> {
     const route = await this.findById(id);
-    if (!route || !route.checkpoints || route.checkpoints.length === 0) {
+    if (!route || !route.checkpoints || (route.checkpoints as any[]).length === 0) {
       return null;
     }
 
-    let closest: StopEntity | null = null;
+    let closest: any | null = null;
     let minDistance = Infinity;
 
-    for (const checkpoint of route.checkpoints) {
+    for (const checkpoint of route.checkpoints as any[]) {
       if (!checkpoint.location || !checkpoint.location.coordinates) continue;
       const [cpLng, cpLat] = checkpoint.location.coordinates;
       const distance = getDistance(lng, lat, cpLng, cpLat);

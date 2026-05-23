@@ -5,28 +5,22 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
-import { UserEntity, UserDocument } from '../schemas/user.schema';
-import {
-  RolePermission,
-  RolePermissionDocument,
-} from '../schemas/role-permission.schema';
+import { PrismaService } from '../prisma/prisma.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectModel(UserEntity.name) private userModel: Model<UserDocument>,
-    @InjectModel(RolePermission.name)
-    private rolePermissionModel: Model<RolePermissionDocument>,
+    private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
 
   async getPermissionsForRole(role: string): Promise<string[]> {
-    if (role === 'OWNER') {
+    const roleEnum = role.toUpperCase() as Role;
+    if (roleEnum === Role.OWNER) {
       return [
         'dashboard',
         'routes',
@@ -40,10 +34,10 @@ export class AuthService {
         'settings',
       ];
     }
-    const rolePerm = await this.rolePermissionModel
-      .findOne({ role: role.toUpperCase() })
-      .exec();
-    return rolePerm ? rolePerm.permissions : [];
+    const rolePerm = await this.prisma.rolePermission.findUnique({
+      where: { role: roleEnum },
+    });
+    return rolePerm ? (rolePerm.permissions as string[]) : [];
   }
 
   async register(data: {
@@ -53,25 +47,32 @@ export class AuthService {
     password: string;
     role?: string;
   }) {
-    const existing = await this.userModel.findOne({ email: data.email });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
     if (existing) {
       throw new ConflictException('Email already registered');
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
-    const user = await this.userModel.create({
-      ...data,
-      password: hashedPassword,
-      role: data.role || 'PASSENGER',
+    const user = await this.prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        password: hashedPassword,
+        role: (data.role || 'PASSENGER').toUpperCase() as Role,
+      },
     });
 
     this.logger.log(`User registered: ${user.email} (${user.role})`);
 
-    const payload = { sub: user._id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const permissions = await this.getPermissionsForRole(user.role);
     return {
       user: {
-        _id: user._id,
+        _id: user.id,
+        id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -83,7 +84,7 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.userModel.findOne({ email });
+    const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -94,7 +95,8 @@ export class AuthService {
     }
 
     return {
-      _id: user._id,
+      _id: user.id,
+      id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone,
@@ -103,7 +105,7 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { sub: user._id, email: user.email, role: user.role };
+    const payload = { sub: user.id || user._id, email: user.email, role: user.role };
     this.logger.log(`User logged in: ${user.email}`);
     const permissions = await this.getPermissionsForRole(user.role);
     return {
@@ -116,13 +118,15 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
-    const user = await this.userModel.findById(userId).select('-password');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
     const permissions = await this.getPermissionsForRole(user.role);
+    const result = { ...user, _id: user.id };
+    delete (result as any).password;
     return {
-      ...user.toObject(),
+      ...result,
       permissions,
     };
   }

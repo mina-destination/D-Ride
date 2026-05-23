@@ -1,103 +1,171 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { TripEntity, TripDocument } from '../schemas/trip.schema';
+import { PrismaService } from '../prisma/prisma.service';
+import { TripStatus } from '@prisma/client';
 
 @Injectable()
 export class TripsService {
-  constructor(
-    @InjectModel(TripEntity.name) private tripModel: Model<TripDocument>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<TripEntity[]> {
-    return this.tripModel
-      .find()
-      .populate('routeId')
-      .populate('vehicleId')
-      .populate('driverId')
-      .exec();
+  private mapTrip(trip: any) {
+    if (!trip) return null;
+    const t = { ...trip, _id: trip.id };
+    if (trip.route) {
+      t.routeId = { ...trip.route, _id: trip.route.id };
+      delete t.route;
+    }
+    if (trip.vehicle) {
+      t.vehicleId = { ...trip.vehicle, _id: trip.vehicle.id };
+      delete t.vehicle;
+    }
+    if (trip.driver) {
+      t.driverId = { ...trip.driver, _id: trip.driver.id };
+      delete (t.driverId as any).password;
+      delete t.driver;
+    }
+    return t;
   }
 
-  async findById(id: string): Promise<TripEntity> {
-    const trip = await this.tripModel
-      .findById(id)
-      .populate('routeId')
-      .populate('vehicleId')
-      .populate('driverId')
-      .exec();
+  async findAll(): Promise<any[]> {
+    const trips = await this.prisma.trip.findMany({
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+      orderBy: { departureTime: 'asc' },
+    });
+    return trips.map((t) => this.mapTrip(t));
+  }
+
+  async findById(id: string): Promise<any> {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id },
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+    });
     if (!trip) throw new NotFoundException('Trip not found');
-    return trip;
+    return this.mapTrip(trip);
   }
 
-  async searchTrips(routeId?: string, date?: string): Promise<TripEntity[]> {
-    const query: any = { status: 'SCHEDULED' };
+  async searchTrips(routeId?: string, date?: string): Promise<any[]> {
+    const where: any = { status: TripStatus.SCHEDULED };
     if (routeId) {
-      try {
-        query.routeId = new Types.ObjectId(routeId);
-      } catch (e) {
-        query.routeId = routeId;
-      }
+      where.routeId = routeId;
     }
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(date);
       endDate.setHours(23, 59, 59, 999);
-      query.departureTime = { $gte: startDate, $lte: endDate };
+      where.departureTime = { gte: startDate, lte: endDate };
     }
-    return this.tripModel
-      .find(query)
-      .populate('routeId')
-      .sort({ departureTime: 1 })
-      .exec();
+    const trips = await this.prisma.trip.findMany({
+      where,
+      include: {
+        route: true,
+      },
+      orderBy: { departureTime: 'asc' },
+    });
+    return trips.map((t) => this.mapTrip(t));
   }
 
-  async create(data: Partial<TripEntity>): Promise<TripEntity> {
-    const newTrip = new this.tripModel(data);
-    return newTrip.save();
+  async create(data: any): Promise<any> {
+    const trip = await this.prisma.trip.create({
+      data: {
+        routeId: data.routeId,
+        vehicleId: data.vehicleId,
+        driverId: data.driverId,
+        departureTime: new Date(data.departureTime),
+        arrivalTime: data.arrivalTime ? new Date(data.arrivalTime) : null,
+        status: (data.status || 'SCHEDULED').toUpperCase() as TripStatus,
+        priceEGP: Number(data.priceEGP),
+        availableSeats: Number(data.availableSeats),
+        bookedSeats: Number(data.bookedSeats || 0),
+        lockedSeats: data.lockedSeats || [14],
+      },
+    });
+    return this.mapTrip(trip);
   }
 
-  async update(id: string, data: Partial<TripEntity>): Promise<TripEntity> {
-    const trip = await this.tripModel
-      .findByIdAndUpdate(id, data, { new: true })
-      .exec();
-    if (!trip) throw new NotFoundException('Trip not found');
-    return trip;
+  async update(id: string, data: any): Promise<any> {
+    const updateData = { ...data };
+    if (updateData.departureTime) {
+      updateData.departureTime = new Date(updateData.departureTime);
+    }
+    if (updateData.arrivalTime) {
+      updateData.arrivalTime = new Date(updateData.arrivalTime);
+    }
+    if (updateData.status) {
+      updateData.status = updateData.status.toUpperCase() as TripStatus;
+    }
+    try {
+      const trip = await this.prisma.trip.update({
+        where: { id },
+        data: updateData,
+        include: {
+          route: true,
+          vehicle: true,
+          driver: true,
+        },
+      });
+      return this.mapTrip(trip);
+    } catch (err) {
+      throw new NotFoundException('Trip not found');
+    }
   }
 
   async delete(id: string): Promise<void> {
-    const result = await this.tripModel.findByIdAndDelete(id).exec();
-    if (!result) throw new NotFoundException('Trip not found');
+    try {
+      await this.prisma.trip.delete({ where: { id } });
+    } catch (err) {
+      throw new NotFoundException('Trip not found');
+    }
   }
 
-  async incrementBookedSeats(id: string, count: number): Promise<TripEntity> {
-    const trip = await this.tripModel.findById(id).exec();
+  async incrementBookedSeats(id: string, count: number): Promise<any> {
+    const trip = await this.prisma.trip.findUnique({ where: { id } });
     if (!trip) throw new NotFoundException('Trip not found');
     if (trip.bookedSeats + count > trip.availableSeats) {
       throw new Error('Not enough available seats');
     }
-    trip.bookedSeats += count;
-    return trip.save();
+    const updated = await this.prisma.trip.update({
+      where: { id },
+      data: {
+        bookedSeats: { increment: count },
+      },
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+    });
+    return this.mapTrip(updated);
   }
 
-  async findByDriver(driverId: string): Promise<TripEntity[]> {
-    return this.tripModel
-      .find({ driverId })
-      .populate('routeId')
-      .populate('vehicleId')
-      .sort({ departureTime: 1 })
-      .exec();
+  async findByDriver(driverId: string): Promise<any[]> {
+    const trips = await this.prisma.trip.findMany({
+      where: { driverId },
+      include: {
+        route: true,
+        vehicle: true,
+      },
+      orderBy: { departureTime: 'asc' },
+    });
+    return trips.map((t) => this.mapTrip(t));
   }
 
   async updateTripStatus(
     tripId: string,
     driverId: string,
     status: string,
-  ): Promise<TripEntity> {
-    const trip = await this.tripModel.findById(tripId).exec();
+  ): Promise<any> {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
-    if (trip.driverId && trip.driverId.toString() !== driverId) {
+    if (trip.driverId && trip.driverId !== driverId) {
       throw new Error('You are not authorized to update this trip status');
     }
 
@@ -108,15 +176,24 @@ export class TripsService {
       'COMPLETED',
       'CANCELLED',
     ];
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(status.toUpperCase())) {
       throw new Error('Invalid trip status');
     }
 
-    trip.status = status;
-    if (status === 'COMPLETED') {
-      trip.arrivalTime = new Date();
+    const data: any = { status: status.toUpperCase() as TripStatus };
+    if (status.toUpperCase() === 'COMPLETED') {
+      data.arrivalTime = new Date();
     }
 
-    return trip.save();
+    const updated = await this.prisma.trip.update({
+      where: { id: tripId },
+      data,
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+    });
+    return this.mapTrip(updated);
   }
 }

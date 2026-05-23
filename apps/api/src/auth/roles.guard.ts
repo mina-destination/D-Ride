@@ -1,19 +1,14 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import { ROLES_KEY } from './roles.decorator';
-import {
-  RolePermission,
-  RolePermissionDocument,
-} from '../schemas/role-permission.schema';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    @InjectModel(RolePermission.name)
-    private rolePermissionModel: Model<RolePermissionDocument>,
+    private prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -83,15 +78,15 @@ export class RolesGuard implements CanActivate {
         return false;
       }
 
-      // Fetch permissions for the administrative role from MongoDB
-      const rolePerm = await this.rolePermissionModel
-        .findOne({ role: userRole })
-        .exec();
+      // Fetch permissions for the administrative role from PostgreSQL
+      const rolePerm = await this.prisma.rolePermission.findUnique({
+        where: { role: userRole as Role },
+      });
       if (!rolePerm) {
         return false;
       }
 
-      return rolePerm.permissions.includes(permissionRequired.toLowerCase());
+      return (rolePerm.permissions as string[]).includes(permissionRequired.toLowerCase());
     }
 
     // Otherwise, check if user's role matches one of the required roles

@@ -3,47 +3,79 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { BookingEntity, BookingDocument } from '../schemas/booking.schema';
+import { PrismaService } from '../prisma/prisma.service';
 import { TripsService } from '../trips/trips.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BookingStatus, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class BookingsService {
   constructor(
-    @InjectModel(BookingEntity.name)
-    private bookingModel: Model<BookingDocument>,
+    private prisma: PrismaService,
     private tripsService: TripsService,
     private configService: ConfigService,
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAll(): Promise<BookingEntity[]> {
-    return this.bookingModel
-      .find()
-      .populate({
-        path: 'tripId',
-        populate: { path: 'routeId' },
-      })
-      .populate('userId')
-      .exec();
+  private mapBooking(booking: any) {
+    if (!booking) return null;
+    const b = { ...booking, _id: booking.id };
+    if (booking.trip) {
+      const tripPopulated = {
+        ...booking.trip,
+        _id: booking.trip.id,
+      };
+      if (booking.trip.route) {
+        tripPopulated.routeId = {
+          ...booking.trip.route,
+          _id: booking.trip.route.id,
+        };
+        delete tripPopulated.route;
+      }
+      b.tripId = tripPopulated;
+      delete b.trip;
+    }
+    if (booking.user) {
+      b.userId = { ...booking.user, _id: booking.user.id };
+      delete (b.userId as any).password;
+      delete b.user;
+    }
+    return b;
   }
 
-  async findMyBookings(userId: string): Promise<BookingEntity[]> {
-    return this.bookingModel
-      .find({ userId })
-      .populate({
-        path: 'tripId',
-        populate: { path: 'routeId' },
-      })
-      .sort({ createdAt: -1 })
-      .exec();
+  async findAll(): Promise<any[]> {
+    const bookings = await this.prisma.booking.findMany({
+      include: {
+        trip: {
+          include: {
+            route: true,
+          },
+        },
+        user: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return bookings.map((b) => this.mapBooking(b));
   }
 
-  async create(data: Partial<BookingEntity>): Promise<BookingEntity> {
+  async findMyBookings(userId: string): Promise<any[]> {
+    const bookings = await this.prisma.booking.findMany({
+      where: { userId },
+      include: {
+        trip: {
+          include: {
+            route: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return bookings.map((b) => this.mapBooking(b));
+  }
+
+  async create(data: any): Promise<any> {
     // 1. Fetch trip to check seats
     const tripIdStr = data.tripId ? data.tripId.toString() : '';
     const trip = (await this.tripsService.findById(tripIdStr)) as any;
@@ -61,40 +93,62 @@ export class BookingsService {
     );
 
     // 3. Create booking as PENDING_PAYMENT
-    data.amountEGP = (trip.priceEGP || 0) * requestedSeats;
-    data.status = 'PENDING_PAYMENT';
-    data.qrVerificationToken = crypto.randomBytes(16).toString('hex');
+    const amountEGP = (trip.priceEGP || 0) * requestedSeats;
+    const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
-    const newBooking = new this.bookingModel(data);
-    return newBooking.save();
+    const booking = await this.prisma.booking.create({
+      data: {
+        userId: data.userId.toString(),
+        tripId: tripIdStr,
+        seatNumbers: data.seatNumbers || [1],
+        pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
+        dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
+        pickupCheckpoint: data.pickupCheckpoint || null,
+        status: BookingStatus.PENDING_PAYMENT,
+        paymentStatus: PaymentStatus.PENDING,
+        amountEGP,
+        qrVerificationToken,
+      },
+    });
+
+    return this.mapBooking(booking);
   }
 
-  async updateStatus(id: string, status: string): Promise<BookingEntity> {
-    const booking = await this.bookingModel.findById(id);
+  async updateStatus(id: string, status: string): Promise<any> {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    booking.status = status;
-    const saved = await booking.save();
+    const saved = await this.prisma.booking.update({
+      where: { id },
+      data: { status: status.toUpperCase() as BookingStatus },
+    });
 
-    if (status === 'CONFIRMED') {
+    if (status.toUpperCase() === 'CONFIRMED') {
       try {
-        const populated = await this.bookingModel
-          .findById(id)
-          .populate({ path: 'tripId', populate: { path: 'routeId' } })
-          .populate('userId');
+        const populated = await this.prisma.booking.findUnique({
+          where: { id },
+          include: {
+            trip: {
+              include: {
+                route: true,
+              },
+            },
+            user: true,
+          },
+        });
 
         if (populated) {
-          const u = populated.userId as any;
-          const t = populated.tripId as any;
-          const r = t?.routeId;
-          const seatsStr = populated.seatNumbers?.join(', ') || 'N/A';
+          const u = populated.user;
+          const t = populated.trip;
+          const r = t?.route;
+          const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
 
           await this.notificationsService.sendBookingConfirmation(
             u?.phone || '',
             u?.name || 'Valued Passenger',
             {
               routeName: r?.name || 'D-Ride Minibus Trip',
-              departureTime: t?.departureTime || new Date().toISOString(),
+              departureTime: t?.departureTime ? t.departureTime.toISOString() : new Date().toISOString(),
               seatNumber: seatsStr,
               price: populated.amountEGP || 0,
             },
@@ -105,93 +159,108 @@ export class BookingsService {
       }
     }
 
-    return saved;
+    return this.mapBooking(saved);
   }
 
-  async cancel(id: string, userId: string): Promise<BookingEntity> {
-    const booking = await this.bookingModel.findOne({ _id: id, userId }).exec();
+  async cancel(id: string, userId: string): Promise<any> {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id, userId },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status === 'CANCELLED')
+    if (booking.status === BookingStatus.CANCELLED)
       throw new BadRequestException('Booking already cancelled');
 
-    booking.status = 'CANCELLED';
-    await booking.save();
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: { status: BookingStatus.CANCELLED },
+    });
 
     // Decrement seats (we pass negative count)
-    const seatsCount = booking.seatNumbers?.length || 1;
+    const seatsCount = (booking.seatNumbers as any[])?.length || 1;
     await this.tripsService.incrementBookedSeats(
       booking.tripId.toString(),
       -seatsCount,
     );
 
-    return booking;
+    return this.mapBooking(updated);
   }
 
   async findOccupiedSeats(tripId: string): Promise<number[]> {
-    const bookings = await this.bookingModel
-      .find({
+    const bookings = await this.prisma.booking.findMany({
+      where: {
         tripId,
-        status: { $ne: 'CANCELLED' },
-      })
-      .select('seatNumbers')
-      .exec();
+        status: { not: BookingStatus.CANCELLED },
+      },
+      select: {
+        seatNumbers: true,
+      },
+    });
 
     const occupied: number[] = [];
     bookings.forEach((b) => {
       if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-        occupied.push(...b.seatNumbers);
+        occupied.push(...(b.seatNumbers as number[]));
       }
     });
     return occupied;
   }
 
-  async findTripManifest(tripId: string): Promise<BookingEntity[]> {
-    return this.bookingModel
-      .find({
+  async findTripManifest(tripId: string): Promise<any[]> {
+    const bookings = await this.prisma.booking.findMany({
+      where: {
         tripId,
-        status: { $ne: 'CANCELLED' },
-      })
-      .populate('userId')
-      .exec();
+        status: { not: BookingStatus.CANCELLED },
+      },
+      include: {
+        user: true,
+      },
+    });
+    return bookings.map((b) => this.mapBooking(b));
   }
 
-  async checkInPassenger(bookingId: string): Promise<BookingEntity> {
-    const booking = await this.bookingModel.findById(bookingId);
+  async checkInPassenger(bookingId: string): Promise<any> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (booking.status !== 'CONFIRMED' && booking.status !== 'PENDING') {
-      // Allow pending too if needed, but confirmed is standard. Let's allow CONFIRMED or PENDING_PAYMENT / PENDING if we want to be flexible.
-      // But confirmed is the safest default. Let's throw only if cancelled or already completed.
-      if (booking.status === 'CANCELLED') {
+    if (booking.status !== BookingStatus.CONFIRMED && booking.status !== BookingStatus.PENDING) {
+      if (booking.status === BookingStatus.CANCELLED) {
         throw new BadRequestException('Booking has been cancelled');
       }
     }
 
-    booking.status = 'BOARDED';
-    return booking.save();
+    const updated = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.BOARDED },
+    });
+    return this.mapBooking(updated);
   }
 
-  async verifyTicket(id: string, token: string): Promise<BookingEntity> {
-    const booking = await this.bookingModel.findById(id);
+  async verifyTicket(id: string, token: string): Promise<any> {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
 
     if (booking.qrVerificationToken !== token) {
       throw new BadRequestException('Invalid ticket verification token');
     }
 
-    if (booking.status === 'BOARDED') {
-      return booking;
+    if (booking.status === BookingStatus.BOARDED) {
+      return this.mapBooking(booking);
     }
 
-    if (booking.status === 'CANCELLED') {
+    if (booking.status === BookingStatus.CANCELLED) {
       throw new BadRequestException('Booking has been cancelled');
     }
 
-    if (booking.status !== 'CONFIRMED') {
+    if (booking.status !== BookingStatus.CONFIRMED) {
       throw new BadRequestException(`Booking status is ${booking.status}, expected CONFIRMED`);
     }
 
-    booking.status = 'BOARDED';
-    return booking.save();
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: { status: BookingStatus.BOARDED },
+    });
+    return this.mapBooking(updated);
   }
 }
