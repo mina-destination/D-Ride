@@ -40,6 +40,24 @@ export class RoutesController {
     return { success: true, data: routes, timestamp: new Date().toISOString() };
   }
 
+  @Get('smart-search')
+  async smartSearch(
+    @Query('pickupLat') pickupLat: string,
+    @Query('pickupLng') pickupLng: string,
+    @Query('dropoffLat') dropoffLat: string,
+    @Query('dropoffLng') dropoffLng: string,
+    @Query('radius') radius?: string,
+  ) {
+    const results = await this.routesService.smartSearch(
+      parseFloat(pickupLng),
+      parseFloat(pickupLat),
+      parseFloat(dropoffLng),
+      parseFloat(dropoffLat),
+      radius ? parseInt(radius, 10) : 5000,
+    );
+    return { success: true, data: results, timestamp: new Date().toISOString() };
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string) {
     const route = await this.routesService.findById(id);

@@ -66,4 +66,10 @@ export class CreateBookingDto {
   @ValidateNested()
   @Type(() => StopDto)
   pickupCheckpoint?: StopDto;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => StopDto)
+  dropoffCheckpoint?: StopDto;
 }

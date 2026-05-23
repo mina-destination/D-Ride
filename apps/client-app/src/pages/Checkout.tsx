@@ -27,6 +27,15 @@ const goldIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+const redIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const tripId = searchParams.get('tripId');
@@ -38,7 +47,10 @@ export default function CheckoutPage() {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [occupiedSeats, setOccupiedSeats] = useState<number[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [selectedCheckpoint, setSelectedCheckpoint] = useState<any>(null);
+  
+  const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
+  const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
+
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH'>('CARD');
   const [walletNumber, setWalletNumber] = useState<string>('');
 
@@ -59,58 +71,61 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!trip || !trip.routeId) return;
 
-    // Check if checkpointName is passed in search parameters (from search page)
+    // Check if checkpointName or dropoffCheckpointName is passed in search parameters (from search page)
     const checkpointName = searchParams.get('checkpointName');
+    const dropoffCheckpointName = searchParams.get('dropoffCheckpointName');
+
+    const checkpoints = trip.routeId.checkpoints || [];
+
     if (checkpointName) {
-      const match = trip.routeId.checkpoints?.find((cp: any) => cp.name === checkpointName);
-      if (match) {
-        setSelectedCheckpoint(match);
-        // Still grab geolocation if allowed for centering the map
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              setUserLocation([latitude, longitude]);
-            },
-            (error) => console.log("Geolocation user centering error:", error)
-          );
-        }
-        return;
-      }
+      const match = checkpoints.find((cp: any) => cp.name === checkpointName);
+      if (match) setSelectedPickupCheckpoint(match);
+    }
+    if (dropoffCheckpointName) {
+      const match = checkpoints.find((cp: any) => cp.name === dropoffCheckpointName);
+      if (match) setSelectedDropoffCheckpoint(match);
     }
 
+    // Geolocation centering and fallback
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
           
-          routesAPI.getNearestCheckpoint(trip.routeId._id || trip.routeId, latitude, longitude)
-            .then(cp => {
-              if (cp) {
-                setSelectedCheckpoint(cp);
-              } else if (trip.routeId.checkpoints && trip.routeId.checkpoints.length > 0) {
-                setSelectedCheckpoint(trip.routeId.checkpoints[0]);
-              }
-            })
-            .catch(err => {
-              console.error(err);
-              if (trip.routeId.checkpoints && trip.routeId.checkpoints.length > 0) {
-                setSelectedCheckpoint(trip.routeId.checkpoints[0]);
-              }
-            });
+          if (!checkpointName) {
+            routesAPI.getNearestCheckpoint(trip.routeId._id || trip.routeId, latitude, longitude)
+              .then(cp => {
+                if (cp) {
+                  setSelectedPickupCheckpoint(cp);
+                } else if (checkpoints.length > 0) {
+                  setSelectedPickupCheckpoint(checkpoints[0]);
+                }
+              })
+              .catch(err => {
+                console.error(err);
+                if (checkpoints.length > 0) {
+                  setSelectedPickupCheckpoint(checkpoints[0]);
+                }
+              });
+          }
         },
         (error) => {
           console.log("Geolocation error or denied:", error);
-          if (trip.routeId.checkpoints && trip.routeId.checkpoints.length > 0) {
-            setSelectedCheckpoint(trip.routeId.checkpoints[0]);
+          if (!checkpointName && checkpoints.length > 0) {
+            setSelectedPickupCheckpoint(checkpoints[0]);
           }
         }
       );
     } else {
-      if (trip.routeId.checkpoints && trip.routeId.checkpoints.length > 0) {
-        setSelectedCheckpoint(trip.routeId.checkpoints[0]);
+      if (!checkpointName && checkpoints.length > 0) {
+        setSelectedPickupCheckpoint(checkpoints[0]);
       }
+    }
+
+    // Default dropoff to end if not specified
+    if (!dropoffCheckpointName && checkpoints.length > 0) {
+      setSelectedDropoffCheckpoint(checkpoints[checkpoints.length - 1]);
     }
   }, [trip, searchParams]);
 
@@ -131,9 +146,10 @@ export default function CheckoutPage() {
       const booking = await bookingsAPI.create({
         tripId: trip._id,
         seatNumbers: selectedSeats,
-        pickupStopId: undefined, 
-        dropoffStopId: undefined, 
-        pickupCheckpoint: selectedCheckpoint || undefined,
+        pickupStopId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id, 
+        dropoffStopId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id, 
+        pickupCheckpoint: selectedPickupCheckpoint || undefined,
+        dropoffCheckpoint: selectedDropoffCheckpoint || undefined,
       });
 
       // 2. Initialize Paymob Checkout
@@ -279,10 +295,10 @@ export default function CheckoutPage() {
             {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
               <div style={{ marginTop: '1rem', marginBottom: '1.5rem', background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '16px' }}>
                 <h4 style={{ color: 'var(--text-primary)', margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 700 }}>
-                  Boarding Checkpoint 📍
+                  Boarding & Dropoff Checkpoints 📍
                 </h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Choose where the driver should pick you up. We've highlighted the closest checkpoint to you.
+                  Verify or select where the driver should pick you up and drop you off. Click markers to adjust.
                 </p>
                 <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1rem' }}>
                   <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
@@ -302,40 +318,65 @@ export default function CheckoutPage() {
                     {/* Checkpoints */}
                     {trip.routeId.checkpoints.map((cp: any, idx: number) => {
                       const cpCoords: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
-                      const isSelected = selectedCheckpoint && selectedCheckpoint.name === cp.name;
+                      const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
+                      const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
                       
                       return (
                         <Marker 
                           key={idx} 
                           position={cpCoords}
-                          eventHandlers={{
-                            click: () => setSelectedCheckpoint(cp)
-                          }}
-                          icon={isSelected ? goldIcon : blueIcon}
+                          icon={isPickup ? goldIcon : (isDropoff ? redIcon : blueIcon)}
                         >
                           <Popup>
                             <strong>{cp.name}</strong>
                             {cp.nameAr && <><br />{cp.nameAr}</>}
-                            <br />
-                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Click to select as pickup</span>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedPickupCheckpoint(cp); }}
+                                style={{ fontSize: '10px', padding: '4px 8px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Set Pickup
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedDropoffCheckpoint(cp); }}
+                                style={{ fontSize: '10px', padding: '4px 8px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Set Dropoff
+                              </button>
+                            </div>
                           </Popup>
                         </Marker>
                       );
                     })}
                   </MapContainer>
                 </div>
-                {selectedCheckpoint && (
-                  <div style={{ background: 'var(--surface-hover)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Pickup</div>
-                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedCheckpoint.name}</div>
-                        {selectedCheckpoint.nameAr && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedCheckpoint.nameAr}</div>}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedPickupCheckpoint && (
+                    <div style={{ background: 'var(--surface-hover)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Pickup</div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedPickupCheckpoint.name}</div>
+                          {selectedPickupCheckpoint.nameAr && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedPickupCheckpoint.nameAr}</div>}
+                        </div>
+                        <span style={{ fontSize: '20px' }}>📍</span>
                       </div>
-                      <span style={{ fontSize: '20px' }}>📍</span>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {selectedDropoffCheckpoint && (
+                    <div style={{ background: 'var(--surface-hover)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Dropoff</div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedDropoffCheckpoint.name}</div>
+                          {selectedDropoffCheckpoint.nameAr && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedDropoffCheckpoint.nameAr}</div>}
+                        </div>
+                        <span style={{ fontSize: '20px', color: '#EF4444' }}>🏁</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

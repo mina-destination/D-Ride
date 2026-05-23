@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { RoutesPage } from './pages/RoutesPage';
 import { TripsPage } from './pages/TripsPage';
 import { CrmPage } from './pages/CrmPage';
+import { SupportTicketsPage } from './pages/SupportTicketsPage';
 import { AdministratorsPage } from './pages/AdministratorsPage';
 import './App.css';
 
@@ -141,6 +142,7 @@ function AppRoutes() {
         <Route path="payments" element={<ProtectedRoute permission="payments"><PaymentsPage /></ProtectedRoute>} />
         <Route path="passengers" element={<ProtectedRoute permission="passengers"><PassengersPage /></ProtectedRoute>} />
         <Route path="crm" element={<ProtectedRoute permission="crm"><CrmPage /></ProtectedRoute>} />
+        <Route path="support-tickets" element={<ProtectedRoute permission="crm"><SupportTicketsPage /></ProtectedRoute>} />
         <Route path="administrators" element={<ProtectedRoute permission="settings"><AdministratorsPage /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute permission="settings"><SettingsPage /></ProtectedRoute>} />
       </Route>
