@@ -20,10 +20,23 @@ export default function TripSearchPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCheckpoints, setSelectedCheckpoints] = useState<Record<string, string>>({});
   const [selectedDropoffCheckpoints, setSelectedDropoffCheckpoints] = useState<Record<string, string>>({});
+  const [sortBy, setSortBy] = useState<'earliest' | 'cheapest' | 'walks'>('earliest');
 
   const isSmartMode = useMemo(() => {
     return !!(pickupLat && pickupLng && dropoffLat && dropoffLng);
   }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
+
+  const sortedTrips = useMemo(() => {
+    const list = [...trips];
+    if (sortBy === 'earliest') {
+      list.sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
+    } else if (sortBy === 'cheapest') {
+      list.sort((a, b) => a.priceEGP - b.priceEGP);
+    } else if (sortBy === 'walks') {
+      list.sort((a, b) => (a.totalWalkingDistance || 0) - (b.totalWalkingDistance || 0));
+    }
+    return list;
+  }, [trips, sortBy]);
 
   useEffect(() => {
     setLoading(true);
@@ -114,7 +127,7 @@ export default function TripSearchPage() {
     } else {
       setLoading(false);
     }
-  }, [routeId, pickupLat, pickupLng, dropoffLat, dropoffLng, date, passengers, isSmartMode]);
+  }, [routeId, pickupLat, pickupLng, dropoffLat, dropoffLng, date, passengers, isSmartMode, searchParams]);
 
   if (!routeId && !isSmartMode) {
     return (
@@ -169,8 +182,70 @@ export default function TripSearchPage() {
             <button onClick={() => navigate('/')} className="btn-primary">Search Another Route</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {trips.map((trip, idx) => {
+          <div>
+            {/* Sorting Tabs */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-start', 
+              gap: '0.75rem', 
+              marginBottom: '1.5rem',
+              background: 'var(--surface-elevated)',
+              padding: '6px',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
+              maxWidth: 'fit-content'
+            }}>
+              <button 
+                onClick={() => setSortBy('earliest')}
+                style={{
+                  padding: '0.5rem 1.2rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: sortBy === 'earliest' ? 'var(--primary)' : 'transparent',
+                  color: sortBy === 'earliest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
+                  transition: 'var(--transition-base)'
+                }}
+              >
+                🕒 Earliest
+              </button>
+              <button 
+                onClick={() => setSortBy('cheapest')}
+                style={{
+                  padding: '0.5rem 1.2rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: sortBy === 'cheapest' ? 'var(--primary)' : 'transparent',
+                  color: sortBy === 'cheapest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
+                  transition: 'var(--transition-base)'
+                }}
+              >
+                💰 Cheapest
+              </button>
+              {isSmartMode && (
+                <button 
+                  onClick={() => setSortBy('walks')}
+                  style={{
+                    padding: '0.5rem 1.2rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: sortBy === 'walks' ? 'var(--primary)' : 'transparent',
+                    color: sortBy === 'walks' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
+                    transition: 'var(--transition-base)'
+                  }}
+                >
+                  🚶 Fewest Walks
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {sortedTrips.map((trip, idx) => {
               const depTime = new Date(trip.departureTime);
               // Mock arrival time (e.g., 45 minutes later)
               const arrTime = new Date(depTime.getTime() + 45 * 60000);
@@ -512,6 +587,7 @@ export default function TripSearchPage() {
                 </div>
               );
             })}
+          </div>
           </div>
         )}
       </div>

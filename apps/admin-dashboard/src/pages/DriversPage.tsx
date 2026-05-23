@@ -160,7 +160,7 @@ export function DriversPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ status: 'ACTIVE' }}>
           <Form.Item 

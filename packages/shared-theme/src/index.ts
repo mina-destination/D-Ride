@@ -199,6 +199,10 @@ export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string
     '--radius-sm': designTokens.borderRadius.sm,
     '--radius-md': designTokens.borderRadius.md,
     '--radius-lg': designTokens.borderRadius.lg,
+    '--transition-base': 'all 0.2s ease-in-out',
+    '--transition-spring': 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+    '--shadow-glow': designTokens.shadows.glow,
+    '--shadow-glow-strong': designTokens.shadows.glowStrong,
   };
 }
 

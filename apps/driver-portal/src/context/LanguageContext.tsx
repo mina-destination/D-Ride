@@ -85,7 +85,12 @@ const translations: Record<Language, Record<string, string>> = {
     liveGpsBroadcast: 'Live GPS Broadcast Active',
     gpsStandby: 'GPS Telemetry Standby',
     stopBroadcasting: 'Stop Broadcasting GPS',
-    startLiveGps: 'Start Live GPS Stream'
+    startLiveGps: 'Start Live GPS Stream',
+    confirmOpenBoarding: 'Open Boarding Gate?',
+    confirmStartDriving: 'Start Driving & Transit?',
+    confirmCompleteTrip: 'Complete Trip Shift?',
+    confirm: 'Confirm',
+    cancel: 'Cancel'
   },
   ar: {
     // General / Layout
@@ -162,7 +167,12 @@ const translations: Record<Language, Record<string, string>> = {
     liveGpsBroadcast: 'بث موقع GPS المباشر نشط',
     gpsStandby: 'نظام تحديد المواقع في وضع الاستعداد',
     stopBroadcasting: 'إيقاف بث موقع GPS',
-    startLiveGps: 'بدء بث موقع GPS المباشر'
+    startLiveGps: 'بدء بث موقع GPS المباشر',
+    confirmOpenBoarding: 'فتح بوابة ركوب الحافلة؟',
+    confirmStartDriving: 'بدء القيادة والمسار؟',
+    confirmCompleteTrip: 'إنهاء الوردية والرحلة؟',
+    confirm: 'تأكيد',
+    cancel: 'إلغاء'
   }
 };
 

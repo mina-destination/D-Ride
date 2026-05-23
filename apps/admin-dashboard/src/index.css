@@ -30,10 +30,11 @@
   --border-focus: #F5B731;
 
   /* Sidebar */
-  --sidebar-bg: #FFFFFF;
-  --sidebar-text: #4B5563;
-  --sidebar-text-active: #D97706;
-  --sidebar-item-hover: #F3F4F6;
+  --sidebar-bg: #050509;
+  --sidebar-text: #9CA3AF;
+  --sidebar-text-active: #F5B731;
+  --sidebar-item-hover: #0E0E1B;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
 
   /* Semantic */
   --success: #10B981;
@@ -72,10 +73,11 @@
 
   --border: #1E1E35;
 
-  --sidebar-bg: #0B0B16;
+  --sidebar-bg: #050509;
   --sidebar-text: #9CA3AF;
   --sidebar-text-active: #F5B731;
-  --sidebar-item-hover: #161628;
+  --sidebar-item-hover: #0E0E1B;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --primary-color: var(--primary);
 }
 

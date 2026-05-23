@@ -540,7 +540,7 @@ export function AdministratorsPage() {
 
       {/* ── Filters & Table ─────────────────────────────── */}
       <Card
-        bordered={false}
+        variant="borderless"
         className="glass"
         style={{
           background: 'var(--surface)',
@@ -631,7 +631,7 @@ export function AdministratorsPage() {
         onCancel={handleModalClose}
         footer={null}
         width={560}
-        destroyOnClose
+        destroyOnHidden
       >
         <Divider style={{ margin: '16px 0' }} />
         <Form
@@ -765,14 +765,9 @@ export function AdministratorsPage() {
               <Form.Item
                 name="isActive"
                 label="Account Status"
-                valuePropName="checked"
-                getValueFromEvent={(checked) => checked}
                 initialValue={true}
               >
-                <Select
-                  value={form.getFieldValue('isActive')}
-                  onChange={(val) => form.setFieldsValue({ isActive: val })}
-                >
+                <Select>
                   <Select.Option value={true}>
                     <Tag color="green" style={{ margin: 0 }}>
                       Active

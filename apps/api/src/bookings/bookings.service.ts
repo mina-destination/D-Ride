@@ -39,7 +39,7 @@ export class BookingsService {
     }
     if (booking.user) {
       b.userId = { ...booking.user, _id: booking.user.id };
-      delete (b.userId as any).password;
+      delete b.userId.password;
       delete b.user;
     }
     return b;
@@ -78,7 +78,7 @@ export class BookingsService {
   async create(data: any): Promise<any> {
     // 1. Fetch trip to check seats
     const tripIdStr = data.tripId ? data.tripId.toString() : '';
-    const trip = (await this.tripsService.findById(tripIdStr)) as any;
+    const trip = await this.tripsService.findById(tripIdStr);
     if (!trip) throw new NotFoundException('Trip not found');
 
     const requestedSeats = data.seatNumbers?.length || 1;
@@ -102,7 +102,9 @@ export class BookingsService {
         tripId: tripIdStr,
         seatNumbers: data.seatNumbers || [1],
         pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
-        dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
+        dropoffStopId: data.dropoffStopId
+          ? data.dropoffStopId.toString()
+          : null,
         pickupCheckpoint: data.pickupCheckpoint || null,
         dropoffCheckpoint: data.dropoffCheckpoint || null,
         status: BookingStatus.PENDING_PAYMENT,
@@ -142,14 +144,17 @@ export class BookingsService {
           const u = populated.user;
           const t = populated.trip;
           const r = t?.route;
-          const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
+          const seatsStr =
+            (populated.seatNumbers as any[])?.join(', ') || 'N/A';
 
           await this.notificationsService.sendBookingConfirmation(
             u?.phone || '',
             u?.name || 'Valued Passenger',
             {
               routeName: r?.name || 'D-Ride Minibus Trip',
-              departureTime: t?.departureTime ? t.departureTime.toISOString() : new Date().toISOString(),
+              departureTime: t?.departureTime
+                ? t.departureTime.toISOString()
+                : new Date().toISOString(),
               seatNumber: seatsStr,
               price: populated.amountEGP || 0,
             },
@@ -225,7 +230,10 @@ export class BookingsService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (booking.status !== BookingStatus.CONFIRMED && booking.status !== BookingStatus.PENDING) {
+    if (
+      booking.status !== BookingStatus.CONFIRMED &&
+      booking.status !== BookingStatus.PENDING
+    ) {
       if (booking.status === BookingStatus.CANCELLED) {
         throw new BadRequestException('Booking has been cancelled');
       }
@@ -255,7 +263,9 @@ export class BookingsService {
     }
 
     if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException(`Booking status is ${booking.status}, expected CONFIRMED`);
+      throw new BadRequestException(
+        `Booking status is ${booking.status}, expected CONFIRMED`,
+      );
     }
 
     const updated = await this.prisma.booking.update({

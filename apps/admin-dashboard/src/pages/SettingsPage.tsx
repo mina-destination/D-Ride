@@ -122,7 +122,7 @@ export function SettingsPage() {
       key: 'general',
       label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Globe size={16} /> General Settings</span>,
       children: (
-        <Card bordered={false} className="glass" style={{ background: 'var(--surface-elevated)' }}>
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
           <Row gutter={24}>
             <Col xs={24} md={12}>
               <Form.Item
@@ -168,7 +168,7 @@ export function SettingsPage() {
       key: 'payments',
       label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CreditCard size={16} /> Paymob Integration</span>,
       children: (
-        <Card bordered={false} className="glass" style={{ background: 'var(--surface-elevated)' }}>
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <Text type="secondary">
               Configure the connection keys to your Paymob merchant account for credit cards and mobile wallet processing.
@@ -228,7 +228,7 @@ export function SettingsPage() {
       key: 'fleet',
       label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CarFront size={16} /> Operations & Fleet</span>,
       children: (
-        <Card bordered={false} className="glass" style={{ background: 'var(--surface-elevated)' }}>
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
           <Row gutter={24}>
             <Col xs={24} md={12}>
               <Form.Item
@@ -286,7 +286,7 @@ export function SettingsPage() {
       key: 'permissions',
       label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={16} /> Role Permissions</span>,
       children: (
-        <Card bordered={false} className="glass" style={{ background: 'var(--surface-elevated)' }}>
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <Title level={4}>Administrative Permissions Matrix</Title>
             <Text type="secondary">

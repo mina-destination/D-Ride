@@ -105,7 +105,11 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { sub: user.id || user._id, email: user.email, role: user.role };
+    const payload = {
+      sub: user.id || user._id,
+      email: user.email,
+      role: user.role,
+    };
     this.logger.log(`User logged in: ${user.email}`);
     const permissions = await this.getPermissionsForRole(user.role);
     return {

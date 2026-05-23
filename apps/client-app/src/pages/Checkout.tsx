@@ -268,6 +268,102 @@ export default function CheckoutPage() {
           </p>
         </div>
 
+        {/* Visual Stepper */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '2rem',
+          position: 'relative',
+          padding: '0 1.5rem'
+        }}>
+          {/* Progress Connecting Line */}
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '15%',
+            right: '15%',
+            height: '2px',
+            background: 'var(--border)',
+            zIndex: 0,
+            transform: 'translateY(-50%)'
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '15%',
+            width: selectedSeats.length > 0 ? (processing ? '70%' : '35%') : '0%',
+            height: '2px',
+            background: 'var(--primary)',
+            zIndex: 0,
+            transform: 'translateY(-50%)',
+            transition: 'all 0.3s ease'
+          }} />
+
+          {/* Step 1 */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'var(--primary)',
+              color: 'var(--text-on-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              border: '3px solid var(--background)',
+              boxShadow: '0 0 10px rgba(245, 183, 49, 0.2)'
+            }}>
+              1
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>Configure Commute</span>
+          </div>
+
+          {/* Step 2 */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--surface-elevated)',
+              color: selectedSeats.length > 0 ? 'var(--text-on-primary)' : 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              border: '3px solid var(--background)',
+              transition: 'all 0.3s'
+            }}>
+              2
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '6px' }}>Select Payment</span>
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: processing ? 'var(--primary)' : 'var(--surface-elevated)',
+              color: processing ? 'var(--text-on-primary)' : 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              border: '3px solid var(--background)',
+              transition: 'all 0.3s'
+            }}>
+              3
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: processing ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '6px' }}>Confirm Seat</span>
+          </div>
+        </div>
+
         {loading ? (
           <div className="auth-card glass" style={{ textAlign: 'center', padding: '3rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>

@@ -169,7 +169,7 @@ export function VehiclesPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ capacity: 14, status: 'ACTIVE' }}>
           <Form.Item 

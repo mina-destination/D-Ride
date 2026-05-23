@@ -251,7 +251,7 @@ export function SupportTicketsPage() {
         width={680}
         onClose={handleCloseDrawer}
         open={isDrawerOpen}
-        bodyStyle={{ background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' }}
+        styles={{ body: { background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' } }}
       >
         {selectedTicket && (
           <div>

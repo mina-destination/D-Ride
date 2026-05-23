@@ -272,7 +272,7 @@ export function PassengersPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
         okText={editingId ? "Save Changes" : "Create Account"}
         okButtonProps={{ style: { background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' } }}
       >

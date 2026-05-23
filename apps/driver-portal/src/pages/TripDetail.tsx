@@ -16,6 +16,7 @@ export default function TripDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [scanStatus, setScanStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+  const [confirmStatusModal, setConfirmStatusModal] = useState<string | null>(null);
 
   const fetchTripDetails = async () => {
     if (!id) return;
@@ -205,7 +206,7 @@ export default function TripDetailPage() {
             {trip.status === 'SCHEDULED' && (
               <button
                 className="btn btn-primary btn-block"
-                onClick={() => handleUpdateTripStatus('BOARDING')}
+                onClick={() => setConfirmStatusModal('BOARDING')}
                 disabled={actionLoading}
               >
                 <Play size={18} />
@@ -218,7 +219,7 @@ export default function TripDetailPage() {
                 <button
                   className="btn btn-primary"
                   style={{ flex: 1 }}
-                  onClick={() => handleUpdateTripStatus('IN_TRANSIT')}
+                  onClick={() => setConfirmStatusModal('IN_TRANSIT')}
                   disabled={actionLoading}
                 >
                   <Navigation size={18} />
@@ -232,7 +233,7 @@ export default function TripDetailPage() {
                 <button
                   className="btn btn-primary btn-block"
                   style={{ background: 'var(--success)', color: 'var(--text-on-primary)' }}
-                  onClick={() => handleUpdateTripStatus('COMPLETED')}
+                  onClick={() => setConfirmStatusModal('COMPLETED')}
                   disabled={actionLoading}
                 >
                   <CheckCircle size={18} />
@@ -287,8 +288,32 @@ export default function TripDetailPage() {
           )}
 
           {scannerActive ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-              <div id="qr-reader" style={{ width: '100%', maxWidth: '300px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: '300px', height: '280px', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--border)' }}>
+                {/* HTML5 QR reader target container */}
+                <div id="qr-reader" style={{ width: '100%', height: '100%' }} />
+
+                {/* Laser scan line overlay */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '2px',
+                  background: 'var(--primary)',
+                  boxShadow: '0 0 10px var(--primary)',
+                  zIndex: 10,
+                  animation: 'laser-scan 2s linear infinite',
+                  pointerEvents: 'none'
+                }} />
+
+                {/* Scanning Corner Guides */}
+                <div style={{ position: 'absolute', top: '15px', left: '15px', width: '18px', height: '18px', borderLeft: '3px solid var(--primary)', borderTop: '3px solid var(--primary)', zIndex: 10, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', top: '15px', right: '15px', width: '18px', height: '18px', borderRight: '3px solid var(--primary)', borderTop: '3px solid var(--primary)', zIndex: 10, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: '15px', left: '15px', width: '18px', height: '18px', borderLeft: '3px solid var(--primary)', borderBottom: '3px solid var(--primary)', zIndex: 10, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: '15px', right: '15px', width: '18px', height: '18px', borderRight: '3px solid var(--primary)', borderBottom: '3px solid var(--primary)', zIndex: 10, pointerEvents: 'none' }} />
+              </div>
+              
               <button 
                 className="btn btn-secondary btn-block" 
                 onClick={() => setScannerActive(false)}
@@ -296,6 +321,14 @@ export default function TripDetailPage() {
               >
                 {t('closeCamera')}
               </button>
+
+              <style>{`
+                @keyframes laser-scan {
+                  0% { top: 12%; }
+                  50% { top: 88%; }
+                  100% { top: 12%; }
+                }
+              `}</style>
             </div>
           ) : (
             <button 
@@ -382,6 +415,68 @@ export default function TripDetailPage() {
           </div>
         )}
       </div>
+
+      {confirmStatusModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(6, 6, 14, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '24px',
+          animation: 'fade-in 0.25s ease'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '360px',
+            textAlign: 'center',
+            padding: '28px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <h4 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>
+              {t(`confirm${confirmStatusModal === 'BOARDING' ? 'OpenBoarding' : (confirmStatusModal === 'IN_TRANSIT' ? 'StartDriving' : 'CompleteTrip')}`)}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+              {confirmStatusModal === 'BOARDING' && "This will notify passengers that boarding has commenced and open the QR scanner ticket check-in gates."}
+              {confirmStatusModal === 'IN_TRANSIT' && "This will notify passengers that the shuttle is in transit. Live GPS coordinates will begin streaming."}
+              {confirmStatusModal === 'COMPLETED' && "This will permanently close the trip, complete the passenger shifts, and stop telemetry. This cannot be undone."}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button 
+                onClick={() => setConfirmStatusModal(null)} 
+                className="btn btn-secondary" 
+                style={{ flex: 1, padding: '12px' }}
+              >
+                {t('cancel')}
+              </button>
+              <button 
+                onClick={() => {
+                  const targetStatus = confirmStatusModal;
+                  setConfirmStatusModal(null);
+                  handleUpdateTripStatus(targetStatus);
+                }} 
+                className="btn btn-primary" 
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: confirmStatusModal === 'COMPLETED' ? 'var(--danger)' : 'var(--primary)',
+                  color: confirmStatusModal === 'COMPLETED' ? 'white' : 'var(--text-on-primary)'
+                }}
+              >
+                {t('confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
