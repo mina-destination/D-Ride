@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Input, Space, message, Steps, Spin } from 'antd';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -101,32 +101,80 @@ function SearchAutocomplete({
   const [results, setResults] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [debouncedValue, setDebouncedValue] = useState(value || '');
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = async (val: string) => {
-    onChange(val);
-    if (val.length < 3) {
+  // Debounce the input value
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value]);
+
+  // Handle results fetching from Nominatim with debounced value
+  useEffect(() => {
+    if (!debouncedValue || debouncedValue.length < 3) {
       setResults([]);
       return;
     }
-    setLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&countrycodes=eg&limit=5`);
-      const data = await res.json();
-      setResults(data);
-      setOpen(true);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    let active = true;
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(debouncedValue)}&countrycodes=eg&limit=5`);
+        const data = await res.json();
+        if (active) {
+          setResults(data);
+          setOpen(true);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchResults();
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedValue]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%', zIndex: 9999 }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: 9999 }}>
       <Input
         placeholder={placeholder}
         value={value}
-        onChange={e => handleSearch(e.target.value)}
+        onChange={e => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => {
+          if (value && value.length >= 3) {
+            setOpen(true);
+          }
+        }}
         suffix={loading ? <Spin size="small" /> : '🔍'}
       />
       {open && results.length > 0 && (
@@ -181,6 +229,17 @@ function SearchAutocomplete({
   );
 }
 
+// Custom controller to pan/fly to selected coordinates
+function MapPanController({ panTo }: { panTo: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (panTo) {
+      map.flyTo(panTo, 15, { animate: true, duration: 1.5 });
+    }
+  }, [panTo, map]);
+  return null;
+}
+
 export function RoutesPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -202,6 +261,7 @@ export function RoutesPage() {
   const [startQuery, setStartQuery] = useState('');
   const [endQuery, setEndQuery] = useState('');
   const [cpQuery, setCpQuery] = useState('');
+  const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
 
   const fetchRoutes = async () => {
     try {
@@ -224,6 +284,7 @@ export function RoutesPage() {
     setStartQuery('');
     setEndQuery('');
     setCpQuery('');
+    setMapPanTo(null);
     
     if (route) {
       setEditingId(route._id);
@@ -252,6 +313,7 @@ export function RoutesPage() {
 
   const handleCancel = () => {
     setIsModalOpen(false);
+    setMapPanTo(null);
   };
 
   // Re-calculate ordering index and stop type
@@ -288,6 +350,7 @@ export function RoutesPage() {
       return syncCheckpointsList(updated);
     });
     setStartQuery(name);
+    setMapPanTo([lat, lng]);
   };
 
   const addEndTerminal = (name: string, lng: number, lat: number) => {
@@ -310,6 +373,7 @@ export function RoutesPage() {
       return syncCheckpointsList(updated);
     });
     setEndQuery(name);
+    setMapPanTo([lat, lng]);
   };
 
   const handleMapClick = (lat: number, lng: number) => {
@@ -343,6 +407,7 @@ export function RoutesPage() {
         }
         return syncCheckpointsList(updated);
       });
+      setMapPanTo([lat, lng]);
       message.success('Checkpoint added!');
     }
   };
@@ -988,6 +1053,7 @@ export function RoutesPage() {
                 
                 <MapClickHandler onMapClick={handleMapClick} />
                 <MapAutoCenter checkpoints={checkpoints} />
+                <MapPanController panTo={mapPanTo} />
 
                 {/* Snapped polyline path */}
                 {points.length > 0 && (

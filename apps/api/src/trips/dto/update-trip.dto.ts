@@ -1,5 +1,5 @@
 import {
-  IsMongoId,
+  IsUUID,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -10,15 +10,15 @@ import {
 import { TripStatus } from './create-trip.dto';
 
 export class UpdateTripDto {
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   routeId?: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   vehicleId?: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   driverId?: string;
 
