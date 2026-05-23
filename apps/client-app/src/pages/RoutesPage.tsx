@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { routesAPI } from '../services/api';
+import { routesAPI, tripsAPI } from '../services/api';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -54,19 +54,35 @@ function MapAutoFit({ path }: { path: [number, number][] }) {
   }, [path, map]);
   return null;
 }
-
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     routesAPI.getAll()
-      .then(data => {
+      .then(async (data) => {
         setRoutes(data);
         if (data.length > 0) {
           setActiveRouteId(data[0]._id);
+        }
+        
+        try {
+          const tripPromises = data.map((route: any) =>
+            tripsAPI.search(route._id)
+              .then((trips: any[]) => ({ routeId: route._id, trips }))
+              .catch(() => ({ routeId: route._id, trips: [] }))
+          );
+          const resolved = await Promise.all(tripPromises);
+          const map: Record<string, any[]> = {};
+          resolved.forEach((item) => {
+            map[item.routeId] = item.trips;
+          });
+          setTripsMap(map);
+        } catch (err) {
+          console.error('Error fetching trips for routes:', err);
         }
       })
       .catch(err => console.error('Error fetching routes:', err))
@@ -238,6 +254,72 @@ export default function RoutesPage() {
                           {endStop ? endStop.name : 'Destination'}
                         </span>
                       </div>
+                    </div>
+
+                    {/* Active Trips & Departure Times */}
+                    <div style={{ 
+                      marginTop: '0.75rem', 
+                      marginBottom: '1.25rem',
+                      padding: '0.75rem 1rem',
+                      background: 'var(--surface-hover)',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '0.05em' }}>
+                        ⏰ Scheduled Trip Times
+                      </div>
+                      {tripsMap[route._id] && tripsMap[route._id].length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {tripsMap[route._id].map((trip) => {
+                            const timeStr = new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const seatsLeft = trip.availableSeats - trip.bookedSeats;
+                            return (
+                              <button 
+                                key={trip._id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/checkout?tripId=${trip._id}&checkpointName=${encodeURIComponent(startStop?.name || '')}&dropoffCheckpointName=${encodeURIComponent(endStop?.name || '')}`);
+                                }}
+                                style={{
+                                  background: 'var(--surface)',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: 'var(--primary)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.borderColor = 'var(--primary)';
+                                  e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 183, 49, 0.2)';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.borderColor = 'var(--border)';
+                                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.02)';
+                                  e.currentTarget.style.transform = 'none';
+                                }}
+                              >
+                                <span>{timeStr}</span>
+                                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                  {seatsLeft} seats
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', padding: '2px 0' }}>
+                          No active schedules today
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>

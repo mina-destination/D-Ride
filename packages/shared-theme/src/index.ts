@@ -30,10 +30,11 @@ export const lightPalette = {
     borderFocus: '#F5B731',
   },
   sidebar: {
-    bg: '#111827',
-    text: '#D1D5DB',
+    bg: '#050509',
+    text: '#9CA3AF',
     textActive: '#F5B731',
-    itemHover: '#1F2937',
+    itemHover: '#0E0E1B',
+    border: 'rgba(255, 255, 255, 0.08)',
   },
 };
 
@@ -66,6 +67,7 @@ export const darkPalette = {
     text: '#9CA3AF',
     textActive: '#F5B731',
     itemHover: '#0E0E1B',
+    border: 'rgba(255, 255, 255, 0.08)',
   },
 };
 
@@ -187,6 +189,8 @@ export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string
     '--sidebar-bg': palette.sidebar.bg,
     '--sidebar-text': palette.sidebar.text,
     '--sidebar-text-active': palette.sidebar.textActive,
+    '--sidebar-item-hover': palette.sidebar.itemHover,
+    '--sidebar-border': palette.sidebar.border,
     '--success': semanticColors.success.DEFAULT,
     '--danger': semanticColors.danger.DEFAULT,
     '--warning': semanticColors.warning.DEFAULT,

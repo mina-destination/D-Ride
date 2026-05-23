@@ -104,6 +104,7 @@ export class BookingsService {
         pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
         dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
         pickupCheckpoint: data.pickupCheckpoint || null,
+        dropoffCheckpoint: data.dropoffCheckpoint || null,
         status: BookingStatus.PENDING_PAYMENT,
         paymentStatus: PaymentStatus.PENDING,
         amountEGP,

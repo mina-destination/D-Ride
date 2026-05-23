@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { tripsAPI, routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
@@ -6,48 +6,122 @@ import logo from '../assets/d-ride-logo.jpeg';
 export default function TripSearchPage() {
   const [searchParams] = useSearchParams();
   const routeId = searchParams.get('routeId');
+  const pickupLat = searchParams.get('pickupLat');
+  const pickupLng = searchParams.get('pickupLng');
+  const dropoffLat = searchParams.get('dropoffLat');
+  const dropoffLng = searchParams.get('dropoffLng');
+  const date = searchParams.get('date') || undefined;
+  const passengers = searchParams.get('passengers') ? parseInt(searchParams.get('passengers')!, 10) : 1;
+
   const navigate = useNavigate();
 
   const [route, setRoute] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCheckpoints, setSelectedCheckpoints] = useState<Record<string, string>>({});
+  const [selectedDropoffCheckpoints, setSelectedDropoffCheckpoints] = useState<Record<string, string>>({});
+
+  const isSmartMode = useMemo(() => {
+    return !!(pickupLat && pickupLng && dropoffLat && dropoffLng);
+  }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
 
   useEffect(() => {
-    if (!routeId) return;
-    
     setLoading(true);
-    Promise.all([
-      routesAPI.getAll().then(res => res.find((r: any) => r._id === routeId)),
-      tripsAPI.search(routeId)
-    ])
-    .then(([routeData, tripsData]) => {
-      setRoute(routeData);
-      setTrips(tripsData);
 
-      // Initialize pre-selected checkpoints from search param
-      if (routeData?.checkpoints && routeData.checkpoints.length > 0) {
-        const initialCpName = searchParams.get('checkpointName') || '';
-        const hasMatch = routeData.checkpoints.some((cp: any) => cp.name === initialCpName);
-        const defaultCp = hasMatch ? initialCpName : routeData.checkpoints[0].name;
+    if (isSmartMode) {
+      routesAPI.smartSearch(
+        parseFloat(pickupLat!),
+        parseFloat(pickupLng!),
+        parseFloat(dropoffLat!),
+        parseFloat(dropoffLng!)
+      )
+        .then(async (smartRoutes: any[]) => {
+          // smartRoutes is list of { route, pickupCheckpoint, dropoffCheckpoint, totalWalkingDistance }
+          const tripPromises = smartRoutes.map((sr) =>
+            tripsAPI.search(sr.route._id || sr.route.id, date)
+              .then((tripsData) =>
+                tripsData.map((trip: any) => ({
+                  ...trip,
+                  route: sr.route,
+                  pickupCheckpoint: sr.pickupCheckpoint,
+                  dropoffCheckpoint: sr.dropoffCheckpoint,
+                  totalWalkingDistance: sr.totalWalkingDistance,
+                }))
+              )
+              .catch(() => [])
+          );
+
+          const nestedTrips = await Promise.all(tripPromises);
+          let allTrips = nestedTrips.flat();
+
+          // Filter by passengers count if needed
+          if (passengers > 1) {
+            allTrips = allTrips.filter((t) => {
+              const seatsLeft = t.availableSeats - t.bookedSeats;
+              return seatsLeft >= passengers;
+            });
+          }
+
+          // Sort by walking distance
+          allTrips.sort((a, b) => a.totalWalkingDistance - b.totalWalkingDistance);
+
+          setTrips(allTrips);
+
+          // Setup selected checkpoints
+          const initialPickups: Record<string, string> = {};
+          const initialDropoffs: Record<string, string> = {};
+          allTrips.forEach((t) => {
+            initialPickups[t._id] = t.pickupCheckpoint.name;
+            initialDropoffs[t._id] = t.dropoffCheckpoint.name;
+          });
+          setSelectedCheckpoints(initialPickups);
+          setSelectedDropoffCheckpoints(initialDropoffs);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    } else if (routeId) {
+      Promise.all([
+        routesAPI.getAll().then(res => res.find((r: any) => r._id === routeId)),
+        tripsAPI.search(routeId, date)
+      ])
+      .then(([routeData, tripsData]) => {
+        setRoute(routeData);
         
-        const initialSelections: Record<string, string> = {};
-        tripsData.forEach((trip: any) => {
-          initialSelections[trip._id] = defaultCp;
-        });
-        setSelectedCheckpoints(initialSelections);
-      }
-    })
-    .catch(console.error)
-    .finally(() => setLoading(false));
-  }, [routeId, searchParams]);
+        let filteredTrips = tripsData;
+        if (passengers > 1) {
+          filteredTrips = filteredTrips.filter((t: any) => {
+            const seatsLeft = t.availableSeats - t.bookedSeats;
+            return seatsLeft >= passengers;
+          });
+        }
+        setTrips(filteredTrips);
 
-  if (!routeId) {
+        // Initialize pre-selected checkpoints from search param
+        if (routeData?.checkpoints && routeData.checkpoints.length > 0) {
+          const initialCpName = searchParams.get('checkpointName') || '';
+          const hasMatch = routeData.checkpoints.some((cp: any) => cp.name === initialCpName);
+          const defaultCp = hasMatch ? initialCpName : routeData.checkpoints[0].name;
+          
+          const initialSelections: Record<string, string> = {};
+          tripsData.forEach((trip: any) => {
+            initialSelections[trip._id] = defaultCp;
+          });
+          setSelectedCheckpoints(initialSelections);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [routeId, pickupLat, pickupLng, dropoffLat, dropoffLng, date, passengers, isSmartMode]);
+
+  if (!routeId && !isSmartMode) {
     return (
       <div className="auth-page">
         <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h2>No Route Selected</h2>
-          <p>Please go back and select a route to search for trips.</p>
+          <h2>No Search Parameters</h2>
+          <p>Please go back and select a route or enter your location to search for trips.</p>
           <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>Back to Home</button>
         </div>
       </div>
@@ -66,7 +140,14 @@ export default function TripSearchPage() {
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
             Available Trips
           </h1>
-          {route && (
+          {isSmartMode ? (
+            <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem', background: 'var(--surface-hover)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)' }}>
+              <span>📍</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Smart Search: Pickups & Dropoffs within 5km
+              </span>
+            </div>
+          ) : route && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface-hover)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)' }}>
               <span>📍</span>
               <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{route.name}</span>
@@ -94,6 +175,7 @@ export default function TripSearchPage() {
               // Mock arrival time (e.g., 45 minutes later)
               const arrTime = new Date(depTime.getTime() + 45 * 60000);
               const seatsLeft = trip.availableSeats - trip.bookedSeats;
+              const currentRoute = isSmartMode ? trip.route : route;
 
               return (
                 <div 
@@ -114,7 +196,7 @@ export default function TripSearchPage() {
                     <div style={{
                       width: '240px',
                       minWidth: '240px',
-                      backgroundImage: `url(${route?.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80'})`,
+                      backgroundImage: `url(${currentRoute?.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80'})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                       position: 'relative',
@@ -134,29 +216,50 @@ export default function TripSearchPage() {
                           Active Shuttle
                         </span>
                         <h4 style={{ margin: '4px 0 0 0', color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 800 }}>
-                          {route?.name?.split('→')[1] || 'Destination'}
+                          {currentRoute?.name || 'Destination'}
                         </h4>
                       </div>
                     </div>
 
-                    {/* Middle Column: Trip Timings */}
-                    <div className="trip-card-left" style={{ flex: 1, padding: '2rem 1.5rem' }}>
-                      <div className="trip-time-block">
-                        <span className="trip-time">{depTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="trip-location">Departure</span>
-                      </div>
-                      
-                      <div className="trip-timeline" style={{ margin: '0 1rem' }}>
-                        <span className="trip-duration">45 min</span>
-                        <div className="timeline-dot"></div>
-                        <div className="timeline-line"></div>
-                        <div className="timeline-dot"></div>
+                    {/* Middle Column: Trip Timings & walking badge */}
+                    <div className="trip-card-left" style={{ flex: 1, padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }}>
+                      <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                        <div className="trip-time-block">
+                          <span className="trip-time">{depTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="trip-location">Departure</span>
+                        </div>
+                        
+                        <div className="trip-timeline" style={{ margin: '0 1rem' }}>
+                          <span className="trip-duration">45 min</span>
+                          <div className="timeline-dot"></div>
+                          <div className="timeline-line"></div>
+                          <div className="timeline-dot"></div>
+                        </div>
+
+                        <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
+                          <span className="trip-time">{arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="trip-location">Arrival</span>
+                        </div>
                       </div>
 
-                      <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
-                        <span className="trip-time">{arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="trip-location">Arrival</span>
-                      </div>
+                      {isSmartMode && trip.totalWalkingDistance !== undefined && (
+                        <div style={{
+                          marginTop: '1rem',
+                          fontSize: '0.72rem',
+                          background: 'rgba(245, 183, 49, 0.06)',
+                          color: 'var(--primary)',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(245, 183, 49, 0.15)',
+                          fontWeight: 600,
+                          alignSelf: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          🚶 Walks: {trip.totalWalkingDistance}m total ({trip.pickupCheckpoint.distanceMeters}m to pickup · {trip.dropoffCheckpoint.distanceMeters}m from dropoff)
+                        </div>
+                      )}
                     </div>
 
                     <div className="trip-card-divider" style={{ margin: '1.5rem 0' }}></div>
@@ -175,8 +278,10 @@ export default function TripSearchPage() {
                       <button 
                         onClick={() => {
                           const selectedCp = selectedCheckpoints[trip._id];
+                          const selectedDropoffCp = selectedDropoffCheckpoints[trip._id];
                           const cpQuery = selectedCp ? `&checkpointName=${encodeURIComponent(selectedCp)}` : '';
-                          navigate(`/checkout?tripId=${trip._id}${cpQuery}`);
+                          const dropoffQuery = selectedDropoffCp ? `&dropoffCheckpointName=${encodeURIComponent(selectedDropoffCp)}` : '';
+                          navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
                         }}
                         className="auth-button" 
                         style={{ width: '100%', padding: '0.6rem', marginTop: '0.5rem', fontSize: '0.9rem' }}
@@ -186,8 +291,8 @@ export default function TripSearchPage() {
                     </div>
                   </div>
 
-                  {/* Bottom Part: Swvl-style Interactive Checkpoints Timeline */}
-                  {route?.checkpoints && route.checkpoints.length > 0 && (
+                  {/* Bottom Part: Interactive Checkpoints Timeline */}
+                  {currentRoute?.checkpoints && currentRoute.checkpoints.length > 0 && (
                     <div style={{ 
                       padding: '1.25rem 1.5rem', 
                       background: 'rgba(255, 255, 255, 0.02)', 
@@ -213,20 +318,34 @@ export default function TripSearchPage() {
                           alignItems: 'center',
                           gap: '6px'
                         }}>
-                          📍 Boarding Checkpoint Timeline (Select one)
+                          📍 Route Stops & Boarding Progress (Select stops)
                         </span>
-                        {selectedCheckpoints[trip._id] && (
-                          <span style={{ 
-                            fontSize: '0.8rem', 
-                            fontWeight: 600, 
-                            color: 'var(--primary)',
-                            background: 'rgba(245, 183, 49, 0.1)',
-                            padding: '2px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            Selected: {selectedCheckpoints[trip._id]}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {selectedCheckpoints[trip._id] && (
+                            <span style={{ 
+                              fontSize: '0.78rem', 
+                              fontWeight: 600, 
+                              color: 'var(--primary)',
+                              background: 'rgba(245, 183, 49, 0.1)',
+                              padding: '2px 8px',
+                              borderRadius: '6px'
+                            }}>
+                              Pickup: {selectedCheckpoints[trip._id]}
+                            </span>
+                          )}
+                          {selectedDropoffCheckpoints[trip._id] && (
+                            <span style={{ 
+                              fontSize: '0.78rem', 
+                              fontWeight: 600, 
+                              color: '#EF4444',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              padding: '2px 8px',
+                              borderRadius: '6px'
+                            }}>
+                              Dropoff: {selectedDropoffCheckpoints[trip._id]}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       {/* Checkpoint Stepper Progress bar */}
@@ -237,15 +356,15 @@ export default function TripSearchPage() {
                         margin: '1rem 0 0.5rem 0',
                         overflowX: 'auto',
                         paddingBottom: '0.5rem',
-                        scrollbarWidth: 'none', // hide default scrollbar
+                        scrollbarWidth: 'none',
                         msOverflowStyle: 'none'
                       }} className="checkpoint-scrollbar">
                         {/* Connecting Line */}
                         <div style={{ 
                           position: 'absolute', 
                           top: '12px', 
-                          left: `${100 / (route.checkpoints.length * 2)}%`, 
-                          right: `${100 / (route.checkpoints.length * 2)}%`, 
+                          left: `${100 / (currentRoute.checkpoints.length * 2)}%`, 
+                          right: `${100 / (currentRoute.checkpoints.length * 2)}%`, 
                           height: '4px', 
                           background: 'var(--border)', 
                           zIndex: 0 
@@ -253,15 +372,28 @@ export default function TripSearchPage() {
                         
                         {/* Colored Active Progress Line */}
                         {(() => {
-                          const selectedIdx = route.checkpoints.findIndex((cp: any) => cp.name === selectedCheckpoints[trip._id]);
-                          if (selectedIdx > 0 && route.checkpoints.length > 1) {
-                            const percent = (selectedIdx / (route.checkpoints.length - 1)) * 100;
+                          const checkpoints = currentRoute.checkpoints || [];
+                          if (checkpoints.length < 2) return null;
+                          
+                          const pickupName = selectedCheckpoints[trip._id];
+                          const dropoffName = selectedDropoffCheckpoints[trip._id];
+                          
+                          const pickupIdx = checkpoints.findIndex((cp: any) => cp.name === pickupName);
+                          const dropoffIdx = dropoffName 
+                            ? checkpoints.findIndex((cp: any) => cp.name === dropoffName)
+                            : checkpoints.length - 1;
+                            
+                          if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
+                            const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
+                            const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
+                            const widthPercent = endPercent - startPercent;
+                            
                             return (
                               <div style={{ 
                                 position: 'absolute', 
                                 top: '12px', 
-                                left: `${100 / (route.checkpoints.length * 2)}%`, 
-                                width: `calc(${percent}% - ${percent / 100 * (100 / route.checkpoints.length)}%)`,
+                                left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
+                                width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
                                 height: '4px', 
                                 background: 'var(--primary)', 
                                 zIndex: 0,
@@ -272,19 +404,49 @@ export default function TripSearchPage() {
                           return null;
                         })()}
 
-                        {route.checkpoints.map((cp: any, cpIdx: number) => {
-                          const isSelected = selectedCheckpoints[trip._id] === cp.name;
-                          const selectedIdx = route.checkpoints.findIndex((item: any) => item.name === selectedCheckpoints[trip._id]);
-                          const isPassedOrSelected = cpIdx <= selectedIdx;
+                        {currentRoute.checkpoints.map((cp: any, cpIdx: number) => {
+                          const isPickup = selectedCheckpoints[trip._id] === cp.name;
+                          const isDropoff = selectedDropoffCheckpoints[trip._id] === cp.name;
+                          
+                          const pickupIdx = currentRoute.checkpoints.findIndex((item: any) => item.name === selectedCheckpoints[trip._id]);
+                          const dropoffIdx = selectedDropoffCheckpoints[trip._id] 
+                            ? currentRoute.checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoints[trip._id])
+                            : currentRoute.checkpoints.length - 1;
+                            
+                          const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
+                          
+                          let dotBg = 'var(--surface-hover)';
+                          let dotBorder = '3px solid var(--border)';
+                          let dotShadow = 'none';
+                          
+                          if (isPickup) {
+                            dotBg = 'var(--primary)';
+                            dotBorder = '4px solid var(--surface)';
+                            dotShadow = '0 0 15px var(--primary)';
+                          } else if (isDropoff) {
+                            dotBg = '#EF4444';
+                            dotBorder = '4px solid var(--surface)';
+                            dotShadow = '0 0 15px #EF4444';
+                          } else if (isActiveRoute) {
+                            dotBg = 'rgba(245, 183, 49, 0.2)';
+                            dotBorder = '3px solid var(--primary)';
+                          }
                           
                           return (
                             <div 
                               key={cp.name} 
                               onClick={() => {
-                                setSelectedCheckpoints(prev => ({
-                                  ...prev,
-                                  [trip._id]: cp.name
-                                }));
+                                if (cpIdx < dropoffIdx) {
+                                  setSelectedCheckpoints(prev => ({
+                                    ...prev,
+                                    [trip._id]: cp.name
+                                  }));
+                                } else if (cpIdx > pickupIdx) {
+                                  setSelectedDropoffCheckpoints(prev => ({
+                                    ...prev,
+                                    [trip._id]: cp.name
+                                  }));
+                                }
                               }}
                               style={{ 
                                 display: 'flex', 
@@ -299,22 +461,19 @@ export default function TripSearchPage() {
                               }}
                               className="checkpoint-step"
                             >
-                              {/* Pulsing indicator dot */}
                               <div style={{
                                 width: '26px',
                                 height: '26px',
                                 borderRadius: '50%',
-                                background: isSelected ? 'var(--primary)' : 'var(--surface-hover)',
-                                border: isSelected 
-                                  ? '4px solid var(--surface)' 
-                                  : (isPassedOrSelected ? '3px solid var(--primary-dark)' : '3px solid var(--border)'),
+                                background: dotBg,
+                                border: dotBorder,
                                 transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                boxShadow: isSelected ? '0 0 15px var(--primary)' : 'none',
+                                boxShadow: dotShadow,
                               }}>
-                                {isSelected && (
+                                {(isPickup || isDropoff) && (
                                   <div style={{
                                     width: '8px',
                                     height: '8px',
@@ -326,8 +485,8 @@ export default function TripSearchPage() {
                               
                               <span style={{ 
                                 fontSize: '0.78rem', 
-                                fontWeight: isSelected ? 800 : 500, 
-                                color: isSelected ? 'var(--primary)' : 'var(--text-primary)', 
+                                fontWeight: (isPickup || isDropoff) ? 800 : 500, 
+                                color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
                                 marginTop: '8px', 
                                 textAlign: 'center',
                                 transition: 'all 0.2s'
@@ -337,7 +496,7 @@ export default function TripSearchPage() {
                               {cp.nameAr && (
                                 <span style={{ 
                                   fontSize: '0.68rem', 
-                                  color: isSelected ? 'var(--primary-hover)' : 'var(--text-muted)',
+                                  color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
                                   textAlign: 'center',
                                   transition: 'all 0.2s'
                                 }}>

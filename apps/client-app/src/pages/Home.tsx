@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown } from 'lucide-react';
 
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,106 +31,398 @@ function RouteMapAutopan({ path }: { path: [number, number][] }) {
 
 function RouteSearchForm() {
   const [routes, setRoutes] = useState<any[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState('');
-  const [selectedRouteDetails, setSelectedRouteDetails] = useState<any>(null);
-  const [selectedCheckpoint, setSelectedCheckpoint] = useState('');
+  const [fromCity, setFromCity] = useState<string>('');
+  const [fromStation, setFromStation] = useState<any>(null);
+  const [toCity, setToCity] = useState<string>('');
+  const [toStation, setToStation] = useState<any>(null);
+  const [travelDate, setTravelDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [passengers, setPassengers] = useState<number>(1);
   const navigate = useNavigate();
 
+  // Load all routes to extract cities and stations
   useEffect(() => {
     routesAPI.getAll().then((data) => setRoutes(data)).catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (selectedRoute) {
-      const details = routes.find(r => r._id === selectedRoute);
-      setSelectedRouteDetails(details);
-      setSelectedCheckpoint(''); // Reset checkpoint when route changes
-    } else {
-      setSelectedRouteDetails(null);
-      setSelectedCheckpoint('');
-    }
-  }, [selectedRoute, routes]);
+  // Parse cities and stations from routes list
+  const parsedData = useMemo(() => {
+    const fromCitiesSet = new Set<string>();
+    const toCitiesSet = new Set<string>();
+    const fromStationsMap: Record<string, any[]> = {};
+    const toStationsMap: Record<string, any[]> = {};
 
-  const handleSearch = () => {
-    if (selectedRoute) {
-      const checkpointQuery = selectedCheckpoint ? `&checkpointName=${encodeURIComponent(selectedCheckpoint)}` : '';
-      navigate(`/search?routeId=${selectedRoute}${checkpointQuery}`);
+    routes.forEach((route) => {
+      const parts = route.name.split(/\s+to\s+/i);
+      if (parts.length < 2) return;
+      const fromC = parts[0].trim();
+      const toC = parts[1].trim();
+
+      const fCity = fromC.charAt(0).toUpperCase() + fromC.slice(1);
+      const tCity = toC.charAt(0).toUpperCase() + toC.slice(1);
+
+      fromCitiesSet.add(fCity);
+      toCitiesSet.add(tCity);
+
+      if (!fromStationsMap[fCity]) fromStationsMap[fCity] = [];
+      if (!toStationsMap[tCity]) toStationsMap[tCity] = [];
+
+      const checkpoints = route.checkpoints || [];
+      if (checkpoints.length >= 2) {
+        const mid = Math.ceil(checkpoints.length / 2);
+        checkpoints.forEach((cp: any, idx: number) => {
+          const coords = cp.location?.coordinates;
+          if (!coords) return;
+          const station = {
+            name: cp.name,
+            nameAr: cp.nameAr,
+            lat: coords[1],
+            lng: coords[0],
+            routeId: route._id || route.id,
+          };
+          if (idx < mid) {
+            if (!fromStationsMap[fCity].some((s) => s.name === station.name)) {
+              fromStationsMap[fCity].push(station);
+            }
+          } else {
+            if (!toStationsMap[tCity].some((s) => s.name === station.name)) {
+              toStationsMap[tCity].push(station);
+            }
+          }
+        });
+      } else {
+        const coords = route.path?.coordinates || [];
+        if (coords.length >= 2) {
+          const startCoords = coords[0];
+          const endCoords = coords[coords.length - 1];
+
+          const startStation = {
+            name: `${fCity} Start Point`,
+            lat: startCoords[1],
+            lng: startCoords[0],
+            routeId: route._id || route.id,
+          };
+          const endStation = {
+            name: `${tCity} End Point`,
+            lat: endCoords[1],
+            lng: endCoords[0],
+            routeId: route._id || route.id,
+          };
+
+          if (!fromStationsMap[fCity].some((s) => s.name === startStation.name)) {
+            fromStationsMap[fCity].push(startStation);
+          }
+          if (!toStationsMap[tCity].some((s) => s.name === endStation.name)) {
+            toStationsMap[tCity].push(endStation);
+          }
+        }
+      }
+    });
+
+    return {
+      fromCities: Array.from(fromCitiesSet),
+      toCities: Array.from(toCitiesSet),
+      fromStationsMap,
+      toStationsMap,
+    };
+  }, [routes]);
+
+  const availableFromStations = fromCity ? (parsedData.fromStationsMap[fromCity] || []) : [];
+  const availableToStations = toCity ? (parsedData.toStationsMap[toCity] || []) : [];
+
+  const handleFromCityChange = (city: string) => {
+    setFromCity(city);
+    const stations = parsedData.fromStationsMap[city] || [];
+    if (stations.length > 0) {
+      setFromStation(stations[0]);
+    } else {
+      setFromStation(null);
     }
   };
 
-  const polylinePath = selectedRouteDetails?.path?.coordinates?.map(
-    (coord: number[]) => [coord[1], coord[0]] as [number, number]
-  ) || [];
+  const handleToCityChange = (city: string) => {
+    setToCity(city);
+    const stations = parsedData.toStationsMap[city] || [];
+    if (stations.length > 0) {
+      setToStation(stations[0]);
+    } else {
+      setToStation(null);
+    }
+  };
+
+  const handleFromStationChange = (stationName: string) => {
+    const station = availableFromStations.find((s) => s.name === stationName);
+    setFromStation(station || null);
+  };
+
+  const handleToStationChange = (stationName: string) => {
+    const station = availableToStations.find((s) => s.name === stationName);
+    setToStation(station || null);
+  };
+
+  const handleSwap = () => {
+    const tempCity = fromCity;
+    const tempStation = fromStation;
+    setFromCity(toCity);
+    setFromStation(toStation);
+    setToCity(tempCity);
+    setToStation(tempStation);
+  };
+
+  const canSearch = fromCity && fromStation && toCity && toStation;
+
+  const handleSearch = () => {
+    if (canSearch) {
+      const pickupLat = fromStation.lat;
+      const pickupLng = fromStation.lng;
+      const dropoffLat = toStation.lat;
+      const dropoffLng = toStation.lng;
+      
+      navigate(
+        `/search?pickupLat=${pickupLat}&pickupLng=${pickupLng}&dropoffLat=${dropoffLat}&dropoffLng=${dropoffLng}&date=${travelDate}&passengers=${passengers}`
+      );
+    }
+  };
+
+  const polylinePath: [number, number][] = [];
+  if (fromStation) polylinePath.push([fromStation.lat, fromStation.lng]);
+  if (toStation) polylinePath.push([toStation.lat, toStation.lng]);
 
   return (
     <>
-      <div className="search-group">
-        <div className="search-field" style={{ borderBottom: 'none' }}>
-          <span className="search-field-icon"><Map size={20} /></span>
-          <select 
-            value={selectedRoute} 
-            onChange={(e) => setSelectedRoute(e.target.value)}
-            className="select-input"
-            id="route-select"
-          >
-            <option value="" disabled>Select a Route</option>
-            {routes.map(r => (
-              <option key={r._id} value={r._id}>{r.name}</option>
-            ))}
-          </select>
+      <div className="from-to-container">
+        {/* ROW 1: FROM */}
+        <div className="from-to-row">
+          <div className="from-to-field">
+            <label className="field-label">From City</label>
+            <div className="field-select-wrapper">
+              <MapPin size={16} className="field-icon-left" />
+              <select
+                value={fromCity}
+                onChange={(e) => handleFromCityChange(e.target.value)}
+                className="field-select"
+              >
+                <option value="">Select City</option>
+                {parsedData.fromCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="from-to-field">
+            <label className="field-label">From Station</label>
+            <div className="field-select-wrapper">
+              <Map size={16} className="field-icon-left" />
+              <select
+                value={fromStation ? fromStation.name : ''}
+                onChange={(e) => handleFromStationChange(e.target.value)}
+                className="field-select"
+                disabled={!fromCity}
+              >
+                <option value="">Select Station</option>
+                {availableFromStations.map((station) => (
+                  <option key={station.name} value={station.name}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {selectedRouteDetails?.checkpoints && selectedRouteDetails.checkpoints.length > 0 && (
-          <div className="search-field animate-fade-in-up" style={{ borderBottom: 'none' }}>
-            <span className="search-field-icon"><MapPin size={20} /></span>
-            <select 
-              value={selectedCheckpoint} 
-              onChange={(e) => setSelectedCheckpoint(e.target.value)}
-              className="select-input"
-              id="checkpoint-select"
-            >
-              <option value="">Any Boarding Checkpoint (Default)</option>
-              {selectedRouteDetails.checkpoints.map((cp: any) => (
-                <option key={cp.name} value={cp.name}>
-                  {cp.name} {cp.nameAr ? `(${cp.nameAr})` : ''}
-                </option>
-              ))}
-            </select>
+        {/* SWAP BUTTON */}
+        <div className="swap-button-container">
+          <button type="button" className="swap-button" onClick={handleSwap}>
+            <ArrowUpDown size={16} />
+          </button>
+        </div>
+
+        {/* ROW 2: TO */}
+        <div className="from-to-row">
+          <div className="from-to-field">
+            <label className="field-label">To City</label>
+            <div className="field-select-wrapper">
+              <MapPin size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
+              <select
+                value={toCity}
+                onChange={(e) => handleToCityChange(e.target.value)}
+                className="field-select"
+              >
+                <option value="">Select City</option>
+                {parsedData.toCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
+
+          <div className="from-to-field">
+            <label className="field-label">To Station</label>
+            <div className="field-select-wrapper">
+              <Map size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
+              <select
+                value={toStation ? toStation.name : ''}
+                onChange={(e) => handleToStationChange(e.target.value)}
+                className="field-select"
+                disabled={!toCity}
+              >
+                <option value="">Select Station</option>
+                {availableToStations.map((station) => (
+                  <option key={station.name} value={station.name}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 3: DATE */}
+        <div className="from-to-row">
+          <div className="from-to-field full-width">
+            <label className="field-label">Travel Date</label>
+            <div className="field-select-wrapper">
+              <Calendar size={16} className="field-icon-left" />
+              <input
+                type="date"
+                value={travelDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setTravelDate(e.target.value)}
+                className="field-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 4: PASSENGERS */}
+        <div className="from-to-row">
+          <div className="from-to-field full-width">
+            <label className="field-label">Number of Seats</label>
+            <div className="passenger-selector">
+              <Users size={16} className="field-icon-left" style={{ color: 'var(--primary)', position: 'static' }} />
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  flex: 1,
+                  textAlign: 'left',
+                  marginLeft: '8px',
+                }}
+              >
+                {passengers} {passengers === 1 ? 'Seat' : 'Seats'}
+              </span>
+              <div className="passenger-controls">
+                <button
+                  type="button"
+                  onClick={() => setPassengers((p) => Math.max(1, p - 1))}
+                  className="passenger-control-btn"
+                  disabled={passengers <= 1}
+                >
+                  -
+                </button>
+                <span className="passenger-count">{passengers}</span>
+                <button
+                  type="button"
+                  onClick={() => setPassengers((p) => Math.min(10, p + 1))}
+                  className="passenger-control-btn"
+                  disabled={passengers >= 10}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {polylinePath.length > 0 && (
-        <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', margin: '1rem 0', border: '1px solid var(--border)', zIndex: 1 }}>
-          <MapContainer center={[30.0444, 31.2357]} zoom={10} style={{ height: '100%', width: '100%' }}>
+      {/* Mini map preview when both pins are set */}
+      {fromStation && toStation && (
+        <div
+          style={{
+            height: '180px',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            margin: '1rem 0',
+            border: '1px solid var(--border)',
+            zIndex: 1,
+          }}
+        >
+          <MapContainer
+            center={[(fromStation.lat + toStation.lat) / 2, (fromStation.lng + toStation.lng) / 2]}
+            zoom={11}
+            style={{ height: '100%', width: '100%' }}
+          >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <Polyline positions={polylinePath} color="var(--primary)" weight={4} opacity={0.9} />
-            <Marker position={polylinePath[0]}>
-              <Popup>🏁 Departure Terminal</Popup>
+            <Marker position={[fromStation.lat, fromStation.lng]}>
+              <Popup>📍 Pickup: {fromStation.name}</Popup>
             </Marker>
-            <Marker position={polylinePath[polylinePath.length - 1]}>
-              <Popup>🏁 Destination Station</Popup>
+            <Marker position={[toStation.lat, toStation.lng]}>
+              <Popup>🏁 Dropoff: {toStation.name}</Popup>
             </Marker>
-            <RouteMapAutopan path={polylinePath} />
+            <Polyline
+              positions={[
+                [fromStation.lat, fromStation.lng],
+                [toStation.lat, toStation.lng],
+              ]}
+              color="var(--primary)"
+              weight={3}
+              dashArray="8 6"
+              opacity={0.6}
+            />
+            <RouteMapAutopan
+              path={[
+                [fromStation.lat, fromStation.lng],
+                [toStation.lat, toStation.lng],
+              ]}
+            />
           </MapContainer>
         </div>
       )}
 
-      <button 
-        className="search-btn" 
+      <button
+        className="search-btn"
         onClick={handleSearch}
-        disabled={!selectedRoute}
+        disabled={!canSearch}
         id="search-trips-btn"
         style={{ marginTop: '0.5rem' }}
       >
-        Search Trips <Search size={18} />
+        Show Trips <Search size={18} />
       </button>
+
+      {/* Fallback to manual route selection */}
+      <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+        <Link
+          to="/routes"
+          style={{
+            fontSize: '0.8rem',
+            color: 'var(--text-muted)',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'color 0.2s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+        >
+          Or browse all routes manually →
+        </Link>
+      </div>
     </>
   );
 }
+
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();

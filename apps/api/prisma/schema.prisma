@@ -1,10 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  phone        String
+  password     String
+  role         Role            @default(PASSENGER)
+  avatarUrl    String?
+  isActive     Boolean         @default(true)
+  crmNotes     Json            @default("[]")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  bookings     Booking[]
+  tickets      SupportTicket[]
+  transactions Transaction[]
+  trips        Trip[]          @relation("DriverTrips")
+  vehicles     Vehicle[]
+
+  @@map("users")
+}
+
+model RolePermission {
+  id          String   @id @default(uuid())
+  role        Role     @unique
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("role_permissions")
+}
+
+model Vehicle {
+  id          String                @id @default(uuid())
+  model       String
+  plateNumber String                @unique
+  capacity    Int                   @default(14)
+  driverId    String?
+  type        String                @default("SHUTTLE_BUS")
+  isActive    Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  locations   LiveVehicleLocation[]
+  trips       Trip[]
+  driver      User?                 @relation(fields: [driverId], references: [id])
+
+  @@map("vehicles")
+}
+
+model Route {
+  id                       String   @id @default(uuid())
+  name                     String
+  path                     Json
+  coverImage               String?
+  checkpoints              Json     @default("[]")
+  distanceKm               Float    @default(0)
+  estimatedDurationMinutes Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  trips                    Trip[]
+
+  @@map("routes")
+}
+
+model Trip {
+  id             String     @id @default(uuid())
+  routeId        String
+  vehicleId      String?
+  driverId       String?
+  departureTime  DateTime
+  arrivalTime    DateTime?
+  status         TripStatus @default(SCHEDULED)
+  priceEGP       Float
+  availableSeats Int
+  bookedSeats    Int        @default(0)
+  lockedSeats    Json       @default("[14]")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  bookings       Booking[]
+  driver         User?      @relation("DriverTrips", fields: [driverId], references: [id])
+  route          Route      @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle?   @relation(fields: [vehicleId], references: [id])
+
+  @@map("trips")
+}
+
+model Booking {
+  id                  String        @id @default(uuid())
+  userId              String
+  tripId              String
+  seatNumbers         Json
+  pickupStopId        String?
+  dropoffStopId       String?
+  pickupCheckpoint    Json?
+  dropoffCheckpoint   Json?
+  status              BookingStatus @default(PENDING)
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymobOrderId       Int?          @unique
+  amountEGP           Float
+  bookedAt            DateTime      @default(now())
+  qrVerificationToken String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  trip                Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions        Transaction[]
+
+  @@map("bookings")
+}
+
+model LiveVehicleLocation {
+  id                String   @id @default(uuid())
+  vehicleId         String
+  driverId          String
+  location          Json
+  speedKmh          Float    @default(0)
+  headingDegrees    Float    @default(0)
+  batteryPercentage Float?
+  status            String   @default("ACTIVE")
+  lastUpdatedAt     DateTime @default(now())
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("live_vehicle_locations")
+}
+
+model SupportTicket {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  email     String
+  phone     String
+  subject   String
+  message   String
+  status    String   @default("OPEN")
+  replies   Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("support_tickets")
+}
+
+model Transaction {
+  id              String        @id @default(uuid())
+  bookingId       String?
+  userId          String
+  paymobOrderId   Int?
+  amountEGP       Float
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   String
+  paymobPaymentId String?
+  rawResponse     Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
 }
 
 enum Role {
@@ -45,172 +204,4 @@ enum StopType {
   START
   CHECKPOINT
   END
-}
-
-model User {
-  id          String    @id @default(uuid())
-  name        String
-  email       String    @unique
-  phone       String
-  password    String
-  role        Role      @default(PASSENGER)
-  avatarUrl   String?
-  isActive    Boolean   @default(true)
-  crmNotes    Json      @default("[]") // Stores array of { text, createdAt, adminName }
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  vehicles    Vehicle[]
-  trips       Trip[]    @relation("DriverTrips")
-  bookings    Booking[]
-  transactions Transaction[]
-  tickets     SupportTicket[]
-
-  @@map("users")
-}
-
-model RolePermission {
-  id          String   @id @default(uuid())
-  role        Role     @unique
-  permissions Json     // Array of permission strings
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("role_permissions")
-}
-
-model Vehicle {
-  id          String   @id @default(uuid())
-  model       String
-  plateNumber String   @unique
-  capacity    Int      @default(14)
-  driverId    String?
-  driver      User?    @relation(fields: [driverId], references: [id])
-  type        String   @default("SHUTTLE_BUS") // SHUTTLE_BUS, BUS, etc.
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  trips       Trip[]
-  locations   LiveVehicleLocation[]
-
-  @@map("vehicles")
-}
-
-model Route {
-  id                       String   @id @default(uuid())
-  name                     String
-  path                     Json     // GeoJSON structure: { type: "LineString", coordinates: number[][] }
-  coverImage               String?
-  checkpoints              Json     @default("[]") // StopEntity array
-  distanceKm               Float    @default(0)
-  estimatedDurationMinutes Int      @default(0)
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-
-  // Relations
-  trips                    Trip[]
-
-  @@map("routes")
-}
-
-model Trip {
-  id             String     @id @default(uuid())
-  routeId        String
-  route          Route      @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  vehicleId      String?
-  vehicle        Vehicle?   @relation(fields: [vehicleId], references: [id])
-  driverId       String?
-  driver         User?      @relation("DriverTrips", fields: [driverId], references: [id])
-  departureTime  DateTime
-  arrivalTime    DateTime?
-  status         TripStatus @default(SCHEDULED)
-  priceEGP       Float
-  availableSeats Int
-  bookedSeats    Int        @default(0)
-  lockedSeats    Json       @default("[14]") // array of numbers
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  // Relations
-  bookings       Booking[]
-
-  @@map("trips")
-}
-
-model Booking {
-  id                  String        @id @default(uuid())
-  userId              String
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tripId              String
-  trip                Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  seatNumbers         Json          // Array of seat numbers
-  pickupStopId        String?
-  dropoffStopId       String?
-  pickupCheckpoint    Json?         // StopEntity structure
-  status              BookingStatus @default(PENDING)
-  paymentStatus       PaymentStatus @default(PENDING)
-  paymobOrderId       Int?          @unique
-  amountEGP           Float
-  bookedAt            DateTime      @default(now())
-  qrVerificationToken String?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-
-  // Relations
-  transactions        Transaction[]
-
-  @@map("bookings")
-}
-
-model LiveVehicleLocation {
-  id             String   @id @default(uuid())
-  vehicleId      String
-  driverId       String
-  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  location       Json     // GeoJSON Point
-  speedKmh       Float    @default(0)
-  headingDegrees Float    @default(0)
-  batteryPercentage Float?
-  status         String   @default("ACTIVE")
-  lastUpdatedAt  DateTime @default(now())
-
-  @@map("live_vehicle_locations")
-}
-
-model SupportTicket {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  email       String
-  phone       String
-  subject     String
-  message     String
-  status      String   @default("OPEN")
-  replies     Json     @default("[]") // Array of reply objects { text, createdAt, adminName }
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("support_tickets")
-}
-
-model Transaction {
-  id              String        @id @default(uuid())
-  bookingId       String?
-  booking         Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  userId          String
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymobOrderId   Int?
-  amountEGP       Float
-  status          PaymentStatus @default(PENDING)
-  paymentMethod   String
-  paymobPaymentId String?
-  rawResponse     Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@map("transactions")
 }

@@ -302,7 +302,7 @@ export function CrmPage() {
           value={role}
           onChange={(value) => handleChangeRole(record._id, value)}
           style={{ width: 130 }}
-          bordered={false}
+          variant="borderless"
           className="role-selector-dropdown"
         >
           <Select.Option value="PASSENGER">
@@ -590,70 +590,86 @@ export function CrmPage() {
       </div>
 
       {/* Tabs Layout */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} className="crm-tabs" style={{ marginBottom: '1.5rem' }}>
-        <Tabs.TabPane 
-          tab={<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={16} /> User Accounts</span>} 
-          key="users"
-        >
-          {/* Filtering bar for users */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '1.5rem' }}>
-            <Input.Search 
-              placeholder="Search name, email, phone, ID..." 
-              value={searchTerm} 
-              onSearch={value => setSearchTerm(value)} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              style={{ width: 280 }} 
-              allowClear 
-            />
-            <Select
-              value={roleFilter}
-              onChange={value => setRoleFilter(value)}
-              style={{ width: 140 }}
-            >
-              <Select.Option value="ALL">All Roles</Select.Option>
-              <Select.Option value="PASSENGER">Passengers</Select.Option>
-              <Select.Option value="DRIVER">Drivers</Select.Option>
-              <Select.Option value="ADMIN">Administrators</Select.Option>
-            </Select>
-            <Select
-              value={statusFilter}
-              onChange={value => setStatusFilter(value)}
-              style={{ width: 150 }}
-            >
-              <Select.Option value="ALL">All Statuses</Select.Option>
-              <Select.Option value="ACTIVE">Active Only</Select.Option>
-              <Select.Option value="SUSPENDED">Suspended Only</Select.Option>
-            </Select>
-          </div>
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab} 
+        className="crm-tabs" 
+        style={{ marginBottom: '1.5rem' }} 
+        items={[
+          {
+            key: 'users',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={16} /> User Accounts
+              </span>
+            ),
+            children: (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '1.5rem' }}>
+                  <Input.Search 
+                    placeholder="Search name, email, phone, ID..." 
+                    value={searchTerm} 
+                    onSearch={value => setSearchTerm(value)} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    style={{ width: 280 }} 
+                    allowClear 
+                  />
+                  <Select
+                    value={roleFilter}
+                    onChange={value => setRoleFilter(value)}
+                    style={{ width: 140 }}
+                  >
+                    <Select.Option value="ALL">All Roles</Select.Option>
+                    <Select.Option value="PASSENGER">Passengers</Select.Option>
+                    <Select.Option value="DRIVER">Drivers</Select.Option>
+                    <Select.Option value="ADMIN">Administrators</Select.Option>
+                  </Select>
+                  <Select
+                    value={statusFilter}
+                    onChange={value => setStatusFilter(value)}
+                    style={{ width: 150 }}
+                  >
+                    <Select.Option value="ALL">All Statuses</Select.Option>
+                    <Select.Option value="ACTIVE">Active Only</Select.Option>
+                    <Select.Option value="SUSPENDED">Suspended Only</Select.Option>
+                  </Select>
+                </div>
 
-          <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <Table
-              dataSource={filteredUsers}
-              columns={columns}
-              rowKey="_id"
-              loading={loading}
-              pagination={{ pageSize: 10, showSizeChanger: true }}
-              style={{ padding: '0.5rem' }}
-            />
-          </div>
-        </Tabs.TabPane>
-
-        <Tabs.TabPane 
-          tab={<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Inbox size={16} /> Support Tickets</span>} 
-          key="tickets"
-        >
-          <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <Table
-              dataSource={tickets}
-              columns={ticketColumns}
-              rowKey="_id"
-              loading={ticketsLoading}
-              pagination={{ pageSize: 10, showSizeChanger: true }}
-              style={{ padding: '0.5rem' }}
-            />
-          </div>
-        </Tabs.TabPane>
-      </Tabs>
+                <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <Table
+                    dataSource={filteredUsers}
+                    columns={columns}
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+              </>
+            ),
+          },
+          {
+            key: 'tickets',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Inbox size={16} /> Support Tickets
+              </span>
+            ),
+            children: (
+              <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <Table
+                  dataSource={tickets}
+                  columns={ticketColumns}
+                  rowKey="_id"
+                  loading={ticketsLoading}
+                  pagination={{ pageSize: 10, showSizeChanger: true }}
+                  style={{ padding: '0.5rem' }}
+                />
+              </div>
+            ),
+          }
+        ]}
+      />
 
       {/* CRM Profile Detail Drawer */}
       <Drawer
@@ -667,7 +683,7 @@ export function CrmPage() {
         width={680}
         onClose={handleCloseDrawer}
         open={isDrawerOpen}
-        bodyStyle={{ background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' }}
+        styles={{ body: { background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' } }}
       >
         {selectedUser && (
           <div>
@@ -876,7 +892,7 @@ export function CrmPage() {
         width={680}
         onClose={handleCloseTicketDrawer}
         open={isTicketDrawerOpen}
-        bodyStyle={{ background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' }}
+        styles={{ body: { background: 'var(--background)', color: 'var(--text-primary)', padding: '24px' } }}
       >
         {selectedTicket && (
           <div>

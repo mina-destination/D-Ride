@@ -2,38 +2,46 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/d-ride-logo.jpeg';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const navItems = [
-  { label: 'Main', type: 'section' as const },
-  { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-  { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
-  { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
-  { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicles' },
-  { path: '/drivers', icon: <UserCog size={18} />, label: 'Drivers' },
-  { label: 'Transactions', type: 'section' as const },
-  { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
-  { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
-  { label: 'System', type: 'section' as const },
-  { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
-  { path: '/crm', icon: <Users size={18} />, label: 'User CRM' },
-  { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
-  { path: '/settings', icon: <Settings size={18} />, label: 'Settings' },
+  { label: 'Overview', type: 'section' as const },
+  { path: '/', icon: <LayoutDashboard size={18} />, label: 'Analytics' },
+  
+  { label: 'Fleet Operations', type: 'section' as const },
+  { path: '/routes', icon: <Map size={18} />, label: 'Network Routes' },
+  { path: '/trips', icon: <Bus size={18} />, label: 'Trip Schedules' },
+  { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicle Fleet' },
+  { path: '/drivers', icon: <UserCog size={18} />, label: 'Driver Partners' },
+  
+  { label: 'Customer Relations', type: 'section' as const },
+  { path: '/passengers', icon: <Users size={18} />, label: 'Passenger Registry' },
+  { path: '/crm', icon: <Megaphone size={18} />, label: 'Marketing CRM' },
+  { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Center' },
+  
+  { label: 'Finance & Sales', type: 'section' as const },
+  { path: '/bookings', icon: <Ticket size={18} />, label: 'Reservations' },
+  { path: '/payments', icon: <CreditCard size={18} />, label: 'Transactions' },
+  
+  { label: 'Administration', type: 'section' as const },
+  { path: '/administrators', icon: <Shield size={18} />, label: 'Staff Access' },
+  { path: '/settings', icon: <Settings size={18} />, label: 'System Settings' },
 ];
 
 const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/routes': 'Routes',
-  '/trips': 'Trips',
-  '/vehicles': 'Vehicles',
-  '/drivers': 'Drivers',
-  '/bookings': 'Bookings',
-  '/payments': 'Payments',
-  '/passengers': 'Passengers',
-  '/crm': 'User CRM',
-  '/administrators': 'Administrators',
-  '/settings': 'Settings',
+  '/': 'Analytics Overview',
+  '/routes': 'Network Routes',
+  '/trips': 'Trip Schedules',
+  '/vehicles': 'Vehicle Fleet',
+  '/drivers': 'Driver Partners',
+  '/bookings': 'Reservations',
+  '/payments': 'Transactions',
+  '/passengers': 'Passenger Registry',
+  '/crm': 'Marketing CRM',
+  '/support-tickets': 'Support Center',
+  '/administrators': 'Staff Access Control',
+  '/settings': 'System Settings',
 };
 
 const pathPermissionMap: Record<string, string> = {
@@ -46,6 +54,7 @@ const pathPermissionMap: Record<string, string> = {
   '/payments': 'payments',
   '/passengers': 'passengers',
   '/crm': 'crm',
+  '/support-tickets': 'crm',
   '/administrators': 'settings',
   '/settings': 'settings',
 };

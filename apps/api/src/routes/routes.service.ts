@@ -132,4 +132,87 @@ export class RoutesService {
 
     return closest;
   }
+
+  async smartSearch(
+    pickupLng: number,
+    pickupLat: number,
+    dropoffLng: number,
+    dropoffLat: number,
+    radiusMeters: number = 5000,
+  ): Promise<any[]> {
+    this.logger.log(
+      `Smart search: pickup=[${pickupLat},${pickupLng}] dropoff=[${dropoffLat},${dropoffLng}] radius=${radiusMeters}m`,
+    );
+
+    const routes = await this.prisma.route.findMany();
+    const results: any[] = [];
+
+    for (const route of routes) {
+      const checkpoints = route.checkpoints as any[];
+      if (!checkpoints || checkpoints.length < 2) continue;
+
+      // Find nearest checkpoint to pickup
+      let pickupCp: any = null;
+      let pickupDistance = Infinity;
+      let pickupIdx = -1;
+
+      for (let i = 0; i < checkpoints.length; i++) {
+        const cp = checkpoints[i];
+        if (!cp.location?.coordinates) continue;
+        const [cpLng, cpLat] = cp.location.coordinates;
+        const dist = getDistance(pickupLng, pickupLat, cpLng, cpLat);
+        if (dist < pickupDistance) {
+          pickupDistance = dist;
+          pickupCp = cp;
+          pickupIdx = i;
+        }
+      }
+
+      // Find nearest checkpoint to dropoff
+      let dropoffCp: any = null;
+      let dropoffDistance = Infinity;
+      let dropoffIdx = -1;
+
+      for (let i = 0; i < checkpoints.length; i++) {
+        const cp = checkpoints[i];
+        if (!cp.location?.coordinates) continue;
+        const [cpLng, cpLat] = cp.location.coordinates;
+        const dist = getDistance(dropoffLng, dropoffLat, cpLng, cpLat);
+        if (dist < dropoffDistance) {
+          dropoffDistance = dist;
+          dropoffCp = cp;
+          dropoffIdx = i;
+        }
+      }
+
+      // Both checkpoints must be within radius
+      if (pickupDistance > radiusMeters || dropoffDistance > radiusMeters) continue;
+
+      // Pickup must come BEFORE dropoff in the route sequence (correct travel direction)
+      if (pickupIdx >= dropoffIdx) continue;
+
+      // Pickup and dropoff must not be the same checkpoint
+      if (pickupIdx === dropoffIdx) continue;
+
+      results.push({
+        route: { ...route, _id: route.id },
+        pickupCheckpoint: {
+          ...pickupCp,
+          distanceMeters: Math.round(pickupDistance),
+          index: pickupIdx,
+        },
+        dropoffCheckpoint: {
+          ...dropoffCp,
+          distanceMeters: Math.round(dropoffDistance),
+          index: dropoffIdx,
+        },
+        totalWalkingDistance: Math.round(pickupDistance + dropoffDistance),
+      });
+    }
+
+    // Sort by total walking distance (closest combined pickup+dropoff first)
+    results.sort((a, b) => a.totalWalkingDistance - b.totalWalkingDistance);
+
+    return results;
+  }
 }

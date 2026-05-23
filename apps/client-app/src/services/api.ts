@@ -17,13 +17,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function addIdMapping(data: any): any {
+  if (!data) return data;
+  if (Array.isArray(data)) {
+    return data.map(addIdMapping);
+  }
+  if (typeof data === 'object') {
+    const updated = { ...data };
+    if ('id' in updated && !('_id' in updated)) {
+      updated._id = updated.id;
+    }
+    for (const key in updated) {
+      if (updated[key] && typeof updated[key] === 'object') {
+        updated[key] = addIdMapping(updated[key]);
+      }
+    }
+    return updated;
+  }
+  return data;
+}
+
 // Response interceptor — unwrap API response
 api.interceptors.response.use(
   (response) => {
+    let data = response.data;
     if (response.data && typeof response.data === 'object' && 'data' in response.data) {
-      return response.data.data;
+      data = response.data.data;
     }
-    return response.data;
+    return addIdMapping(data);
   },
   (error) => {
     if (error.response?.status === 401) {
@@ -51,6 +72,8 @@ export const routesAPI = {
     api.get('/routes/nearby', { params: { lat, lng, maxDistance } }),
   getNearestCheckpoint: (routeId: string, lat: number, lng: number): Promise<any> =>
     api.get(`/routes/${routeId}/nearest-checkpoint`, { params: { lat, lng } }),
+  smartSearch: (pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number, radius?: number): Promise<any> =>
+    api.get('/routes/smart-search', { params: { pickupLat, pickupLng, dropoffLat, dropoffLng, radius } }),
 };
 
 export const tripsAPI = {
