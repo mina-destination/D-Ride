@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -12,6 +11,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { UsersModule } from './users/users.module';
 import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PrismaModule } from './prisma/prisma.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -22,14 +22,8 @@ import configuration from './config/configuration';
       load: [configuration],
     }),
 
-    // MongoDB connection via async factory
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('mongodb.uri'),
-      }),
-      inject: [ConfigService],
-    }),
+    // Global Prisma Module for PostgreSQL connection
+    PrismaModule,
 
     // Feature modules
     AuthModule,

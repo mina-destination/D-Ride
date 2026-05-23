@@ -1,78 +1,86 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import {
-  SupportTicket,
-  SupportTicketDocument,
-} from '../schemas/support-ticket.schema';
-import { User, UserDocument } from '../schemas/user.schema';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class SupportService {
-  constructor(
-    @InjectModel(SupportTicket.name)
-    private supportTicketModel: Model<SupportTicketDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async submitTicket(
     userId: string,
     data: { subject: string; message: string },
-  ): Promise<SupportTicket> {
-    const user = await this.userModel.findById(userId).exec();
+  ): Promise<any> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const ticket = new this.supportTicketModel({
-      user: new Types.ObjectId(userId),
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      subject: data.subject,
-      message: data.message,
-      status: 'OPEN',
-      replies: [],
+    const ticket = await this.prisma.supportTicket.create({
+      data: {
+        userId,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        subject: data.subject,
+        message: data.message,
+        status: 'OPEN',
+        replies: [],
+      },
     });
 
-    return ticket.save();
+    return { ...ticket, _id: ticket.id, user: ticket.userId };
   }
 
-  async getAllTickets(): Promise<SupportTicket[]> {
-    return this.supportTicketModel
-      .find()
-      .sort({ status: 1, createdAt: -1 })
-      .exec();
+  async getAllTickets(): Promise<any[]> {
+    const tickets = await this.prisma.supportTicket.findMany({
+      orderBy: [
+        { status: 'asc' },
+        { createdAt: 'desc' },
+      ],
+    });
+    return tickets.map((t) => ({ ...t, _id: t.id, user: t.userId }));
   }
 
-  async resolveTicket(ticketId: string): Promise<SupportTicket> {
-    const ticket = await this.supportTicketModel.findById(ticketId).exec();
-    if (!ticket) {
+  async resolveTicket(ticketId: string): Promise<any> {
+    try {
+      const ticket = await this.prisma.supportTicket.update({
+        where: { id: ticketId },
+        data: { status: 'RESOLVED' },
+      });
+      return { ...ticket, _id: ticket.id, user: ticket.userId };
+    } catch (err) {
       throw new NotFoundException('Ticket not found');
     }
-    ticket.status = 'RESOLVED';
-    return ticket.save();
   }
 
   async replyToTicket(
     ticketId: string,
     replyText: string,
     adminName: string,
-  ): Promise<SupportTicket> {
-    const ticket = await this.supportTicketModel.findById(ticketId).exec();
+  ): Promise<any> {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+    });
     if (!ticket) {
       throw new NotFoundException('Ticket not found');
     }
 
-    ticket.replies.push({
+    const replies = Array.isArray(ticket.replies)
+      ? [...(ticket.replies as any[])]
+      : [];
+    replies.push({
       text: replyText,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       adminName: adminName,
     });
 
-    // Make sure status is open when a reply is added
-    ticket.status = 'OPEN';
+    const updated = await this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        replies: replies,
+        status: 'OPEN',
+      },
+    });
 
-    return ticket.save();
+    return { ...updated, _id: updated.id, user: updated.userId };
   }
 }

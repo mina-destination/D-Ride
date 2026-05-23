@@ -16,10 +16,10 @@ export default () => {
     nodeEnv,
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
-    mongodb: {
-      uri:
-        process.env.MONGODB_URI ||
-        'mongodb://root:secret@localhost:27017/dride?authSource=admin',
+    database: {
+      url:
+        process.env.DATABASE_URL ||
+        'postgresql://root:secret@localhost:5432/dride?schema=public',
     },
 
     jwt: {
@@ -40,10 +40,6 @@ export default () => {
       authToken: process.env.TWILIO_AUTH_TOKEN || '',
       phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
       whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER || '',
-    },
-
-    redis: {
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
     },
   };
 };

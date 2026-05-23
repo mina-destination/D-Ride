@@ -27,9 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         try {
           const profileRes: any = await driverAPI.getProfile();
-          // Drivers and admin staff can use driver portal (Admin for testing)
           const role = profileRes.role?.toUpperCase();
-          if (role === 'DRIVER' || role === 'ADMIN' || role === 'OWNER') {
+          if (role === 'DRIVER') {
             setUser(profileRes);
           } else {
             throw new Error('Access denied. Not authorized as driver.');
@@ -51,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res: any = await driverAPI.login(credentials);
       const role = res.user?.role?.toUpperCase();
       
-      if (role !== 'DRIVER' && role !== 'ADMIN' && role !== 'OWNER') {
+      if (role !== 'DRIVER') {
         throw new Error('Access denied. Not authorized as driver.');
       }
 
