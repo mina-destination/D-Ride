@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { TripEntity, TripDocument } from '../schemas/trip.schema';
 
 @Injectable()
@@ -32,7 +32,11 @@ export class TripsService {
   async searchTrips(routeId?: string, date?: string): Promise<TripEntity[]> {
     const query: any = { status: 'SCHEDULED' };
     if (routeId) {
-      query.routeId = routeId;
+      try {
+        query.routeId = new Types.ObjectId(routeId);
+      } catch (e) {
+        query.routeId = routeId;
+      }
     }
     if (date) {
       const startDate = new Date(date);

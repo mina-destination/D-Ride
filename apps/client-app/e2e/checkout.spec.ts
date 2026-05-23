@@ -96,7 +96,7 @@ test.describe('Checkout & Seat Selection Page', () => {
     const cashBtn = page.locator('.payment-method-btn:has-text("Cash")');
     await cashBtn.click();
     await expect(cashBtn).toHaveClass(/active/);
-    await expect(page.locator('text=Cash on Board')).toBeVisible();
+    await expect(page.locator('strong:has-text("Cash on Board")')).toBeVisible();
 
     // Click Confirm Cash booking -> should redirect to my-trips page
     await page.click('button:has-text("Confirm Booking (Cash)")');

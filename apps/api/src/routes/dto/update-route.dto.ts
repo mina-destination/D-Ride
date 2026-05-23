@@ -38,6 +38,16 @@ class StopDto {
 
   @IsOptional()
   order?: number;
+
+  @IsString()
+  @IsOptional()
+  type?: string;
+
+  @IsOptional()
+  bufferTimeMinutes?: number;
+
+  @IsOptional()
+  geofenceRadiusMeters?: number;
 }
 
 class PathDto {
@@ -71,4 +81,10 @@ export class UpdateRouteDto {
   @Type(() => StopDto)
   @IsOptional()
   checkpoints?: StopDto[];
+
+  @IsOptional()
+  distanceKm?: number;
+
+  @IsOptional()
+  estimatedDurationMinutes?: number;
 }

@@ -80,13 +80,13 @@ export default function Navbar() {
           </a>
         </li>
         <li>
-          <a 
-            href="/#routes" 
+          <Link 
+            to="/routes" 
             onClick={() => setIsOpen(false)}
-            className={isHashActive('#routes') ? 'nav-link-active' : ''}
+            className={isRouteActive('/routes') ? 'nav-link-active' : ''}
           >
             {t('routes')}
-          </a>
+          </Link>
         </li>
         <li>
           <Link 

@@ -114,7 +114,7 @@ export default function MyTripsPage() {
             </p>
             <div className="whatsapp-toast-actions">
               <Link 
-                to={`/track?vehicleId=${recentBooking.tripId?.vehicleId || 'mock-vehicle-123'}`}
+                to={`/track?vehicleId=${recentBooking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${recentBooking.tripId?._id || ''}`}
                 onClick={() => setShowWhatsAppToast(false)}
                 className="whatsapp-toast-link"
               >
@@ -274,7 +274,7 @@ export default function MyTripsPage() {
                           {booking.status === 'CONFIRMED' && (
                             <>
                               <Link 
-                                to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}`}
+                                to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`}
                                 className="auth-button"
                                 style={{ 
                                   background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', 

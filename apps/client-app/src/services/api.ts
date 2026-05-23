@@ -19,7 +19,12 @@ api.interceptors.request.use((config) => {
 
 // Response interceptor — unwrap API response
 api.interceptors.response.use(
-  (response) => response.data?.data ?? response.data,
+  (response) => {
+    if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+      return response.data.data;
+    }
+    return response.data;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('dride_token');

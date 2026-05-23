@@ -33,6 +33,15 @@ export class StopEntity {
 
   @Prop({ required: true })
   order: number;
+
+  @Prop({ default: 'CHECKPOINT', enum: ['START', 'CHECKPOINT', 'END'] })
+  type: string;
+
+  @Prop({ default: 2 })
+  bufferTimeMinutes: number;
+
+  @Prop({ default: 50 })
+  geofenceRadiusMeters: number;
 }
 
 export const StopSchema = SchemaFactory.createForClass(StopEntity);

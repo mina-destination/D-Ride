@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
+import api from '../services/api';
 
 import { Microscope, Square, Rocket } from 'lucide-react';
 
@@ -27,6 +28,21 @@ export default function LiveTrackingPage() {
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get('vehicleId');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [trip, setTrip] = useState<any>(null);
+
+  // Load trip details to draw the route path on the map
+  useEffect(() => {
+    const tripId = searchParams.get('tripId');
+    if (!tripId) return;
+
+    api.get(`/trips/${tripId}`)
+      .then(data => setTrip(data))
+      .catch(console.error);
+  }, [searchParams]);
+
+  const polylinePath = trip?.routeId?.path?.coordinates?.map(
+    (coord: number[]) => [coord[1], coord[0]] as [number, number]
+  ) || [];
 
   // Dev tools sandbox telemetry simulator
   const [isSimulating, setIsSimulating] = useState(false);
@@ -144,6 +160,17 @@ export default function LiveTrackingPage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {polylinePath.length > 0 && (
+            <>
+              <Polyline positions={polylinePath} color="var(--primary)" weight={5} opacity={0.8} />
+              <Marker position={polylinePath[0]}>
+                <Popup>🏁 Departure Terminal</Popup>
+              </Marker>
+              <Marker position={polylinePath[polylinePath.length - 1]}>
+                <Popup>🏁 Destination Station</Popup>
+              </Marker>
+            </>
+          )}
           {location && (
             <Marker position={[location.lat, location.lng]} icon={busIcon}>
               <Popup>
