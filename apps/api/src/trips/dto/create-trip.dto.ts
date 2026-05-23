@@ -1,5 +1,5 @@
 import {
-  IsMongoId,
+  IsUUID,
   IsNotEmpty,
   IsDateString,
   IsEnum,
@@ -18,15 +18,15 @@ export enum TripStatus {
 }
 
 export class CreateTripDto {
-  @IsMongoId()
+  @IsUUID()
   @IsNotEmpty()
   routeId: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   vehicleId?: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   driverId?: string;
 

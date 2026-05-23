@@ -5,7 +5,7 @@ import {
   IsArray,
   IsNumber,
   IsOptional,
-  IsMongoId,
+  IsUUID,
   ValidateNested,
   IsObject,
 } from 'class-validator';
@@ -44,7 +44,7 @@ class StopDto {
 }
 
 export class CreateBookingDto {
-  @IsMongoId()
+  @IsUUID()
   @IsNotEmpty()
   tripId: string;
 
@@ -54,11 +54,11 @@ export class CreateBookingDto {
   seatNumbers: number[];
 
   @IsOptional()
-  @IsMongoId()
+  @IsUUID()
   pickupStopId?: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsUUID()
   dropoffStopId?: string;
 
   @IsOptional()

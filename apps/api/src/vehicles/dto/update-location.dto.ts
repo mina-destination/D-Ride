@@ -1,16 +1,16 @@
 import {
-  IsMongoId,
+  IsUUID,
   IsNotEmpty,
   IsLatitude,
   IsLongitude,
 } from 'class-validator';
 
 export class UpdateLocationDto {
-  @IsMongoId()
+  @IsUUID()
   @IsNotEmpty()
   vehicleId: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsNotEmpty()
   driverId: string;
 

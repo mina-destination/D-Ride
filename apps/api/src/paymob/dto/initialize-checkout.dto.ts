@@ -1,5 +1,5 @@
 import {
-  IsMongoId,
+  IsUUID,
   IsNotEmpty,
   IsNumber,
   Min,
@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 
 export class InitializeCheckoutDto {
-  @IsMongoId()
+  @IsUUID()
   @IsNotEmpty()
   bookingId: string;
 
