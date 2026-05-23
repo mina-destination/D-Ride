@@ -32,10 +32,7 @@ export class SupportService {
 
   async getAllTickets(): Promise<any[]> {
     const tickets = await this.prisma.supportTicket.findMany({
-      orderBy: [
-        { status: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
     return tickets.map((t) => ({ ...t, _id: t.id, user: t.userId }));
   }

@@ -15,16 +15,23 @@ export class NotificationsService implements OnModuleInit {
   onModuleInit() {
     const accountSid = this.configService.get<string>('twilio.accountSid');
     const authToken = this.configService.get<string>('twilio.authToken');
-    this.twilioPhone = this.configService.get<string>('twilio.phoneNumber') || '';
-    this.twilioWhatsApp = this.configService.get<string>('twilio.whatsappNumber') || '';
+    this.twilioPhone =
+      this.configService.get<string>('twilio.phoneNumber') || '';
+    this.twilioWhatsApp =
+      this.configService.get<string>('twilio.whatsappNumber') || '';
 
     if (accountSid && authToken && this.twilioPhone) {
       try {
         this.twilioClient = new Twilio(accountSid, authToken);
         this.isTwilioConfigured = true;
-        this.logger.log('Twilio client successfully initialized for notifications.');
+        this.logger.log(
+          'Twilio client successfully initialized for notifications.',
+        );
       } catch (err) {
-        this.logger.error('Failed to initialize Twilio client, falling back to mock logs.', err);
+        this.logger.error(
+          'Failed to initialize Twilio client, falling back to mock logs.',
+          err,
+        );
       }
     } else {
       this.logger.warn(
@@ -45,7 +52,9 @@ export class NotificationsService implements OnModuleInit {
           from: this.twilioPhone,
           to: formattedTo,
         });
-        this.logger.log(`SMS successfully dispatched via Twilio to ${formattedTo}`);
+        this.logger.log(
+          `SMS successfully dispatched via Twilio to ${formattedTo}`,
+        );
         return true;
       } catch (error) {
         this.logger.error(`Failed to send Twilio SMS to ${to}`, error);
@@ -70,7 +79,9 @@ export class NotificationsService implements OnModuleInit {
           from: `whatsapp:${this.twilioWhatsApp}`,
           to: `whatsapp:${formattedTo}`,
         });
-        this.logger.log(`WhatsApp successfully dispatched via Twilio to ${formattedTo}`);
+        this.logger.log(
+          `WhatsApp successfully dispatched via Twilio to ${formattedTo}`,
+        );
         return true;
       } catch (error) {
         this.logger.error(`Failed to send Twilio WhatsApp to ${to}`, error);
@@ -96,22 +107,27 @@ export class NotificationsService implements OnModuleInit {
       price: number;
     },
   ): Promise<void> {
-    const formattedDate = new Date(tripDetails.departureTime).toLocaleString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const formattedDate = new Date(tripDetails.departureTime).toLocaleString(
+      'en-US',
+      {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    );
 
-    const smsMessage = `Hi ${passengerName}, your D-Ride ticket is confirmed!\n\n` +
+    const smsMessage =
+      `Hi ${passengerName}, your D-Ride ticket is confirmed!\n\n` +
       `Route: ${tripDetails.routeName}\n` +
       `Time: ${formattedDate}\n` +
       `Seat: ${tripDetails.seatNumber}\n` +
       `Amount paid: EGP ${tripDetails.price.toFixed(2)}\n\n` +
       `Show your QR code on board. Have a safe trip!`;
 
-    const whatsappMessage = `*D-Ride Ticket Confirmation* 🎫\n\n` +
+    const whatsappMessage =
+      `*D-Ride Ticket Confirmation* 🎫\n\n` +
       `Dear *${passengerName}*,\n` +
       `Your booking has been successfully confirmed. Here are your trip details:\n\n` +
       `📍 *Route:* ${tripDetails.routeName}\n` +
@@ -132,14 +148,17 @@ export class NotificationsService implements OnModuleInit {
   private logMockMessage(channel: string, to: string, message: string) {
     const border = '═'.repeat(60);
     const time = new Date().toLocaleTimeString();
-    
+
     console.log(`
 ╔${border}╗
 ║ 📡  NOTIFICATION CHANNEL: ${channel.padEnd(33)} ║
 ║ 🕒  TIME: ${time.padEnd(49)} ║
 ║ 📱  RECIPIENT: ${to.padEnd(44)} ║
 ╠${border}╣
-${message.split('\n').map(line => `║ ${line.padEnd(58)} ║`).join('\n')}
+${message
+  .split('\n')
+  .map((line) => `║ ${line.padEnd(58)} ║`)
+  .join('\n')}
 ╚${border}╝
 `);
   }

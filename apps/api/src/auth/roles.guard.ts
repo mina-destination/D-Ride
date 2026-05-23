@@ -86,7 +86,9 @@ export class RolesGuard implements CanActivate {
         return false;
       }
 
-      return (rolePerm.permissions as string[]).includes(permissionRequired.toLowerCase());
+      return (rolePerm.permissions as string[]).includes(
+        permissionRequired.toLowerCase(),
+      );
     }
 
     // Otherwise, check if user's role matches one of the required roles

@@ -111,13 +111,17 @@ export class RoutesService {
     id: string,
     lng: number,
     lat: number,
-  ): Promise<any | null> {
+  ): Promise<any> {
     const route = await this.findById(id);
-    if (!route || !route.checkpoints || (route.checkpoints as any[]).length === 0) {
+    if (
+      !route ||
+      !route.checkpoints ||
+      (route.checkpoints as any[]).length === 0
+    ) {
       return null;
     }
 
-    let closest: any | null = null;
+    let closest: any = null;
     let minDistance = Infinity;
 
     for (const checkpoint of route.checkpoints as any[]) {
@@ -186,7 +190,8 @@ export class RoutesService {
       }
 
       // Both checkpoints must be within radius
-      if (pickupDistance > radiusMeters || dropoffDistance > radiusMeters) continue;
+      if (pickupDistance > radiusMeters || dropoffDistance > radiusMeters)
+        continue;
 
       // Pickup must come BEFORE dropoff in the route sequence (correct travel direction)
       if (pickupIdx >= dropoffIdx) continue;

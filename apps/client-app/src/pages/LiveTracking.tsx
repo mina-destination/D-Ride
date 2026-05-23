@@ -143,18 +143,134 @@ export default function LiveTrackingPage() {
 
   // Default center (Cairo) if location is not yet received
   const center = location ? [location.lat, location.lng] : [30.0444, 31.2357];
+  const isSandboxEnabled = searchParams.get('sandbox') === 'true';
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-
-
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{ flex: 1, position: 'relative' }}>
-        {!location && (
-          <div className="tracking-gps-banner">
-            Waiting for GPS signal from vehicle...
-          </div>
-        )}
         
+        {/* Floating Trip Status Info Drawer Card */}
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          width: '320px',
+          maxHeight: 'calc(100% - 40px)',
+          overflowY: 'auto',
+          zIndex: 1000,
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(24px) saturate(1.2)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '1.25rem',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }} className="glass animate-fade-in-up">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              background: location ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: location ? 'var(--success)' : 'var(--danger)',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              border: `1px solid ${location ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: location ? 'var(--success)' : 'var(--danger)',
+                animation: location ? 'pulse 2s infinite' : 'none'
+              }} />
+              {location ? 'Active GPS Tracking' : 'Vehicle Offline'}
+            </span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>
+              STATUS: {trip?.status || 'SCHEDULED'}
+            </span>
+          </div>
+
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0', lineHeight: 1.3 }}>
+            {trip?.routeId?.name || 'Loading Route...'}
+          </h3>
+
+          <div style={{ background: 'var(--surface-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--text-secondary)' }}>
+            <strong>Scheduled Departure:</strong> {trip ? new Date(trip.departureTime).toLocaleString() : 'Loading...'}
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+          {/* Fallback Info for Offline State */}
+          {!location ? (
+            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+              ℹ️ <strong>Minibus details will update soon.</strong> The driver has not started broadcasting live GPS location yet. This usually starts 10-15 minutes prior to departure when the boarding gates open.
+            </div>
+          ) : (
+            <div style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 500 }}>
+              🟢 Minibus is on route. Tracking coordinates broadcasted smoothly.
+            </div>
+          )}
+
+          {/* Vehicle & Driver Details */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', margin: '4px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Vehicle Plate:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.vehicleId?.plate || 'Toyota HiAce (ABC-123)'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Driver Partner:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.driverId?.name || 'Capt. Mohamed Hegazi'}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <a 
+              href="tel:+201001234567" 
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                fontSize: '11px',
+                textAlign: 'center',
+                textDecoration: 'none',
+                transition: 'var(--transition-base)'
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              📞 Call Operator
+            </a>
+            <button 
+              onClick={() => alert('Support ticket created. D-Ride support agent will contact you shortly.')}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                background: 'var(--primary)',
+                color: 'var(--text-on-primary)',
+                fontWeight: 700,
+                fontSize: '11px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'var(--transition-base)'
+              }}
+            >
+              💬 Support Chat
+            </button>
+          </div>
+        </div>
+
         <MapContainer center={center as [number, number]} zoom={14} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -184,36 +300,38 @@ export default function LiveTrackingPage() {
           {location && <MapUpdater location={location} />}
         </MapContainer>
 
-        {/* Floating Developer Sandbox Controller */}
-        <div className="tracking-sandbox-panel">
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span><Microscope size={14} /></span> TELEMETRY SANDBOX
+        {/* Floating Developer Sandbox Controller (conditional) */}
+        {isSandboxEnabled && (
+          <div className="tracking-sandbox-panel">
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span><Microscope size={14} /></span> TELEMETRY SANDBOX
+            </div>
+            <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
+              No admin tab open? Run a local simulated telemetry feed loop.
+            </p>
+            {isSimulating ? (
+              <button 
+                onClick={stopLocalSimulation}
+                className="btn-danger-outline"
+                style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  Stop Sandbox <Square size={12} fill="currentColor" />
+                </span>
+              </button>
+            ) : (
+              <button 
+                onClick={startLocalSimulation}
+                className="btn-primary"
+                style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  Simulate Live Drive <Rocket size={12} />
+                </span>
+              </button>
+            )}
           </div>
-          <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
-            No admin tab open? Run a local simulated telemetry feed loop.
-          </p>
-          {isSimulating ? (
-            <button 
-              onClick={stopLocalSimulation}
-              className="btn-danger-outline"
-              style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                Stop Sandbox <Square size={12} fill="currentColor" />
-              </span>
-            </button>
-          ) : (
-            <button 
-              onClick={startLocalSimulation}
-              className="btn-primary"
-              style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                Simulate Live Drive <Rocket size={12} />
-              </span>
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

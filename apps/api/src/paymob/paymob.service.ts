@@ -133,7 +133,12 @@ export class PaymobService {
     billingData?: any;
     paymentMethod?: 'CARD' | 'WALLET' | 'CASH';
     walletNumber?: string;
-  }): Promise<{ paymentKey: string; iframeUrl: string; orderId: number; redirectUrl?: string }> {
+  }): Promise<{
+    paymentKey: string;
+    iframeUrl: string;
+    orderId: number;
+    redirectUrl?: string;
+  }> {
     const paymentMethod = data.paymentMethod || 'CARD';
     this.logger.log(
       `Initializing checkout for booking: ${data.bookingId} using method: ${paymentMethod}`,
@@ -147,9 +152,11 @@ export class PaymobService {
 
     // Handle Cash on Board Directly
     if (paymentMethod === 'CASH') {
-      this.logger.log(`Cash booking selected. Direct confirmation for booking ${data.bookingId}`);
+      this.logger.log(
+        `Cash booking selected. Direct confirmation for booking ${data.bookingId}`,
+      );
       await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
-      
+
       // Save direct mock success transaction
       await this.prisma.transaction.create({
         data: {
@@ -183,7 +190,9 @@ export class PaymobService {
       }
 
       // Sandbox / Mock Mode
-      this.logger.warn(`No Paymob API Key found. Using Mock ${paymentMethod} Checkout Flow.`);
+      this.logger.warn(
+        `No Paymob API Key found. Using Mock ${paymentMethod} Checkout Flow.`,
+      );
 
       const mockOrderId = Math.floor(Math.random() * 1000000);
       const mockPaymentKey = `pk_test_${Date.now()}`;
@@ -202,9 +211,10 @@ export class PaymobService {
         ).catch(console.error);
       }, 1000);
 
-      const callbackUrl = paymentMethod === 'WALLET'
-        ? `/payment/callback?success=true&order=${mockOrderId}&method=wallet&wallet=${data.walletNumber || '01000000000'}`
-        : `/payment/callback?success=true&order=${mockOrderId}&method=card`;
+      const callbackUrl =
+        paymentMethod === 'WALLET'
+          ? `/payment/callback?success=true&order=${mockOrderId}&method=wallet&wallet=${data.walletNumber || '01000000000'}`
+          : `/payment/callback?success=true&order=${mockOrderId}&method=card`;
 
       return {
         paymentKey: mockPaymentKey,
@@ -240,9 +250,10 @@ export class PaymobService {
       const orderId = orderRes.data.id;
 
       // Select proper integration ID based on method
-      const integrationId = paymentMethod === 'WALLET'
-        ? (this.walletIntegrationId || this.integrationId)
-        : this.integrationId;
+      const integrationId =
+        paymentMethod === 'WALLET'
+          ? this.walletIntegrationId || this.integrationId
+          : this.integrationId;
 
       // 3. Request Payment Key
       const keyRes = await axios.post(
@@ -306,7 +317,10 @@ export class PaymobService {
         orderId,
       };
     } catch (error) {
-      this.logger.error(`Failed to initialize Paymob checkout for ${paymentMethod}`, error);
+      this.logger.error(
+        `Failed to initialize Paymob checkout for ${paymentMethod}`,
+        error,
+      );
       throw new BadRequestException('Payment initialization failed');
     }
   }

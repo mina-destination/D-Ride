@@ -345,7 +345,7 @@ export function TripsPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item 

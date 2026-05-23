@@ -102,10 +102,7 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Put(':id/verify-ticket')
-  async verifyTicket(
-    @Param('id') id: string,
-    @Body('token') token: string,
-  ) {
+  async verifyTicket(@Param('id') id: string, @Body('token') token: string) {
     const booking = await this.bookingsService.verifyTicket(id, token);
     return {
       success: true,

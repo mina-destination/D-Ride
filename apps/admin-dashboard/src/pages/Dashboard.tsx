@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity } from 'lucide-react';
+
+function MapPanController({ panTo }: { panTo: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (panTo) {
+      map.flyTo(panTo, 13, { animate: true, duration: 1.2 });
+    }
+  }, [panTo, map]);
+  return null;
+}
 
 // Fix for default marker icon in react-leaflet inside Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -64,6 +74,9 @@ export default function DashboardPage() {
       speed: 0, // Stopped at station
     },
   ]);
+
+  const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
+  const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
 
   // Simulate active GPS vehicle tracking telemetry
   useEffect(() => {
@@ -150,30 +163,163 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div style={{ height: '380px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1 }}>
-          <MapContainer center={[30.0444, 31.2357]} zoom={12} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {fleet.map((bus) => (
-              <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={activeBusIcon}>
-                <Popup>
-                  <div style={{ minWidth: '180px', padding: '0.25rem' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)', fontSize: '0.95rem' }}>
-                      🚐 Shuttle {bus.plate}
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
-                      <span><strong>Driver:</strong> {bus.driver}</span>
-                      <span><strong>Route:</strong> {bus.route}</span>
-                      <span><strong>Speed:</strong> {bus.speed} km/h</span>
-                      <span><strong>Occupancy:</strong> {bus.seats} booked</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: '420px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1 }}>
+          
+          {/* Shuttles Sidebar */}
+          <div style={{ background: 'var(--surface-elevated)', overflowY: 'auto', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
+              ONLINE SHUTTLES ({fleet.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {fleet.map((bus) => {
+                const isSelected = selectedBusId === bus.id;
+                return (
+                  <div 
+                    key={bus.id}
+                    onClick={() => {
+                      setSelectedBusId(bus.id);
+                      setMapPanTo([bus.lat, bus.lng]);
+                    }}
+                    style={{
+                      padding: '12px 14px',
+                      borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(245, 183, 49, 0.08)' : 'transparent',
+                      borderLeft: isSelected ? '3px solid var(--primary)' : '3px solid transparent',
+                      transition: 'all 0.2s',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-hover)'; }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>🚐 {bus.plate}</strong>
+                      <span style={{ fontSize: '10.5px', color: bus.speed > 0 ? 'var(--success)' : 'var(--text-muted)', fontWeight: 'bold' }}>
+                        {bus.speed > 0 ? `${bus.speed} km/h` : 'Stopped'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {bus.route}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                      {bus.driver.split(' ').slice(1).join(' ')} · {bus.seats}
                     </div>
                   </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Map Container */}
+          <div style={{ position: 'relative', height: '100%' }}>
+            <MapContainer center={[30.0444, 31.2357]} zoom={12} style={{ height: '100%', width: '100%' }}>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {fleet.map((bus) => (
+                <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={activeBusIcon}>
+                  <Popup>
+                    <div style={{ minWidth: '180px', padding: '0.25rem' }}>
+                      <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)', fontSize: '0.95rem' }}>
+                        Shuttle {bus.plate}
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+                        <span><strong>Driver:</strong> {bus.driver}</span>
+                        <span><strong>Route:</strong> {bus.route}</span>
+                        <span><strong>Speed:</strong> {bus.speed} km/h</span>
+                        <span><strong>Occupancy:</strong> {bus.seats} booked</span>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+              {mapPanTo && <MapPanController panTo={mapPanTo} />}
+            </MapContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+        {/* Bookings SVG Line Chart */}
+        <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Commute Bookings Trend</h3>
+            <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>+14.2% weekly growth</span>
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: '160px' }}>
+            <svg viewBox="0 0 500 150" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+              <defs>
+                <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              {/* Grid Lines */}
+              <line x1="0" y1="20" x2="500" y2="20" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+              <line x1="0" y1="70" x2="500" y2="70" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+              <line x1="0" y1="120" x2="500" y2="120" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+              
+              {/* Area path */}
+              <path d="M 10,130 L 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20 L 490,130 Z" fill="url(#lineGrad)" />
+              {/* Line path */}
+              <path d="M 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20" fill="none" stroke="var(--primary)" strokeWidth="3" />
+              
+              {/* Data points */}
+              <circle cx="10" cy="120" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="95" cy="78" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="200" cy="85" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="290" cy="45" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="370" cy="55" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="430" cy="60" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="490" cy="20" r="4" fill="var(--primary)" stroke="var(--surface)" strokeWidth="2" />
+              
+              {/* Labels */}
+              <text x="10" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Mon</text>
+              <text x="95" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Tue</text>
+              <text x="200" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Wed</text>
+              <text x="290" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Thu</text>
+              <text x="370" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Fri</text>
+              <text x="430" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Sat</text>
+              <text x="490" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Sun</text>
+            </svg>
+          </div>
+        </div>
+
+        {/* Revenue SVG Bar Chart */}
+        <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Daily Checkout Revenue</h3>
+            <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>Target: EGP 50,000</span>
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: '160px' }}>
+            <svg viewBox="0 0 500 150" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+              {/* Horizontal helper grid lines */}
+              <line x1="0" y1="20" x2="500" y2="20" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+              <line x1="0" y1="70" x2="500" y2="70" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+              <line x1="0" y1="120" x2="500" y2="120" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
+
+              {/* Bar 1 */}
+              <rect x="25" y="45" width="28" height="85" fill="var(--primary)" rx="4" opacity="0.85" />
+              <text x="39" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Cairo</text>
+              {/* Bar 2 */}
+              <rect x="105" y="70" width="28" height="60" fill="var(--success)" rx="4" opacity="0.85" />
+              <text x="119" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Giza</text>
+              {/* Bar 3 */}
+              <rect x="185" y="30" width="28" height="100" fill="var(--info)" rx="4" opacity="0.85" />
+              <text x="199" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Alex</text>
+              {/* Bar 4 */}
+              <rect x="265" y="80" width="28" height="50" fill="var(--warning)" rx="4" opacity="0.85" />
+              <text x="279" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Maadi</text>
+              {/* Bar 5 */}
+              <rect x="345" y="55" width="28" height="75" fill="var(--primary)" rx="4" opacity="0.85" />
+              <text x="359" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Helio</text>
+              {/* Bar 6 */}
+              <rect x="425" y="95" width="28" height="35" fill="var(--text-secondary)" rx="4" opacity="0.8" />
+              <text x="439" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Oct</text>
+            </svg>
+          </div>
         </div>
       </div>
 

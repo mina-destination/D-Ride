@@ -57,10 +57,7 @@ export class VehiclesService {
     return { ...vehicle, _id: vehicle.id };
   }
 
-  async updateVehicle(
-    id: string,
-    data: any,
-  ): Promise<any> {
+  async updateVehicle(id: string, data: any): Promise<any> {
     try {
       const vehicle = await this.prisma.vehicle.update({
         where: { id },

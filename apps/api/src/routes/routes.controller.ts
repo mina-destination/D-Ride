@@ -55,7 +55,11 @@ export class RoutesController {
       parseFloat(dropoffLat),
       radius ? parseInt(radius, 10) : 5000,
     );
-    return { success: true, data: results, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: results,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @Get(':id')

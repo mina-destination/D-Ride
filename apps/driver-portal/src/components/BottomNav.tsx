@@ -45,10 +45,13 @@ export default function BottomNav() {
           fontWeight: isActive('/trips') ? 700 : 500,
           fontSize: '12px',
           cursor: 'pointer',
-          flex: 1
+          flex: 1,
+          padding: '8px 0',
+          transform: isActive('/trips') ? 'scale(1.06)' : 'scale(1)',
+          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
-        <Calendar size={22} style={{ color: isActive('/trips') ? 'var(--primary)' : 'var(--text-muted)' }} />
+        <Calendar size={22} style={{ color: isActive('/trips') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
         <span>{t('myShifts')}</span>
       </button>
 
@@ -66,10 +69,13 @@ export default function BottomNav() {
           fontWeight: isActive('/drive') ? 700 : 500,
           fontSize: '12px',
           cursor: 'pointer',
-          flex: 1
+          flex: 1,
+          padding: '8px 0',
+          transform: isActive('/drive') ? 'scale(1.06)' : 'scale(1)',
+          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
-        <Navigation size={22} style={{ color: isActive('/drive') ? 'var(--primary)' : 'var(--text-muted)' }} />
+        <Navigation size={22} style={{ color: isActive('/drive') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
         <span>{t('activeMap')}</span>
       </button>
     </div>

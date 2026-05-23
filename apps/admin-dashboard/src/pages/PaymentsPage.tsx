@@ -166,7 +166,7 @@ export function PaymentsPage() {
       {/* KPI Cards Grid */}
       <Row gutter={24} style={{ marginBottom: '2rem' }}>
         <Col xs={24} md={8}>
-          <Card bordered={false} className="kpi-card glass" style={{ padding: '10px' }}>
+          <Card variant="borderless" className="kpi-card glass" style={{ padding: '10px' }}>
             <Statistic 
               title={<span style={{ color: 'var(--text-muted)' }}>Total Revenue</span>} 
               value={totalRevenue} 
@@ -177,7 +177,7 @@ export function PaymentsPage() {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} className="kpi-card glass" style={{ padding: '10px' }}>
+          <Card variant="borderless" className="kpi-card glass" style={{ padding: '10px' }}>
             <Statistic 
               title={<span style={{ color: 'var(--text-muted)' }}>Successful Payments</span>} 
               value={successCount} 
@@ -186,7 +186,7 @@ export function PaymentsPage() {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} className="kpi-card glass" style={{ padding: '10px' }}>
+          <Card variant="borderless" className="kpi-card glass" style={{ padding: '10px' }}>
             <Statistic 
               title={<span style={{ color: 'var(--text-muted)' }}>Pending Payments</span>} 
               value={pendingCount} 
@@ -200,7 +200,7 @@ export function PaymentsPage() {
       <Row gutter={24} style={{ marginBottom: '2rem' }}>
         {/* Left Chart: Weekly Revenue Line */}
         <Col xs={24} lg={14}>
-          <Card bordered={false} className="glass" style={{ padding: '1rem', borderRadius: '16px' }}>
+          <Card variant="borderless" className="glass" style={{ padding: '1rem', borderRadius: '16px' }}>
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <TrendingUp size={20} /> Weekly Revenue Trend (EGP)
             </h3>
@@ -246,7 +246,7 @@ export function PaymentsPage() {
 
         {/* Right Chart: Payments Conversion Ratio */}
         <Col xs={24} lg={10}>
-          <Card bordered={false} className="glass" style={{ padding: '1rem', borderRadius: '16px', height: '100%' }}>
+          <Card variant="borderless" className="glass" style={{ padding: '1rem', borderRadius: '16px', height: '100%' }}>
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Target size={20} /> Payment Status Mix
             </h3>

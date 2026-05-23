@@ -39,6 +39,7 @@ export default function LiveDrivePage() {
   
   // Simulation fallback state (in case browser denies geolocation or local testing on desktop)
   const [isMocking, setIsMocking] = useState(false);
+  const [lockCenter, setLockCenter] = useState(true);
   
   const geoWatchId = useRef<number | null>(null);
   const mockIntervalId = useRef<any>(null);
@@ -257,7 +258,7 @@ export default function LiveDrivePage() {
           {currentCoords && (
             <Marker position={[currentCoords.lat, currentCoords.lng]} icon={driverBusIcon} />
           )}
-          {currentCoords && <MapCenterUpdater coords={currentCoords} />}
+          {currentCoords && lockCenter && <MapCenterUpdater coords={currentCoords} />}
         </MapContainer>
       </div>
 
@@ -312,9 +313,30 @@ export default function LiveDrivePage() {
               </span>
             </div>
             {currentCoords && (
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
+                </span>
+                <button
+                  onClick={() => setLockCenter(!lockCenter)}
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    color: lockCenter ? 'var(--primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    outline: 'none'
+                  }}
+                >
+                  {lockCenter 
+                    ? (language === 'ar' ? '🔒 قفل المنظور' : '🔒 Lock GPS View') 
+                    : (language === 'ar' ? '🔓 تحريك الخريطة' : '🔓 Free Map Pan')}
+                </button>
+              </div>
             )}
           </div>
 

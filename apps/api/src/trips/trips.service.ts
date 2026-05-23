@@ -19,7 +19,7 @@ export class TripsService {
     }
     if (trip.driver) {
       t.driverId = { ...trip.driver, _id: trip.driver.id };
-      delete (t.driverId as any).password;
+      delete t.driverId.password;
       delete t.driver;
     }
     return t;

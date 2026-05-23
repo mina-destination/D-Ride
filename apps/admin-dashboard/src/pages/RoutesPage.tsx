@@ -654,7 +654,7 @@ export function RoutesPage() {
         onCancel={handleCancel}
         footer={null}
         width={1000}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ margin: '1.5rem 0' }}>
           <Steps 

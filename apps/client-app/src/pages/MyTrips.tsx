@@ -81,7 +81,7 @@ export default function MyTripsPage() {
       try {
         await bookingsAPI.cancel(id);
         fetchBookings();
-      } catch (e) {
+      } catch {
         alert('Failed to cancel');
       }
     }
