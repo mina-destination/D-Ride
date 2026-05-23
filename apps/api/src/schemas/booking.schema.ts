@@ -28,6 +28,7 @@ export class BookingEntity {
     required: true,
     enum: [
       'PENDING',
+      'PENDING_PAYMENT',
       'CONFIRMED',
       'BOARDED',
       'CANCELLED',

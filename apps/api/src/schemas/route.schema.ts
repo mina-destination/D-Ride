@@ -31,6 +31,12 @@ export class Route {
 
   @Prop({ type: [StopSchema], default: [] })
   checkpoints: StopEntity[];
+
+  @Prop({ default: 0 })
+  distanceKm: number;
+
+  @Prop({ default: 0 })
+  estimatedDurationMinutes: number;
 }
 
 export const RouteSchema = SchemaFactory.createForClass(Route);

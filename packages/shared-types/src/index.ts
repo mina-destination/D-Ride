@@ -25,6 +25,7 @@ export enum TripStatus {
 
 export enum BookingStatus {
   PENDING = 'PENDING',
+  PENDING_PAYMENT = 'PENDING_PAYMENT',
   CONFIRMED = 'CONFIRMED',
   BOARDED = 'BOARDED',
   CANCELLED = 'CANCELLED',
@@ -88,6 +89,9 @@ export interface Stop {
   location: GeoPoint;
   address?: string;
   order: number; // Position in route sequence
+  type?: 'START' | 'CHECKPOINT' | 'END';
+  bufferTimeMinutes?: number;
+  geofenceRadiusMeters?: number;
 }
 
 export interface CreateStopDto {
@@ -95,6 +99,9 @@ export interface CreateStopDto {
   nameAr?: string;
   location: GeoPoint;
   address?: string;
+  type?: 'START' | 'CHECKPOINT' | 'END';
+  bufferTimeMinutes?: number;
+  geofenceRadiusMeters?: number;
 }
 
 // ── Route ───────────────────────────────────────────────────

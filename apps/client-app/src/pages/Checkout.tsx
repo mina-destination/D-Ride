@@ -131,9 +131,9 @@ export default function CheckoutPage() {
       const booking = await bookingsAPI.create({
         tripId: trip._id,
         seatNumbers: selectedSeats,
-        pickupStopId: null, 
-        dropoffStopId: null, 
-        pickupCheckpoint: selectedCheckpoint,
+        pickupStopId: undefined, 
+        dropoffStopId: undefined, 
+        pickupCheckpoint: selectedCheckpoint || undefined,
       });
 
       // 2. Initialize Paymob Checkout

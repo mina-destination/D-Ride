@@ -148,6 +148,12 @@ export const MOCK_BOOKINGS = [
 ];
 
 export async function setupMockAPI(page: Page) {
+  // Block and abort all external third-party requests (maps, fonts, CDNs) to prevent DNS/network timeouts
+  await page.route(
+    (url) => !url.host.includes('localhost') && !url.host.includes('127.0.0.1'),
+    (route) => route.abort()
+  );
+
   // Mock Geolocation to prevent getCurrentPosition from hanging in headless test environments
   await page.addInitScript(() => {
     if (navigator.geolocation) {
@@ -164,6 +170,7 @@ export async function setupMockAPI(page: Page) {
       };
     }
   });
+
 
   // 1. Auth Profile Mocking
   await page.route('**/api/auth/profile', async (route) => {
