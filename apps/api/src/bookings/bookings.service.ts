@@ -34,6 +34,19 @@ export class BookingsService {
         };
         delete tripPopulated.route;
       }
+      if (booking.trip.driver) {
+        tripPopulated.driver = {
+          ...booking.trip.driver,
+          _id: booking.trip.driver.id,
+        };
+        delete tripPopulated.driver.password;
+      }
+      if (booking.trip.vehicle) {
+        tripPopulated.vehicle = {
+          ...booking.trip.vehicle,
+          _id: booking.trip.vehicle.id,
+        };
+      }
       b.tripId = tripPopulated;
       delete b.trip;
     }
@@ -67,8 +80,11 @@ export class BookingsService {
         trip: {
           include: {
             route: true,
+            driver: true,
+            vehicle: true,
           },
         },
+        review: true,
       },
       orderBy: { createdAt: 'desc' },
     });

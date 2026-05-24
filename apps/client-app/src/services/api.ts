@@ -114,3 +114,12 @@ export const supportAPI = {
   getMyTickets: (): Promise<any> => api.get('/support/my-tickets'),
   getTicketMessages: (ticketId: string): Promise<any> => api.get(`/support/tickets/${ticketId}/messages`),
 };
+
+export const reviewsAPI = {
+  submitReview: (data: { bookingId: string; rating: number; comment?: string }): Promise<any> =>
+    api.post('/reviews', data),
+  getDriverRating: (driverId: string): Promise<any> =>
+    api.get(`/reviews/driver/${driverId}`),
+  getTripReviews: (tripId: string): Promise<any> =>
+    api.get(`/reviews/trip/${tripId}`),
+};

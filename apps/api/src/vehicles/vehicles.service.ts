@@ -66,6 +66,10 @@ export class VehiclesService {
 
   async findAllVehicles(): Promise<any[]> {
     const vehicles = await this.prisma.vehicle.findMany({
+      include: {
+        locations: true,
+        driver: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
     return vehicles.map(mapVehicleFromDb);
