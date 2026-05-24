@@ -342,9 +342,9 @@ export function TripsPage() {
     const headers = [
       { key: '_id', label: 'Trip ID', transform: (val: string) => val.toUpperCase() },
       { key: 'routeId.name', label: 'Route Name' },
-      { key: 'vehicleId.make', label: 'Vehicle Make', transform: (val: any, record: any) => record.vehicleId?.make || 'N/A' },
-      { key: 'vehicleId.licensePlate', label: 'Vehicle Plate Number', transform: (val: any, record: any) => record.vehicleId?.licensePlate || 'N/A' },
-      { key: 'driverId.name', label: 'Driver Name', transform: (val: any, record: any) => record.driverId?.name || 'N/A' },
+      { key: 'vehicleId.make', label: 'Vehicle Make', transform: (_val: any, record: any) => record.vehicleId?.make || 'N/A' },
+      { key: 'vehicleId.licensePlate', label: 'Vehicle Plate Number', transform: (_val: any, record: any) => record.vehicleId?.licensePlate || 'N/A' },
+      { key: 'driverId.name', label: 'Driver Name', transform: (_val: any, record: any) => record.driverId?.name || 'N/A' },
       { key: 'departureTime', label: 'Departure Time', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
       { key: 'status', label: 'Trip Status' },
       { key: 'priceEGP', label: 'Price (EGP)' },

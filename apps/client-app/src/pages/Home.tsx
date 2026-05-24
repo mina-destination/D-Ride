@@ -31,7 +31,7 @@ function RouteMapAutopan({ path }: { path: [number, number][] }) {
 }
 
 function RouteSearchForm() {
-  const { t, isRtl } = useTranslation();
+  const { isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
   const [fromCity, setFromCity] = useState<string>('');
   const [fromStation, setFromStation] = useState<any>(null);
@@ -44,10 +44,28 @@ function RouteSearchForm() {
   const [passengers, setPassengers] = useState<number>(1);
   const navigate = useNavigate();
 
+  // Custom states for premium dropdown UX
+  const [openDropdown, setOpenDropdown] = useState<'fromCity' | 'fromStation' | 'toCity' | 'toStation' | null>(null);
+  const [isSwapped, setIsSwapped] = useState(false);
+  const [shakeFields, setShakeFields] = useState(false);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const [locationLoading, setLocationLoading] = useState<boolean>(false);
+
   // Load all routes to extract cities and stations
   useEffect(() => {
     routesAPI.getAll().then((data) => setRoutes(data)).catch(console.error);
   }, []);
+
+  // Click outside to close custom select dropdowns
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (openDropdown && !(e.target as HTMLElement).closest('.custom-select-container')) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [openDropdown]);
 
   // Parse cities and stations from routes list
   const parsedData = useMemo(() => {
@@ -165,6 +183,10 @@ function RouteSearchForm() {
   };
 
   const handleSwap = () => {
+    setIsSwapped(prev => !prev);
+    setShakeFields(true);
+    setTimeout(() => setShakeFields(false), 300);
+
     const tempCity = fromCity;
     const tempStation = fromStation;
     setFromCity(toCity);
@@ -202,9 +224,13 @@ function RouteSearchForm() {
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      setLocationNotice(isRtl ? "⚠️ تحديد الموقع الجغرافي غير مدعوم في متصفحك" : "⚠️ Geolocation is not supported by your browser");
+      setTimeout(() => setLocationNotice(null), 5000);
       return;
     }
+    setLocationLoading(true);
+    setLocationNotice(isRtl ? "⏳ جاري تحديد موقعك..." : "⏳ Detecting your location...");
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -218,7 +244,9 @@ function RouteSearchForm() {
         });
 
         if (allFromStations.length === 0) {
-          alert("No stations are defined in the platform currently.");
+          setLocationNotice(isRtl ? "⚠️ لا توجد محطات معرفة حالياً" : "⚠️ No stations defined in the platform currently.");
+          setLocationLoading(false);
+          setTimeout(() => setLocationNotice(null), 5000);
           return;
         }
 
@@ -239,12 +267,17 @@ function RouteSearchForm() {
         setFromStation(nearestStation);
         
         const matchedMsg = isRtl
-          ? `تم العثور على أقرب محطة: ${nearestStation.name} في ${nearestStation.city} (على بعد ${minDistance.toFixed(2)} كم)`
-          : `Matched nearest station: ${nearestStation.name} in ${nearestStation.city} (${minDistance.toFixed(2)} km away)`;
-        alert(matchedMsg);
+          ? `📍 تم العثور على أقرب محطة: ${nearestStation.nameAr || nearestStation.name} في ${nearestStation.city} (على بعد ${minDistance.toFixed(2)} كم)`
+          : `📍 Matched nearest station: ${nearestStation.name} in ${nearestStation.city} (${minDistance.toFixed(2)} km away)`;
+        
+        setLocationNotice(matchedMsg);
+        setLocationLoading(false);
+        setTimeout(() => setLocationNotice(null), 5000);
       },
       (error) => {
-        alert("Failed to retrieve location: " + error.message);
+        setLocationNotice(isRtl ? `⚠️ فشل في تحديد الموقع: ${error.message}` : `⚠️ Failed to retrieve location: ${error.message}`);
+        setLocationLoading(false);
+        setTimeout(() => setLocationNotice(null), 5000);
       }
     );
   };
@@ -260,6 +293,7 @@ function RouteSearchForm() {
         <button
           type="button"
           onClick={handleDetectLocation}
+          disabled={locationLoading}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -267,71 +301,143 @@ function RouteSearchForm() {
             gap: '8px',
             width: '100%',
             padding: '10px 14px',
-            background: 'rgba(245, 183, 49, 0.1)',
+            background: locationLoading ? 'rgba(245, 183, 49, 0.05)' : 'rgba(245, 183, 49, 0.1)',
             border: '1px dashed var(--primary)',
             borderRadius: '8px',
             color: 'var(--primary)',
             fontSize: '0.82rem',
             fontWeight: 'bold',
-            cursor: 'pointer',
-            marginBottom: '1rem',
+            cursor: locationLoading ? 'not-allowed' : 'pointer',
+            marginBottom: locationNotice ? '0.5rem' : '1rem',
             transition: 'all 0.2s',
+            opacity: locationLoading ? 0.7 : 1
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
+            if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
+            if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
           }}
         >
-          <MapPin size={14} /> {isRtl ? 'تحديد أقرب محطة' : 'Detect Nearest Station'}
+          {locationLoading ? (
+            <div className="btn-loading-spinner" />
+          ) : (
+            <MapPin size={14} />
+          )}
+          {isRtl ? 'تحديد أقرب محطة' : 'Detect Nearest Station'}
         </button>
+
+        {/* GPS inline status banner */}
+        {locationNotice && (
+          <div className="fade-in-alert" style={{
+            padding: '8px 12px',
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            color: 'var(--text-primary)',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            fontWeight: 600,
+          }}>
+            {locationNotice}
+          </div>
+        )}
 
         {/* ROW 1: FROM */}
         <div className="from-to-row">
           <div className="from-to-field">
-            <label className="field-label">From City</label>
-            <div className="field-select-wrapper">
+            <label className="field-label">{isRtl ? 'من مدينة' : 'From City'}</label>
+            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" />
-              <select
-                value={fromCity}
-                onChange={(e) => handleFromCityChange(e.target.value)}
-                className="field-select"
+              <div 
+                className="custom-select-trigger"
+                onClick={() => setOpenDropdown(openDropdown === 'fromCity' ? null : 'fromCity')}
               >
-                <option value="">Select City</option>
-                {parsedData.fromCities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
+                <span>{fromCity || (isRtl ? 'اختر المدينة' : 'Select City')}</span>
+                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'fromCity' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+              </div>
+              {openDropdown === 'fromCity' && (
+                <div className="custom-dropdown-menu">
+                  <div 
+                    className="custom-dropdown-item"
+                    onClick={() => {
+                      handleFromCityChange('');
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    {isRtl ? 'اختر المدينة' : 'Select City'}
+                  </div>
+                  {parsedData.fromCities.map((city) => (
+                    <div 
+                      key={city}
+                      className={`custom-dropdown-item ${fromCity === city ? 'selected' : ''}`}
+                      onClick={() => {
+                        handleFromCityChange(city);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      {city}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="from-to-field">
-            <label className="field-label">From Station</label>
-            <div className="field-select-wrapper">
+            <label className="field-label">{isRtl ? 'من محطة' : 'From Station'}</label>
+            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`} style={{ opacity: !fromCity ? 0.6 : 1 }}>
               <Map size={16} className="field-icon-left" />
-              <select
-                value={fromStation ? fromStation.name : ''}
-                onChange={(e) => handleFromStationChange(e.target.value)}
-                className="field-select"
-                disabled={!fromCity}
+              <div 
+                className="custom-select-trigger"
+                onClick={() => {
+                  if (fromCity) {
+                    setOpenDropdown(openDropdown === 'fromStation' ? null : 'fromStation');
+                  }
+                }}
+                style={{ cursor: !fromCity ? 'not-allowed' : 'pointer' }}
               >
-                <option value="">Select Station</option>
-                {availableFromStations.map((station) => (
-                  <option key={station.name} value={station.name}>
-                    {station.name}
-                  </option>
-                ))}
-              </select>
+                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                  {fromStation 
+                    ? (isRtl ? (fromStation.nameAr || fromStation.name) : fromStation.name)
+                    : (isRtl ? 'اختر المحطة' : 'Select Station')
+                  }
+                </span>
+                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'fromStation' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+              </div>
+              {openDropdown === 'fromStation' && fromCity && (
+                <div className="custom-dropdown-menu">
+                  <div 
+                    className="custom-dropdown-item"
+                    onClick={() => {
+                      setFromStation(null);
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    {isRtl ? 'اختر المحطة' : 'Select Station'}
+                  </div>
+                  {availableFromStations.map((station) => (
+                    <div 
+                      key={station.name}
+                      className={`custom-dropdown-item ${fromStation?.name === station.name ? 'selected' : ''}`}
+                      onClick={() => {
+                        handleFromStationChange(station.name);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      {isRtl ? (station.nameAr || station.name) : station.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* SWAP BUTTON */}
         <div className="swap-button-container">
-          <button type="button" className="swap-button" onClick={handleSwap}>
+          <button type="button" className={`swap-button ${isSwapped ? 'swap-btn-rotated' : ''}`} onClick={handleSwap}>
             <ArrowUpDown size={16} />
           </button>
         </div>
@@ -339,41 +445,90 @@ function RouteSearchForm() {
         {/* ROW 2: TO */}
         <div className="from-to-row">
           <div className="from-to-field">
-            <label className="field-label">To City</label>
-            <div className="field-select-wrapper">
+            <label className="field-label">{isRtl ? 'إلى مدينة' : 'To City'}</label>
+            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
-              <select
-                value={toCity}
-                onChange={(e) => handleToCityChange(e.target.value)}
-                className="field-select"
+              <div 
+                className="custom-select-trigger"
+                onClick={() => setOpenDropdown(openDropdown === 'toCity' ? null : 'toCity')}
               >
-                <option value="">Select City</option>
-                {parsedData.toCities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
+                <span>{toCity || (isRtl ? 'اختر المدينة' : 'Select City')}</span>
+                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'toCity' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+              </div>
+              {openDropdown === 'toCity' && (
+                <div className="custom-dropdown-menu">
+                  <div 
+                    className="custom-dropdown-item"
+                    onClick={() => {
+                      handleToCityChange('');
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    {isRtl ? 'اختر المدينة' : 'Select City'}
+                  </div>
+                  {parsedData.toCities.map((city) => (
+                    <div 
+                      key={city}
+                      className={`custom-dropdown-item ${toCity === city ? 'selected' : ''}`}
+                      onClick={() => {
+                        handleToCityChange(city);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      {city}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="from-to-field">
-            <label className="field-label">To Station</label>
-            <div className="field-select-wrapper">
+            <label className="field-label">{isRtl ? 'إلى محطة' : 'To Station'}</label>
+            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`} style={{ opacity: !toCity ? 0.6 : 1 }}>
               <Map size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
-              <select
-                value={toStation ? toStation.name : ''}
-                onChange={(e) => handleToStationChange(e.target.value)}
-                className="field-select"
-                disabled={!toCity}
+              <div 
+                className="custom-select-trigger"
+                onClick={() => {
+                  if (toCity) {
+                    setOpenDropdown(openDropdown === 'toStation' ? null : 'toStation');
+                  }
+                }}
+                style={{ cursor: !toCity ? 'not-allowed' : 'pointer' }}
               >
-                <option value="">Select Station</option>
-                {availableToStations.map((station) => (
-                  <option key={station.name} value={station.name}>
-                    {station.name}
-                  </option>
-                ))}
-              </select>
+                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                  {toStation 
+                    ? (isRtl ? (toStation.nameAr || toStation.name) : toStation.name)
+                    : (isRtl ? 'اختر المحطة' : 'Select Station')
+                  }
+                </span>
+                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'toStation' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+              </div>
+              {openDropdown === 'toStation' && toCity && (
+                <div className="custom-dropdown-menu">
+                  <div 
+                    className="custom-dropdown-item"
+                    onClick={() => {
+                      setToStation(null);
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    {isRtl ? 'اختر المحطة' : 'Select Station'}
+                  </div>
+                  {availableToStations.map((station) => (
+                    <div 
+                      key={station.name}
+                      className={`custom-dropdown-item ${toStation?.name === station.name ? 'selected' : ''}`}
+                      onClick={() => {
+                        handleToStationChange(station.name);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      {isRtl ? (station.nameAr || station.name) : station.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

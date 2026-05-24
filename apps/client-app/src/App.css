@@ -2413,4 +2413,271 @@
   }
 }
 
+/* ============================================================
+   D-Ride Premium Enhancements
+   ============================================================ */
+
+/* ── Custom State-Driven Dropdown (Select) Styles ── */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 999;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Light / Dark matching theme overrides for custom selects */
+[data-theme="dark"] .custom-dropdown-menu {
+  background: rgba(14, 14, 27, 0.95);
+  border-color: rgba(245, 183, 49, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 183, 49, 0.05);
+}
+
+.custom-dropdown-item {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+}
+
+.custom-dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+  padding-left: 18px;
+}
+
+.custom-dropdown-item.selected {
+  background: rgba(245, 183, 49, 0.08);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Split-Screen Trip Search Dashboard ── */
+.trip-search-dashboard {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 2rem;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.trip-list-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.trip-map-column {
+  position: sticky;
+  top: 90px;
+  height: calc(100vh - 180px);
+  min-height: 450px;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  z-index: 5;
+}
+
+[data-theme="dark"] .trip-map-column {
+  border-color: rgba(245, 183, 49, 0.08);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.map-toggle-bar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .trip-search-dashboard {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .trip-map-column {
+    position: relative;
+    top: 0;
+    height: 350px;
+    min-height: auto;
+    display: none; /* Controlled by toggle bar state */
+  }
+  .trip-map-column.show-mobile-map {
+    display: block;
+  }
+  .trip-list-column.hide-mobile-list {
+    display: none;
+  }
+  .map-toggle-bar {
+    display: flex;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 4px;
+    margin-bottom: 1rem;
+    gap: 4px;
+  }
+  .map-toggle-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-base);
+  }
+  .map-toggle-btn.active {
+    background: var(--primary);
+    color: var(--text-on-primary);
+  }
+}
+
+/* ── Minibus High-Fidelity Cabin Enhancements ── */
+.premium-bus-frame {
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4), 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+/* High Fidelity Seats */
+.bus-seat-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.bus-seat.available {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
+.bus-seat.available:hover {
+  border-color: var(--primary);
+  background: rgba(245, 183, 49, 0.05);
+  box-shadow: 0 0 10px rgba(245, 183, 49, 0.15);
+}
+
+.bus-seat.selected .bus-seat-inner {
+  background: var(--primary);
+  box-shadow: 0 0 15px rgba(245, 183, 49, 0.4);
+}
+
+.bus-seat-cushion {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  right: 3px;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bus-seat-stitching {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.bus-seat.occupied {
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.bus-seat.locked-luggage {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(245, 183, 49, 0.05),
+    rgba(245, 183, 49, 0.05) 5px,
+    rgba(245, 183, 49, 0.1) 5px,
+    rgba(245, 183, 49, 0.1) 10px
+  );
+  border-color: rgba(245, 183, 49, 0.25);
+  cursor: not-allowed;
+}
+
+/* Stepper Connection Animations */
+.connector-glow {
+  box-shadow: 0 0 8px var(--primary);
+}
+
+.swap-btn-rotated {
+  transform: rotate(180deg);
+}
+
+.shake-animation {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.fade-in-alert {
+  animation: fadeInAlert 0.4s ease-out forwards;
+}
+
+@keyframes fadeInAlert {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
 
