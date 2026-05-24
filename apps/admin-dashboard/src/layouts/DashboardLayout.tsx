@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/d-ride-logo.jpeg';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Modal, Popover, List, Tag, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
@@ -279,10 +279,12 @@ export default function DashboardLayout() {
     return true;
   });
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* ── Sidebar ────────────────────────────────────── */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-header">
             <img src={logo} alt="D-Ride" className="sidebar-logo" />
             <span className="sidebar-brand-text">D-Ride</span>
@@ -317,6 +319,14 @@ export default function DashboardLayout() {
       <div className="main-content">
         <header className="topbar">
           <div className="topbar-left">
+            <button 
+              className="topbar-icon-btn sidebar-toggle-btn"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              style={{ marginRight: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <Menu size={18} />
+            </button>
             <h2 className="topbar-title">{currentTitle}</h2>
           </div>
           <div className="topbar-search" style={{ position: 'relative' }}>

@@ -230,15 +230,63 @@ body {
   font-style: italic;
 }
 
-/* ── Main Content ──────────────────────────────────────────── */
-
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
 }
+
+/* Collapsed Sidebar overrides */
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width) !important;
+}
+
+.sidebar.collapsed .sidebar-brand-text,
+.sidebar.collapsed .sidebar-item span:not(.sidebar-item-icon),
+.sidebar.collapsed .sidebar-section-label,
+.sidebar.collapsed .sidebar-footer-text {
+  display: none !important;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 1.25rem 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  width: 40px !important;
+  height: 40px !important;
+  object-fit: cover !important;
+  object-position: left center !important;
+  border-radius: var(--radius-md) !important;
+}
+
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 1rem 0.5rem;
+}
+
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 0.7rem 0;
+}
+
+.sidebar.collapsed .sidebar-item::before {
+  left: 0;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 1rem 0.5rem;
+  text-align: center;
+}
+
+.dashboard-layout.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
 
 /* ── Top Bar ───────────────────────────────────────────────── */
 
