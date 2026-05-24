@@ -40,7 +40,9 @@ export class SupportGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() ticketId: string,
   ) {
-    this.logger.log(`Support Client ${client.id} joined ticket room: ${ticketId}`);
+    this.logger.log(
+      `Support Client ${client.id} joined ticket room: ${ticketId}`,
+    );
     client.join(`ticket_${ticketId}`);
     return { event: 'joined', data: ticketId };
   }

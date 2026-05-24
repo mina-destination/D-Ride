@@ -72,7 +72,7 @@ export class PaymobService {
       );
     }
 
-        const orderId = payload.obj.order.id;
+    const orderId = payload.obj.order.id;
     const amountCents = payload.obj.amount_cents;
     const success = payload.obj.success;
     const bookingId = (payload.obj.order as any).merchant_order_id; // we passed bookingId here
@@ -238,7 +238,10 @@ export class PaymobService {
       try {
         await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
       } catch (err) {
-        this.logger.error('Failed to update booking status for notifications', err);
+        this.logger.error(
+          'Failed to update booking status for notifications',
+          err,
+        );
       }
 
       return {
@@ -635,7 +638,9 @@ export class PaymobService {
       };
     } catch (error) {
       this.logger.error(`Failed to initialize Paymob wallet topup`, error);
-      throw new BadRequestException('Wallet topup payment initialization failed');
+      throw new BadRequestException(
+        'Wallet topup payment initialization failed',
+      );
     }
   }
 

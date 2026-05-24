@@ -49,7 +49,7 @@ function mapVehicleFromDb(v: any): any {
     make,
     model,
     licensePlate: v.plateNumber,
-    status: v.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE'
+    status: v.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE',
   };
 }
 

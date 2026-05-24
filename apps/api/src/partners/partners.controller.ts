@@ -22,7 +22,11 @@ export class PartnersController {
   @Get()
   async findActive() {
     const partners = await this.partnersService.findActive();
-    return { success: true, data: partners, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: partners,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,7 +34,11 @@ export class PartnersController {
   @Get('all')
   async findAll() {
     const partners = await this.partnersService.findAll();
-    return { success: true, data: partners, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: partners,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,7 +46,11 @@ export class PartnersController {
   @Post()
   async create(@Body() data: CreatePartnerDto) {
     const partner = await this.partnersService.create(data);
-    return { success: true, data: partner, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: partner,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,7 +58,11 @@ export class PartnersController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() data: UpdatePartnerDto) {
     const partner = await this.partnersService.update(id, data);
-    return { success: true, data: partner, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: partner,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -115,7 +115,9 @@ describe('RoutesService', () => {
         },
       ];
 
-      mockPrismaService.route.findMany = jest.fn().mockResolvedValue(mockRoutes);
+      mockPrismaService.route.findMany = jest
+        .fn()
+        .mockResolvedValue(mockRoutes);
 
       const results = await service.findNearestCheckpoints(31.211, 30.041, 2);
 

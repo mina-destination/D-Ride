@@ -261,7 +261,8 @@ async function bootstrap() {
       userId: passenger1.id,
       tripId: pastTrip.id,
       rating: 5,
-      comment: 'Excellent trip! The captain was incredibly professional, vehicle was sparkling clean, and we arrived exactly on time.',
+      comment:
+        'Excellent trip! The captain was incredibly professional, vehicle was sparkling clean, and we arrived exactly on time.',
     },
   });
 
@@ -271,7 +272,8 @@ async function bootstrap() {
       userId: passenger2.id,
       tripId: pastTrip.id,
       rating: 4,
-      comment: 'A very comfortable journey. Minor delay at the toll gates, but overall driver handled the route exceptionally well.',
+      comment:
+        'A very comfortable journey. Minor delay at the toll gates, but overall driver handled the route exceptionally well.',
     },
   });
 
@@ -317,31 +319,36 @@ async function bootstrap() {
     data: [
       {
         name: 'Paymob Egypt',
-        logoUrl: 'https://cdn.brandfetch.net/idS-N-v48N/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-eRNgT9P_H0',
+        logoUrl:
+          'https://cdn.brandfetch.net/idS-N-v48N/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-eRNgT9P_H0',
         websiteUrl: 'https://paymob.com',
         isActive: true,
       },
       {
         name: 'Orange Egypt',
-        logoUrl: 'https://cdn.brandfetch.net/idB24t81j1/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-qG3H_m6754',
+        logoUrl:
+          'https://cdn.brandfetch.net/idB24t81j1/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-qG3H_m6754',
         websiteUrl: 'https://orange.eg',
         isActive: true,
       },
       {
         name: 'Vodafone Cash',
-        logoUrl: 'https://cdn.brandfetch.net/idJ05z95O2/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-yRzZ748u3o',
+        logoUrl:
+          'https://cdn.brandfetch.net/idJ05z95O2/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-yRzZ748u3o',
         websiteUrl: 'https://vodafone.com.eg',
         isActive: true,
       },
       {
         name: 'Alexandria University',
-        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Alexandria_University_logo.svg/400px-Alexandria_University_logo.svg.png',
+        logoUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Alexandria_University_logo.svg/400px-Alexandria_University_logo.svg.png',
         websiteUrl: 'https://alexu.edu.eg',
         isActive: true,
       },
       {
         name: 'Cairo University',
-        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Cairo_university_seal.svg/400px-Cairo_university_seal.svg.png',
+        logoUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Cairo_university_seal.svg/400px-Cairo_university_seal.svg.png',
         websiteUrl: 'https://cu.edu.eg',
         isActive: true,
       },

@@ -1,11 +1,14 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme as antdTheme } from 'antd';
 import { antThemeConfig, antThemeConfigDark } from '@transport/shared-theme';
 import { useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { authAPI } from './services/api';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
+
 
 import { VehiclesPage } from './pages/VehiclesPage';
 import { DriversPage } from './pages/DriversPage';
@@ -25,8 +28,40 @@ import { Result, Button, Space } from 'antd';
 
 function ProtectedRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const [syncing, setSyncing] = useState(true);
+  const [syncedUser, setSyncedUser] = useState<any>(user);
 
-  if (isLoading) {
+  useEffect(() => {
+    let active = true;
+    const syncProfile = async () => {
+      if (isAuthenticated) {
+        try {
+          const profile = await authAPI.getProfile();
+          if (active) {
+            setSyncedUser(profile);
+            localStorage.setItem('dride_user', JSON.stringify(profile));
+          }
+        } catch (error) {
+          console.error('Failed to sync profile permissions dynamically', error);
+          if (active) {
+            logout();
+          }
+        }
+      }
+      if (active) {
+        setSyncing(false);
+      }
+    };
+
+    setSyncing(true);
+    syncProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, logout]);
+
+  if (isLoading || syncing) {
     return (
       <div style={{
         display: 'flex',
@@ -38,7 +73,7 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
         fontSize: '1.2rem',
         fontWeight: 600,
       }}>
-        ⏳ Loading...
+        ⏳ Verifying Authorization...
       </div>
     );
   }
@@ -47,9 +82,11 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
     return <Navigate to="/login" replace />;
   }
 
-  if (user) {
+  const currentUser = syncedUser || user;
+
+  if (currentUser) {
     const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];
-    if (!adminRoles.includes(user.role?.toUpperCase())) {
+    if (!adminRoles.includes(currentUser.role?.toUpperCase())) {
       return (
         <div style={{
           display: 'flex',
@@ -79,11 +116,11 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
     }
   }
 
-  if (permission && user) {
-    if (user.role === 'OWNER') {
+  if (permission && currentUser) {
+    if (currentUser.role === 'OWNER') {
       return <>{children}</>;
     }
-    const hasPermission = user.permissions?.includes(permission);
+    const hasPermission = currentUser.permissions?.includes(permission);
     if (!hasPermission) {
       return (
         <div className="glass" style={{
@@ -121,10 +158,64 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
   return <>{children}</>;
 }
 
+function AnonymousRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
+function DashboardIndexRoute() {
+  const { user, isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'OWNER' || user.permissions?.includes('dashboard')) {
+    return <DashboardPage />;
+  }
+  
+  // Find first permitted page
+  const allowedPermission = [
+    'routes',
+    'trips',
+    'vehicles',
+    'drivers',
+    'bookings',
+    'payments',
+    'passengers',
+    'crm',
+    'settings'
+  ].find(p => user.permissions?.includes(p));
+  
+  if (allowedPermission) {
+    const pathMap: Record<string, string> = {
+      routes: '/routes',
+      trips: '/trips',
+      vehicles: '/vehicles',
+      drivers: '/drivers',
+      bookings: '/bookings',
+      payments: '/payments',
+      passengers: '/passengers',
+      crm: '/crm',
+      settings: '/settings'
+    };
+    return <Navigate to={pathMap[allowedPermission]} replace />;
+  }
+
+  return (
+    <ProtectedRoute permission="dashboard">
+      <DashboardPage />
+    </ProtectedRoute>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<AnonymousRoute><LoginPage /></AnonymousRoute>} />
 
       {/* Protected dashboard routes */}
       <Route
@@ -134,7 +225,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<ProtectedRoute permission="dashboard"><DashboardPage /></ProtectedRoute>} />
+        <Route index element={<DashboardIndexRoute />} />
         <Route path="routes" element={<ProtectedRoute permission="routes"><RoutesPage /></ProtectedRoute>} />
         <Route path="trips" element={<ProtectedRoute permission="trips"><TripsPage /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute permission="vehicles"><VehiclesPage /></ProtectedRoute>} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { paymobAPI } from '../services/api';
 import { 
@@ -23,7 +23,7 @@ export default function WalletPage() {
   const [error, setError] = useState('');
   const [isTopupLoading, setIsTopupLoading] = useState(false);
 
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -35,11 +35,12 @@ export default function WalletPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRtl]);
 
   useEffect(() => {
     fetchWallet();
-  }, []);
+  }, [fetchWallet]);
+
 
   const handleTopupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

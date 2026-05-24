@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingStatus } from '@prisma/client';
 
@@ -6,7 +10,10 @@ import { BookingStatus } from '@prisma/client';
 export class ReviewsService {
   constructor(private prisma: PrismaService) {}
 
-  async createReview(userId: string, data: { bookingId: string; rating: number; comment?: string }) {
+  async createReview(
+    userId: string,
+    data: { bookingId: string; rating: number; comment?: string },
+  ) {
     // 1. Verify booking exists, is owned by user, and status is boarded/completed
     const booking = await this.prisma.booking.findUnique({
       where: { id: data.bookingId },
@@ -21,13 +28,20 @@ export class ReviewsService {
       throw new BadRequestException('You do not own this booking');
     }
 
-    if (booking.status !== BookingStatus.BOARDED && booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('You can only review boarded or completed trips');
+    if (
+      booking.status !== BookingStatus.BOARDED &&
+      booking.status !== BookingStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'You can only review boarded or completed trips',
+      );
     }
 
     // 2. Verify no double reviewing
     if (booking.review) {
-      throw new BadRequestException('You have already submitted a review for this booking');
+      throw new BadRequestException(
+        'You have already submitted a review for this booking',
+      );
     }
 
     if (data.rating < 1 || data.rating > 5) {
@@ -64,7 +78,9 @@ export class ReviewsService {
       },
     });
 
-    const averageRating = result._avg.rating ? parseFloat(result._avg.rating.toFixed(1)) : 0;
+    const averageRating = result._avg.rating
+      ? parseFloat(result._avg.rating.toFixed(1))
+      : 0;
     const totalReviews = result._count.id || 0;
 
     return {

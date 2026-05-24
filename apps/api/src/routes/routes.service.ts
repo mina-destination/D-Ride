@@ -236,7 +236,7 @@ export class RoutesService {
         if (!cp.location?.coordinates) continue;
         const [cpLng, cpLat] = cp.location.coordinates;
         const distance = getDistance(lng, lat, cpLng, cpLat);
-        
+
         candidates.push({
           checkpoint: cp,
           route: {
