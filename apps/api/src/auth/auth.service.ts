@@ -45,7 +45,6 @@ export class AuthService {
     email: string;
     phone: string;
     password: string;
-    role?: string;
   }) {
     const existing = await this.prisma.user.findUnique({
       where: { email: data.email },
@@ -61,7 +60,7 @@ export class AuthService {
         email: data.email,
         phone: data.phone,
         password: hashedPassword,
-        role: (data.role || 'PASSENGER').toUpperCase() as Role,
+        role: Role.PASSENGER,
       },
     });
 

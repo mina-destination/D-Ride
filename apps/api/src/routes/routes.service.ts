@@ -96,11 +96,25 @@ export class RoutesService {
     this.logger.log(
       `Finding routes near [${lng}, ${lat}] within ${radiusMeters}m`,
     );
+    const deltaLat = radiusMeters / 111111;
+    const cosLat = Math.cos((lat * Math.PI) / 180);
+    const deltaLng = radiusMeters / (111111 * Math.abs(cosLat) || 1);
+
+    const minLat = lat - deltaLat;
+    const maxLat = lat + deltaLat;
+    const minLng = lng - deltaLng;
+    const maxLng = lng + deltaLng;
+
     const routes = await this.prisma.route.findMany();
     return routes
       .filter((route: any) => {
         if (!route.path || !route.path.coordinates) return false;
         return route.path.coordinates.some(([rLng, rLat]: [number, number]) => {
+          // Bounding Box filter check first (extremely fast O(1) float comparison)
+          if (rLat < minLat || rLat > maxLat || rLng < minLng || rLng > maxLng) {
+            return false;
+          }
+          // Only compute full Haversine if inside bounding box
           return getDistance(lng, lat, rLng, rLat) <= radiusMeters;
         });
       })
@@ -155,35 +169,31 @@ export class RoutesService {
       const checkpoints = route.checkpoints as any[];
       if (!checkpoints || checkpoints.length < 2) continue;
 
-      // Find nearest checkpoint to pickup
       let pickupCp: any = null;
       let pickupDistance = Infinity;
       let pickupIdx = -1;
 
-      for (let i = 0; i < checkpoints.length; i++) {
-        const cp = checkpoints[i];
-        if (!cp.location?.coordinates) continue;
-        const [cpLng, cpLat] = cp.location.coordinates;
-        const dist = getDistance(pickupLng, pickupLat, cpLng, cpLat);
-        if (dist < pickupDistance) {
-          pickupDistance = dist;
-          pickupCp = cp;
-          pickupIdx = i;
-        }
-      }
-
-      // Find nearest checkpoint to dropoff
       let dropoffCp: any = null;
       let dropoffDistance = Infinity;
       let dropoffIdx = -1;
 
+      // Single-pass execution to find nearest pickup and dropoff checkpoints
       for (let i = 0; i < checkpoints.length; i++) {
         const cp = checkpoints[i];
         if (!cp.location?.coordinates) continue;
         const [cpLng, cpLat] = cp.location.coordinates;
-        const dist = getDistance(dropoffLng, dropoffLat, cpLng, cpLat);
-        if (dist < dropoffDistance) {
-          dropoffDistance = dist;
+
+        const distToPickup = getDistance(pickupLng, pickupLat, cpLng, cpLat);
+        const distToDropoff = getDistance(dropoffLng, dropoffLat, cpLng, cpLat);
+
+        if (distToPickup < pickupDistance) {
+          pickupDistance = distToPickup;
+          pickupCp = cp;
+          pickupIdx = i;
+        }
+
+        if (distToDropoff < dropoffDistance) {
+          dropoffDistance = distToDropoff;
           dropoffCp = cp;
           dropoffIdx = i;
         }
@@ -195,9 +205,6 @@ export class RoutesService {
 
       // Pickup must come BEFORE dropoff in the route sequence (correct travel direction)
       if (pickupIdx >= dropoffIdx) continue;
-
-      // Pickup and dropoff must not be the same checkpoint
-      if (pickupIdx === dropoffIdx) continue;
 
       results.push({
         route: { ...route, _id: route.id },
