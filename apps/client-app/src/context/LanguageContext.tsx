@@ -28,6 +28,9 @@ const translations: Record<Language, Record<string, string>> = {
     signIn: 'Sign In',
     getStarted: 'Get Started',
     signOut: 'Sign Out',
+    notifications: 'Notifications',
+    markAllRead: 'Mark all read',
+    noNotifications: 'No new notifications',
 
     // Search Page
     whereTo: 'Where are we going today?',
@@ -117,6 +120,9 @@ const translations: Record<Language, Record<string, string>> = {
     signIn: 'تسجيل الدخول',
     getStarted: 'ابدأ الآن',
     signOut: 'تسجيل الخروج',
+    notifications: 'الإشعارات',
+    markAllRead: 'تحديد الكل كمقروء',
+    noNotifications: 'لا توجد إشعارات جديدة',
 
     // Search Page
     whereTo: 'إلى أين نحن ذاهبون اليوم؟',

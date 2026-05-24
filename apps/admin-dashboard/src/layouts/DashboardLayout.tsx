@@ -5,6 +5,7 @@ import logo from '../assets/d-ride-logo.jpeg';
 import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Modal, Popover, List, Tag, Button } from 'antd';
+import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 
 const navItems = [
   { label: 'Overview', type: 'section' as const },
@@ -77,6 +78,153 @@ export default function DashboardLayout() {
     { id: 4, title: 'Vehicle Status Changed', description: 'Toyota HiAce (ط ر ق ٥٤٣٢) updated to Maintenance', time: '3 hours ago', read: true }
   ]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Search Autocomplete States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [searchData, setSearchData] = useState<{ routes: any[]; drivers: any[]; vehicles: any[]; passengers: any[] }>({
+    routes: [],
+    drivers: [],
+    vehicles: [],
+    passengers: []
+  });
+
+  // Reset selected index when suggestions list updates
+  useEffect(() => {
+    setActiveSuggestionIndex(-1);
+  }, [suggestions]);
+
+  useEffect(() => {
+    const loadSearchData = async () => {
+      try {
+        const [routes, drivers, vehicles, passengers] = await Promise.all([
+          routesAPI.getAll().catch(() => []),
+          usersAPI.getByRole('DRIVER').catch(() => []),
+          vehiclesAPI.getAll().catch(() => []),
+          usersAPI.getByRole('PASSENGER').catch(() => [])
+        ]);
+        setSearchData({ routes, drivers, vehicles, passengers });
+      } catch (err) {
+        console.error('Failed to load search autocomplete data', err);
+      }
+    };
+    if (user) {
+      loadSearchData();
+    }
+  }, [user]);
+
+  const getSuggestions = (query: string) => {
+    if (!query.trim()) return [];
+    const term = query.toLowerCase();
+    const results: any[] = [];
+
+    // 1. Match Admin sidebar pages
+    const pageMatches = navItems
+      .filter(item => !('type' in item) && item.label.toLowerCase().includes(term))
+      .map(item => ({
+        type: 'page',
+        label: (item as any).label,
+        path: (item as any).path,
+        icon: (item as any).icon
+      }));
+    if (pageMatches.length > 0) {
+      results.push({ category: 'Pages', items: pageMatches });
+    }
+
+    // 2. Match Routes
+    const routeMatches = searchData.routes
+      .filter(r => r.name?.toLowerCase().includes(term))
+      .map(r => ({
+        type: 'route',
+        label: r.name,
+        path: '/routes',
+        searchTerm: r.name
+      }));
+    if (routeMatches.length > 0) {
+      results.push({ category: 'Routes', items: routeMatches.slice(0, 4) });
+    }
+
+    // 3. Match Drivers
+    const driverMatches = searchData.drivers
+      .filter(d => d.name?.toLowerCase().includes(term) || d.phone?.includes(term))
+      .map(d => ({
+        type: 'driver',
+        label: d.name,
+        path: '/drivers',
+        searchTerm: d.name
+      }));
+    if (driverMatches.length > 0) {
+      results.push({ category: 'Drivers', items: driverMatches.slice(0, 4) });
+    }
+
+    // 4. Match Vehicles
+    const vehicleMatches = searchData.vehicles
+      .filter(v => v.licensePlate?.toLowerCase().includes(term) || v.model?.toLowerCase().includes(term))
+      .map(v => ({
+        type: 'vehicle',
+        label: `${v.model} (${v.licensePlate || v.plateNumber})`,
+        path: '/vehicles',
+        searchTerm: v.licensePlate || v.plateNumber
+      }));
+    if (vehicleMatches.length > 0) {
+      results.push({ category: 'Vehicles', items: vehicleMatches.slice(0, 4) });
+    }
+
+    // 5. Match Passengers
+    const passengerMatches = searchData.passengers
+      .filter(p => p.name?.toLowerCase().includes(term) || p.phone?.includes(term))
+      .map(p => ({
+        type: 'passenger',
+        label: p.name,
+        path: '/passengers',
+        searchTerm: p.name
+      }));
+    if (passengerMatches.length > 0) {
+      results.push({ category: 'Passengers', items: passengerMatches.slice(0, 4) });
+    }
+
+    return results;
+  };
+
+  const handleSelectSuggestion = (item: any) => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setSearchFocused(false);
+    
+    if (item.searchTerm) {
+      navigate(item.path, { state: { searchTerm: item.searchTerm } });
+    } else {
+      navigate(item.path);
+    }
+  };
+
+  const flattenedSuggestions = suggestions.flatMap(cat => cat.items);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => 
+        prev < flattenedSuggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => 
+        prev > 0 ? prev - 1 : flattenedSuggestions.length - 1
+      );
+    } else if (e.key === 'Enter') {
+      if (activeSuggestionIndex >= 0 && activeSuggestionIndex < flattenedSuggestions.length) {
+        e.preventDefault();
+        handleSelectSuggestion(flattenedSuggestions[activeSuggestionIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setSuggestions([]);
+      setSearchFocused(false);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -171,9 +319,97 @@ export default function DashboardLayout() {
           <div className="topbar-left">
             <h2 className="topbar-title">{currentTitle}</h2>
           </div>
-          <div className="topbar-search">
+          <div className="topbar-search" style={{ position: 'relative' }}>
             <span><Search size={16} /></span>
-            <input type="text" placeholder="Search routes, trips, drivers..." />
+            <input 
+              type="text" 
+              placeholder="Search pages, routes, drivers, vehicles..." 
+              value={searchQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                setSuggestions(getSuggestions(val));
+              }}
+              onFocus={() => {
+                setSearchFocused(true);
+                setSuggestions(getSuggestions(searchQuery));
+              }}
+              onBlur={() => {
+                // Delay blur to allow clicks on dropdown items
+                setTimeout(() => setSearchFocused(false), 200);
+              }}
+              onKeyDown={handleKeyDown}
+            />
+            
+            {searchFocused && suggestions.length > 0 && (
+              <div 
+                className="search-suggestions-dropdown" 
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  right: 0,
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-md)',
+                  zIndex: 2000,
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  padding: '8px 0'
+                }}
+              >
+                {(() => {
+                  let globalItemIdx = -1;
+                  return suggestions.map((cat, catIdx) => (
+                    <div key={catIdx} className="suggestion-category-group">
+                      <div style={{
+                        padding: '4px 12px',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        color: 'var(--primary-color)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                        marginBottom: '4px'
+                      }}>
+                        {cat.category}
+                      </div>
+                      {cat.items.map((item: any, itemIdx: number) => {
+                        globalItemIdx++;
+                        const currentGlobalIdx = globalItemIdx;
+                        const isActive = currentGlobalIdx === activeSuggestionIndex;
+                        return (
+                          <div
+                            key={itemIdx}
+                            onClick={() => handleSelectSuggestion(item)}
+                            style={{
+                              padding: '8px 16px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: 'var(--text-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              textAlign: 'left',
+                              backgroundColor: isActive ? 'var(--surface-hover)' : 'transparent'
+                            }}
+                            onMouseEnter={() => setActiveSuggestionIndex(currentGlobalIdx)}
+                          >
+                            {item.icon ? (
+                              <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>{item.icon}</span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>🔍</span>
+                            )}
+                            <span>{item.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
           </div>
           <div className="topbar-right">
             <button className="topbar-icon-btn" onClick={toggleTheme} title="Toggle Theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

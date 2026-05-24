@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Form, Input, Space, message, Select, InputNumber, Tag } from 'antd';
 import { vehiclesAPI } from '../services/api';
 import { CarFront, Download } from 'lucide-react';
@@ -13,6 +14,13 @@ export function VehiclesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [capacityFilter, setCapacityFilter] = useState<string>('ALL');
+  
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state && (location.state as any).searchTerm) {
+      setSearchTerm((location.state as any).searchTerm);
+    }
+  }, [location.state]);
 
   const fetchVehicles = async () => {
     try {
