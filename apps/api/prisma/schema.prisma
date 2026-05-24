@@ -93,6 +93,7 @@ model Trip {
   vehicle        Vehicle?   @relation(fields: [vehicleId], references: [id])
   reviews        Review[]
 
+  @@index([routeId, status, departureTime])
   @@map("trips")
 }
 
@@ -118,6 +119,8 @@ model Booking {
   transactions        Transaction[]
   review              Review?
 
+  @@index([tripId, status])
+  @@index([userId])
   @@map("bookings")
 }
 
@@ -169,6 +172,7 @@ model Transaction {
   booking         Booking?      @relation(fields: [bookingId], references: [id])
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, status])
   @@map("transactions")
 }
 

@@ -3,6 +3,7 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
@@ -10,6 +11,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 export interface SendMessagePayload {
   ticketId: string;
@@ -22,27 +25,68 @@ export interface SendMessagePayload {
 @WebSocketGateway({
   namespace: 'support',
   cors: {
-    origin: '*',
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+      : [
+          'http://localhost:5173',
+          'http://localhost:5174',
+          'http://localhost:5175',
+          'http://localhost:3001',
+        ],
+    credentials: true,
   },
   pingTimeout: 30000,
   pingInterval: 5000,
 })
 export class SupportGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(SupportGateway.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
-  handleConnection(client: Socket) {
-    const role = client.handshake.query?.role;
-    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION') {
+  afterInit(server: Server) {
+    server.use((socket: any, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.headers?.authorization;
+        if (!token) {
+          return next(new Error('Unauthorized: Token missing'));
+        }
+        const cleanToken = token.startsWith('Bearer ')
+          ? token.split(' ')[1]
+          : token;
+        const secret =
+          this.configService.get<string>('jwt.secret') ||
+          'dev_jwt_secret_do_not_use_in_production';
+        const payload = this.jwtService.verify(cleanToken, { secret });
+
+        socket.user = {
+          id: payload.sub,
+          email: payload.email,
+          role: payload.role,
+        };
+        next();
+      } catch (err) {
+        next(new Error('Unauthorized: Invalid or expired token'));
+      }
+    });
+  }
+
+  handleConnection(client: any) {
+    const user = client.user;
+    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'OPERATION')) {
       client.join('support_operators');
       this.logger.log(
-        `Support client ${client.id} with role ${role} joined support_operators room`,
+        `Support client ${client.id} (User: ${user.id}, Role: ${user.role}) joined support_operators room`,
       );
     }
     this.logger.log(`Support client connected: ${client.id}`);

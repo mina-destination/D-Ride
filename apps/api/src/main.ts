@@ -4,10 +4,14 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import { RedisIoAdapter } from './redis-io.adapter';
+import helmet from 'helmet';
 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Integrate helmet middleware package for standard production HTTP security hardening
+  app.use(helmet());
 
   // Increase payload size limits for large routes
   app.use(json({ limit: '50mb' }));
@@ -37,14 +41,19 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend dev servers
+  // Enable CORS using environment-driven origin lookups (whitelisting passenger app, driver portal, and admin dashboard)
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+  const origins = allowedOriginsEnv
+    ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
+    : [
+        'http://localhost:5173', // passenger client app
+        'http://localhost:5174', // driver portal
+        'http://localhost:5175', // admin dashboard
+        'http://localhost:3001',
+      ];
+
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'http://localhost:3001',
-    ],
+    origin: origins,
     credentials: true,
   });
 
