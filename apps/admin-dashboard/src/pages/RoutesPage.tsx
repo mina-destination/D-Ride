@@ -283,6 +283,7 @@ export function RoutesPage() {
   const [endQuery, setEndQuery] = useState('');
   const [cpQuery, setCpQuery] = useState('');
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
+  const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
 
   const fetchRoutes = async () => {
     try {
@@ -335,6 +336,64 @@ export function RoutesPage() {
   const handleCancel = () => {
     setIsModalOpen(false);
     setMapPanTo(null);
+  };
+
+  const handleReverseRoute = async (route: any) => {
+    let reversedName = `${route.name} (Reversed)`;
+    if (route.name.toLowerCase().includes(' to ')) {
+      const parts = route.name.split(/\s+[tT][oO]\s+/i);
+      if (parts.length === 2) {
+        reversedName = `${parts[1]} to ${parts[0]}`;
+      }
+    } else if (route.name.includes(' ➔ ')) {
+      const parts = route.name.split(' ➔ ');
+      if (parts.length === 2) {
+        reversedName = `${parts[1]} ➔ ${parts[0]}`;
+      }
+    } else if (route.name.includes(' -> ')) {
+      const parts = route.name.split(' -> ');
+      if (parts.length === 2) {
+        reversedName = `${parts[1]} -> ${parts[0]}`;
+      }
+    }
+
+    const reversedCps = [...(route.checkpoints || [])].reverse();
+    const syncedCps = reversedCps.map((cp, idx) => {
+      let type: 'START' | 'CHECKPOINT' | 'END' = 'CHECKPOINT';
+      let bufferTimeMinutes = cp.bufferTimeMinutes;
+      if (idx === 0) {
+        type = 'START';
+        bufferTimeMinutes = cp.bufferTimeMinutes > 0 ? cp.bufferTimeMinutes : 5;
+      } else if (idx === reversedCps.length - 1 && reversedCps.length > 1) {
+        type = 'END';
+        bufferTimeMinutes = 0;
+      }
+      return {
+        ...cp,
+        order: idx + 1,
+        type,
+        bufferTimeMinutes
+      };
+    });
+
+    setEditingId(null);
+    setRouteName(reversedName);
+    setCoverImage(route.coverImage || PRESET_IMAGES[0].value);
+    setCheckpoints(syncedCps);
+    
+    await generateSnappedRoute(syncedCps);
+    
+    setCurrentStep(0);
+    setStartQuery('');
+    setEndQuery('');
+    setCpQuery('');
+    
+    if (syncedCps[0]?.location.coordinates) {
+      setMapPanTo([syncedCps[0].location.coordinates[1], syncedCps[0].location.coordinates[0]]);
+    }
+    
+    setIsModalOpen(true);
+    message.success('Generated return route! You can review details and save.');
   };
 
   // Re-calculate ordering index and stop type
@@ -635,6 +694,7 @@ export function RoutesPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit Wizard</Button>
+          <Button type="link" style={{ color: '#10B981' }} onClick={() => handleReverseRoute(record)}>Reverse Route</Button>
           <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
         </Space>
       ),
@@ -894,6 +954,8 @@ export function RoutesPage() {
                     return (
                       <div 
                         key={idx} 
+                        onMouseEnter={() => setActiveHoverIndex(idx)}
+                        onMouseLeave={() => setActiveHoverIndex(null)}
                         style={{ 
                           padding: '12px', 
                           background: isStart ? 'rgba(16, 185, 129, 0.04)' : isEnd ? 'rgba(239, 68, 68, 0.04)' : 'var(--surface-elevated)',
@@ -1135,10 +1197,22 @@ export function RoutesPage() {
                   const isStart = cp.type === 'START';
                   const isEnd = cp.type === 'END';
                   
+                  const isHovered = activeHoverIndex === idx;
                   let customIcon;
-                  if (isStart) customIcon = createGreenIcon('S');
-                  else if (isEnd) customIcon = createRedIcon('E');
-                  else customIcon = createCheckpointIcon(idx);
+                  if (isHovered) {
+                    const baseColor = isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6';
+                    const textLabel = isStart ? 'S' : isEnd ? 'E' : `${idx}`;
+                    customIcon = new L.DivIcon({
+                      html: `<div style="background-color: ${baseColor}; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid #F5B731; box-shadow: 0 0 15px #F5B731, 0 3px 8px rgba(0,0,0,0.3); font-size: 13px; transition: all 0.2s; animation: map-pulse 1.2s infinite alternate;">${textLabel}</div>`,
+                      className: 'custom-div-icon-highlighted',
+                      iconSize: [34, 34],
+                      iconAnchor: [17, 17]
+                    });
+                  } else {
+                    if (isStart) customIcon = createGreenIcon('S');
+                    else if (isEnd) customIcon = createRedIcon('E');
+                    else customIcon = createCheckpointIcon(idx);
+                  }
 
                   return (
                     <Marker
@@ -1175,6 +1249,12 @@ export function RoutesPage() {
 
         </div>
       </Modal>
+      <style>{`
+        @keyframes map-pulse {
+          0% { transform: scale(1.0); }
+          100% { transform: scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 }

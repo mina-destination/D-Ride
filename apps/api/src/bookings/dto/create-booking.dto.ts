@@ -19,6 +19,18 @@ class LocationDto {
   @IsArray()
   @IsNumber({}, { each: true })
   coordinates: number[];
+
+  @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
+  @IsOptional()
+  _id?: string;
+
+  @IsString()
+  @IsOptional()
+  key?: string;
 }
 
 class StopDto {
@@ -53,6 +65,18 @@ class StopDto {
   @IsNumber()
   @IsOptional()
   geofenceRadiusMeters?: number;
+
+  @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
+  @IsOptional()
+  _id?: string;
+
+  @IsString()
+  @IsOptional()
+  key?: string;
 }
 
 export class CreateBookingDto {

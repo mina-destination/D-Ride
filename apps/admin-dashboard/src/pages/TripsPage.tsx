@@ -27,8 +27,16 @@ export function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  // Bulk schedule states
+  const [isBulkScheduler, setIsBulkScheduler] = useState(false);
+  const [recurrencePattern, setRecurrencePattern] = useState<'DAILY' | 'WEEKLY'>('DAILY');
+  const [bulkEndDate, setBulkEndDate] = useState<dayjs.Dayjs | null>(null);
+
   const selectedRouteId = Form.useWatch('routeId', form);
   const selectedRoute = routes.find(r => r._id === selectedRouteId);
+  const selectedVehicleId = Form.useWatch('vehicleId', form);
+  const selectedDriverId = Form.useWatch('driverId', form);
+  const selectedDepartureTime = Form.useWatch('departureTime', form);
 
   const fetchData = async () => {
     try {
@@ -59,6 +67,9 @@ export function TripsPage() {
   }, []);
 
   const handleOpenModal = (trip?: any) => {
+    setIsBulkScheduler(false);
+    setRecurrencePattern('DAILY');
+    setBulkEndDate(null);
     if (trip) {
       setEditingId(trip._id);
       form.setFieldsValue({
@@ -99,17 +110,52 @@ export function TripsPage() {
         lockedSeats: lockSeat14 ? [14] : [],
       };
 
-      if (editingId) {
-        await tripsAPI.update(editingId, payload);
-        message.success('Trip updated successfully');
+      setLoading(true);
+
+      if (isBulkScheduler && bulkEndDate && !editingId) {
+        const departureTimeDayjs = dayjs(values.departureTime);
+        const endDayjs = dayjs(bulkEndDate).endOf('day');
+        
+        let currentDeparture = departureTimeDayjs;
+        const promises = [];
+        
+        while (currentDeparture.isBefore(endDayjs)) {
+          const currentPayload = {
+            ...payload,
+            departureTime: currentDeparture.toISOString(),
+          };
+          promises.push(tripsAPI.create(currentPayload));
+          
+          if (recurrencePattern === 'DAILY') {
+            currentDeparture = currentDeparture.add(1, 'day');
+          } else if (recurrencePattern === 'WEEKLY') {
+            currentDeparture = currentDeparture.add(1, 'week');
+          }
+        }
+
+        if (promises.length === 0) {
+          message.error('Repeat end date must be after the first departure time!');
+          setLoading(false);
+          return;
+        }
+
+        await Promise.all(promises);
+        message.success(`Successfully scheduled ${promises.length} recurring trips! 🚀`);
       } else {
-        await tripsAPI.create(payload);
-        message.success('Trip scheduled successfully');
+        if (editingId) {
+          await tripsAPI.update(editingId, payload);
+          message.success('Trip updated successfully');
+        } else {
+          await tripsAPI.create(payload);
+          message.success('Trip scheduled successfully');
+        }
       }
       setIsModalOpen(false);
       fetchData();
     } catch (error) {
       message.error('Failed to save trip configuration');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -362,6 +408,46 @@ export function TripsPage() {
     exportToCSV(filteredTrips, headers, 'trips_report');
   };
 
+  // Compute Conflicts
+  let conflictMessage: string | null = null;
+
+  if (selectedDepartureTime && selectedRoute) {
+    const startNew = dayjs(selectedDepartureTime);
+    const durationNew = selectedRoute.estimatedDurationMinutes || 30;
+    const endNew = startNew.add(durationNew, 'minute');
+
+    for (const trip of trips) {
+      if (trip._id === editingId) continue;
+      if (trip.status === 'CANCELLED' || trip.status === 'COMPLETED') continue;
+
+      const startExist = dayjs(trip.departureTime);
+      const durationExist = trip.routeId?.estimatedDurationMinutes || trip.estimatedDurationMinutes || 30;
+      const endExist = startExist.add(durationExist, 'minute');
+
+      // Overlap check
+      if (startNew.isBefore(endExist) && endNew.isAfter(startExist)) {
+        if (selectedVehicleId) {
+          const tripVehId = trip.vehicleId?._id || trip.vehicleId;
+          if (tripVehId === selectedVehicleId) {
+            const vehName = trip.vehicleId?.licensePlate 
+              ? `${trip.vehicleId.make} (${trip.vehicleId.licensePlate})` 
+              : 'Selected Vehicle';
+            conflictMessage = `⚠️ Scheduling Conflict: The vehicle "${vehName}" is already scheduled on an overlapping trip: "${trip.routeId?.name || 'Other Route'}" from ${startExist.format('hh:mm A')} to ${endExist.format('hh:mm A')}.`;
+            break;
+          }
+        }
+        if (selectedDriverId) {
+          const tripDriverId = trip.driverId?._id || trip.driverId;
+          if (tripDriverId === selectedDriverId) {
+            const driverName = trip.driverId?.name || 'Selected Driver';
+            conflictMessage = `⚠️ Scheduling Conflict: The driver "${driverName}" is already scheduled on an overlapping trip: "${trip.routeId?.name || 'Other Route'}" from ${startExist.format('hh:mm A')} to ${endExist.format('hh:mm A')}.`;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -418,178 +504,254 @@ export function TripsPage() {
         onOk={() => form.submit()}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item 
-            name="routeId" 
-            label="Select Route" 
-            rules={[{ required: true, message: 'Please select a route' }]}
-          >
-            <Select 
-              showSearch 
-              placeholder="Choose Route"
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {routes.map(r => (
-                <Select.Option key={r._id} value={r._id}>{r.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          {selectedRoute && selectedRoute.checkpoints && selectedRoute.checkpoints.length > 0 && (
-            <div style={{
-              margin: '-8px 0 16px',
-              padding: '12px 16px',
-              background: 'var(--surface-elevated, #242526)',
-              border: '1px solid var(--border, #3E4042)',
-              borderRadius: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #B0B3B8)' }}>
-                Route Checkpoints Preview:
-              </span>
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            {conflictMessage && (
               <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                flexWrap: 'wrap',
-                padding: '4px 0'
+                marginBottom: '15px',
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid #EF4444',
+                borderRadius: '8px',
+                color: '#EF4444',
+                fontSize: '12px',
+                fontWeight: 600,
+                lineHeight: '1.4'
               }}>
-                {selectedRoute.checkpoints.map((cp: any, index: number) => {
-                  const isStart = cp.type === 'START';
-                  const isEnd = cp.type === 'END';
-                  return (
-                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '4px 8px',
-                        background: isStart ? 'rgba(16, 185, 129, 0.08)' : isEnd ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
-                        border: `1px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
-                        borderRadius: '16px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
-                      }}>
-                        <span style={{
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          background: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
-                        }} />
-                        {cp.name}
-                        {cp.bufferTimeMinutes > 0 && (
-                          <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 'normal' }}>
-                            ({cp.bufferTimeMinutes}m)
-                          </span>
+                {conflictMessage}
+              </div>
+            )}
+
+            <Form.Item 
+              name="routeId" 
+              label="Select Route" 
+              rules={[{ required: true, message: 'Please select a route' }]}
+            >
+              <Select 
+                showSearch 
+                placeholder="Choose Route"
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {routes.map(r => (
+                  <Select.Option key={r._id} value={r._id}>{r.name}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            {selectedRoute && selectedRoute.checkpoints && selectedRoute.checkpoints.length > 0 && (
+              <div style={{
+                margin: '-8px 0 16px',
+                padding: '12px 16px',
+                background: 'var(--surface-elevated, #242526)',
+                border: '1px solid var(--border, #3E4042)',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #B0B3B8)' }}>
+                  Route Checkpoints Preview:
+                </span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  padding: '4px 0'
+                }}>
+                  {selectedRoute.checkpoints.map((cp: any, index: number) => {
+                    const isStart = cp.type === 'START';
+                    const isEnd = cp.type === 'END';
+                    return (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          background: isStart ? 'rgba(16, 185, 129, 0.08)' : isEnd ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+                          border: `1px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
+                          borderRadius: '16px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
+                        }}>
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
+                          }} />
+                          {cp.name}
+                          {cp.bufferTimeMinutes > 0 && (
+                            <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 'normal' }}>
+                              ({cp.bufferTimeMinutes}m)
+                            </span>
+                          )}
+                        </div>
+                        {index < selectedRoute.checkpoints.length - 1 && (
+                          <span style={{ color: 'var(--text-muted, #65676B)', fontSize: '12px' }}>➔</span>
                         )}
                       </div>
-                      {index < selectedRoute.checkpoints.length - 1 && (
-                        <span style={{ color: 'var(--text-muted, #65676B)', fontSize: '12px' }}>➔</span>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary, #B0B3B8)', display: 'flex', gap: '15px' }}>
+                  <span>Distance: <strong>{selectedRoute.distanceKm || '—'} km</strong></span>
+                  <span>Duration: <strong>{selectedRoute.estimatedDurationMinutes || '—'} mins</strong></span>
+                </div>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary, #B0B3B8)', display: 'flex', gap: '15px' }}>
-                <span>Distance: <strong>{selectedRoute.distanceKm || '—'} km</strong></span>
-                <span>Duration: <strong>{selectedRoute.estimatedDurationMinutes || '—'} mins</strong></span>
-              </div>
-            </div>
-          )}
+            )}
 
-          <Form.Item 
-            name="vehicleId" 
-            label="Assign Vehicle"
-          >
-            <Select 
-              showSearch 
-              placeholder="Select Fleet Vehicle (Optional)"
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {vehicles.map(v => (
-                <Select.Option key={v._id} value={v._id}>
-                  {v.make} {v.model} ({v.licensePlate})
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item 
-            name="driverId" 
-            label="Assign Driver"
-          >
-            <Select 
-              showSearch 
-              placeholder="Assign Driver Operator (Optional)"
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {drivers.map(d => (
-                <Select.Option key={d._id} value={d._id}>{d.name} ({d.phone})</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item 
-            name="departureTime" 
-            label="Departure Time" 
-            rules={[{ required: true, message: 'Please select departure time' }]}
-          >
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item 
-            name="status" 
-            label="Status" 
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Select.Option value="SCHEDULED">Scheduled</Select.Option>
-              <Select.Option value="BOARDING">Boarding</Select.Option>
-              <Select.Option value="IN_TRANSIT">In Transit</Select.Option>
-              <Select.Option value="COMPLETED">Completed</Select.Option>
-              <Select.Option value="CANCELLED">Cancelled</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item 
-            name="lockSeat14" 
-            valuePropName="checked"
-          >
-            <Checkbox style={{ display: 'flex', alignItems: 'center' }}>
-              <Lock size={14} style={{ marginRight: '4px' }} /> Reserved Seat 14 for passenger luggage by default
-            </Checkbox>
-          </Form.Item>
-
-          <Space style={{ display: 'flex' }}>
             <Form.Item 
-              name="priceEGP" 
-              label="Price (EGP)" 
-              rules={[{ required: true }]}
+              name="vehicleId" 
+              label="Assign Vehicle"
             >
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <Select 
+                showSearch 
+                placeholder="Select Fleet Vehicle (Optional)"
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {vehicles.map(v => (
+                  <Select.Option key={v._id} value={v._id}>
+                    {v.make} {v.model} ({v.licensePlate})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item 
+              name="driverId" 
+              label="Assign Driver"
+            >
+              <Select 
+                showSearch 
+                placeholder="Assign Driver Operator (Optional)"
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {drivers.map(d => (
+                  <Select.Option key={d._id} value={d._id}>{d.name} ({d.phone})</Select.Option>
+                ))}
+              </Select>
             </Form.Item>
             
             <Form.Item 
-              name="availableSeats" 
-              label="Available Seats" 
+              name="departureTime" 
+              label="Departure Time" 
+              rules={[{ required: true, message: 'Please select departure time' }]}
+            >
+              <DatePicker showTime style={{ width: '100%' }} />
+              {selectedDepartureTime && selectedRoute?.estimatedDurationMinutes && (
+                <div style={{ marginTop: '6px', fontSize: '12px', fontWeight: 'bold', color: '#10B981' }}>
+                  🟢 Est. Arrival Time: {dayjs(selectedDepartureTime).add(selectedRoute.estimatedDurationMinutes, 'minute').format('YYYY-MM-DD hh:mm A')} (duration: {selectedRoute.estimatedDurationMinutes} mins)
+                </div>
+              )}
+            </Form.Item>
+
+            {!editingId && (
+              <>
+                <Form.Item label="Schedule Options" style={{ marginBottom: '8px' }}>
+                  <Checkbox 
+                    checked={isBulkScheduler} 
+                    onChange={e => setIsBulkScheduler(e.target.checked)}
+                    style={{ fontWeight: 600 }}
+                  >
+                    🔄 Enable Bulk/Recurring Trip Scheduling
+                  </Checkbox>
+                </Form.Item>
+
+                {isBulkScheduler && (
+                  <div style={{
+                    padding: '14px',
+                    background: 'var(--surface-elevated, #242526)',
+                    border: '1px solid var(--border, #3E4042)',
+                    borderRadius: '8px',
+                    marginBottom: '15px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <h4 style={{ margin: 0, fontSize: '13px' }}>🔄 Recurring Schedule Config</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary, #B0B3B8)', display: 'block', marginBottom: '4px' }}>
+                          Recurrence Pattern
+                        </span>
+                        <Select 
+                          value={recurrencePattern} 
+                          onChange={val => setRecurrencePattern(val)}
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="DAILY">Repeat Daily</Select.Option>
+                          <Select.Option value="WEEKLY">Repeat Weekly</Select.Option>
+                        </Select>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary, #B0B3B8)', display: 'block', marginBottom: '4px' }}>
+                          Repeat Until Date
+                        </span>
+                        <DatePicker 
+                          value={bulkEndDate} 
+                          onChange={val => setBulkEndDate(val)} 
+                          disabledDate={current => current && current.isBefore(dayjs().endOf('day'))}
+                          style={{ width: '100%' }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            <Form.Item 
+              name="status" 
+              label="Status" 
               rules={[{ required: true }]}
             >
-              <InputNumber min={1} style={{ width: '100%' }} />
+              <Select>
+                <Select.Option value="SCHEDULED">Scheduled</Select.Option>
+                <Select.Option value="BOARDING">Boarding</Select.Option>
+                <Select.Option value="IN_TRANSIT">In Transit</Select.Option>
+                <Select.Option value="COMPLETED">Completed</Select.Option>
+                <Select.Option value="CANCELLED">Cancelled</Select.Option>
+              </Select>
             </Form.Item>
-          </Space>
-        </Form>
+
+            <Form.Item 
+              name="lockSeat14" 
+              valuePropName="checked"
+            >
+              <Checkbox style={{ display: 'flex', alignItems: 'center' }}>
+                <Lock size={14} style={{ marginRight: '4px' }} /> Reserved Seat 14 for passenger luggage by default
+              </Checkbox>
+            </Form.Item>
+
+            <Space style={{ display: 'flex' }}>
+              <Form.Item 
+                name="priceEGP" 
+                label="Price (EGP)" 
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+              
+              <Form.Item 
+                name="availableSeats" 
+                label="Available Seats" 
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Space>
+          </Form>
       </Modal>
     </div>
   );
