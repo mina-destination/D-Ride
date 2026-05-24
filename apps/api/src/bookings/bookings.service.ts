@@ -111,7 +111,10 @@ export class BookingsService {
         where: { id: tripIdStr },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
-      if (currentTrip.bookedSeats + requestedSeats > currentTrip.availableSeats) {
+      if (
+        currentTrip.bookedSeats + requestedSeats >
+        currentTrip.availableSeats
+      ) {
         throw new BadRequestException('Not enough available seats');
       }
 

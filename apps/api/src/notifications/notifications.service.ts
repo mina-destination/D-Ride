@@ -20,7 +20,12 @@ export class NotificationsService implements OnModuleInit {
     this.twilioWhatsApp =
       this.configService.get<string>('twilio.whatsappNumber') || '';
 
-    if (accountSid && accountSid.startsWith('AC') && authToken && this.twilioPhone) {
+    if (
+      accountSid &&
+      accountSid.startsWith('AC') &&
+      authToken &&
+      this.twilioPhone
+    ) {
       try {
         this.twilioClient = new Twilio(accountSid, authToken);
         this.isTwilioConfigured = true;
@@ -38,7 +43,6 @@ export class NotificationsService implements OnModuleInit {
         'Twilio credentials or sender phone number are missing or invalid (must start with AC). Running notifications in fallback MOCK mode (stdout).',
       );
     }
-
   }
 
   /**

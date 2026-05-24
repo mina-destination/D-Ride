@@ -51,7 +51,11 @@ export class RoutesController {
       parseFloat(lat),
       limit ? parseInt(limit, 10) : 5,
     );
-    return { success: true, data: results, timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      data: results,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @Get('smart-search')

@@ -30,13 +30,13 @@ export class TripsService {
           model = trip.vehicle.model;
         }
       }
-      t.vehicleId = { 
-        ...trip.vehicle, 
+      t.vehicleId = {
+        ...trip.vehicle,
         _id: trip.vehicle.id,
         make,
         model,
         licensePlate: trip.vehicle.plateNumber,
-        status: trip.vehicle.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE'
+        status: trip.vehicle.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE',
       };
       delete t.vehicle;
     }

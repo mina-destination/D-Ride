@@ -110,7 +110,14 @@ export default function SupportChatWidget() {
       socket.disconnect();
       socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isOpen]);
+
+
+  // Scroll to bottom helper
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Handle active ticket change (ensure room join is called if socket reconnects)
   useEffect(() => {
@@ -125,9 +132,6 @@ export default function SupportChatWidget() {
     scrollToBottom();
   }, [messages]);
 
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

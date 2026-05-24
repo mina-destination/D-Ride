@@ -140,7 +140,12 @@ export class UsersService implements OnModuleInit {
       throw new ConflictException('Email already registered');
     }
     const hashedPassword = await bcrypt.hash(data.password || 'DRide1234!', 12);
-    const isActive = data.status !== undefined ? data.status === 'ACTIVE' : (data.isActive !== undefined ? data.isActive : true);
+    const isActive =
+      data.status !== undefined
+        ? data.status === 'ACTIVE'
+        : data.isActive !== undefined
+          ? data.isActive
+          : true;
     const user = await this.prisma.user.create({
       data: {
         name: data.name,
