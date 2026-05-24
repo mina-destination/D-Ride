@@ -123,9 +123,9 @@ export default function CheckoutPage() {
       .catch(err => console.error("Failed to load wallet balance:", err));
 
     api.get('/paymob/features')
-      .then(res => {
-        const allowed = !!res.data.allowCashOnDelivery;
-        setAllowCashOnDelivery(allowed);
+      .then((res: any) => {
+        const allowed = res ? (res.allowCashOnDelivery ?? res.data?.allowCashOnDelivery) : false;
+        setAllowCashOnDelivery(!!allowed);
         if (!allowed) {
           setPaymentMethod(prev => prev === 'CASH' ? 'CARD' : prev);
         }

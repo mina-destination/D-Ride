@@ -17,7 +17,6 @@ export default () => {
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
     allowCashOnDelivery: process.env.ALLOW_CASH_ON_DELIVERY !== 'false',
 
-
     database: {
       url:
         process.env.DATABASE_URL ||

@@ -7,7 +7,6 @@ import { RedisIoAdapter } from './redis-io.adapter';
 import helmet from 'helmet';
 import compression from 'compression';
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -31,7 +30,9 @@ async function bootstrap() {
       app.useWebSocketAdapter(redisIoAdapter);
       logger.log('Scalable Redis WebSocket adapter enabled.');
     } catch (err: any) {
-      logger.error(`Failed to connect to Redis. Falling back to default adapter: ${err.message}`);
+      logger.error(
+        `Failed to connect to Redis. Falling back to default adapter: ${err.message}`,
+      );
     }
   }
 
@@ -84,7 +85,7 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   logger.log(`🚀 D-Ride API running on http://localhost:${port}/api`);
-  
+
   if (process.env.NODE_ENV !== 'production') {
     logger.log(
       `📚 API Portal (Swagger docs) available at http://localhost:${port}/api/docs`,

@@ -91,6 +91,63 @@ export class BookingsService {
     return bookings.map((b) => this.mapBooking(b));
   }
 
+  async cleanupExpiredBookings(tripId: string, tx?: any): Promise<number> {
+    const prismaClient = tx || this.prisma;
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+    const expiredBookings = await prismaClient.booking.findMany({
+      where: {
+        tripId,
+        status: BookingStatus.PENDING_PAYMENT,
+        createdAt: { lt: tenMinutesAgo },
+      },
+    });
+
+    if (expiredBookings.length > 0) {
+      const expiredIds = expiredBookings.map((b: any) => b.id);
+      await prismaClient.booking.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { status: BookingStatus.CANCELLED },
+      });
+    }
+
+    const activeBookings = await prismaClient.booking.findMany({
+      where: {
+        tripId,
+        OR: [
+          {
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.BOARDED,
+                BookingStatus.COMPLETED,
+              ],
+            },
+          },
+          {
+            status: BookingStatus.PENDING_PAYMENT,
+            createdAt: { gte: tenMinutesAgo },
+          },
+        ],
+      },
+      select: { seatNumbers: true },
+    });
+
+    let activeBookedCount = 0;
+    activeBookings.forEach((b: any) => {
+      if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+        activeBookedCount += b.seatNumbers.length;
+      }
+    });
+
+    await prismaClient.trip.update({
+      where: { id: tripId },
+      data: { bookedSeats: activeBookedCount },
+    });
+
+    return activeBookedCount;
+  }
+
   async create(data: any): Promise<any> {
     const tripIdStr = data.tripId ? data.tripId.toString() : '';
     const requestedSeats = data.seatNumbers?.length || 1;
@@ -98,25 +155,46 @@ export class BookingsService {
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
     const booking = await this.prisma.$transaction(async (tx) => {
-      // 1. Retrieve the trip and acquire a database lock via findUnique
+      // 1. Clean up expired pending payments and recalculate current bookedSeats count
+      const activeBookedSeatsCount = await this.cleanupExpiredBookings(
+        tripIdStr,
+        tx,
+      );
+
+      // 2. Retrieve the trip and acquire a database lock via findUnique
       const currentTrip = await tx.trip.findUnique({
         where: { id: tripIdStr },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
 
-      // 2. Enforce seat limit/bounds checks
+      // 3. Enforce seat limit/bounds checks
       if (
-        currentTrip.bookedSeats + requestedSeats >
+        activeBookedSeatsCount + requestedSeats >
         currentTrip.availableSeats
       ) {
         throw new BadRequestException('Not enough available seats');
       }
 
-      // 3. Pull all active, non-cancelled bookings for this tripId
+      // 4. Pull all active bookings to build the occupied seat indexes
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
       const activeBookings = await tx.booking.findMany({
         where: {
           tripId: tripIdStr,
-          status: { not: BookingStatus.CANCELLED },
+          OR: [
+            {
+              status: {
+                in: [
+                  BookingStatus.CONFIRMED,
+                  BookingStatus.BOARDED,
+                  BookingStatus.COMPLETED,
+                ],
+              },
+            },
+            {
+              status: BookingStatus.PENDING_PAYMENT,
+              createdAt: { gte: tenMinutesAgo },
+            },
+          ],
         },
         select: { seatNumbers: true },
       });
@@ -136,16 +214,22 @@ export class BookingsService {
       });
 
       // Check the incoming data.seatNumbers array. If there is ANY structural index collision with an already occupied seat, throw a BadRequestException immediately.
-      const hasCollision = requestedSeatsList.some((s) => occupiedSeatIndexes.has(Number(s)));
+      const hasCollision = requestedSeatsList.some((s) =>
+        occupiedSeatIndexes.has(Number(s)),
+      );
       if (hasCollision) {
-        throw new BadRequestException('One or more selected seats are already booked or locked');
+        throw new BadRequestException(
+          'One or more selected seats are already booked or locked',
+        );
       }
 
       const amountEGP = (currentTrip.priceEGP || 0) * requestedSeats;
       let bookingStatus: BookingStatus = BookingStatus.PENDING_PAYMENT;
       let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
 
-      const isWallet = data.paymentMethod === 'WALLET' || data.paymentMethod === 'WALLET_BALANCE';
+      const isWallet =
+        data.paymentMethod === 'WALLET' ||
+        data.paymentMethod === 'WALLET_BALANCE';
 
       if (isWallet) {
         const user = await tx.user.findUnique({
@@ -169,11 +253,11 @@ export class BookingsService {
         paymentStatus = PaymentStatus.SUCCESS;
       }
 
-      // 5. Safely execute the trip's bookedSeats incrementation
+      // 5. Update the trip's bookedSeats to include the newly requested seats
       await tx.trip.update({
         where: { id: tripIdStr },
         data: {
-          bookedSeats: { increment: requestedSeats },
+          bookedSeats: activeBookedSeatsCount + requestedSeats,
         },
       });
 
@@ -184,7 +268,9 @@ export class BookingsService {
           tripId: tripIdStr,
           seatNumbers: data.seatNumbers || [1],
           pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
-          dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
+          dropoffStopId: data.dropoffStopId
+            ? data.dropoffStopId.toString()
+            : null,
           pickupCheckpoint: data.pickupCheckpoint || null,
           dropoffCheckpoint: data.dropoffCheckpoint || null,
           status: bookingStatus,
@@ -253,7 +339,6 @@ export class BookingsService {
     return this.mapBooking(booking);
   }
 
-
   async updateStatus(id: string, status: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
@@ -318,21 +403,34 @@ export class BookingsService {
       data: { status: BookingStatus.CANCELLED },
     });
 
-    // Decrement seats (we pass negative count)
-    const seatsCount = (booking.seatNumbers as any[])?.length || 1;
-    await this.tripsService.incrementBookedSeats(
-      booking.tripId.toString(),
-      -seatsCount,
-    );
+    // Update bookedSeats of the trip dynamically (self-healing)
+    await this.cleanupExpiredBookings(booking.tripId.toString());
 
     return this.mapBooking(updated);
   }
 
   async findOccupiedSeats(tripId: string): Promise<number[]> {
+    await this.cleanupExpiredBookings(tripId);
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const bookings = await this.prisma.booking.findMany({
       where: {
         tripId,
-        status: { not: BookingStatus.CANCELLED },
+        OR: [
+          {
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.BOARDED,
+                BookingStatus.COMPLETED,
+              ],
+            },
+          },
+          {
+            status: BookingStatus.PENDING_PAYMENT,
+            createdAt: { gte: tenMinutesAgo },
+          },
+        ],
       },
       select: {
         seatNumbers: true,

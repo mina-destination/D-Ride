@@ -255,12 +255,13 @@ export class PaymobService {
       };
     }
 
-
     // Handle Cash on Board Directly
     if (paymentMethod === 'CASH') {
       const allowCash = this.isCashAllowed();
       if (!allowCash) {
-        throw new BadRequestException('Cash payment option is currently disabled.');
+        throw new BadRequestException(
+          'Cash payment option is currently disabled.',
+        );
       }
       this.logger.log(
         `Cash booking selected. Direct confirmation for booking ${data.bookingId}`,
@@ -436,7 +437,9 @@ export class PaymobService {
   }
 
   public isCashAllowed(): boolean {
-    return this.configService.get<boolean>('allowCashOnDelivery', true) !== false;
+    return (
+      this.configService.get<boolean>('allowCashOnDelivery', true) !== false
+    );
   }
 
   /**
