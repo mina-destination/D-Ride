@@ -5,17 +5,21 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import { RedisIoAdapter } from './redis-io.adapter';
 import helmet from 'helmet';
+import compression from 'compression';
 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Enable high-velocity Gzip network compression
+  app.use(compression());
+
   // Integrate helmet middleware package for standard production HTTP security hardening
   app.use(helmet());
 
-  // Increase payload size limits for large routes
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  // Mitigate Memory Exhaustion and Payload Attacks by reducing body size limits
+  app.use(json({ limit: '2mb' }));
+  app.use(urlencoded({ extended: true, limit: '2mb' }));
 
   const logger = new Logger('Bootstrap');
 
@@ -31,7 +35,6 @@ async function bootstrap() {
     }
   }
 
-
   // Enable global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -46,6 +49,10 @@ async function bootstrap() {
   const origins = allowedOriginsEnv
     ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
     : [
+        'https://dride.app',
+        'https://passenger.dride.app',
+        'https://driver.dride.app',
+        'https://admin.dride.app',
         'http://localhost:5173', // passenger client app
         'http://localhost:5174', // driver portal
         'http://localhost:5175', // admin dashboard
@@ -60,23 +67,28 @@ async function bootstrap() {
   // Global API prefix
   app.setGlobalPrefix('api');
 
-  // Swagger API Documentation Portal
-  const config = new DocumentBuilder()
-    .setTitle('D-Ride API')
-    .setDescription(
-      'The D-Ride Autonomous Mass-Transit Platform API Specification',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // Secure Swagger API Documentation Portal - Only available in non-production environments
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('D-Ride API')
+      .setDescription(
+        'The D-Ride Autonomous Mass-Transit Platform API Specification',
+      )
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   logger.log(`🚀 D-Ride API running on http://localhost:${port}/api`);
-  logger.log(
-    `📚 API Portal (Swagger docs) available at http://localhost:${port}/api/docs`,
-  );
+  
+  if (process.env.NODE_ENV !== 'production') {
+    logger.log(
+      `📚 API Portal (Swagger docs) available at http://localhost:${port}/api/docs`,
+    );
+  }
 }
 bootstrap();
