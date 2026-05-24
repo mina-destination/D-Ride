@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Space, message, Select, Tag } from 'antd';
 import { usersAPI } from '../services/api';
-import { UserCog } from 'lucide-react';
+import { UserCog, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 export function DriversPage() {
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export function DriversPage() {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const fetchDrivers = async () => {
     try {
@@ -77,11 +79,16 @@ export function DriversPage() {
 
   const filteredDrivers = drivers.filter(d => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       d.name?.toLowerCase().includes(term) ||
       d.email?.toLowerCase().includes(term) ||
-      d.phone?.includes(term)
-    );
+      d.phone?.includes(term);
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (d.status || 'ACTIVE') === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   const columns = [
@@ -126,6 +133,17 @@ export function DriversPage() {
     },
   ];
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Driver ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'name', label: 'Driver Name' },
+      { key: 'email', label: 'Email Address' },
+      { key: 'phone', label: 'Phone Number' },
+      { key: 'status', label: 'Account Status', transform: (val: string) => val || 'ACTIVE' },
+    ];
+    exportToCSV(filteredDrivers, headers, 'drivers_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -142,6 +160,22 @@ export function DriversPage() {
             style={{ width: 250 }}
             allowClear
           />
+          <Select
+            value={statusFilter}
+            onChange={value => setStatusFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Statuses</Select.Option>
+            <Select.Option value="ACTIVE">Active</Select.Option>
+            <Select.Option value="SUSPENDED">Suspended</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            Export CSV
+          </Button>
           <Button type="primary" onClick={() => handleOpenModal()}>Add Driver</Button>
         </Space>
       </div>

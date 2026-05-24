@@ -5,6 +5,50 @@ import { ArrowLeft, Clock, MapPin, Play, CheckCircle, Navigation, ShieldCheck, Q
 import { Html5Qrcode } from 'html5-qrcode';
 import { useTranslation } from '../context/LanguageContext';
 
+function playChime(isSuccess: boolean) {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    if (isSuccess) {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+      
+      gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } else {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120.00, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(90.00, ctx.currentTime + 0.4);
+      
+      gainNode.gain.setValueAtTime(0.18, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.45);
+    }
+  } catch (e) {
+    console.warn("Web Audio API sound playback failed", e);
+  }
+}
+
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -64,6 +108,7 @@ export default function TripDetailPage() {
             const parsed = JSON.parse(decodedText);
             if (!parsed.bookingId || !parsed.token) {
               setScanStatus({ type: 'error', message: t('invalidQrStructure') });
+              playChime(false);
               return;
             }
 
@@ -72,6 +117,7 @@ export default function TripDetailPage() {
 
             await driverAPI.verifyTicket(parsed.bookingId, parsed.token);
             setScanStatus({ type: 'success', message: t('passengerCheckedInSuccess') });
+            playChime(true);
 
             await fetchTripDetails();
           } catch (err: any) {
@@ -80,6 +126,7 @@ export default function TripDetailPage() {
               type: 'error', 
               message: err.message || t('verificationFailed') 
             });
+            playChime(false);
           } finally {
             setActionLoading(false);
           }
@@ -116,8 +163,10 @@ export default function TripDetailPage() {
     try {
       setActionLoading(true);
       await driverAPI.checkInPassenger(bookingId);
+      playChime(true);
       await fetchTripDetails();
     } catch (error) {
+      playChime(false);
       alert(error instanceof Error ? error.message : 'Failed to check in passenger');
     } finally {
       setActionLoading(false);

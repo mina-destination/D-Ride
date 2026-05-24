@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space } from 'antd';
+import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button } from 'antd';
 import { bookingsAPI } from '../services/api';
-import { CreditCard, TrendingUp, Target } from 'lucide-react';
+import { CreditCard, TrendingUp, Target, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 const { Title, Paragraph } = Typography;
 
@@ -10,6 +11,7 @@ export function PaymentsPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [dateFilter, setDateFilter] = useState<string>('ALL');
 
   const fetchPayments = async () => {
     try {
@@ -48,7 +50,18 @@ export function PaymentsPage() {
       statusFilter === 'ALL' || 
       (p.paymentStatus || 'PENDING') === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    let matchesDate = true;
+    if (dateFilter !== 'ALL' && p.createdAt) {
+      const now = new Date();
+      const created = new Date(p.createdAt);
+      const diffMs = now.getTime() - created.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      if (dateFilter === 'TODAY') matchesDate = diffDays < 1;
+      else if (dateFilter === '7DAYS') matchesDate = diffDays <= 7;
+      else if (dateFilter === '30DAYS') matchesDate = diffDays <= 30;
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const columns = [
@@ -132,6 +145,18 @@ export function PaymentsPage() {
 
   const closedPoints = `30,${svgHeight - 20} ${points} ${svgWidth - 30},${svgHeight - 20}`;
 
+  const handleExport = () => {
+    const headers = [
+      { key: 'paymobOrderId', label: 'Paymob Order ID', transform: (val: number) => val ? `#${val}` : 'Cash/Pending' },
+      { key: 'userId.name', label: 'Passenger Name' },
+      { key: 'userId.phone', label: 'Passenger Phone' },
+      { key: 'amountEGP', label: 'Amount (EGP)' },
+      { key: 'paymentStatus', label: 'Payment Status' },
+      { key: 'createdAt', label: 'Transaction Date', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+    ];
+    exportToCSV(filteredPayments, headers, 'payments_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -160,6 +185,23 @@ export function PaymentsPage() {
             <Select.Option value="PENDING">Pending</Select.Option>
             <Select.Option value="FAILED">Failed</Select.Option>
           </Select>
+          <Select
+            value={dateFilter}
+            onChange={value => setDateFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Time</Select.Option>
+            <Select.Option value="TODAY">Today</Select.Option>
+            <Select.Option value="7DAYS">Last 7 Days</Select.Option>
+            <Select.Option value="30DAYS">Last 30 Days</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            Export CSV
+          </Button>
         </Space>
       </div>
 

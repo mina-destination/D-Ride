@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, InputNumber, Select, Space, message, DatePicker, Progress, Badge, Checkbox } from 'antd';
+import { Table, Button, Modal, Form, InputNumber, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input } from 'antd';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 import dayjs from 'dayjs';
-import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock } from 'lucide-react';
+import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 interface ActiveSimulation {
   tripId: string;
@@ -23,6 +24,8 @@ export function TripsPage() {
   
   // Real-time trip simulation state
   const [activeSims, setActiveSims] = useState<Record<string, ActiveSimulation>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const fetchData = async () => {
     try {
@@ -320,6 +323,37 @@ export function TripsPage() {
     },
   ];
 
+  const filteredTrips = trips.filter(t => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      t.routeId?.name?.toLowerCase().includes(term) ||
+      t.driverId?.name?.toLowerCase().includes(term) ||
+      t.vehicleId?.licensePlate?.toLowerCase().includes(term) ||
+      t.vehicleId?.make?.toLowerCase().includes(term) ||
+      t._id?.toLowerCase().includes(term);
+
+    const matchesStatus =
+      statusFilter === 'ALL' || t.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Trip ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'routeId.name', label: 'Route Name' },
+      { key: 'vehicleId.make', label: 'Vehicle Make', transform: (val: any, record: any) => record.vehicleId?.make || 'N/A' },
+      { key: 'vehicleId.licensePlate', label: 'Vehicle Plate Number', transform: (val: any, record: any) => record.vehicleId?.licensePlate || 'N/A' },
+      { key: 'driverId.name', label: 'Driver Name', transform: (val: any, record: any) => record.driverId?.name || 'N/A' },
+      { key: 'departureTime', label: 'Departure Time', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+      { key: 'status', label: 'Trip Status' },
+      { key: 'priceEGP', label: 'Price (EGP)' },
+      { key: 'bookedSeats', label: 'Booked Seats' },
+      { key: 'availableSeats', label: 'Available Seats' },
+    ];
+    exportToCSV(filteredTrips, headers, 'trips_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -327,13 +361,42 @@ export function TripsPage() {
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bus size={28} /> Trips Management & Simulation</h1>
           <p>Schedule trips and trigger live GPS route simulations to passenger app trackers</p>
         </div>
-        <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)' }}>
-          + Add Trip
-        </Button>
+        <Space wrap>
+          <Input.Search
+            placeholder="Search route, driver, vehicle..."
+            value={searchTerm}
+            onSearch={value => setSearchTerm(value)}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: 250 }}
+            allowClear
+          />
+          <Select
+            value={statusFilter}
+            onChange={value => setStatusFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Statuses</Select.Option>
+            <Select.Option value="SCHEDULED">Scheduled</Select.Option>
+            <Select.Option value="BOARDING">Boarding</Select.Option>
+            <Select.Option value="IN_TRANSIT">In Transit</Select.Option>
+            <Select.Option value="COMPLETED">Completed</Select.Option>
+            <Select.Option value="CANCELLED">Cancelled</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
+          >
+            Export CSV
+          </Button>
+          <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)' }}>
+            + Add Trip
+          </Button>
+        </Space>
       </div>
       
       <Table 
-        dataSource={trips} 
+        dataSource={filteredTrips} 
         columns={columns} 
         rowKey="_id" 
         loading={loading}

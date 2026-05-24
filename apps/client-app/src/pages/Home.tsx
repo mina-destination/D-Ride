@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 import { routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown } from 'lucide-react';
@@ -30,6 +31,7 @@ function RouteMapAutopan({ path }: { path: [number, number][] }) {
 }
 
 function RouteSearchForm() {
+  const { t, isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
   const [fromCity, setFromCity] = useState<string>('');
   const [fromStation, setFromStation] = useState<any>(null);
@@ -186,6 +188,67 @@ function RouteSearchForm() {
     }
   };
 
+  const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c;
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // Flatten all stations
+        const allFromStations: any[] = [];
+        Object.entries(parsedData.fromStationsMap).forEach(([city, stations]) => {
+          stations.forEach((station: any) => {
+            allFromStations.push({ ...station, city });
+          });
+        });
+
+        if (allFromStations.length === 0) {
+          alert("No stations are defined in the platform currently.");
+          return;
+        }
+
+        // Find nearest
+        let nearestStation = allFromStations[0];
+        let minDistance = getDistanceKm(latitude, longitude, nearestStation.lat, nearestStation.lng);
+
+        for (let i = 1; i < allFromStations.length; i++) {
+          const dist = getDistanceKm(latitude, longitude, allFromStations[i].lat, allFromStations[i].lng);
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearestStation = allFromStations[i];
+          }
+        }
+
+        // Set state
+        setFromCity(nearestStation.city);
+        setFromStation(nearestStation);
+        
+        const matchedMsg = isRtl
+          ? `تم العثور على أقرب محطة: ${nearestStation.name} في ${nearestStation.city} (على بعد ${minDistance.toFixed(2)} كم)`
+          : `Matched nearest station: ${nearestStation.name} in ${nearestStation.city} (${minDistance.toFixed(2)} km away)`;
+        alert(matchedMsg);
+      },
+      (error) => {
+        alert("Failed to retrieve location: " + error.message);
+      }
+    );
+  };
+
   const polylinePath: [number, number][] = [];
   if (fromStation) polylinePath.push([fromStation.lat, fromStation.lng]);
   if (toStation) polylinePath.push([toStation.lat, toStation.lng]);
@@ -193,6 +256,37 @@ function RouteSearchForm() {
   return (
     <>
       <div className="from-to-container">
+        {/* DETECT LOCATION ACTION */}
+        <button
+          type="button"
+          onClick={handleDetectLocation}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '10px 14px',
+            background: 'rgba(245, 183, 49, 0.1)',
+            border: '1px dashed var(--primary)',
+            borderRadius: '8px',
+            color: 'var(--primary)',
+            fontSize: '0.82rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            marginBottom: '1rem',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
+          }}
+        >
+          <MapPin size={14} /> {isRtl ? 'تحديد أقرب محطة' : 'Detect Nearest Station'}
+        </button>
+
         {/* ROW 1: FROM */}
         <div className="from-to-row">
           <div className="from-to-field">

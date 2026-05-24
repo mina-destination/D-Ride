@@ -9,8 +9,9 @@ import { usersAPI } from '../services/api';
 import {
   Shield, UserPlus, Users, ChevronRight, Trash2,
   Mail, Phone, Calendar, Edit3, Lock, Eye, EyeOff,
-  Crown, ShieldCheck, ShieldAlert, Briefcase, Search,
+  Crown, ShieldCheck, ShieldAlert, Briefcase, Search, Download
 } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -54,6 +55,7 @@ export function AdministratorsPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Create / Edit Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,7 +101,11 @@ export function AdministratorsPage() {
     const matchesRole =
       roleFilter === 'ALL' || u.role === roleFilter;
 
-    return matchesSearch && matchesRole;
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'ACTIVE' ? u.isActive !== false : u.isActive === false);
+
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   // ── Stats ──────────────────────────────────────────────────
@@ -442,6 +448,19 @@ export function AdministratorsPage() {
     },
   ];
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Admin ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'name', label: 'Admin Name' },
+      { key: 'email', label: 'Email Address' },
+      { key: 'phone', label: 'Phone Number' },
+      { key: 'role', label: 'Role' },
+      { key: 'isActive', label: 'Account Status', transform: (val: boolean) => val !== false ? 'ACTIVE' : 'SUSPENDED' },
+      { key: 'createdAt', label: 'Date Joined', transform: (val: string) => val ? new Date(val).toLocaleDateString() : 'N/A' },
+    ];
+    exportToCSV(filteredAdmins, headers, 'administrators_report');
+  };
+
   // ── Render ─────────────────────────────────────────────────
   return (
     <div style={{ padding: '2rem 0' }}>
@@ -472,25 +491,44 @@ export function AdministratorsPage() {
             Manage staff accounts, roles, and credentials
           </Paragraph>
         </div>
-        <Button
-          type="primary"
-          size="large"
-          htmlType="button"
-          icon={<UserPlus size={18} />}
-          onClick={openCreateModal}
-          style={{
-            background: 'var(--primary-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontWeight: 600,
-            height: '44px',
-            borderRadius: '10px',
-            boxShadow: '0 4px 14px rgba(245, 183, 49, 0.3)',
-          }}
-        >
-          New Administrator
-        </Button>
+        <Space size="middle">
+          <Button
+            type="default"
+            size="large"
+            htmlType="button"
+            icon={<Download size={18} />}
+            onClick={handleExport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 600,
+              height: '44px',
+              borderRadius: '10px',
+            }}
+          >
+            Export CSV
+          </Button>
+          <Button
+            type="primary"
+            size="large"
+            htmlType="button"
+            icon={<UserPlus size={18} />}
+            onClick={openCreateModal}
+            style={{
+              background: 'var(--primary-color)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 600,
+              height: '44px',
+              borderRadius: '10px',
+              boxShadow: '0 4px 14px rgba(245, 183, 49, 0.3)',
+            }}
+          >
+            New Administrator
+          </Button>
+        </Space>
       </div>
 
       {/* ── Stats Cards ─────────────────────────────────── */}
@@ -581,6 +619,15 @@ export function AdministratorsPage() {
                 {ROLE_CONFIG[role]?.label || role}
               </Select.Option>
             ))}
+          </Select>
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Statuses</Select.Option>
+            <Select.Option value="ACTIVE">Active</Select.Option>
+            <Select.Option value="INACTIVE">Inactive</Select.Option>
           </Select>
         </div>
 
