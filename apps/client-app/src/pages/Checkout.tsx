@@ -63,6 +63,40 @@ export default function CheckoutPage() {
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
+  const [mapLoadFailed, setMapLoadFailed] = useState(false);
+  const [allowCashOnDelivery, setAllowCashOnDelivery] = useState(true);
+
+  const cairoTransitHubs = [
+    { name: 'Ramses Station', nameAr: 'محطة رمسيس', lat: 30.0626, lng: 31.2468 },
+    { name: 'Tahrir Square', nameAr: 'ميدان التحرير', lat: 30.0444, lng: 31.2357 },
+    { name: 'Heliopolis', nameAr: 'مصر الجديدة', lat: 30.0984, lng: 31.3301 },
+    { name: 'Giza Square', nameAr: 'ميدان الجيزة', lat: 30.0131, lng: 31.2089 },
+    { name: 'Maadi', nameAr: 'المعادي', lat: 29.9602, lng: 31.2569 },
+    { name: 'New Cairo / 5th Settlement', nameAr: 'التجمع الخامس', lat: 30.0074, lng: 31.4913 },
+  ];
+
+  const handleTransitHubSelect = (hub: typeof cairoTransitHubs[0], type: 'pickup' | 'dropoff') => {
+    const checkpoints = trip?.routeId?.checkpoints || [];
+    let closestCp = checkpoints[0];
+    let minDistance = Infinity;
+    
+    checkpoints.forEach((cp: any) => {
+      const cpCoords = cp.location.coordinates;
+      const dist = Math.sqrt(
+        Math.pow(cpCoords[1] - hub.lat, 2) + Math.pow(cpCoords[0] - hub.lng, 2)
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestCp = cp;
+      }
+    });
+
+    if (type === 'pickup') {
+      setSelectedPickupCheckpoint(closestCp || hub);
+    } else {
+      setSelectedDropoffCheckpoint(closestCp || hub);
+    }
+  };
 
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE'>('CARD');
   const [walletNumber, setWalletNumber] = useState<string>('');
@@ -84,7 +118,22 @@ export default function CheckoutPage() {
     paymobAPI.getWallet()
       .then(data => setWalletBalance(data.walletBalance))
       .catch(err => console.error("Failed to load wallet balance:", err));
+
+    api.get('/paymob/features')
+      .then(res => {
+        const allowed = !!res.data.allowCashOnDelivery;
+        setAllowCashOnDelivery(allowed);
+        if (!allowed) {
+          setPaymentMethod(prev => prev === 'CASH' ? 'CARD' : prev);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load feature flags:", err);
+        setAllowCashOnDelivery(true);
+      });
+
   }, [tripId]);
+
 
   useEffect(() => {
     if (!trip || !trip.routeId) return;
@@ -432,17 +481,80 @@ export default function CheckoutPage() {
             {/* Checkpoint Selection Map */}
             {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
               <div style={{ marginTop: '1rem', marginBottom: '1.5rem', background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '16px' }}>
-                <h4 style={{ color: 'var(--text-primary)', margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 700 }}>
-                  Boarding & Dropoff Checkpoints 📍
-                </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+                    Boarding & Dropoff Checkpoints 📍
+                  </h4>
+                  <button 
+                    type="button" 
+                    onClick={() => setMapLoadFailed(prev => !prev)}
+                    style={{ fontSize: '11px', background: 'rgba(245, 183, 49, 0.1)', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    {mapLoadFailed ? 'Show Map' : 'Select Manually'}
+                  </button>
+                </div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                   Verify or select where the driver should pick you up and drop you off. Click markers or stepper below to adjust.
                 </p>
-                <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1rem' }}>
+
+                {mapLoadFailed && (
+                  <div style={{
+                    background: 'rgba(245, 183, 49, 0.05)',
+                    border: '1px solid rgba(245, 183, 49, 0.2)',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    marginBottom: '1rem',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-primary)'
+                  }}>
+                    💡 <strong>Manual Selection Fallback</strong>: Select primary Cairo transit hubs below to map them to your route stops:
+                    
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Manual Pickup Hub</label>
+                        <select 
+                          onChange={(e) => {
+                            const hub = cairoTransitHubs.find(h => h.name === e.target.value);
+                            if (hub) handleTransitHubSelect(hub, 'pickup');
+                          }}
+                          style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.82rem' }}
+                        >
+                          <option value="">Select Pickup</option>
+                          {cairoTransitHubs.map(h => (
+                            <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Manual Dropoff Hub</label>
+                        <select 
+                          onChange={(e) => {
+                            const hub = cairoTransitHubs.find(h => h.name === e.target.value);
+                            if (hub) handleTransitHubSelect(hub, 'dropoff');
+                          }}
+                          style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.82rem' }}
+                        >
+                          <option value="">Select Dropoff</option>
+                          {cairoTransitHubs.map(h => (
+                            <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1rem', display: mapLoadFailed ? 'none' : 'block' }}>
                   <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      eventHandlers={{
+                        tileerror: () => {
+                          setMapLoadFailed(true);
+                        }
+                      }}
                     />
                     <MapFocusController coords={mapFocusCoords} />
                     {polylinePath.length > 0 && (
@@ -476,7 +588,7 @@ export default function CheckoutPage() {
                                   setSelectedPickupCheckpoint(cp); 
                                   setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                                 }}
-                                style={{ fontSize: '10px', padding: '4px 8px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ fontSize: '12px', padding: '10px 16px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                               >
                                 Set Pickup
                               </button>
@@ -486,7 +598,7 @@ export default function CheckoutPage() {
                                   setSelectedDropoffCheckpoint(cp); 
                                   setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                                 }}
-                                style={{ fontSize: '10px', padding: '4px 8px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ fontSize: '12px', padding: '10px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                               >
                                 Set Dropoff
                               </button>
@@ -497,6 +609,7 @@ export default function CheckoutPage() {
                     })}
                   </MapContainer>
                 </div>
+
 
                 {/* Checkpoint Stepper Progress bar */}
                 <div style={{ 
@@ -912,16 +1025,19 @@ export default function CheckoutPage() {
                     </span>
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('CASH')}
-                  className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>💵</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Cash on Board</span>
-                </button>
+                {allowCashOnDelivery && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('CASH')}
+                    className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>💵</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Cash on Board</span>
+                  </button>
+                )}
               </div>
+
 
               {paymentMethod === 'WALLET' && (
                 <div style={{

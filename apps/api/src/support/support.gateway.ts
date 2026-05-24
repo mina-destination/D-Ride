@@ -16,7 +16,10 @@ import { PrismaService } from '../prisma/prisma.service';
   cors: {
     origin: '*',
   },
+  pingTimeout: 30000,
+  pingInterval: 5000,
 })
+
 export class SupportGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {

@@ -43,8 +43,11 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "twilio": "^6.0.2"
+    "twilio": "^6.0.2",
+    "redis": "^4.6.13",
+    "@socket.io/redis-adapter": "^8.3.0"
   },
+
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",

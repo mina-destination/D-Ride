@@ -92,25 +92,19 @@ export class BookingsService {
   }
 
   async create(data: any): Promise<any> {
-    // 1. Fetch trip to check seats
     const tripIdStr = data.tripId ? data.tripId.toString() : '';
-    const trip = await this.tripsService.findById(tripIdStr);
-    if (!trip) throw new NotFoundException('Trip not found');
-
     const requestedSeats = data.seatNumbers?.length || 1;
-    if (trip.bookedSeats + requestedSeats > trip.availableSeats) {
-      throw new BadRequestException('Not enough available seats');
-    }
-
-    const amountEGP = (trip.priceEGP || 0) * requestedSeats;
+    const requestedSeatsList: number[] = data.seatNumbers || [1];
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
-    // 2. Perform atomic seat increment and booking creation in a transaction
     const booking = await this.prisma.$transaction(async (tx) => {
+      // 1. Retrieve the trip and acquire a database lock via findUnique
       const currentTrip = await tx.trip.findUnique({
         where: { id: tripIdStr },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
+
+      // 2. Enforce seat limit/bounds checks
       if (
         currentTrip.bookedSeats + requestedSeats >
         currentTrip.availableSeats
@@ -118,6 +112,35 @@ export class BookingsService {
         throw new BadRequestException('Not enough available seats');
       }
 
+      // 3. Check for admin-locked seats
+      const lockedSeatsList: number[] = Array.isArray(currentTrip.lockedSeats)
+        ? (currentTrip.lockedSeats as number[])
+        : [];
+      const hasLockedSeat = requestedSeatsList.some((s) => lockedSeatsList.includes(s));
+      if (hasLockedSeat) {
+        throw new BadRequestException('One or more selected seats are locked by the administrator');
+      }
+
+      // 4. Check for already booked/occupied seats in active bookings
+      const activeBookings = await tx.booking.findMany({
+        where: {
+          tripId: tripIdStr,
+          status: { not: BookingStatus.CANCELLED },
+        },
+        select: { seatNumbers: true },
+      });
+      const occupiedSeatsSet = new Set<number>();
+      activeBookings.forEach((b) => {
+        if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+          b.seatNumbers.forEach((s) => occupiedSeatsSet.add(s as number));
+        }
+      });
+      const hasOccupiedSeat = requestedSeatsList.some((s) => occupiedSeatsSet.has(s));
+      if (hasOccupiedSeat) {
+        throw new BadRequestException('One or more selected seats are already booked');
+      }
+
+      // 5. Deduct seats atomically
       await tx.trip.update({
         where: { id: tripIdStr },
         data: {
@@ -125,15 +148,15 @@ export class BookingsService {
         },
       });
 
+      const amountEGP = (currentTrip.priceEGP || 0) * requestedSeats;
+
       return tx.booking.create({
         data: {
           userId: data.userId.toString(),
           tripId: tripIdStr,
           seatNumbers: data.seatNumbers || [1],
           pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
-          dropoffStopId: data.dropoffStopId
-            ? data.dropoffStopId.toString()
-            : null,
+          dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
           pickupCheckpoint: data.pickupCheckpoint || null,
           dropoffCheckpoint: data.dropoffCheckpoint || null,
           status: BookingStatus.PENDING_PAYMENT,
@@ -146,6 +169,7 @@ export class BookingsService {
 
     return this.mapBooking(booking);
   }
+
 
   async updateStatus(id: string, status: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
