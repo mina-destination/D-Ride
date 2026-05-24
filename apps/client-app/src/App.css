@@ -1245,7 +1245,6 @@
 }
 
 .boarding-pass:hover {
-  transform: translateY(-3px);
   border-color: rgba(245, 183, 49, 0.25);
   box-shadow: 0 15px 40px rgba(245, 183, 49, 0.06), 0 5px 15px rgba(0, 0, 0, 0.05);
 }
@@ -1596,6 +1595,11 @@
 .ticket-container {
   perspective: 1500px;
   width: 100%;
+  transition: var(--transition-spring);
+}
+
+.ticket-container:hover {
+  transform: translateY(-3px);
 }
 
 .ticket-inner {
