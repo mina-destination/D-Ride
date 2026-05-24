@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, List, Rate, Avatar } from 'antd';
 import { usersAPI, reviewsAPI } from '../services/api';
 import { UserCog, Download } from 'lucide-react';
@@ -12,6 +13,13 @@ export function DriversPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state && (location.state as any).searchTerm) {
+      setSearchTerm((location.state as any).searchTerm);
+    }
+  }, [location.state]);
   const [ratings, setRatings] = useState<Record<string, { averageRating: number; totalReviews: number }>>({});
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const [reviewsLoading, setReviewsLoading] = useState(false);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, Popconfirm } from 'antd';
 import { usersAPI } from '../services/api';
 import { Users, Zap, Ban, TrendingUp, Edit, Plus, Download } from 'lucide-react';
@@ -12,6 +13,13 @@ export function PassengersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state && (location.state as any).searchTerm) {
+      setSearchTerm((location.state as any).searchTerm);
+    }
+  }, [location.state]);
 
   const fetchPassengers = async () => {
     try {

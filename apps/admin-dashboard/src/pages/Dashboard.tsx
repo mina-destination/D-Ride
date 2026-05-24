@@ -60,6 +60,67 @@ export default function DashboardPage() {
   const [mapViewMode, setMapViewMode] = useState<'FLEET' | 'HEATMAP'>('FLEET');
   const [bookings, setBookings] = useState<any[]>([]);
 
+  // Interactive Chart States
+  const [bookingsRange, setBookingsRange] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [hoveredBookingPoint, setHoveredBookingPoint] = useState<any>(null);
+  const [revenueRegion, setRevenueRegion] = useState<'ALL' | 'CAIRO' | 'GIZA' | 'ALEX'>('ALL');
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
+  const [hoveredDonutSector, setHoveredDonutSector] = useState<string | null>(null);
+
+  const bookingsDataMap = {
+    daily: {
+      points: [
+        { label: '08:00', x: 10, y: 130, count: 120 },
+        { label: '10:00', x: 95, y: 80, count: 240 },
+        { label: '12:00', x: 200, y: 110, count: 180 },
+        { label: '14:00', x: 290, y: 50, count: 320 },
+        { label: '16:00', x: 370, y: 90, count: 210 },
+        { label: '18:00', x: 430, y: 40, count: 350 },
+        { label: '20:00', x: 490, y: 15, count: 420 }
+      ],
+      areaPath: "M 10,130 L 10,130 Q 80,80 150,105 T 290,50 T 430,40 T 490,15 L 490,130 Z",
+      linePath: "M 10,130 Q 80,80 150,105 T 290,50 T 430,40 T 490,15",
+      growth: "+18.4% today"
+    },
+    weekly: {
+      points: [
+        { label: 'Mon', x: 10, y: 120, count: 140 },
+        { label: 'Tue', x: 95, y: 78, count: 260 },
+        { label: 'Wed', x: 200, y: 85, count: 240 },
+        { label: 'Thu', x: 290, y: 45, count: 340 },
+        { label: 'Fri', x: 370, y: 55, count: 310 },
+        { label: 'Sat', x: 430, y: 60, count: 290 },
+        { label: 'Sun', x: 490, y: 20, count: 450 }
+      ],
+      areaPath: "M 10,130 L 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20 L 490,130 Z",
+      linePath: "M 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20",
+      growth: "+14.2% weekly growth"
+    },
+    monthly: {
+      points: [
+        { label: 'Jan', x: 10, y: 110, count: 1200 },
+        { label: 'Feb', x: 95, y: 90, count: 1800 },
+        { label: 'Mar', x: 200, y: 65, count: 2500 },
+        { label: 'Apr', x: 290, y: 55, count: 2800 },
+        { label: 'May', x: 370, y: 35, count: 3400 },
+        { label: 'Jun', x: 430, y: 25, count: 3800 },
+        { label: 'Jul', x: 490, y: 10, count: 4200 }
+      ],
+      areaPath: "M 10,130 L 10,110 Q 80,90 150,75 T 290,55 T 430,25 T 490,10 L 490,130 Z",
+      linePath: "M 10,110 Q 80,90 150,75 T 290,55 T 430,25 T 490,10",
+      growth: "+22.5% monthly growth"
+    }
+  };
+
+  const rawRevenueBars = [
+    { city: 'Cairo', region: 'CAIRO', val: 22400, color: 'var(--primary)', x: 25, y: 45, w: 28, h: 85 },
+    { city: 'Giza', region: 'GIZA', val: 15800, color: 'var(--success)', x: 105, y: 70, w: 28, h: 60 },
+    { city: 'Alex', region: 'ALEX', val: 26500, color: 'var(--info)', x: 185, y: 30, w: 28, h: 100 },
+    { city: 'Maadi', region: 'CAIRO', val: 12500, color: 'var(--warning)', x: 265, y: 80, w: 28, h: 50 },
+    { city: 'Helio', region: 'CAIRO', val: 18900, color: 'var(--primary)', x: 345, y: 55, w: 28, h: 75 },
+    { city: 'Oct', region: 'GIZA', val: 9400, color: 'var(--text-secondary)', x: 425, y: 95, w: 28, h: 35 }
+  ];
+
   // Fetch bookings for demand heatmap
   useEffect(() => {
     bookingsAPI.getAll()
@@ -459,11 +520,41 @@ export default function DashboardPage() {
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
         {/* Bookings SVG Line Chart */}
-        <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+        <div className="card" style={{ padding: '1.25rem 1.5rem', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Commute Bookings Trend</h3>
-            <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>+14.2% weekly growth</span>
+            <div>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Commute Bookings Trend</h3>
+              <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>{bookingsDataMap[bookingsRange].growth}</span>
+            </div>
+            
+            {/* Range Toggle buttons */}
+            <div style={{ display: 'flex', background: 'var(--surface-elevated)', borderRadius: '6px', border: '1px solid var(--border)', padding: '2px' }}>
+              {(['daily', 'weekly', 'monthly'] as const).map(range => (
+                <button
+                  key={range}
+                  onClick={() => {
+                    setBookingsRange(range);
+                    setHoveredBookingPoint(null);
+                  }}
+                  style={{
+                    background: bookingsRange === range ? 'var(--primary-color)' : 'transparent',
+                    color: bookingsRange === range ? '#000' : 'var(--text-secondary)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
           </div>
+
           <div style={{ position: 'relative', width: '100%', height: '160px' }}>
             <svg viewBox="0 0 500 150" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               <defs>
@@ -478,37 +569,121 @@ export default function DashboardPage() {
               <line x1="0" y1="120" x2="500" y2="120" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
               
               {/* Area path */}
-              <path d="M 10,130 L 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20 L 490,130 Z" fill="url(#lineGrad)" />
+              <path 
+                d={bookingsDataMap[bookingsRange].areaPath} 
+                fill="url(#lineGrad)" 
+                style={{ transition: 'd 0.5s ease-in-out' }} 
+              />
               {/* Line path */}
-              <path d="M 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20" fill="none" stroke="var(--primary)" strokeWidth="3" />
+              <path 
+                d={bookingsDataMap[bookingsRange].linePath} 
+                fill="none" 
+                stroke="var(--primary)" 
+                strokeWidth="3" 
+                style={{ transition: 'd 0.5s ease-in-out' }}
+              />
               
               {/* Data points */}
-              <circle cx="10" cy="120" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="95" cy="78" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="200" cy="85" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="290" cy="45" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="370" cy="55" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="430" cy="60" r="4" fill="#000" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="490" cy="20" r="4" fill="var(--primary)" stroke="var(--surface)" strokeWidth="2" />
+              {bookingsDataMap[bookingsRange].points.map((pt, i) => {
+                const isHovered = hoveredBookingPoint?.index === i;
+                return (
+                  <g key={i}>
+                    {/* Invisible larger hover trigger area */}
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r="12"
+                      fill="transparent"
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={() => setHoveredBookingPoint({ ...pt, index: i })}
+                      onMouseLeave={() => setHoveredBookingPoint(null)}
+                    />
+                    <circle 
+                      cx={pt.x} 
+                      cy={pt.y} 
+                      r={isHovered ? 6 : 4} 
+                      fill={isHovered ? 'var(--primary)' : '#000'} 
+                      stroke="var(--primary)" 
+                      strokeWidth={isHovered ? 3 : 2} 
+                      style={{ transition: 'all 0.15s ease', pointerEvents: 'none' }}
+                    />
+                  </g>
+                );
+              })}
               
               {/* Labels */}
-              <text x="10" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Mon</text>
-              <text x="95" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Tue</text>
-              <text x="200" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Wed</text>
-              <text x="290" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Thu</text>
-              <text x="370" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Fri</text>
-              <text x="430" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Sat</text>
-              <text x="490" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Sun</text>
+              {bookingsDataMap[bookingsRange].points.map((pt, i) => (
+                <text key={i} x={pt.x} y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">{pt.label}</text>
+              ))}
             </svg>
+
+            {/* Hover Tooltip */}
+            {hoveredBookingPoint && (
+              <div style={{
+                position: 'absolute',
+                left: `${(hoveredBookingPoint.x / 500) * 100}%`,
+                top: `${(hoveredBookingPoint.y / 150) * 100 - 35}%`,
+                transform: 'translate(-50%, -100%)',
+                background: 'rgba(14, 14, 27, 0.9)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid var(--primary)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                pointerEvents: 'none',
+                boxShadow: '0 4px 15px rgba(245,183,49,0.25)',
+                zIndex: 10,
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px',
+                minWidth: '90px'
+              }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  {hoveredBookingPoint.label}
+                </span>
+                <span style={{ fontSize: '12px', color: '#fff', fontWeight: 800 }}>
+                  {hoveredBookingPoint.count} trips
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Revenue SVG Bar Chart */}
-        <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+        <div className="card" style={{ padding: '1.25rem 1.5rem', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Daily Checkout Revenue</h3>
-            <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>Target: EGP 50,000</span>
+            <div>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Daily Checkout Revenue</h3>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Target: EGP 50,000</span>
+            </div>
+            
+            {/* Region selection filter */}
+            <select
+              value={revenueRegion}
+              onChange={(e) => {
+                setRevenueRegion(e.target.value as any);
+                setHoveredBarIndex(null);
+              }}
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                color: 'var(--text-primary)',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="ALL">All Regions</option>
+              <option value="CAIRO">Greater Cairo</option>
+              <option value="GIZA">Giza</option>
+              <option value="ALEX">Alexandria</option>
+            </select>
           </div>
+
           <div style={{ position: 'relative', width: '100%', height: '160px' }}>
             <svg viewBox="0 0 500 150" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               {/* Horizontal helper grid lines */}
@@ -516,30 +691,71 @@ export default function DashboardPage() {
               <line x1="0" y1="70" x2="500" y2="70" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
               <line x1="0" y1="120" x2="500" y2="120" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
 
-              {/* Bar 1 */}
-              <rect x="25" y="45" width="28" height="85" fill="var(--primary)" rx="4" opacity="0.85" />
-              <text x="39" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Cairo</text>
-              {/* Bar 2 */}
-              <rect x="105" y="70" width="28" height="60" fill="var(--success)" rx="4" opacity="0.85" />
-              <text x="119" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Giza</text>
-              {/* Bar 3 */}
-              <rect x="185" y="30" width="28" height="100" fill="var(--info)" rx="4" opacity="0.85" />
-              <text x="199" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Alex</text>
-              {/* Bar 4 */}
-              <rect x="265" y="80" width="28" height="50" fill="var(--warning)" rx="4" opacity="0.85" />
-              <text x="279" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Maadi</text>
-              {/* Bar 5 */}
-              <rect x="345" y="55" width="28" height="75" fill="var(--primary)" rx="4" opacity="0.85" />
-              <text x="359" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Helio</text>
-              {/* Bar 6 */}
-              <rect x="425" y="95" width="28" height="35" fill="var(--text-secondary)" rx="4" opacity="0.8" />
-              <text x="439" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Oct</text>
+              {rawRevenueBars.map((bar, i) => {
+                const isRegionMatch = revenueRegion === 'ALL' || bar.region === revenueRegion;
+                const isHovered = hoveredBarIndex === i;
+                const barOpacity = isHovered ? 1.0 : (isRegionMatch ? 0.85 : 0.15);
+                const scaleVal = isHovered ? 1.05 : 1.0;
+                
+                return (
+                  <g key={i}>
+                    <rect
+                      x={bar.x}
+                      y={130 - bar.h}
+                      width={bar.w}
+                      height={bar.h}
+                      fill={bar.color}
+                      rx="4"
+                      opacity={barOpacity}
+                      style={{
+                        cursor: isRegionMatch ? 'pointer' : 'default',
+                        transform: `scaleY(${scaleVal})`,
+                        transformOrigin: `${bar.x + bar.w / 2}px 130px`,
+                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                      }}
+                      onMouseEnter={() => {
+                        if (isRegionMatch) setHoveredBarIndex(i);
+                      }}
+                      onMouseLeave={() => setHoveredBarIndex(null)}
+                    />
+                    <text x={bar.x + bar.w / 2} y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">{bar.city}</text>
+                  </g>
+                );
+              })}
             </svg>
+
+            {/* Hover Tooltip */}
+            {hoveredBarIndex !== null && (
+              <div style={{
+                position: 'absolute',
+                left: `${((rawRevenueBars[hoveredBarIndex].x + rawRevenueBars[hoveredBarIndex].w / 2) / 500) * 100}%`,
+                top: `${((130 - rawRevenueBars[hoveredBarIndex].h) / 150) * 100 - 15}%`,
+                transform: 'translate(-50%, -100%)',
+                background: 'rgba(14, 14, 27, 0.95)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid var(--primary)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                pointerEvents: 'none',
+                boxShadow: '0 4px 15px rgba(245,183,49,0.25)',
+                zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1px'
+              }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600 }}>{rawRevenueBars[hoveredBarIndex].city}</span>
+                <span style={{ fontSize: '11px', color: '#fff', fontWeight: 800 }}>EGP {rawRevenueBars[hoveredBarIndex].val.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Fleet Capacity Utilization Donut Chart */}
-        <div className="card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div 
+          className="card" 
+          style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Fleet Seat Occupancy</h3>
             <span className="status-badge confirmed" style={{ padding: '2px 8px', fontSize: '9px' }}>Optimal</span>
@@ -547,37 +763,82 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: '160px', gap: '8px' }}>
             <div style={{ position: 'relative', width: '100px', height: '100px' }}>
               <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%' }}>
+                {/* Free Segment */}
                 <path
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
-                  stroke="var(--border)"
-                  strokeWidth="3.5"
+                  stroke={hoveredDonutSector === 'free' ? 'rgba(255,255,255,0.2)' : 'var(--border)'}
+                  strokeWidth={hoveredDonutSector === 'free' ? '5' : '3.5'}
+                  style={{ transition: 'all 0.2s', cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredDonutSector('free')}
+                  onMouseLeave={() => setHoveredDonutSector(null)}
                 />
+                {/* Booked Segment */}
                 <path
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
                   stroke="var(--primary)"
-                  strokeWidth="3.5"
+                  strokeWidth={hoveredDonutSector === 'booked' ? '5' : '3.5'}
                   strokeDasharray="81, 100"
+                  style={{ transition: 'all 0.2s', cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredDonutSector('booked')}
+                  onMouseLeave={() => setHoveredDonutSector(null)}
                 />
               </svg>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>81%</div>
-                <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Utilized</div>
+              
+              {/* Dynamic Center Text based on hovered segment */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', width: '80%' }}>
+                {hoveredDonutSector === 'free' ? (
+                  <>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-secondary)' }}>19%</div>
+                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Free</div>
+                  </>
+                ) : hoveredDonutSector === 'average' ? (
+                  <>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>74.3%</div>
+                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Avg Load</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>81%</div>
+                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {hoveredDonutSector === 'booked' ? 'Booked' : 'Utilized'}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
+            
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', opacity: hoveredDonutSector === 'booked' ? 1.0 : 0.8 }}
+                onMouseEnter={() => setHoveredDonutSector('booked')}
+                onMouseLeave={() => setHoveredDonutSector(null)}
+              >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></span>
-                <span><strong>34</strong> Seats Booked</span>
+                <span style={{ fontWeight: hoveredDonutSector === 'booked' ? 'bold' : 'normal' }}>
+                  <strong>34</strong> Seats Booked
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', opacity: hoveredDonutSector === 'free' ? 1.0 : 0.8 }}
+                onMouseEnter={() => setHoveredDonutSector('free')}
+                onMouseLeave={() => setHoveredDonutSector(null)}
+              >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--border)' }}></span>
-                <span><strong>8</strong> Seats Free</span>
+                <span style={{ fontWeight: hoveredDonutSector === 'free' ? 'bold' : 'normal' }}>
+                  <strong>8</strong> Seats Free
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', opacity: hoveredDonutSector === 'average' ? 1.0 : 0.8 }}
+                onMouseEnter={() => setHoveredDonutSector('average')}
+                onMouseLeave={() => setHoveredDonutSector(null)}
+              >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></span>
-                <span><strong>74.3%</strong> Avg Load</span>
+                <span style={{ fontWeight: hoveredDonutSector === 'average' ? 'bold' : 'normal' }}>
+                  <strong>74.3%</strong> Avg Load
+                </span>
               </div>
             </div>
           </div>

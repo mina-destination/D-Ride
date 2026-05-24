@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Wallet } from 'lucide-react';
+import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Wallet, Bell } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useState, useEffect, useRef } from 'react';
 
@@ -15,12 +15,41 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { 
+      id: 1, 
+      title: 'Trip Confirmed 🎫', 
+      description: 'Your ride to Cairo University is confirmed for tomorrow at 8:30 AM.', 
+      time: '5 mins ago', 
+      read: false 
+    },
+    { 
+      id: 2, 
+      title: 'Wallet Credited 💳', 
+      description: 'Your account has been credited with EGP 150.00.', 
+      time: '1 hour ago', 
+      read: false 
+    },
+    { 
+      id: 3, 
+      title: 'Welcome to D-Ride! 🚌', 
+      description: 'Thank you for choosing us for your daily commute. Book your first ride today!', 
+      time: '1 day ago', 
+      read: true 
+    }
+  ]);
+
   const dropdownRef = useRef<HTMLLIElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -34,6 +63,15 @@ export default function Navbar() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const markNotificationAsRead = (id: number) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsAsRead = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   // Helper to check if a hash-link is active (for anchor sections on home page)
@@ -52,14 +90,63 @@ export default function Navbar() {
         <img src={logo} alt="D-Ride" className="nav-logo" />
       </Link>
 
-      <button 
-        className="mobile-menu-toggle" 
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Toggle Menu"
-        aria-expanded={isOpen}
-      >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      <div className="nav-right-actions">
+        {isAuthenticated && (
+          <div className="notification-dropdown-container" ref={notificationRef}>
+            <button 
+              className="notification-bell-btn" 
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              aria-label="Notifications"
+              aria-expanded={isNotificationOpen}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              <Bell size={18} />
+              {notifications.some(n => !n.read) && (
+                <span className="notification-badge" />
+              )}
+            </button>
+            
+            <div className={`notification-dropdown ${isNotificationOpen ? 'open' : ''}`}>
+              <div className="notification-dropdown-header">
+                <span>{t('notifications')}</span>
+                <button 
+                  onClick={markAllNotificationsAsRead}
+                  className="mark-all-read-btn"
+                >
+                  {t('markAllRead')}
+                </button>
+              </div>
+              <hr className="profile-divider" />
+              <ul className="notification-dropdown-list">
+                {notifications.length === 0 ? (
+                  <li className="notification-empty">{t('noNotifications')}</li>
+                ) : (
+                  notifications.map(item => (
+                    <li 
+                      key={item.id} 
+                      className={`notification-dropdown-item ${item.read ? 'read' : 'unread'}`}
+                      onClick={() => markNotificationAsRead(item.id)}
+                    >
+                      <div className="notification-item-title">{item.title}</div>
+                      <div className="notification-item-desc">{item.description}</div>
+                      <div className="notification-item-time">{item.time}</div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        <button 
+          className="mobile-menu-toggle" 
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Toggle Menu"
+          aria-expanded={isOpen}
+        >
+          {isOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
 
       <ul className={`nav-links ${isOpen ? 'mobile-open' : ''}`}>
         <li>
@@ -141,16 +228,6 @@ export default function Navbar() {
                       setIsProfileOpen(true);
                     }}
                     className="profile-menu-item"
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      width: '100%', 
-                      textAlign: 'left', 
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
                   >
                     <User size={16} /> {t('profile')}
                   </button>

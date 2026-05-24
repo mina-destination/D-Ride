@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Input, Space, message, Steps, Spin, Select } from 'antd';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -267,6 +268,13 @@ export function RoutesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [distanceFilter, setDistanceFilter] = useState<string>('ALL');
+  
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state && (location.state as any).searchTerm) {
+      setSearchTerm((location.state as any).searchTerm);
+    }
+  }, [location.state]);
 
   // Wizard state machine
   const [currentStep, setCurrentStep] = useState(0);

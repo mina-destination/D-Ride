@@ -60,6 +60,19 @@ function RouteSearchForm() {
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState<boolean>(false);
 
+  // Autocomplete Filter States
+  const [fromStationSearch, setFromStationSearch] = useState('');
+  const [toStationSearch, setToStationSearch] = useState('');
+
+  useEffect(() => {
+    if (openDropdown !== 'fromStation') {
+      setFromStationSearch('');
+    }
+    if (openDropdown !== 'toStation') {
+      setToStationSearch('');
+    }
+  }, [openDropdown]);
+
   // Map modal states
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [mapPickerCoords, setMapPickerCoords] = useState<[number, number] | null>(null);
@@ -518,6 +531,25 @@ function RouteSearchForm() {
               </div>
               {openDropdown === 'fromStation' && fromCity && (
                 <div className="custom-dropdown-menu">
+                  <input
+                    type="text"
+                    placeholder={isRtl ? "ابحث عن محطة..." : "Search station..."}
+                    value={fromStationSearch}
+                    onChange={(e) => setFromStationSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="dropdown-search-input"
+                    style={{
+                      width: 'calc(100% - 16px)',
+                      margin: '8px',
+                      padding: '8px 10px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      outline: 'none'
+                    }}
+                  />
                   <div 
                     className="custom-dropdown-item"
                     onClick={() => {
@@ -527,18 +559,27 @@ function RouteSearchForm() {
                   >
                     {isRtl ? 'اختر المحطة' : 'Select Station'}
                   </div>
-                  {availableFromStations.map((station) => (
-                    <div 
-                      key={station.name}
-                      className={`custom-dropdown-item ${fromStation?.name === station.name ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleFromStationChange(station.name);
-                        setOpenDropdown(null);
-                      }}
-                    >
-                      {isRtl ? (station.nameAr || station.name) : station.name}
-                    </div>
-                  ))}
+                  {availableFromStations
+                    .filter(station => {
+                      const query = fromStationSearch.toLowerCase();
+                      return (
+                        station.name.toLowerCase().includes(query) ||
+                        (station.nameAr && station.nameAr.includes(query))
+                      );
+                    })
+                    .map((station) => (
+                      <div 
+                        key={station.name}
+                        className={`custom-dropdown-item ${fromStation?.name === station.name ? 'selected' : ''}`}
+                        onClick={() => {
+                          handleFromStationChange(station.name);
+                          setOpenDropdown(null);
+                        }}
+                      >
+                        {isRtl ? (station.nameAr || station.name) : station.name}
+                      </div>
+                    ))
+                  }
                 </div>
               )}
             </div>
@@ -616,6 +657,25 @@ function RouteSearchForm() {
               </div>
               {openDropdown === 'toStation' && toCity && (
                 <div className="custom-dropdown-menu">
+                  <input
+                    type="text"
+                    placeholder={isRtl ? "ابحث عن محطة..." : "Search station..."}
+                    value={toStationSearch}
+                    onChange={(e) => setToStationSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="dropdown-search-input"
+                    style={{
+                      width: 'calc(100% - 16px)',
+                      margin: '8px',
+                      padding: '8px 10px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      outline: 'none'
+                    }}
+                  />
                   <div 
                     className="custom-dropdown-item"
                     onClick={() => {
@@ -625,18 +685,27 @@ function RouteSearchForm() {
                   >
                     {isRtl ? 'اختر المحطة' : 'Select Station'}
                   </div>
-                  {availableToStations.map((station) => (
-                    <div 
-                      key={station.name}
-                      className={`custom-dropdown-item ${toStation?.name === station.name ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleToStationChange(station.name);
-                        setOpenDropdown(null);
-                      }}
-                    >
-                      {isRtl ? (station.nameAr || station.name) : station.name}
-                    </div>
-                  ))}
+                  {availableToStations
+                    .filter(station => {
+                      const query = toStationSearch.toLowerCase();
+                      return (
+                        station.name.toLowerCase().includes(query) ||
+                        (station.nameAr && station.nameAr.includes(query))
+                      );
+                    })
+                    .map((station) => (
+                      <div 
+                        key={station.name}
+                        className={`custom-dropdown-item ${toStation?.name === station.name ? 'selected' : ''}`}
+                        onClick={() => {
+                          handleToStationChange(station.name);
+                          setOpenDropdown(null);
+                        }}
+                      >
+                        {isRtl ? (station.nameAr || station.name) : station.name}
+                      </div>
+                    ))
+                  }
                 </div>
               )}
             </div>
