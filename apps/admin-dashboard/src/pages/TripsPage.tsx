@@ -27,6 +27,9 @@ export function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  const selectedRouteId = Form.useWatch('routeId', form);
+  const selectedRoute = routes.find(r => r._id === selectedRouteId);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -143,8 +146,13 @@ export function TripsPage() {
       return;
     }
 
-    const vId = trip.vehicleId?._id || trip.vehicleId || 'mock-vehicle-123';
-    const dId = trip.driverId?._id || trip.driverId || 'mock-driver-123';
+    const vId = trip.vehicleId?._id || trip.vehicleId;
+    const dId = trip.driverId?._id || trip.driverId;
+
+    if (!vId || !dId) {
+      message.error('Cannot run GPS simulation: Please assign both a vehicle and a driver operator to this trip first!');
+      return;
+    }
 
     if (activeSims[trip._id]) {
       message.warning('Simulation is already actively running for this trip.');
@@ -416,18 +424,97 @@ export function TripsPage() {
             label="Select Route" 
             rules={[{ required: true, message: 'Please select a route' }]}
           >
-            <Select placeholder="Choose Route">
+            <Select 
+              showSearch 
+              placeholder="Choose Route"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {routes.map(r => (
                 <Select.Option key={r._id} value={r._id}>{r.name}</Select.Option>
               ))}
             </Select>
           </Form.Item>
 
+          {selectedRoute && selectedRoute.checkpoints && selectedRoute.checkpoints.length > 0 && (
+            <div style={{
+              margin: '-8px 0 16px',
+              padding: '12px 16px',
+              background: 'var(--surface-elevated, #242526)',
+              border: '1px solid var(--border, #3E4042)',
+              borderRadius: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #B0B3B8)' }}>
+                Route Checkpoints Preview:
+              </span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flexWrap: 'wrap',
+                padding: '4px 0'
+              }}>
+                {selectedRoute.checkpoints.map((cp: any, index: number) => {
+                  const isStart = cp.type === 'START';
+                  const isEnd = cp.type === 'END';
+                  return (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        background: isStart ? 'rgba(16, 185, 129, 0.08)' : isEnd ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+                        border: `1px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
+                        borderRadius: '16px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
+                      }}>
+                        <span style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
+                        }} />
+                        {cp.name}
+                        {cp.bufferTimeMinutes > 0 && (
+                          <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 'normal' }}>
+                            ({cp.bufferTimeMinutes}m)
+                          </span>
+                        )}
+                      </div>
+                      {index < selectedRoute.checkpoints.length - 1 && (
+                        <span style={{ color: 'var(--text-muted, #65676B)', fontSize: '12px' }}>➔</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary, #B0B3B8)', display: 'flex', gap: '15px' }}>
+                <span>Distance: <strong>{selectedRoute.distanceKm || '—'} km</strong></span>
+                <span>Duration: <strong>{selectedRoute.estimatedDurationMinutes || '—'} mins</strong></span>
+              </div>
+            </div>
+          )}
+
           <Form.Item 
             name="vehicleId" 
             label="Assign Vehicle"
           >
-            <Select placeholder="Select Fleet Vehicle (Optional)">
+            <Select 
+              showSearch 
+              placeholder="Select Fleet Vehicle (Optional)"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {vehicles.map(v => (
                 <Select.Option key={v._id} value={v._id}>
                   {v.make} {v.model} ({v.licensePlate})
@@ -440,7 +527,14 @@ export function TripsPage() {
             name="driverId" 
             label="Assign Driver"
           >
-            <Select placeholder="Assign Driver Operator (Optional)">
+            <Select 
+              showSearch 
+              placeholder="Assign Driver Operator (Optional)"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {drivers.map(d => (
                 <Select.Option key={d._id} value={d._id}>{d.name} ({d.phone})</Select.Option>
               ))}

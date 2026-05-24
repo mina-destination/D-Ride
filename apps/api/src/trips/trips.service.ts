@@ -14,7 +14,30 @@ export class TripsService {
       delete t.route;
     }
     if (trip.vehicle) {
-      t.vehicleId = { ...trip.vehicle, _id: trip.vehicle.id };
+      let make = '';
+      let model = trip.vehicle.model;
+      if (trip.vehicle.model && trip.vehicle.model.includes('::')) {
+        const parts = trip.vehicle.model.split('::');
+        make = parts[0];
+        model = parts[1];
+      } else if (trip.vehicle.model) {
+        const spaceIdx = trip.vehicle.model.indexOf(' ');
+        if (spaceIdx !== -1) {
+          make = trip.vehicle.model.substring(0, spaceIdx);
+          model = trip.vehicle.model.substring(spaceIdx + 1);
+        } else {
+          make = 'D-Ride';
+          model = trip.vehicle.model;
+        }
+      }
+      t.vehicleId = { 
+        ...trip.vehicle, 
+        _id: trip.vehicle.id,
+        make,
+        model,
+        licensePlate: trip.vehicle.plateNumber,
+        status: trip.vehicle.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE'
+      };
       delete t.vehicle;
     }
     if (trip.driver) {
