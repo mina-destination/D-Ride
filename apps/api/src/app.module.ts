@@ -13,6 +13,7 @@ import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PartnersModule } from './partners/partners.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -37,8 +38,10 @@ import configuration from './config/configuration';
     SupportModule,
     NotificationsModule,
     ReviewsModule,
+    PartnersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

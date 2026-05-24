@@ -136,3 +136,12 @@ export const reviewsAPI = {
   getDriverReviews: (driverId: string): Promise<any> =>
     api.get(`/reviews/driver/${driverId}/list`),
 };
+
+// ── Partners API ────────────────────────────────────────────
+export const partnersAPI = {
+  getAll: (): Promise<any> => api.get('/partners/all'),
+  create: (data: any): Promise<any> => api.post('/partners', data),
+  update: (id: string, data: any): Promise<any> => api.put(`/partners/${id}`, data),
+  delete: (id: string): Promise<any> => api.delete(`/partners/${id}`),
+};
+

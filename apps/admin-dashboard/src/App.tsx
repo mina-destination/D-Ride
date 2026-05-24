@@ -18,6 +18,7 @@ import { TripsPage } from './pages/TripsPage';
 import { CrmPage } from './pages/CrmPage';
 import { SupportTicketsPage } from './pages/SupportTicketsPage';
 import { AdministratorsPage } from './pages/AdministratorsPage';
+import { PartnersPage } from './pages/PartnersPage';
 import './App.css';
 
 import { Result, Button, Space } from 'antd';
@@ -145,6 +146,7 @@ function AppRoutes() {
         <Route path="support-tickets" element={<ProtectedRoute permission="crm"><SupportTicketsPage /></ProtectedRoute>} />
         <Route path="administrators" element={<ProtectedRoute permission="settings"><AdministratorsPage /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute permission="settings"><SettingsPage /></ProtectedRoute>} />
+        <Route path="partners" element={<ProtectedRoute permission="settings"><PartnersPage /></ProtectedRoute>} />
       </Route>
 
       {/* Catch-all */}

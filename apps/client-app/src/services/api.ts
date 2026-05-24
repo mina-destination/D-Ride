@@ -123,3 +123,8 @@ export const reviewsAPI = {
   getTripReviews: (tripId: string): Promise<any> =>
     api.get(`/reviews/trip/${tripId}`),
 };
+
+export const partnersAPI = {
+  getActive: (): Promise<any> => api.get('/partners'),
+};
+

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/d-ride-logo.jpeg';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const navItems = [
@@ -27,6 +27,7 @@ const navItems = [
   { label: 'Administration', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Staff Access' },
   { path: '/settings', icon: <Settings size={18} />, label: 'System Settings' },
+  { path: '/partners', icon: <Handshake size={18} />, label: 'Brand Partners' },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -42,6 +43,7 @@ const pageTitles: Record<string, string> = {
   '/support-tickets': 'Support Center',
   '/administrators': 'Staff Access Control',
   '/settings': 'System Settings',
+  '/partners': 'Brand Partners',
 };
 
 const pathPermissionMap: Record<string, string> = {
@@ -57,6 +59,7 @@ const pathPermissionMap: Record<string, string> = {
   '/support-tickets': 'crm',
   '/administrators': 'settings',
   '/settings': 'settings',
+  '/partners': 'settings',
 };
 
 export default function DashboardLayout() {

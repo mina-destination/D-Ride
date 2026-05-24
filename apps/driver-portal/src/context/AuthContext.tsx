@@ -27,9 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         try {
           const profileRes: any = await driverAPI.getProfile();
-          const role = profileRes.role?.toUpperCase();
+          const profileData = profileRes.data || profileRes;
+          const role = profileData.role?.toUpperCase();
           if (role === 'DRIVER') {
-            setUser(profileRes);
+            setUser(profileData);
           } else {
             throw new Error('Access denied. Not authorized as driver.');
           }
@@ -48,15 +49,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const res: any = await driverAPI.login(credentials);
-      const role = res.user?.role?.toUpperCase();
+      const loginData = res.data || res;
+      const role = loginData.user?.role?.toUpperCase();
       
       if (role !== 'DRIVER') {
         throw new Error('Access denied. Not authorized as driver.');
       }
 
-      localStorage.setItem('dride_driver_token', res.token);
-      setToken(res.token);
-      setUser(res.user);
+      const tokenValue = loginData.accessToken || loginData.token;
+      localStorage.setItem('dride_driver_token', tokenValue);
+      setToken(tokenValue);
+      setUser(loginData.user);
     } catch (error) {
       setLoading(false);
       throw error;
