@@ -4,7 +4,7 @@ import api, { bookingsAPI, paymobAPI, routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Ticket, Lock, Bus } from 'lucide-react';
 
-import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -36,9 +36,21 @@ const redIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+function MapFocusController({ coords }: { coords: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (coords) {
+      map.flyTo(coords, 14, { animate: true, duration: 1.2 });
+    }
+  }, [coords, map]);
+  return null;
+}
+
 export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const tripId = searchParams.get('tripId');
+  const passengersParam = searchParams.get('passengers');
+  const requiredSeatsCount = passengersParam ? Math.max(1, parseInt(passengersParam, 10)) : 1;
   const navigate = useNavigate();
 
   const [trip, setTrip] = useState<any>(null);
@@ -50,6 +62,7 @@ export default function CheckoutPage() {
   
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
+  const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
 
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE'>('CARD');
   const [walletNumber, setWalletNumber] = useState<string>('');
@@ -84,11 +97,19 @@ export default function CheckoutPage() {
 
     if (checkpointName) {
       const match = checkpoints.find((cp: any) => cp.name === checkpointName);
-      if (match) setSelectedPickupCheckpoint(match);
+      if (match) {
+        setSelectedPickupCheckpoint(match);
+        setMapFocusCoords([match.location.coordinates[1], match.location.coordinates[0]]);
+      }
     }
     if (dropoffCheckpointName) {
       const match = checkpoints.find((cp: any) => cp.name === dropoffCheckpointName);
-      if (match) setSelectedDropoffCheckpoint(match);
+      if (match) {
+        setSelectedDropoffCheckpoint(match);
+        if (!checkpointName) {
+          setMapFocusCoords([match.location.coordinates[1], match.location.coordinates[0]]);
+        }
+      }
     }
 
     // Geolocation centering and fallback
@@ -103,14 +124,17 @@ export default function CheckoutPage() {
               .then(cp => {
                 if (cp) {
                   setSelectedPickupCheckpoint(cp);
+                  setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                 } else if (checkpoints.length > 0) {
                   setSelectedPickupCheckpoint(checkpoints[0]);
+                  setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
                 }
               })
               .catch(err => {
                 console.error(err);
                 if (checkpoints.length > 0) {
                   setSelectedPickupCheckpoint(checkpoints[0]);
+                  setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
                 }
               });
           }
@@ -119,12 +143,14 @@ export default function CheckoutPage() {
           console.log("Geolocation error or denied:", error);
           if (!checkpointName && checkpoints.length > 0) {
             setSelectedPickupCheckpoint(checkpoints[0]);
+            setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
           }
         }
       );
     } else {
       if (!checkpointName && checkpoints.length > 0) {
         setSelectedPickupCheckpoint(checkpoints[0]);
+        setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
       }
     }
 
@@ -135,8 +161,8 @@ export default function CheckoutPage() {
   }, [trip, searchParams]);
 
   const handleCheckout = async () => {
-    if (selectedSeats.length === 0) {
-      alert('Please select at least one seat to proceed.');
+    if (selectedSeats.length !== requiredSeatsCount) {
+      alert(`Please select exactly ${requiredSeatsCount} seat(s) to match your search request.`);
       return;
     }
 
@@ -193,9 +219,21 @@ export default function CheckoutPage() {
     if (occupiedSeats.includes(num)) return;
     if (trip?.lockedSeats?.includes(num)) return; // Prevent selecting locked seat
     
-    setSelectedSeats(prev => 
-      prev.includes(num) ? prev.filter(s => s !== num) : [...prev, num]
-    );
+    setSelectedSeats(prev => {
+      const isAlreadySelected = prev.includes(num);
+      if (isAlreadySelected) {
+        return prev.filter(s => s !== num);
+      } else {
+        if (prev.length >= requiredSeatsCount) {
+          if (requiredSeatsCount === 1) {
+            return [num];
+          } else {
+            return [...prev.slice(1), num];
+          }
+        }
+        return [...prev, num];
+      }
+    });
   };
 
   const renderSeat = (num: number) => {
@@ -406,6 +444,7 @@ export default function CheckoutPage() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
+                    <MapFocusController coords={mapFocusCoords} />
                     {polylinePath.length > 0 && (
                       <Polyline positions={polylinePath} color="var(--primary)" weight={4} opacity={0.6} />
                     )}
@@ -432,13 +471,21 @@ export default function CheckoutPage() {
                             {cp.nameAr && <><br />{cp.nameAr}</>}
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                               <button 
-                                onClick={(e) => { e.stopPropagation(); setSelectedPickupCheckpoint(cp); }}
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setSelectedPickupCheckpoint(cp); 
+                                  setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                }}
                                 style={{ fontSize: '10px', padding: '4px 8px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                               >
                                 Set Pickup
                               </button>
                               <button 
-                                onClick={(e) => { e.stopPropagation(); setSelectedDropoffCheckpoint(cp); }}
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setSelectedDropoffCheckpoint(cp); 
+                                  setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                }}
                                 style={{ fontSize: '10px', padding: '4px 8px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                               >
                                 Set Dropoff
@@ -542,10 +589,16 @@ export default function CheckoutPage() {
                       <div 
                         key={cpIdx} 
                         onClick={() => {
+                          let updated = false;
                           if (cpIdx < dropoffIdx) {
                             setSelectedPickupCheckpoint(cp);
+                            updated = true;
                           } else if (cpIdx > pickupIdx) {
                             setSelectedDropoffCheckpoint(cp);
+                            updated = true;
+                          }
+                          if (updated) {
+                            setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                           }
                         }}
                         style={{ 
@@ -642,6 +695,29 @@ export default function CheckoutPage() {
                 <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1rem', fontWeight: 700 }}>Select Your Seats</h4>
                 <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
                   Toyota HiAce L2H2
+                </span>
+              </div>
+
+              {/* Seats Selection Progress Badge */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem',
+                padding: '10px 14px',
+                background: selectedSeats.length === requiredSeatsCount ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 183, 49, 0.08)',
+                border: selectedSeats.length === requiredSeatsCount ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(245, 183, 49, 0.2)',
+                borderRadius: '8px',
+                fontSize: '0.85rem'
+              }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  Requested Seats (from search):
+                </span>
+                <span style={{ 
+                  fontWeight: 'bold', 
+                  color: selectedSeats.length === requiredSeatsCount ? 'var(--success)' : 'var(--primary)'
+                }}>
+                  {selectedSeats.length} / {requiredSeatsCount} Selected
                 </span>
               </div>
 
@@ -927,18 +1003,20 @@ export default function CheckoutPage() {
               className="auth-button" 
               disabled={
                 processing || 
-                selectedSeats.length === 0 || 
+                selectedSeats.length !== requiredSeatsCount || 
                 (paymentMethod === 'WALLET_BALANCE' && walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length)
               }
               style={{ marginTop: '2rem' }}
             >
               {processing 
                 ? 'Processing Securely...' 
-                : paymentMethod === 'CASH' 
-                  ? 'Confirm Booking (Cash)' 
-                  : paymentMethod === 'WALLET_BALANCE'
-                    ? 'Pay with Wallet Balance'
-                    : `Pay ${trip.priceEGP * selectedSeats.length} EGP via Paymob`
+                : selectedSeats.length !== requiredSeatsCount
+                  ? `Select exactly ${requiredSeatsCount} seat(s) (Currently ${selectedSeats.length}/${requiredSeatsCount})`
+                  : paymentMethod === 'CASH' 
+                    ? 'Confirm Booking (Cash)' 
+                    : paymentMethod === 'WALLET_BALANCE'
+                      ? 'Pay with Wallet Balance'
+                      : `Pay ${trip.priceEGP * selectedSeats.length} EGP via Paymob`
               }
             </button>
             <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
