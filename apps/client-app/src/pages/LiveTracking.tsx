@@ -221,8 +221,16 @@ export default function LiveTrackingPage() {
           {/* Vehicle & Driver Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', margin: '4px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Vehicle Plate:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.vehicleId?.plate || 'Toyota HiAce (ABC-123)'}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Vehicle Model:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                {trip?.vehicleId?.model ? `${trip.vehicleId.make || ''} ${trip.vehicleId.model}`.trim() : 'Toyota HiAce'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>License Plate:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                {trip?.vehicleId?.licensePlate || trip?.vehicleId?.plateNumber || 'ط ر ق ٥٤٣٢'}
+              </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Driver Partner:</span>

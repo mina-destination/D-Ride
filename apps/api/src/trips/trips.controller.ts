@@ -37,6 +37,14 @@ export class TripsController {
     return { success: true, data: trips, timestamp: new Date().toISOString() };
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('DRIVER', 'ADMIN')
+  @Get('my-trips')
+  async findMyTrips(@Request() req: any) {
+    const trips = await this.tripsService.findByDriver(req.user.sub);
+    return { success: true, data: trips, timestamp: new Date().toISOString() };
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string) {
     const trip = await this.tripsService.findById(id);
@@ -69,14 +77,6 @@ export class TripsController {
       message: 'Trip deleted',
       timestamp: new Date().toISOString(),
     };
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('DRIVER', 'ADMIN')
-  @Get('my-trips')
-  async findMyTrips(@Request() req: any) {
-    const trips = await this.tripsService.findByDriver(req.user.sub);
-    return { success: true, data: trips, timestamp: new Date().toISOString() };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

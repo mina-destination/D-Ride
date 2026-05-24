@@ -238,3 +238,16 @@ model Review {
   @@map("reviews")
 }
 
+model Partner {
+  id         String   @id @default(uuid())
+  name       String
+  logoUrl    String
+  websiteUrl String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("partners")
+}
+
+

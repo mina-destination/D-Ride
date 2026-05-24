@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-import { routesAPI } from '../services/api';
+import { routesAPI, partnersAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X } from 'lucide-react';
 
@@ -874,6 +874,13 @@ function RouteSearchForm() {
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
+  const [partners, setPartners] = useState<any[]>([]);
+
+  useEffect(() => {
+    partnersAPI.getActive()
+      .then(data => setPartners(data))
+      .catch(console.error);
+  }, []);
 
   return (
     <>
@@ -1036,6 +1043,90 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Partners Section ──────────────────────────────── */}
+      {partners.length > 0 && (
+        <section className="section" id="partners" style={{ paddingBottom: '3rem' }}>
+          <div className="section-header">
+            <div className="section-badge">Trusted Collaborations</div>
+            <h2 className="section-title">Our Partners</h2>
+            <p className="section-subtitle">
+              We work in partnership with Egypt's leading organizations, universities, and payment networks to deliver a seamless journey.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '30px',
+            marginTop: '2rem'
+          }}>
+            {partners.map((partner) => (
+              <a
+                key={partner._id || partner.id}
+                href={partner.websiteUrl || '#'}
+                target={partner.websiteUrl ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                className="glass"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px',
+                  borderRadius: '16px',
+                  width: '180px',
+                  height: '140px',
+                  transition: 'all 0.3s ease',
+                  cursor: partner.websiteUrl ? 'pointer' : 'default',
+                  textDecoration: 'none',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(245, 183, 49, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}
+              >
+                <img
+                  src={partner.logoUrl}
+                  alt={partner.name}
+                  style={{
+                    maxWidth: '80px',
+                    maxHeight: '60px',
+                    objectFit: 'contain',
+                    marginBottom: '12px',
+                    filter: 'grayscale(30%) contrast(90%) brightness(95%)',
+                    transition: 'filter 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.filter = 'grayscale(0%) contrast(100%) brightness(100%)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.filter = 'grayscale(30%) contrast(90%) brightness(95%)';
+                  }}
+                />
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  textAlign: 'center'
+                }}>
+                  {partner.name}
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Footer ────────────────────────────────────────── */}
       <footer className="footer">
