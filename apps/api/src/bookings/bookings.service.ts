@@ -112,16 +112,7 @@ export class BookingsService {
         throw new BadRequestException('Not enough available seats');
       }
 
-      // 3. Check for admin-locked seats
-      const lockedSeatsList: number[] = Array.isArray(currentTrip.lockedSeats)
-        ? (currentTrip.lockedSeats as number[])
-        : [];
-      const hasLockedSeat = requestedSeatsList.some((s) => lockedSeatsList.includes(s));
-      if (hasLockedSeat) {
-        throw new BadRequestException('One or more selected seats are locked by the administrator');
-      }
-
-      // 4. Check for already booked/occupied seats in active bookings
+      // 3. Pull all active, non-cancelled bookings for this tripId
       const activeBookings = await tx.booking.findMany({
         where: {
           tripId: tripIdStr,
@@ -129,18 +120,56 @@ export class BookingsService {
         },
         select: { seatNumbers: true },
       });
-      const occupiedSeatsSet = new Set<number>();
+
+      // Parse the seatNumbers JSON arrays along with the trip's administrative lockedSeats array into a flat memory Set of occupied seat indexes.
+      const occupiedSeatIndexes = new Set<number>();
+
+      const lockedSeatsList: number[] = Array.isArray(currentTrip.lockedSeats)
+        ? (currentTrip.lockedSeats as number[])
+        : [];
+      lockedSeatsList.forEach((s) => occupiedSeatIndexes.add(Number(s)));
+
       activeBookings.forEach((b) => {
         if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-          b.seatNumbers.forEach((s) => occupiedSeatsSet.add(s as number));
+          b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
         }
       });
-      const hasOccupiedSeat = requestedSeatsList.some((s) => occupiedSeatsSet.has(s));
-      if (hasOccupiedSeat) {
-        throw new BadRequestException('One or more selected seats are already booked');
+
+      // Check the incoming data.seatNumbers array. If there is ANY structural index collision with an already occupied seat, throw a BadRequestException immediately.
+      const hasCollision = requestedSeatsList.some((s) => occupiedSeatIndexes.has(Number(s)));
+      if (hasCollision) {
+        throw new BadRequestException('One or more selected seats are already booked or locked');
       }
 
-      // 5. Deduct seats atomically
+      const amountEGP = (currentTrip.priceEGP || 0) * requestedSeats;
+      let bookingStatus: BookingStatus = BookingStatus.PENDING_PAYMENT;
+      let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
+
+      const isWallet = data.paymentMethod === 'WALLET' || data.paymentMethod === 'WALLET_BALANCE';
+
+      if (isWallet) {
+        const user = await tx.user.findUnique({
+          where: { id: data.userId.toString() },
+        });
+        if (!user) throw new NotFoundException('User not found');
+
+        if (user.walletBalance < amountEGP) {
+          throw new BadRequestException('Insufficient wallet balance');
+        }
+
+        // Atomically decrement the balance field using database-level operations (decrement: totalCostEGP)
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            walletBalance: { decrement: amountEGP },
+          },
+        });
+
+        bookingStatus = BookingStatus.CONFIRMED;
+        paymentStatus = PaymentStatus.SUCCESS;
+      }
+
+      // 5. Safely execute the trip's bookedSeats incrementation
       await tx.trip.update({
         where: { id: tripIdStr },
         data: {
@@ -148,9 +177,8 @@ export class BookingsService {
         },
       });
 
-      const amountEGP = (currentTrip.priceEGP || 0) * requestedSeats;
-
-      return tx.booking.create({
+      // Write the final booking entry ledger
+      const newBooking = await tx.booking.create({
         data: {
           userId: data.userId.toString(),
           tripId: tripIdStr,
@@ -159,13 +187,68 @@ export class BookingsService {
           dropoffStopId: data.dropoffStopId ? data.dropoffStopId.toString() : null,
           pickupCheckpoint: data.pickupCheckpoint || null,
           dropoffCheckpoint: data.dropoffCheckpoint || null,
-          status: BookingStatus.PENDING_PAYMENT,
-          paymentStatus: PaymentStatus.PENDING,
+          status: bookingStatus,
+          paymentStatus: paymentStatus,
           amountEGP,
           qrVerificationToken,
         },
       });
+
+      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if WALLET payment
+      if (isWallet) {
+        await tx.transaction.create({
+          data: {
+            bookingId: newBooking.id,
+            userId: data.userId.toString(),
+            amountEGP,
+            status: PaymentStatus.SUCCESS,
+            paymentMethod: data.paymentMethod || 'WALLET',
+          },
+        });
+      }
+
+      return newBooking;
     });
+
+    // Trigger confirmation notification asynchronously if confirmed
+    if (booking.status === BookingStatus.CONFIRMED) {
+      try {
+        const populated = await this.prisma.booking.findUnique({
+          where: { id: booking.id },
+          include: {
+            trip: {
+              include: {
+                route: true,
+              },
+            },
+            user: true,
+          },
+        });
+
+        if (populated) {
+          const u = populated.user;
+          const t = populated.trip;
+          const r = t?.route;
+          const seatsStr =
+            (populated.seatNumbers as any[])?.join(', ') || 'N/A';
+
+          await this.notificationsService.sendBookingConfirmation(
+            u?.phone || '',
+            u?.name || 'Valued Passenger',
+            {
+              routeName: r?.name || 'D-Ride Minibus Trip',
+              departureTime: t?.departureTime
+                ? t.departureTime.toISOString()
+                : new Date().toISOString(),
+              seatNumber: seatsStr,
+              price: populated.amountEGP || 0,
+            },
+          );
+        }
+      } catch (err) {
+        console.error('Failed to dispatch notification:', err);
+      }
+    }
 
     return this.mapBooking(booking);
   }

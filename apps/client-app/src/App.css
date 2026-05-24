@@ -3016,5 +3016,59 @@
   color: var(--text-muted);
 }
 
+/* Opaque solid card overrides to prevent bright Egyptian sunlight glare issues */
+.solid-checkout-card {
+  background: #111111 !important; /* Solid Deep Onyx */
+  border: 2.5px solid #f5b731 !important; /* Sharp Golden Amber border */
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  color: #f0f1f5 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Opaque style override for leaflet popup containers */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #111111 !important;
+  color: #f0f1f5 !important;
+  border: 2px solid #f5b731 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+  opacity: 1 !important;
+}
+
+/* Opaque style overrides for sub-components in checkout to prevent transparency issues */
+.windshield-opaque {
+  background: #1c1c1e !important;
+  border: 2px solid #f5b731 !important;
+  opacity: 1 !important;
+}
+
+.checkpoint-badge-opaque {
+  background: #1c1c1e !important;
+  border: 1.5px solid #f5b731 !important;
+  opacity: 1 !important;
+}
+
+.door-entry-opaque {
+  background: #111111 !important;
+  border: 1.5px solid #f5b731 !important;
+  opacity: 1 !important;
+}
+
+.warning-box-opaque {
+  background: #1a150c !important;
+  border: 1.5px solid #f5b731 !important;
+  color: #f5b731 !important;
+  opacity: 1 !important;
+}
+
+.success-box-opaque {
+  background: #0b1c14 !important;
+  border: 1.5px solid #10b981 !important;
+  color: #10b981 !important;
+  opacity: 1 !important;
+}
+
 
 

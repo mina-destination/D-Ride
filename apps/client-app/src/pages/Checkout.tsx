@@ -12,28 +12,31 @@ import 'leaflet/dist/leaflet.css';
 const blueIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  iconSize: [32, 52],
+  iconAnchor: [16, 52],
+  popupAnchor: [1, -44],
+  shadowSize: [52, 52],
+  className: 'p-2 touch-manipulation'
 });
 
 const goldIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  iconSize: [32, 52],
+  iconAnchor: [16, 52],
+  popupAnchor: [1, -44],
+  shadowSize: [52, 52],
+  className: 'p-2 touch-manipulation'
 });
 
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  iconSize: [32, 52],
+  iconAnchor: [16, 52],
+  popupAnchor: [1, -44],
+  shadowSize: [52, 52],
+  className: 'p-2 touch-manipulation'
 });
 
 function MapFocusController({ coords }: { coords: [number, number] | null }) {
@@ -298,41 +301,45 @@ export default function CheckoutPage() {
     return (
       <div 
         key={num}
-        className={className} 
-        style={{
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer',
-          transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-        }}
+        className="p-1 touch-manipulation"
+        style={{ cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer' }}
         onClick={() => {
           if (!isLocked && !isOccupied) {
             toggleSeatSelection(num);
           }
         }}
-        title={isLocked ? "Luggage Hold Area (Locked by Admin)" : isOccupied ? `Seat #${num} (Occupied)` : `Seat #${num}`}
       >
-        <div className="bus-seat-inner">
-          {isLocked ? (
-            <span style={{ display: 'flex', alignItems: 'center' }} title="Luggage Hold Area"><Briefcase size={14} /></span>
-          ) : (
-            <>
-              {/* Premium Cushion & Stitching */}
-              <div className="bus-seat-cushion" />
-              <div className="bus-seat-stitching" />
-              <span style={{ 
-                zIndex: 2, 
-                fontSize: '0.78rem', 
-                fontWeight: 'bold', 
-                color: isSelected ? 'black' : 'var(--text-secondary)'
-              }}>
-                {num}
-              </span>
-            </>
-          )}
+        <div 
+          className={className} 
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}
+          title={isLocked ? "Luggage Hold Area (Locked by Admin)" : isOccupied ? `Seat #${num} (Occupied)` : `Seat #${num}`}
+        >
+          <div className="bus-seat-inner">
+            {isLocked ? (
+              <span style={{ display: 'flex', alignItems: 'center' }} title="Luggage Hold Area"><Briefcase size={14} /></span>
+            ) : (
+              <>
+                {/* Premium Cushion & Stitching */}
+                <div className="bus-seat-cushion" />
+                <div className="bus-seat-stitching" />
+                <span style={{ 
+                  zIndex: 2, 
+                  fontSize: '0.78rem', 
+                  fontWeight: 'bold', 
+                  color: isSelected ? 'black' : 'var(--text-secondary)'
+                }}>
+                  {num}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -342,7 +349,7 @@ export default function CheckoutPage() {
     (coord: number[]) => [coord[1], coord[0]] as [number, number]
   ) || [];
 
-  if (!tripId) return <div className="auth-page"><div className="auth-card glass">No trip selected.</div></div>;
+  if (!tripId) return <div className="auth-page"><div className="auth-card solid-checkout-card">No trip selected.</div></div>;
 
   return (
     <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: '4rem', paddingBottom: '4rem' }}>
@@ -456,14 +463,14 @@ export default function CheckoutPage() {
         </div>
 
         {loading ? (
-          <div className="auth-card glass" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
               <Bus size={48} color="var(--text-secondary)" />
             </div>
             <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading trip configuration...</p>
           </div>
         ) : trip ? (
-          <div className="auth-card glass" style={{ borderRadius: '20px', padding: '2rem' }}>
+          <div className="auth-card solid-checkout-card" style={{ borderRadius: '20px', padding: '2rem' }}>
             <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>
               Booking Summary
             </h3>
@@ -488,7 +495,7 @@ export default function CheckoutPage() {
                   <button 
                     type="button" 
                     onClick={() => setMapLoadFailed(prev => !prev)}
-                    style={{ fontSize: '11px', background: 'rgba(245, 183, 49, 0.1)', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{ fontSize: '11px', background: '#1c1c1e', color: '#f5b731', border: '1.5px solid #f5b731', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                   >
                     {mapLoadFailed ? 'Show Map' : 'Select Manually'}
                   </button>
@@ -499,8 +506,8 @@ export default function CheckoutPage() {
 
                 {mapLoadFailed && (
                   <div style={{
-                    background: 'rgba(245, 183, 49, 0.05)',
-                    border: '1px solid rgba(245, 183, 49, 0.2)',
+                    background: '#1a150c',
+                    border: '1.5px solid #f5b731',
                     padding: '14px',
                     borderRadius: '10px',
                     marginBottom: '1rem',
@@ -812,18 +819,19 @@ export default function CheckoutPage() {
               </div>
 
               {/* Seats Selection Progress Badge */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1.5rem',
-                padding: '10px 14px',
-                background: selectedSeats.length === requiredSeatsCount ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 183, 49, 0.08)',
-                border: selectedSeats.length === requiredSeatsCount ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(245, 183, 49, 0.2)',
-                borderRadius: '8px',
-                fontSize: '0.85rem'
-              }}>
-                <span style={{ color: 'var(--text-secondary)' }}>
+              <div 
+                className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '1.5rem',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <span>
                   Requested Seats (from search):
                 </span>
                 <span style={{ 
@@ -836,7 +844,7 @@ export default function CheckoutPage() {
 
               <div className="bus-cabin" style={{ margin: '0 auto' }}>
                 {/* Windshield */}
-                <div className="bus-windshield" style={{ background: 'rgba(245, 183, 49, 0.08)', border: '1px solid rgba(245, 183, 49, 0.2)', height: '14px', borderRadius: '10px 10px 2px 2px', marginBottom: '1rem' }} />
+                <div className="bus-windshield windshield-opaque" style={{ height: '14px', borderRadius: '10px 10px 2px 2px', marginBottom: '1rem' }} />
                 
                 {/* HiAce Dashboard / Cockpit line */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
@@ -856,7 +864,7 @@ export default function CheckoutPage() {
 
                 {/* Sliding Entry Door Visual Break */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0 12px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '8px', color: 'var(--primary)', background: 'rgba(245,183,49,0.1)', border: '1px solid rgba(245,183,49,0.3)', padding: '2px 8px', borderRadius: '3px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '8px', color: 'var(--primary)', padding: '2px 8px', borderRadius: '3px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     <ArrowRightToLine size={10} /> Sliding door entry
                   </div>
                 </div>
@@ -1074,15 +1082,15 @@ export default function CheckoutPage() {
               )}
 
               {paymentMethod === 'WALLET_BALANCE' && (
-                <div style={{
-                  marginBottom: '1.25rem',
-                  background: 'rgba(16,185,129,0.05)',
-                  border: '1px solid rgba(16,185,129,0.2)',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)'
-                }}>
+                <div 
+                  className="success-box-opaque"
+                  style={{
+                    marginBottom: '1.25rem',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    fontSize: '0.85rem'
+                  }}
+                >
                   💰 <strong>D-Ride Prepaid Wallet</strong>: Deducts <strong>{trip.priceEGP * selectedSeats.length} EGP</strong> instantly from your wallet balance. Booking confirmation is instantaneous.
                   {walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length && (
                     <div style={{ color: 'var(--error)', marginTop: '8px', fontWeight: 'bold' }}>
@@ -1093,15 +1101,15 @@ export default function CheckoutPage() {
               )}
 
               {paymentMethod === 'CASH' && (
-                <div style={{
-                  marginBottom: '1.25rem',
-                  background: 'rgba(245,183,49,0.05)',
-                  border: '1px solid rgba(245,183,49,0.2)',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)'
-                }}>
+                <div 
+                  className="warning-box-opaque"
+                  style={{
+                    marginBottom: '1.25rem',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    fontSize: '0.85rem'
+                  }}
+                >
                   🤝 <strong>Cash on Board</strong>: Pay directly to the minibus driver during boarding. Ticket confirmation is instant.
                 </div>
               )}
@@ -1140,7 +1148,7 @@ export default function CheckoutPage() {
             </p>
           </div>
         ) : (
-          <div className="auth-card glass" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
             <p>Trip configuration not found.</p>
             <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>Return to Home</button>
           </div>

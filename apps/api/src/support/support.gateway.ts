@@ -11,6 +11,14 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface SendMessagePayload {
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName: string;
+  message: string;
+}
+
 @WebSocketGateway({
   namespace: 'support',
   cors: {
@@ -19,7 +27,6 @@ import { PrismaService } from '../prisma/prisma.service';
   pingTimeout: 30000,
   pingInterval: 5000,
 })
-
 export class SupportGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -31,6 +38,13 @@ export class SupportGateway
   constructor(private prisma: PrismaService) {}
 
   handleConnection(client: Socket) {
+    const role = client.handshake.query?.role;
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION') {
+      client.join('support_operators');
+      this.logger.log(
+        `Support client ${client.id} with role ${role} joined support_operators room`,
+      );
+    }
     this.logger.log(`Support client connected: ${client.id}`);
   }
 
@@ -53,42 +67,43 @@ export class SupportGateway
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      ticketId: string;
-      senderId: string;
-      senderRole: string;
-      senderName: string;
-      message: string;
-    },
+    @MessageBody() data: SendMessagePayload,
   ) {
     this.logger.log(
       `Support Message received for ticket ${data.ticketId} from ${data.senderName} (${data.senderRole}): ${data.message}`,
     );
 
-    // Save message to Postgres database
-    const savedMsg = await this.prisma.chatMessage.create({
-      data: {
+    try {
+      // Save message to Postgres database
+      const savedMsg = await this.prisma.chatMessage.create({
+        data: {
+          ticketId: data.ticketId,
+          senderId: data.senderId,
+          senderRole: data.senderRole,
+          senderName: data.senderName,
+          message: data.message,
+        },
+      });
+
+      // Broadcast to room
+      this.server.to(`ticket_${data.ticketId}`).emit('newMessage', savedMsg);
+
+      // Broadcast live ticketActivity notification exclusively to the support_operators room
+      this.server.to('support_operators').emit('ticketActivity', {
         ticketId: data.ticketId,
-        senderId: data.senderId,
-        senderRole: data.senderRole,
+        lastMessage: data.message,
         senderName: data.senderName,
-        message: data.message,
-      },
-    });
+        senderRole: data.senderRole,
+        createdAt: savedMsg.createdAt,
+      });
 
-    // Broadcast to room
-    this.server.to(`ticket_${data.ticketId}`).emit('newMessage', savedMsg);
-
-    // Broadcast global support notification (so admins see active activity in their inbox)
-    this.server.emit('ticketActivity', {
-      ticketId: data.ticketId,
-      lastMessage: data.message,
-      senderName: data.senderName,
-      senderRole: data.senderRole,
-      createdAt: savedMsg.createdAt,
-    });
-
-    return { event: 'sent', data: savedMsg };
+      return { event: 'sent', data: savedMsg };
+    } catch (error) {
+      this.logger.error(
+        `Failed to save chat message: ${error.message || error}`,
+        error.stack,
+      );
+      return { event: 'error', status: 'FAILED' };
+    }
   }
 }

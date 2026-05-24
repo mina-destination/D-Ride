@@ -26,6 +26,7 @@ model User {
   trips         Trip[]          @relation("DriverTrips")
   vehicles      Vehicle[]
   reviews       Review[]
+  chatMessages  ChatMessage[]   @relation("UserChatMessages")
 
   @@map("users")
 }
@@ -148,6 +149,7 @@ model SupportTicket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatMessages ChatMessage[]
 
   @@map("support_tickets")
 }
@@ -218,6 +220,9 @@ model ChatMessage {
   senderName String
   message    String
   createdAt  DateTime @default(now())
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender     User          @relation("UserChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("chat_messages")
 }
