@@ -2,6 +2,26 @@
 
 D-Ride is a cutting-edge mass-transit booking, tracking, and fleet management platform custom-tailored for the Egyptian market (modeled after the Swvl paradigm). It features real-time WebSocket vehicle GPS updates, dynamic route coordinates planning, automated Paymob cashless transactions, and an interactive admin live-simulator.
 
+All visual layouts conform to the premium Egyptian **Golden Amber & Deep Onyx** design system. Light and dark modes are driven dynamically by system-level preferences and persisted to local storage.
+
+---
+
+## 🚀 Key Implemented Features
+
+### 📍 Passenger Location Auto-Proximity Matcher
+Integrated directly inside the primary routing search form of the Passenger Client Portal. Clicking the **"Detect Nearest Station"** action button leverages the browser's `navigator.geolocation` API and applies a mathematically rigorous **Haversine formula** to locate and rank the closest station checkpoint across active routes.
+*   **Localized Notifications**: Supports dynamic English and Arabic completion feedback (e.g., `تم العثور على أقرب محطة...` vs `Matched nearest station...`).
+
+### 🔊 Driver Scan Web Audio Chimes
+Boarding operations are simplified with programmatically synthesized audio indicators triggered on passenger QR code ticket scans. Built with the **Web Audio API** (utilizing oscillators and gain nodes) for zero external library dependencies and offline capabilities.
+*   **Success sound**: A high-pitched, clean double-tone chime (notes D5 and A5) upon successful check-in.
+*   **Error sound**: A low-frequency triangle oscillator buzzing tone for invalid tickets.
+
+### 📊 Admin Occupancy Indicators & Interactive Route Maps
+Enhanced fleet analytics dashboard for transport operators:
+*   **Occupancy Donut Widget**: An SVG-rendered circular progress donut chart showcasing fleet utilization (slots utilized, booked seats, and average load density).
+*   **Interactive Dispatch Route Map**: Clicking a vehicle in the fleet sidebar dynamically overlay its physical route coordinates as a dashed amber polyline on the Leaflet map.
+
 ---
 
 ## 🏗️ Platform Architecture
@@ -9,11 +29,12 @@ D-Ride is a cutting-edge mass-transit booking, tracking, and fleet management pl
 D-Ride is built as a unified **Turborepo npm Workspaces Monorepo** containerized with Docker and ready for direct serverless deployment to Google Cloud Run.
 
 ```
-transport-monorepo/
+D-Ride/
 ├── apps/
 │   ├── api/                 # NestJS microservices server with Mongoose & Socket-io
-│   ├── client-app/          # passenger web portal (Vite/React, Leaflet Map, Paymob)
-│   └── admin-dashboard/     # Administrative CRM (Ant Design, Route Planner, Live Simulator)
+│   ├── client-app/          # Passenger web portal (Vite/React, Leaflet Map, Paymob)
+│   ├── admin-dashboard/     # Administrative CRM (Ant Design v5, Route Planner, Live Simulator)
+│   └── driver-portal/       # Driver terminal app (Web Audio API, QR scanner, Live Telemetry)
 ├── packages/
 │   ├── shared-theme/        # Standardized theme design system tokens & assets
 │   └── shared-types/        # Shared TypeScript interfaces across client, admin, and API
@@ -51,7 +72,7 @@ docker-compose up --build -d
 ```
 Once initialized, the services will be running on:
 *   **Passenger Client Portal**: [http://localhost](http://localhost) (Port `80`)
-*   **Admin CRM Dashboard**: [http://localhost:8080](http://localhost:8080) (Port `8080`)
+*   **Admin CRM Dashboard**: [http://localhost:8080](http://localhost:8080) (Port `8888` / `8080`)
 *   **Microservice API Endpoint**: [http://localhost:3000/api](http://localhost:3000/api)
 *   **Interactive Swagger Documentation**: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
@@ -98,3 +119,9 @@ GCP_PROJECT_ID="your-project-id" GCP_REGION="us-central1" ./deploy.sh
 All visual layouts conform to the premium Egyptian **Golden Amber & Deep Onyx** design system. Light and dark modes are driven dynamically by system-level preferences and persisted to local storage. 
 *   **Primary Amber Color**: `#f5b731`
 *   **Deep Glassmorphism Surfaces**: Glass overlays with modern backdrop-blur values.
+
+---
+
+## 🗺️ Product Roadmap
+
+Refer to the detailed [ROADMAP.md](file:///Users/bishoy/Desktop/D-Ride/ROADMAP.md) file for the upcoming phased feature pipeline, including Map Pin Selection, In-App prepaid balance wallets, and Real-Time WebSocket Support Chat.
