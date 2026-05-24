@@ -3,22 +3,33 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+      : [
+          'http://localhost:5173',
+          'http://localhost:5174',
+          'http://localhost:5175',
+          'http://localhost:3001',
+        ],
+    credentials: true,
   },
   pingTimeout: 30000,
   pingInterval: 5000,
 })
 export class VehiclesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer()
   server: Server;
@@ -29,10 +40,41 @@ export class VehiclesGateway
   constructor(
     @Inject(forwardRef(() => VehiclesService))
     private readonly vehiclesService: VehiclesService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+  afterInit(server: Server) {
+    server.use((socket: any, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.headers?.authorization;
+        if (!token) {
+          return next(new Error('Unauthorized: Token missing'));
+        }
+        const cleanToken = token.startsWith('Bearer ')
+          ? token.split(' ')[1]
+          : token;
+        const secret =
+          this.configService.get<string>('jwt.secret') ||
+          'dev_jwt_secret_do_not_use_in_production';
+        const payload = this.jwtService.verify(cleanToken, { secret });
+
+        socket.user = {
+          id: payload.sub,
+          email: payload.email,
+          role: payload.role,
+        };
+        next();
+      } catch (err) {
+        next(new Error('Unauthorized: Invalid or expired token'));
+      }
+    });
+  }
+
+  handleConnection(client: any) {
+    this.logger.log(`Client connected: ${client.id} (User: ${client.user?.id})`);
   }
 
   handleDisconnect(client: Socket) {
