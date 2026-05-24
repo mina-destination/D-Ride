@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
+import { RedisIoAdapter } from './redis-io.adapter';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +14,19 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   const logger = new Logger('Bootstrap');
+
+  // Enable scalable Redis IoAdapter if REDIS_URL is configured
+  if (process.env.REDIS_URL) {
+    const redisIoAdapter = new RedisIoAdapter(app);
+    try {
+      await redisIoAdapter.connectToRedis();
+      app.useWebSocketAdapter(redisIoAdapter);
+      logger.log('Scalable Redis WebSocket adapter enabled.');
+    } catch (err: any) {
+      logger.error(`Failed to connect to Redis. Falling back to default adapter: ${err.message}`);
+    }
+  }
+
 
   // Enable global validation pipe
   app.useGlobalPipes(

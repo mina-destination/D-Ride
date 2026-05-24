@@ -213,4 +213,21 @@ export class VehiclesService {
       })
       .map((loc) => ({ ...loc, _id: loc.id }));
   }
+
+  async markVehicleOffline(vehicleId: string): Promise<any> {
+    this.logger.log(`Marking vehicle ${vehicleId} status as OFFLINE`);
+    const existing = await this.prisma.liveVehicleLocation.findFirst({
+      where: { vehicleId },
+    });
+    if (existing) {
+      return this.prisma.liveVehicleLocation.update({
+        where: { id: existing.id },
+        data: {
+          status: 'OFFLINE',
+          lastUpdatedAt: new Date(),
+        },
+      });
+    }
+  }
 }
+

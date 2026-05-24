@@ -14,6 +14,8 @@ import { VehiclesService } from './vehicles.service';
   cors: {
     origin: '*',
   },
+  pingTimeout: 30000,
+  pingInterval: 5000,
 })
 export class VehiclesGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -22,6 +24,7 @@ export class VehiclesGateway
   server: Server;
 
   private readonly logger = new Logger(VehiclesGateway.name);
+  private readonly activeDrivers = new Map<string, { vehicleId: string; driverId: string }>();
 
   constructor(
     @Inject(forwardRef(() => VehiclesService))
@@ -33,7 +36,20 @@ export class VehiclesGateway
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+    const driverData = this.activeDrivers.get(client.id);
+    if (driverData) {
+      this.logger.warn(
+        `Driver disconnected unexpectedly: socketId=${client.id}, driverId=${driverData.driverId}, vehicleId=${driverData.vehicleId}`,
+      );
+      client.leave(`vehicle_${driverData.vehicleId}`);
+      this.activeDrivers.delete(client.id);
+      
+      this.vehiclesService.markVehicleOffline(driverData.vehicleId).catch((err) => {
+        this.logger.error(`Failed to mark vehicle offline on socket disconnect: ${err.message}`);
+      });
+    } else {
+      this.logger.log(`Client disconnected: ${client.id}`);
+    }
   }
 
   @SubscribeMessage('subscribeToVehicle')
@@ -56,7 +72,6 @@ export class VehiclesGateway
   }
 
   broadcastVehicleLocation(vehicleId: string, location: any) {
-    // this.logger.debug(`Broadcasting location for vehicle ${vehicleId}`);
     this.server.to(`vehicle_${vehicleId}`).emit('vehicleLocationUpdate', {
       vehicleId,
       location,
@@ -76,6 +91,12 @@ export class VehiclesGateway
     },
   ) {
     try {
+      this.activeDrivers.set(client.id, {
+        vehicleId: data.vehicleId,
+        driverId: data.driverId,
+      });
+      client.join(`vehicle_${data.vehicleId}`);
+      
       await this.vehiclesService.upsertLocation(data);
       return { event: 'locationAck', data: { success: true } };
     } catch (e: any) {

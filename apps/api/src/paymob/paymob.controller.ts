@@ -46,6 +46,13 @@ export class PaymobController {
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 
+  @Get('features')
+  async getFeatures() {
+    const allowCash = this.paymobService.isCashAllowed();
+    return { success: true, allowCashOnDelivery: allowCash, timestamp: new Date().toISOString() };
+  }
+
+
   @UseGuards(JwtAuthGuard)
   @Get('wallet')
   async getWallet(@Request() req: any) {

@@ -1498,58 +1498,59 @@
 }
 
 .bus-seat {
-  width: 44px;
-  height: 44px;
-  background: var(--surface);
-  border: 2px solid var(--border);
+  width: 48px; /* Touch target optimized for mobile viewports */
+  height: 48px; /* Touch target optimized for mobile viewports */
+  background: #111111; /* Opaque Deep Onyx */
+  border: 2.5px solid #444444; /* High visibility border */
   border-radius: 8px 8px 4px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 800;
   color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-base);
   user-select: none;
+  box-shadow: none;
 }
 
 .bus-seat:hover:not(.occupied):not(.driver):not(.locked-luggage) {
-  border-color: var(--primary);
-  transform: scale(1.08);
-  color: var(--primary);
+  border-color: #f5b731; /* Golden Amber */
+  background: #181818;
+  color: #f5b731;
 }
 
 .bus-seat.selected {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: black;
+  background: #f5b731; /* Solid Golden Amber */
+  border-color: #f5b731;
+  color: #111111; /* Deep Onyx text for high contrast */
   transform: scale(1.08);
-  box-shadow: 0 0 15px rgba(245, 183, 49, 0.4);
-  animation: pulse-ring 1.5s infinite;
+  box-shadow: 0 0 0 2px #111111, 0 0 0 4px #f5b731; /* Double high-contrast outline border */
 }
 
 .bus-seat.occupied {
-  background: var(--surface-hover);
-  border-color: var(--border);
-  color: var(--text-muted);
+  background: #222222; /* High contrast occupied seat */
+  border-color: #333333;
+  color: #555555;
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 1; /* Opaque to prevent sun glare issues */
 }
 
 .bus-seat.driver {
   background: transparent;
-  border: 2px dashed var(--border);
-  color: var(--text-muted);
+  border: 2px dashed #444444;
+  color: #666666;
   cursor: not-allowed;
   font-size: 1.1rem;
 }
 
 .bus-seat.locked-luggage {
-  background: rgba(245, 183, 49, 0.05);
-  border-color: rgba(245, 183, 49, 0.3);
+  background: #2b1f0c; /* Deep opaque brown/amber */
+  border-color: #f5b731; /* Amber border */
+  color: #f5b731;
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 1; /* Fully opaque */
 }
 
 .seat-legend {
@@ -2603,19 +2604,19 @@
 }
 
 .bus-seat.available {
-  background: var(--surface-elevated);
-  border-color: var(--border);
+  background: #111111;
+  border-color: #444444;
 }
 
 .bus-seat.available:hover {
-  border-color: var(--primary);
-  background: rgba(245, 183, 49, 0.05);
-  box-shadow: 0 0 10px rgba(245, 183, 49, 0.15);
+  border-color: #f5b731;
+  background: #1c1c1e;
+  box-shadow: 0 0 10px rgba(245, 183, 49, 0.3);
 }
 
 .bus-seat.selected .bus-seat-inner {
-  background: var(--primary);
-  box-shadow: 0 0 15px rgba(245, 183, 49, 0.4);
+  background: #f5b731;
+  box-shadow: 0 0 15px rgba(245, 183, 49, 0.5);
 }
 
 .bus-seat-cushion {
@@ -2639,19 +2640,13 @@
 
 .bus-seat.occupied {
   cursor: not-allowed;
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: #222222;
+  border-color: #333333;
 }
 
 .bus-seat.locked-luggage {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(245, 183, 49, 0.05),
-    rgba(245, 183, 49, 0.05) 5px,
-    rgba(245, 183, 49, 0.1) 5px,
-    rgba(245, 183, 49, 0.1) 10px
-  );
-  border-color: rgba(245, 183, 49, 0.25);
+  background: #2b1f0c;
+  border-color: #f5b731;
   cursor: not-allowed;
 }
 

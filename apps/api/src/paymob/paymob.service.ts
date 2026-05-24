@@ -195,30 +195,34 @@ export class PaymobService {
 
     // Handle Direct Wallet Balance Payment
     if (paymentMethod === 'WALLET_BALANCE') {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-      });
-      if (!user) throw new BadRequestException('User not found');
-
       const amountEGP = data.amountCents / 100;
-      if (user.walletBalance < amountEGP) {
-        throw new BadRequestException('Insufficient wallet balance');
-      }
 
-      // Deduct atomically inside a prisma transaction
-      await this.prisma.$transaction([
-        this.prisma.user.update({
+      await this.prisma.$transaction(async (tx) => {
+        // Fetch user with a lock/fresh read inside the interactive transaction
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+        });
+        if (!user) throw new BadRequestException('User not found');
+
+        if (user.walletBalance < amountEGP) {
+          throw new BadRequestException('Insufficient wallet balance');
+        }
+
+        // Deduct atomically inside the interactive transaction block
+        await tx.user.update({
           where: { id: userId },
           data: { walletBalance: { decrement: amountEGP } },
-        }),
-        this.prisma.booking.update({
+        });
+
+        await tx.booking.update({
           where: { id: data.bookingId },
           data: {
             status: 'CONFIRMED',
             paymentStatus: 'SUCCESS',
           },
-        }),
-        this.prisma.transaction.create({
+        });
+
+        await tx.transaction.create({
           data: {
             paymobOrderId: Math.floor(Math.random() * 1000000),
             amountEGP: amountEGP,
@@ -227,8 +231,8 @@ export class PaymobService {
             userId: userId,
             bookingId: data.bookingId,
           },
-        }),
-      ]);
+        });
+      });
 
       this.logger.log(
         `Wallet payment successful. Deducted ${amountEGP} EGP from user ${userId} for booking ${data.bookingId}`,
@@ -251,8 +255,13 @@ export class PaymobService {
       };
     }
 
+
     // Handle Cash on Board Directly
     if (paymentMethod === 'CASH') {
+      const allowCash = this.isCashAllowed();
+      if (!allowCash) {
+        throw new BadRequestException('Cash payment option is currently disabled.');
+      }
       this.logger.log(
         `Cash booking selected. Direct confirmation for booking ${data.bookingId}`,
       );
@@ -424,6 +433,10 @@ export class PaymobService {
       );
       throw new BadRequestException('Payment initialization failed');
     }
+  }
+
+  public isCashAllowed(): boolean {
+    return this.configService.get<boolean>('allowCashOnDelivery', true) !== false;
   }
 
   /**
