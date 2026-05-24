@@ -213,36 +213,35 @@ export default function CheckoutPage() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: '6px',
-          background: isLocked ? 'rgba(245, 183, 49, 0.05)' : undefined,
-          borderColor: isLocked ? 'rgba(245, 183, 49, 0.3)' : undefined,
-          cursor: isLocked ? 'not-allowed' : undefined,
-          opacity: isLocked ? 0.7 : undefined
+          cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer',
+          transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }}
         onClick={() => {
-          if (!isLocked) {
+          if (!isLocked && !isOccupied) {
             toggleSeatSelection(num);
           }
         }}
-        title={isLocked ? "Luggage Hold Area (Locked by Admin)" : `Seat #${num}`}
+        title={isLocked ? "Luggage Hold Area (Locked by Admin)" : isOccupied ? `Seat #${num} (Occupied)` : `Seat #${num}`}
       >
-        {isLocked ? (
-          <span style={{ marginTop: '-3px', display: 'flex', alignItems: 'center' }} title="Luggage Hold Area"><Briefcase size={14} /></span>
-        ) : (
-          <>
-            {/* Visual Seat Headrest */}
-            <div style={{
-              position: 'absolute',
-              top: '-3px',
-              width: '18px',
-              height: '6px',
-              background: isSelected ? 'black' : (isOccupied ? 'var(--surface-hover)' : 'var(--border)'),
-              borderRadius: '3px 3px 0 0',
-              transition: 'all 0.2s'
-            }} />
-            {num}
-          </>
-        )}
+        <div className="bus-seat-inner">
+          {isLocked ? (
+            <span style={{ display: 'flex', alignItems: 'center' }} title="Luggage Hold Area"><Briefcase size={14} /></span>
+          ) : (
+            <>
+              {/* Premium Cushion & Stitching */}
+              <div className="bus-seat-cushion" />
+              <div className="bus-seat-stitching" />
+              <span style={{ 
+                zIndex: 2, 
+                fontSize: '0.78rem', 
+                fontWeight: 'bold', 
+                color: isSelected ? 'black' : 'var(--text-secondary)'
+              }}>
+                {num}
+              </span>
+            </>
+          )}
+        </div>
       </div>
     );
   };
@@ -394,7 +393,7 @@ export default function CheckoutPage() {
                   Boarding & Dropoff Checkpoints 📍
                 </h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Verify or select where the driver should pick you up and drop you off. Click markers to adjust.
+                  Verify or select where the driver should pick you up and drop you off. Click markers or stepper below to adjust.
                 </p>
                 <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1rem' }}>
                   <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
@@ -445,6 +444,162 @@ export default function CheckoutPage() {
                       );
                     })}
                   </MapContainer>
+                </div>
+
+                {/* Checkpoint Stepper Progress bar */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  position: 'relative', 
+                  margin: '1.5rem 0 1rem 0',
+                  overflowX: 'auto',
+                  paddingBottom: '0.5rem',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  zIndex: 2
+                }} className="checkpoint-scrollbar">
+                  {/* Connecting Line */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '12px', 
+                    left: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
+                    right: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
+                    height: '4px', 
+                    background: 'var(--border)', 
+                    zIndex: 0 
+                  }} />
+                  
+                  {/* Colored Active Progress Line */}
+                  {(() => {
+                    const checkpoints = trip.routeId.checkpoints || [];
+                    if (checkpoints.length < 2) return null;
+                    
+                    const pickupIdx = selectedPickupCheckpoint 
+                      ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
+                      : 0;
+                    const dropoffIdx = selectedDropoffCheckpoint 
+                      ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
+                      : checkpoints.length - 1;
+                      
+                    if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
+                      const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
+                      const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
+                      const widthPercent = endPercent - startPercent;
+                      
+                      return (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '12px', 
+                          left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
+                          width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
+                          height: '4px', 
+                          background: 'var(--primary)', 
+                          zIndex: 0,
+                          transition: 'all 0.3s ease'
+                        }} />
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {trip.routeId.checkpoints.map((cp: any, cpIdx: number) => {
+                    const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
+                    const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
+                    
+                    const checkpoints = trip.routeId.checkpoints || [];
+                    const pickupIdx = selectedPickupCheckpoint 
+                      ? checkpoints.findIndex((item: any) => item.name === selectedPickupCheckpoint.name)
+                      : 0;
+                    const dropoffIdx = selectedDropoffCheckpoint 
+                      ? checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoint.name)
+                      : checkpoints.length - 1;
+                      
+                    const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
+                    
+                    let dotBg = 'var(--surface-hover)';
+                    let dotBorder = '3px solid var(--border)';
+                    let dotShadow = 'none';
+                    
+                    if (isPickup) {
+                      dotBg = 'var(--primary)';
+                      dotBorder = '4px solid var(--surface)';
+                      dotShadow = '0 0 15px var(--primary)';
+                    } else if (isDropoff) {
+                      dotBg = '#EF4444';
+                      dotBorder = '4px solid var(--surface)';
+                      dotShadow = '0 0 15px #EF4444';
+                    } else if (isActiveRoute) {
+                      dotBg = 'rgba(245, 183, 49, 0.2)';
+                      dotBorder = '3px solid var(--primary)';
+                    }
+                    
+                    return (
+                      <div 
+                        key={cpIdx} 
+                        onClick={() => {
+                          if (cpIdx < dropoffIdx) {
+                            setSelectedPickupCheckpoint(cp);
+                          } else if (cpIdx > pickupIdx) {
+                            setSelectedDropoffCheckpoint(cp);
+                          }
+                        }}
+                        style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          alignItems: 'center', 
+                          flex: 1, 
+                          minWidth: '100px',
+                          zIndex: 1, 
+                          position: 'relative', 
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: dotBg,
+                          border: dotBorder,
+                          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: dotShadow,
+                        }}>
+                          {(isPickup || isDropoff) && (
+                            <div style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: 'var(--text-on-primary)'
+                            }} />
+                          )}
+                        </div>
+                        
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: (isPickup || isDropoff) ? 800 : 500, 
+                          color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
+                          marginTop: '6px', 
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}>
+                          {cp.name}
+                        </span>
+                        {cp.nameAr && (
+                          <span style={{ 
+                            fontSize: '0.65rem', 
+                            color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
+                            textAlign: 'center',
+                            transition: 'all 0.2s'
+                          }}>
+                            {cp.nameAr}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -591,51 +746,96 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* Price block */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', marginTop: '2rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Selected Slots</span>
-              <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
-                {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None Selected'}
-              </span>
+            {/* Price breakdown invoice card */}
+            <div style={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem 1.5rem',
+              marginTop: '2rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}>
+              <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.95rem', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                Invoice Breakdown 🧾
+              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Selected Slots</span>
+                <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
+                  {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None Selected'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Base Fare</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {trip.priceEGP * selectedSeats.length - Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Booking Fee</span>
+                <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
+                  0.00 EGP (FREE)
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total Fare</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                  {trip.priceEGP * selectedSeats.length} EGP
+                </span>
+              </div>
             </div>
 
             {/* Payment Method Selector */}
-            <div style={{ marginTop: '2.0rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
               <h4 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700 }}>
                 Payment Method 💳
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1.25rem' }}>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CARD')}
                   className={`payment-method-btn ${paymentMethod === 'CARD' ? 'active' : ''}`}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
                 >
-                  💳 Card
+                  <span style={{ fontSize: '1.2rem' }}>💳</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Card / Visa</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('WALLET')}
                   className={`payment-method-btn ${paymentMethod === 'WALLET' ? 'active' : ''}`}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
                 >
-                  📱 Wallet
+                  <span style={{ fontSize: '1.2rem' }}>📱</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Mobile Wallet</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CASH')}
                   className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
                 >
-                  💵 Cash
+                  <span style={{ fontSize: '1.2rem' }}>💵</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Cash on Board</span>
                 </button>
               </div>
 
               {paymentMethod === 'WALLET' && (
                 <div style={{
-                  marginBottom: '1rem',
+                  marginBottom: '1.25rem',
                   background: 'var(--surface-elevated)',
                   border: '1px solid var(--border)',
                   padding: '14px',
                   borderRadius: '10px',
-                  animation: 'slide-down 0.3s ease'
+                  animation: 'slideDownFade 0.3s ease'
                 }}>
                   <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
                     Mobile Wallet Number (Vodafone, Orange, Etisalat Cash)
@@ -664,7 +864,7 @@ export default function CheckoutPage() {
 
               {paymentMethod === 'CASH' && (
                 <div style={{
-                  marginBottom: '1rem',
+                  marginBottom: '1.25rem',
                   background: 'rgba(245,183,49,0.05)',
                   border: '1px solid rgba(245,183,49,0.2)',
                   padding: '12px 14px',

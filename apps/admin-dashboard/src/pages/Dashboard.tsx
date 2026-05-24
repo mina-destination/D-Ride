@@ -1,8 +1,33 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity } from 'lucide-react';
+
+const routePaths: Record<string, [number, number][]> = {
+  '1': [
+    [30.0444, 31.2357],
+    [30.0480, 31.2280],
+    [30.0520, 31.2150],
+    [30.0560, 31.2020],
+    [30.0620, 31.1850],
+    [30.0680, 31.1680]
+  ],
+  '2': [
+    [30.0770, 31.3400],
+    [30.0720, 31.3520],
+    [30.0650, 31.3680],
+    [30.0550, 31.3850],
+    [30.0420, 31.4050]
+  ],
+  '3': [
+    [30.0130, 31.2080],
+    [30.0050, 31.1850],
+    [29.9950, 31.1620],
+    [29.9820, 31.1350],
+    [29.9680, 31.1080]
+  ]
+};
 
 function MapPanController({ panTo }: { panTo: [number, number] | null }) {
   const map = useMap();
@@ -234,6 +259,15 @@ export default function DashboardPage() {
                   </Popup>
                 </Marker>
               ))}
+              {selectedBusId && routePaths[selectedBusId] && (
+                <Polyline
+                  positions={routePaths[selectedBusId]}
+                  color="var(--primary)"
+                  weight={4}
+                  opacity={0.85}
+                  dashArray="8, 8"
+                />
+              )}
               {mapPanTo && <MapPanController panTo={mapPanTo} />}
             </MapContainer>
           </div>
@@ -241,7 +275,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
         {/* Bookings SVG Line Chart */}
         <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -319,6 +353,51 @@ export default function DashboardPage() {
               <rect x="425" y="95" width="28" height="35" fill="var(--text-secondary)" rx="4" opacity="0.8" />
               <text x="439" y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">Oct</text>
             </svg>
+          </div>
+        </div>
+
+        {/* Fleet Capacity Utilization Donut Chart */}
+        <div className="card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Fleet Seat Occupancy</h3>
+            <span className="status-badge confirmed" style={{ padding: '2px 8px', fontSize: '9px' }}>Optimal</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: '160px', gap: '8px' }}>
+            <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+              <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%' }}>
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="var(--border)"
+                  strokeWidth="3.5"
+                />
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="var(--primary)"
+                  strokeWidth="3.5"
+                  strokeDasharray="81, 100"
+                />
+              </svg>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>81%</div>
+                <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Utilized</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></span>
+                <span><strong>34</strong> Seats Booked</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--border)' }}></span>
+                <span><strong>8</strong> Seats Free</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></span>
+                <span><strong>74.3%</strong> Avg Load</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
