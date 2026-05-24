@@ -86,32 +86,43 @@ export class BookingsService {
       throw new BadRequestException('Not enough available seats');
     }
 
-    // 2. Increment booked seats on trip (optimistic locking)
-    await this.tripsService.incrementBookedSeats(
-      trip._id.toString(),
-      requestedSeats,
-    );
-
-    // 3. Create booking as PENDING_PAYMENT
     const amountEGP = (trip.priceEGP || 0) * requestedSeats;
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
-    const booking = await this.prisma.booking.create({
-      data: {
-        userId: data.userId.toString(),
-        tripId: tripIdStr,
-        seatNumbers: data.seatNumbers || [1],
-        pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
-        dropoffStopId: data.dropoffStopId
-          ? data.dropoffStopId.toString()
-          : null,
-        pickupCheckpoint: data.pickupCheckpoint || null,
-        dropoffCheckpoint: data.dropoffCheckpoint || null,
-        status: BookingStatus.PENDING_PAYMENT,
-        paymentStatus: PaymentStatus.PENDING,
-        amountEGP,
-        qrVerificationToken,
-      },
+    // 2. Perform atomic seat increment and booking creation in a transaction
+    const booking = await this.prisma.$transaction(async (tx) => {
+      const currentTrip = await tx.trip.findUnique({
+        where: { id: tripIdStr },
+      });
+      if (!currentTrip) throw new NotFoundException('Trip not found');
+      if (currentTrip.bookedSeats + requestedSeats > currentTrip.availableSeats) {
+        throw new BadRequestException('Not enough available seats');
+      }
+
+      await tx.trip.update({
+        where: { id: tripIdStr },
+        data: {
+          bookedSeats: { increment: requestedSeats },
+        },
+      });
+
+      return tx.booking.create({
+        data: {
+          userId: data.userId.toString(),
+          tripId: tripIdStr,
+          seatNumbers: data.seatNumbers || [1],
+          pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
+          dropoffStopId: data.dropoffStopId
+            ? data.dropoffStopId.toString()
+            : null,
+          pickupCheckpoint: data.pickupCheckpoint || null,
+          dropoffCheckpoint: data.dropoffCheckpoint || null,
+          status: BookingStatus.PENDING_PAYMENT,
+          paymentStatus: PaymentStatus.PENDING,
+          amountEGP,
+          qrVerificationToken,
+        },
+      });
     });
 
     return this.mapBooking(booking);

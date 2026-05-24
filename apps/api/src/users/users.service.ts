@@ -12,6 +12,14 @@ import { Role } from '@prisma/client';
 export class UsersService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
+  private mapUser(user: any) {
+    if (!user) return null;
+    const u = { ...user };
+    delete u.password;
+    u.status = user.isActive ? 'ACTIVE' : 'INACTIVE';
+    return u;
+  }
+
   async onModuleInit() {
     await this.seedDefaultPermissions();
   }
@@ -89,22 +97,14 @@ export class UsersService implements OnModuleInit {
       where: { role: role.toUpperCase() as Role },
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user) => {
-      const u = { ...user };
-      delete (u as any).password;
-      return u;
-    });
+    return users.map((user) => this.mapUser(user));
   }
 
   async findAll(): Promise<any[]> {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user) => {
-      const u = { ...user };
-      delete (u as any).password;
-      return u;
-    });
+    return users.map((user) => this.mapUser(user));
   }
 
   async addCrmNote(id: string, text: string, adminName: string): Promise<any> {
@@ -121,9 +121,7 @@ export class UsersService implements OnModuleInit {
       data: { crmNotes: notes },
     });
 
-    const result = { ...updated };
-    delete (result as any).password;
-    return result;
+    return this.mapUser(updated);
   }
 
   async findOne(id: string): Promise<any> {
@@ -131,9 +129,7 @@ export class UsersService implements OnModuleInit {
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    const result = { ...user };
-    delete (result as any).password;
-    return result;
+    return this.mapUser(user);
   }
 
   async createUser(data: any): Promise<any> {
@@ -144,6 +140,7 @@ export class UsersService implements OnModuleInit {
       throw new ConflictException('Email already registered');
     }
     const hashedPassword = await bcrypt.hash(data.password || 'DRide1234!', 12);
+    const isActive = data.status !== undefined ? data.status === 'ACTIVE' : (data.isActive !== undefined ? data.isActive : true);
     const user = await this.prisma.user.create({
       data: {
         name: data.name,
@@ -152,13 +149,11 @@ export class UsersService implements OnModuleInit {
         password: hashedPassword,
         role: (data.role || 'PASSENGER').toUpperCase() as Role,
         avatarUrl: data.avatarUrl,
-        isActive: data.isActive !== undefined ? data.isActive : true,
+        isActive,
         crmNotes: data.crmNotes || [],
       },
     });
-    const result = { ...user };
-    delete (result as any).password;
-    return result;
+    return this.mapUser(user);
   }
 
   async updateUser(id: string, data: any): Promise<any> {
@@ -169,14 +164,16 @@ export class UsersService implements OnModuleInit {
     if (updateData.role) {
       updateData.role = updateData.role.toUpperCase() as Role;
     }
+    if (updateData.status !== undefined) {
+      updateData.isActive = updateData.status === 'ACTIVE';
+      delete updateData.status;
+    }
     try {
       const user = await this.prisma.user.update({
         where: { id },
         data: updateData,
       });
-      const result = { ...user };
-      delete (result as any).password;
-      return result;
+      return this.mapUser(user);
     } catch (err) {
       throw new NotFoundException('User not found');
     }
