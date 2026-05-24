@@ -83,4 +83,46 @@ describe('RoutesService', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('findNearestCheckpoints', () => {
+    it('should find closest checkpoints across all routes', async () => {
+      const mockRoutes = [
+        {
+          id: 'route-1',
+          name: 'Heliopolis to Maadi',
+          checkpoints: [
+            {
+              name: 'Maadi Stop',
+              location: {
+                type: 'Point',
+                coordinates: [31.25, 29.96],
+              },
+            },
+          ],
+        },
+        {
+          id: 'route-2',
+          name: 'Dokki to Heliopolis',
+          checkpoints: [
+            {
+              name: 'Dokki Stop',
+              location: {
+                type: 'Point',
+                coordinates: [31.21, 30.04],
+              },
+            },
+          ],
+        },
+      ];
+
+      mockPrismaService.route.findMany = jest.fn().mockResolvedValue(mockRoutes);
+
+      const results = await service.findNearestCheckpoints(31.211, 30.041, 2);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].checkpoint.name).toBe('Dokki Stop');
+      expect(results[0].route.name).toBe('Dokki to Heliopolis');
+      expect(results[1].checkpoint.name).toBe('Maadi Stop');
+    });
+  });
 });

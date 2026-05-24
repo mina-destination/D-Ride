@@ -40,6 +40,20 @@ export class RoutesController {
     return { success: true, data: routes, timestamp: new Date().toISOString() };
   }
 
+  @Get('nearest')
+  async findNearest(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+    @Query('limit') limit?: string,
+  ) {
+    const results = await this.routesService.findNearestCheckpoints(
+      parseFloat(lng),
+      parseFloat(lat),
+      limit ? parseInt(limit, 10) : 5,
+    );
+    return { success: true, data: results, timestamp: new Date().toISOString() };
+  }
+
   @Get('smart-search')
   async smartSearch(
     @Query('pickupLat') pickupLat: string,

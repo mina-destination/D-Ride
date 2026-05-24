@@ -21,7 +21,6 @@ export default function WalletPage() {
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
   const [walletNumber, setWalletNumber] = useState('');
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [isTopupLoading, setIsTopupLoading] = useState(false);
 
   const fetchWallet = async () => {
@@ -45,7 +44,6 @@ export default function WalletPage() {
   const handleTopupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccessMsg('');
 
     const amount = parseFloat(topupAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -212,7 +210,7 @@ export default function WalletPage() {
 
               {/* Wallet phone number input */}
               {paymentMethod === 'WALLET' && (
-                <div className="form-group" style={{ marginBottom: '1.2rem' }} className="animate-fade-in">
+                <div className="form-group animate-fade-in" style={{ marginBottom: '1.2rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
                     {t('walletInputLabel')}
                   </label>

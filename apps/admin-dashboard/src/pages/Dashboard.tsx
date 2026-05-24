@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity } from 'lucide-react';
+import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity, Flame } from 'lucide-react';
+import { bookingsAPI } from '../services/api';
 
 const routePaths: Record<string, [number, number][]> = {
   '1': [
@@ -102,6 +103,49 @@ export default function DashboardPage() {
 
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
+
+  // OSRM street path and Heatmap states
+  const [selectedRoutePath, setSelectedRoutePath] = useState<[number, number][]>([]);
+  const [mapViewMode, setMapViewMode] = useState<'FLEET' | 'HEATMAP'>('FLEET');
+  const [bookings, setBookings] = useState<any[]>([]);
+
+  // Fetch bookings for demand heatmap
+  useEffect(() => {
+    bookingsAPI.getAll()
+      .then(data => setBookings(data))
+      .catch(console.error);
+  }, []);
+
+  // Fetch OSRM route curves for selected vehicle route
+  useEffect(() => {
+    if (!selectedBusId) {
+      setSelectedRoutePath([]);
+      return;
+    }
+    const points = routePaths[selectedBusId];
+    if (!points || points.length < 2) return;
+
+    const fetchRoute = async () => {
+      const coordsString = points
+        .map(p => `${p[1]},${p[0]}`) // Lng, Lat
+        .join(';');
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
+          setSelectedRoutePath(coords);
+        } else {
+          setSelectedRoutePath(points);
+        }
+      } catch (err) {
+        console.warn("OSRM routing failed on dashboard, falling back to static points:", err);
+        setSelectedRoutePath(points);
+      }
+    };
+    fetchRoute();
+  }, [selectedBusId]);
 
   // Simulate active GPS vehicle tracking telemetry
   useEffect(() => {
@@ -237,37 +281,137 @@ export default function DashboardPage() {
 
           {/* Map Container */}
           <div style={{ position: 'relative', height: '100%' }}>
+            {/* View Mode Toggle Controls Overlay */}
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              zIndex: 1000,
+              display: 'flex',
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              padding: '2px',
+              boxShadow: 'var(--shadow-md)',
+            }}>
+              <button
+                type="button"
+                onClick={() => setMapViewMode('FLEET')}
+                style={{
+                  background: mapViewMode === 'FLEET' ? 'var(--primary-color)' : 'transparent',
+                  color: mapViewMode === 'FLEET' ? 'black' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Activity size={12} />
+                Fleet Track
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapViewMode('HEATMAP')}
+                style={{
+                  background: mapViewMode === 'HEATMAP' ? 'var(--primary-color)' : 'transparent',
+                  color: mapViewMode === 'HEATMAP' ? 'black' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Flame size={12} />
+                Demand Heatmap
+              </button>
+            </div>
+
             <MapContainer center={[30.0444, 31.2357]} zoom={12} style={{ height: '100%', width: '100%' }}>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {fleet.map((bus) => (
-                <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={activeBusIcon}>
-                  <Popup>
-                    <div style={{ minWidth: '180px', padding: '0.25rem' }}>
-                      <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)', fontSize: '0.95rem' }}>
-                        Shuttle {bus.plate}
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
-                        <span><strong>Driver:</strong> {bus.driver}</span>
-                        <span><strong>Route:</strong> {bus.route}</span>
-                        <span><strong>Speed:</strong> {bus.speed} km/h</span>
-                        <span><strong>Occupancy:</strong> {bus.seats} booked</span>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-              {selectedBusId && routePaths[selectedBusId] && (
-                <Polyline
-                  positions={routePaths[selectedBusId]}
-                  color="var(--primary)"
-                  weight={4}
-                  opacity={0.85}
-                  dashArray="8, 8"
-                />
+
+              {/* FLEET VIEW */}
+              {mapViewMode === 'FLEET' && (
+                <>
+                  {fleet.map((bus) => (
+                    <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={activeBusIcon}>
+                      <Popup>
+                        <div style={{ minWidth: '180px', padding: '0.25rem' }}>
+                          <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)', fontSize: '0.95rem' }}>
+                            Shuttle {bus.plate}
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+                            <span><strong>Driver:</strong> {bus.driver}</span>
+                            <span><strong>Route:</strong> {bus.route}</span>
+                            <span><strong>Speed:</strong> {bus.speed} km/h</span>
+                            <span><strong>Occupancy:</strong> {bus.seats} booked</span>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  {selectedBusId && selectedRoutePath.length > 0 && (
+                    <Polyline
+                      positions={selectedRoutePath}
+                      color="var(--primary)"
+                      weight={4}
+                      opacity={0.85}
+                      dashArray="8, 8"
+                    />
+                  )}
+                </>
               )}
+
+              {/* DEMAND HEATMAP VIEW */}
+              {mapViewMode === 'HEATMAP' && (
+                <>
+                  {bookings
+                    .filter((b) => b.pickupCheckpoint)
+                    .map((booking, idx) => {
+                      const pickup = booking.pickupCheckpoint;
+                      const coords = pickup.location?.coordinates || pickup.coordinates;
+                      if (!coords || coords.length < 2) return null;
+                      return (
+                        <CircleMarker
+                          key={idx}
+                          center={[coords[1], coords[0]]}
+                          radius={18}
+                          pathOptions={{
+                            fillColor: '#ef4444',
+                            fillOpacity: 0.28,
+                            color: '#f59e0b',
+                            weight: 1,
+                            opacity: 0.6,
+                          }}
+                        >
+                          <Popup>
+                            <div style={{ padding: '0.15rem' }}>
+                              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', color: '#ef4444' }}>Demand Area Hotspot</h4>
+                              <div style={{ fontSize: '0.78rem' }}>
+                                <strong>Station:</strong> {pickup.name}<br />
+                                <strong>Fare:</strong> {booking.amountEGP} EGP<br />
+                                <strong>Status:</strong> {booking.status}
+                              </div>
+                            </div>
+                          </Popup>
+                        </CircleMarker>
+                      );
+                    })}
+                </>
+              )}
+
               {mapPanTo && <MapPanController panTo={mapPanTo} />}
             </MapContainer>
           </div>

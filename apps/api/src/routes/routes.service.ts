@@ -220,4 +220,38 @@ export class RoutesService {
 
     return results;
   }
+
+  async findNearestCheckpoints(
+    lng: number,
+    lat: number,
+    limit: number = 5,
+  ): Promise<any[]> {
+    this.logger.log(`Finding nearest checkpoints to [${lng}, ${lat}]`);
+    const routes = await this.prisma.route.findMany();
+    const candidates: any[] = [];
+
+    for (const route of routes) {
+      const checkpoints = (route.checkpoints as any[]) || [];
+      for (const cp of checkpoints) {
+        if (!cp.location?.coordinates) continue;
+        const [cpLng, cpLat] = cp.location.coordinates;
+        const distance = getDistance(lng, lat, cpLng, cpLat);
+        
+        candidates.push({
+          checkpoint: cp,
+          route: {
+            id: route.id,
+            _id: route.id,
+            name: route.name,
+          },
+          distanceMeters: Math.round(distance),
+        });
+      }
+    }
+
+    // Sort by distance ascending
+    candidates.sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    return candidates.slice(0, limit);
+  }
 }

@@ -294,7 +294,7 @@ export function CrmPage() {
     try {
       setIsReplying(true);
       const adminName = currentAdmin?.name || 'Administrator';
-      const adminId = currentAdmin?._id || currentAdmin?.id || 'admin';
+      const adminId = currentAdmin?._id || 'admin';
       
       socketRef.current.emit('sendMessage', {
         ticketId: selectedTicket._id,
