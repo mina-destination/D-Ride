@@ -43,4 +43,16 @@ export class SupportController {
   async replyToTicket(@Param('id') id: string, @Body() data: ReplyTicketDto) {
     return this.supportService.replyToTicket(id, data.text, data.adminName);
   }
+
+  @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
+  @Get('tickets/:id/messages')
+  async getMessages(@Param('id') id: string) {
+    return this.supportService.getTicketMessages(id);
+  }
+
+  @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
+  @Get('my-tickets')
+  async getMyTickets(@Request() req: any) {
+    return this.supportService.getUserTickets(req.user.sub);
+  }
 }

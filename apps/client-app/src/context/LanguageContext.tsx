@@ -14,6 +14,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     searchRides: 'Search Rides',
     myTrips: 'My Trips',
+    myWallet: 'My Wallet',
+    walletBalanceLabel: 'Prepaid Wallet Balance',
+    topUpBtn: 'Top Up Wallet',
+    transactionHistory: 'Transaction History',
     profile: 'Profile',
     logout: 'Logout',
     brandName: 'D-Ride',
@@ -99,6 +103,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     searchRides: 'البحث عن رحلات',
     myTrips: 'رحلاتي',
+    myWallet: 'محفظتي',
+    walletBalanceLabel: 'رصيد المحفظة مسبقة الدفع',
+    topUpBtn: 'شحن المحفظة',
+    transactionHistory: 'سجل المعاملات',
     profile: 'الملف الشخصي',
     logout: 'تسجيل الخروج',
     brandName: 'دي-رايد',

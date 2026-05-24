@@ -80,4 +80,19 @@ export class SupportService {
 
     return { ...updated, _id: updated.id, user: updated.userId };
   }
+
+  async getTicketMessages(ticketId: string): Promise<any[]> {
+    return this.prisma.chatMessage.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async getUserTickets(userId: string): Promise<any[]> {
+    const tickets = await this.prisma.supportTicket.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return tickets.map((t) => ({ ...t, _id: t.id, user: t.userId }));
+  }
 }

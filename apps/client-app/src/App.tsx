@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
+import SupportChatWidget from './components/SupportChatWidget';
 import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
@@ -13,6 +14,7 @@ import LiveTrackingPage from './pages/LiveTracking';
 import PaymentCallbackPage from './pages/PaymentCallback';
 import ContactPage from './pages/ContactPage';
 import RoutesPage from './pages/RoutesPage';
+import WalletPage from './pages/WalletPage';
 import './App.css';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +40,7 @@ function AppRoutes() {
   return (
     <>
       <Navbar />
+      <SupportChatWidget />
       <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/routes" element={<RoutesPage />} />
@@ -65,6 +68,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/wallet"
+        element={
+          <ProtectedRoute>
+            <WalletPage />
           </ProtectedRoute>
         }
       />

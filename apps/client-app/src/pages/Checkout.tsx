@@ -51,8 +51,9 @@ export default function CheckoutPage() {
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
 
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH'>('CARD');
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE'>('CARD');
   const [walletNumber, setWalletNumber] = useState<string>('');
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -66,6 +67,10 @@ export default function CheckoutPage() {
     bookingsAPI.getOccupiedSeats(tripId)
       .then(seats => setOccupiedSeats(seats))
       .catch(console.error);
+
+    paymobAPI.getWallet()
+      .then(data => setWalletBalance(data.walletBalance))
+      .catch(err => console.error("Failed to load wallet balance:", err));
   }, [tripId]);
 
   useEffect(() => {
@@ -798,7 +803,7 @@ export default function CheckoutPage() {
               <h4 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700 }}>
                 Payment Method 💳
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginBottom: '1.25rem' }}>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CARD')}
@@ -816,6 +821,20 @@ export default function CheckoutPage() {
                 >
                   <span style={{ fontSize: '1.2rem' }}>📱</span>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Mobile Wallet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('WALLET_BALANCE')}
+                  className={`payment-method-btn ${paymentMethod === 'WALLET_BALANCE' ? 'active' : ''}`}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>💰</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Prepaid Wallet</span>
+                  {walletBalance !== null && (
+                    <span style={{ fontSize: '0.62rem', color: 'var(--primary)' }}>
+                      ({walletBalance} EGP)
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -862,6 +881,25 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {paymentMethod === 'WALLET_BALANCE' && (
+                <div style={{
+                  marginBottom: '1.25rem',
+                  background: 'rgba(16,185,129,0.05)',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)'
+                }}>
+                  💰 <strong>D-Ride Prepaid Wallet</strong>: Deducts <strong>{trip.priceEGP * selectedSeats.length} EGP</strong> instantly from your wallet balance. Booking confirmation is instantaneous.
+                  {walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length && (
+                    <div style={{ color: 'var(--error)', marginTop: '8px', fontWeight: 'bold' }}>
+                      ⚠️ Insufficient Balance! Please top up your wallet or choose another payment method.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {paymentMethod === 'CASH' && (
                 <div style={{
                   marginBottom: '1.25rem',
@@ -887,14 +925,20 @@ export default function CheckoutPage() {
             <button 
               onClick={handleCheckout} 
               className="auth-button" 
-              disabled={processing || selectedSeats.length === 0}
+              disabled={
+                processing || 
+                selectedSeats.length === 0 || 
+                (paymentMethod === 'WALLET_BALANCE' && walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length)
+              }
               style={{ marginTop: '2rem' }}
             >
               {processing 
                 ? 'Processing Securely...' 
                 : paymentMethod === 'CASH' 
                   ? 'Confirm Booking (Cash)' 
-                  : `Pay ${trip.priceEGP * selectedSeats.length} EGP via Paymob`
+                  : paymentMethod === 'WALLET_BALANCE'
+                    ? 'Pay with Wallet Balance'
+                    : `Pay ${trip.priceEGP * selectedSeats.length} EGP via Paymob`
               }
             </button>
             <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>

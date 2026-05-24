@@ -86,10 +86,17 @@ export const paymobAPI = {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'CASH';
+    paymentMethod?: 'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE';
     walletNumber?: string;
   }): Promise<any> =>
     api.post('/paymob/checkout', data),
+  getWallet: (): Promise<any> => api.get('/paymob/wallet'),
+  initializeWalletTopup: (data: {
+    amountEGP: number;
+    paymentMethod?: 'CARD' | 'WALLET';
+    walletNumber?: string;
+  }): Promise<any> =>
+    api.post('/paymob/wallet/topup', data),
 };
 
 export const bookingsAPI = {
@@ -102,4 +109,6 @@ export const bookingsAPI = {
 export const supportAPI = {
   submitTicket: (data: { subject: string; message: string }): Promise<any> =>
     api.post('/support/submit', data),
+  getMyTickets: (): Promise<any> => api.get('/support/my-tickets'),
+  getTicketMessages: (ticketId: string): Promise<any> => api.get(`/support/tickets/${ticketId}/messages`),
 };
