@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
@@ -32,6 +32,7 @@ export default function LiveDrivePage() {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [streetPath, setStreetPath] = useState<[number, number][]>([]);
   
   // Streaming status
   const [isStreaming, setIsStreaming] = useState(false);
@@ -61,6 +62,40 @@ export default function LiveDrivePage() {
     };
     fetchTrip();
   }, [id]);
+
+  // Load OSM Turn-by-Turn Street-level coordinates from OSRM
+  useEffect(() => {
+    if (!trip || !trip.routeId?.checkpoints) return;
+    const checkpoints = trip.routeId.checkpoints;
+    if (checkpoints.length < 2) return;
+
+    const loadStreetRoute = async () => {
+      const coordsString = checkpoints
+        .map((cp: any) => {
+          const coords = cp.location?.coordinates || cp.coordinates;
+          return `${coords[0]},${coords[1]}`;
+        })
+        .join(';');
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
+          setStreetPath(coords);
+        } else {
+          throw new Error('No routes returned');
+        }
+      } catch (err) {
+        console.warn("Failed to fetch OSRM street route, falling back to static coords:", err);
+        // Fallback to route path coordinates
+        if (trip.routeId.path?.coordinates) {
+          setStreetPath(trip.routeId.path.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]));
+        }
+      }
+    };
+    loadStreetRoute();
+  }, [trip]);
 
   const stopLocationStream = () => {
     if (geoWatchId.current !== null) {
@@ -140,19 +175,21 @@ export default function LiveDrivePage() {
     let lng = initLng;
     let step = 0;
 
-    // Standard simulated delta movement
-    const mockRoutePath = trip?.routeId?.path?.coordinates || [
-      [31.2357, 30.0444],
-      [31.2320, 30.0455],
-      [31.2290, 30.0470],
-      [31.2250, 30.0490],
-      [31.2210, 30.0520],
-      [31.2170, 30.0560],
-      [31.2140, 30.0600],
-      [31.2160, 30.0640],
-      [31.2210, 30.0660],
-      [31.2250, 30.0630],
-    ];
+    // Use OSM streetPath coordinates if fetched successfully, otherwise fallback
+    const mockRoutePath = streetPath.length > 0
+      ? streetPath.map(c => [c[1], c[0]])
+      : (trip?.routeId?.path?.coordinates || [
+          [31.2357, 30.0444],
+          [31.2320, 30.0455],
+          [31.2290, 30.0470],
+          [31.2250, 30.0490],
+          [31.2210, 30.0520],
+          [31.2170, 30.0560],
+          [31.2140, 30.0600],
+          [31.2160, 30.0640],
+          [31.2210, 30.0660],
+          [31.2250, 30.0630],
+        ]);
 
     mockIntervalId.current = setInterval(() => {
       const nextCoord = mockRoutePath[step % mockRoutePath.length];
@@ -255,6 +292,9 @@ export default function LiveDrivePage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {streetPath.length > 0 && (
+            <Polyline positions={streetPath} color="#f5b731" weight={5} opacity={0.8} />
+          )}
           {currentCoords && (
             <Marker position={[currentCoords.lat, currentCoords.lng]} icon={driverBusIcon} />
           )}

@@ -126,4 +126,5 @@ export const supportAPI = {
   resolveTicket: (id: string): Promise<any> => api.put(`/support/tickets/${id}/resolve`),
   replyToTicket: (id: string, text: string, adminName: string): Promise<any> =>
     api.post(`/support/tickets/${id}/reply`, { text, adminName }),
+  getTicketMessages: (id: string): Promise<any> => api.get(`/support/tickets/${id}/messages`),
 };

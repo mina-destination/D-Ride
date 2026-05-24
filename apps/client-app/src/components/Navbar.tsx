@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe } from 'lucide-react';
+import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Wallet } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useState, useEffect, useRef } from 'react';
 
@@ -130,6 +130,18 @@ export default function Navbar() {
                     className="profile-menu-item"
                   >
                     <MapPin size={16} /> {t('myTrips')}
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    to="/wallet" 
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsOpen(false);
+                    }}
+                    className="profile-menu-item"
+                  >
+                    <Wallet size={16} /> {t('myWallet')}
                   </Link>
                 </li>
                 <li>

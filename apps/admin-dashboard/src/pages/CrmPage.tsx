@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Table, Button, Drawer, Space, Tag, Input, Select, message, Popconfirm, Form, Timeline, Card, Avatar, Divider, Alert, Tabs } from 'antd';
 import { useAuth } from '../context/AuthContext';
 import { usersAPI, bookingsAPI, supportAPI } from '../services/api';
@@ -8,6 +8,7 @@ import {
   Trash2, UserCheck, Inbox, CheckCircle2, Download
 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
+import { io, Socket } from 'socket.io-client';
 
 export function CrmPage() {
   const { user: currentAdmin } = useAuth();
@@ -19,6 +20,10 @@ export function CrmPage() {
   const [loading, setLoading] = useState(false);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
+
+  // WebSocket support chat states
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const socketRef = useRef<Socket | null>(null);
   
   // Filtering States for Users
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,30 +240,77 @@ export function CrmPage() {
   };
 
   // Ticket Actions
-  const handleOpenTicketDrawer = (ticket: any) => {
-    const freshTicket = tickets.find(t => t._id === ticket._id);
-    setSelectedTicket(freshTicket || ticket);
+  const handleOpenTicketDrawer = async (ticket: any) => {
+    setSelectedTicket(ticket);
     setIsTicketDrawerOpen(true);
+    setChatMessages([]);
+
+    // 1. Fetch historical messages
+    try {
+      const msgs = await supportAPI.getTicketMessages(ticket._id);
+      setChatMessages(msgs);
+    } catch (err) {
+      console.error('Failed to load support ticket chat history:', err);
+    }
+
+    // 2. Setup WebSocket connection
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const socketUrl = apiUrl.replace('/api', '');
+    const token = localStorage.getItem('dride_token');
+
+    const socket = io(`${socketUrl}/support`, {
+      transports: ['websocket'],
+      auth: { token },
+    });
+
+    socket.on('connect', () => {
+      console.log('Admin connected to Support WebSocket space');
+      socket.emit('joinTicket', ticket._id);
+    });
+
+    socket.on('newMessage', (msg: any) => {
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id || m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+    });
+
+    socketRef.current = socket;
   };
 
   const handleCloseTicketDrawer = () => {
     setIsTicketDrawerOpen(false);
     setSelectedTicket(null);
+    setChatMessages([]);
     replyForm.resetFields();
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
   };
 
   const handleReplyToTicket = async (values: { text: string }) => {
-    if (!selectedTicket) return;
+    if (!selectedTicket || !socketRef.current) return;
     try {
       setIsReplying(true);
       const adminName = currentAdmin?.name || 'Administrator';
-      const updatedTicket = await supportAPI.replyToTicket(selectedTicket._id, values.text, adminName);
+      const adminId = currentAdmin?._id || currentAdmin?.id || 'admin';
       
-      setTickets((prev: any[]) => prev.map(t => t._id === selectedTicket._id ? updatedTicket : t));
-      setSelectedTicket(updatedTicket);
+      socketRef.current.emit('sendMessage', {
+        ticketId: selectedTicket._id,
+        senderId: adminId,
+        senderRole: 'ADMIN',
+        senderName: adminName,
+        message: values.text
+      });
+
+      // Update local ticket status in UI
+      setTickets((prev) =>
+        prev.map((t) => (t._id === selectedTicket._id ? { ...t, status: 'OPEN' } : t))
+      );
       
-      message.success('Reply submitted and ticket reopened/kept open');
       replyForm.resetFields();
+      message.success('Reply broadcasted in real-time');
     } catch (error) {
       message.error('Failed to send reply');
     } finally {
@@ -1072,24 +1124,31 @@ export function CrmPage() {
               </div>
 
               {/* Reply Timeline */}
-              {selectedTicket.replies && selectedTicket.replies.length > 0 ? (
-                <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '6px' }}>
-                  <Timeline mode="left">
-                    {selectedTicket.replies.map((reply: any, idx: number) => (
-                      <Timeline.Item 
-                        key={idx} 
-                        dot={<MessageSquare size={12} style={{ color: 'var(--primary-color)' }} />}
+              {chatMessages && chatMessages.length > 0 ? (
+                <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {chatMessages.map((msg: any, idx: number) => {
+                    const isAdmin = msg.senderRole === 'ADMIN';
+                    return (
+                      <div 
+                        key={idx}
+                        style={{
+                          alignSelf: isAdmin ? 'flex-end' : 'flex-start',
+                          maxWidth: '85%',
+                          background: isAdmin ? 'rgba(245, 158, 11, 0.08)' : 'var(--background)',
+                          border: isAdmin ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid var(--border)',
+                          padding: '10px 12px',
+                          borderRadius: isAdmin ? '8px 8px 0 8px' : '8px 8px 8px 0',
+                          width: 'fit-content'
+                        }}
                       >
-                        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '6px' }}>
-                          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{reply.text}</p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                            <span>Replied by: <strong>{reply.adminName}</strong></span>
-                            <span>{new Date(reply.createdAt).toLocaleString()}</span>
-                          </div>
+                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'center', marginTop: '4px', fontSize: '10px', color: 'var(--text-muted)' }}>
+                          <span><strong>{msg.senderName}</strong> ({msg.senderRole})</span>
+                          <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                      </Timeline.Item>
-                    ))}
-                  </Timeline>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div style={{ 

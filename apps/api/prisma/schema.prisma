@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id           String          @id @default(uuid())
-  name         String
-  email        String          @unique
-  phone        String
-  password     String
-  role         Role            @default(PASSENGER)
-  avatarUrl    String?
-  isActive     Boolean         @default(true)
-  crmNotes     Json            @default("[]")
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  bookings     Booking[]
-  tickets      SupportTicket[]
-  transactions Transaction[]
-  trips        Trip[]          @relation("DriverTrips")
-  vehicles     Vehicle[]
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  phone         String
+  password      String
+  role          Role            @default(PASSENGER)
+  avatarUrl     String?
+  isActive      Boolean         @default(true)
+  crmNotes      Json            @default("[]")
+  walletBalance Float           @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bookings      Booking[]
+  tickets       SupportTicket[]
+  transactions  Transaction[]
+  trips         Trip[]          @relation("DriverTrips")
+  vehicles      Vehicle[]
 
   @@map("users")
 }
@@ -205,3 +206,16 @@ enum StopType {
   CHECKPOINT
   END
 }
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  ticketId   String
+  senderId   String
+  senderRole String
+  senderName String
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@map("chat_messages")
+}
+

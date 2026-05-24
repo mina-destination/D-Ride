@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
   Logger,
   Inject,
   forwardRef,
@@ -71,10 +72,52 @@ export class PaymobService {
       );
     }
 
-    const orderId = payload.obj.order.id;
+        const orderId = payload.obj.order.id;
     const amountCents = payload.obj.amount_cents;
     const success = payload.obj.success;
     const bookingId = (payload.obj.order as any).merchant_order_id; // we passed bookingId here
+
+    // Intercept Wallet Topup Webhook
+    if (bookingId && bookingId.startsWith('wallet_')) {
+      const parts = bookingId.split('_');
+      const userId = parts[1]; // wallet_userId_timestamp
+
+      const existingTx = await this.prisma.transaction.findFirst({
+        where: { paymobOrderId: orderId },
+      });
+      if (existingTx) {
+        this.logger.warn(
+          `Wallet topup transaction already processed for order: ${orderId}. Skipping.`,
+        );
+        return;
+      }
+
+      await this.prisma.transaction.create({
+        data: {
+          paymobOrderId: orderId,
+          amountEGP: amountCents / 100,
+          status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
+          paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+          paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
+          userId: userId,
+          bookingId: null,
+          rawResponse: payload as any,
+        },
+      });
+
+      if (success) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            walletBalance: { increment: amountCents / 100 },
+          },
+        });
+        this.logger.log(
+          `User ${userId} wallet topped up with ${amountCents / 100} EGP successfully.`,
+        );
+      }
+      return;
+    }
 
     // Step 2: Idempotency lock — prevent race conditions and double-charging
     const existingTx = await this.prisma.transaction.findFirst({
@@ -131,7 +174,7 @@ export class PaymobService {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'CASH';
+    paymentMethod?: 'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE';
     walletNumber?: string;
   }): Promise<{
     paymentKey: string;
@@ -149,6 +192,61 @@ export class PaymobService {
       where: { id: data.bookingId },
     });
     const userId = booking ? booking.userId : '';
+
+    // Handle Direct Wallet Balance Payment
+    if (paymentMethod === 'WALLET_BALANCE') {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new BadRequestException('User not found');
+
+      const amountEGP = data.amountCents / 100;
+      if (user.walletBalance < amountEGP) {
+        throw new BadRequestException('Insufficient wallet balance');
+      }
+
+      // Deduct atomically inside a prisma transaction
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { walletBalance: { decrement: amountEGP } },
+        }),
+        this.prisma.booking.update({
+          where: { id: data.bookingId },
+          data: {
+            status: 'CONFIRMED',
+            paymentStatus: 'SUCCESS',
+          },
+        }),
+        this.prisma.transaction.create({
+          data: {
+            paymobOrderId: Math.floor(Math.random() * 1000000),
+            amountEGP: amountEGP,
+            status: PaymentStatus.SUCCESS,
+            paymentMethod: 'WALLET_BALANCE',
+            userId: userId,
+            bookingId: data.bookingId,
+          },
+        }),
+      ]);
+
+      this.logger.log(
+        `Wallet payment successful. Deducted ${amountEGP} EGP from user ${userId} for booking ${data.bookingId}`,
+      );
+
+      // Trigger notifications and other side effects asynchronously
+      try {
+        await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
+      } catch (err) {
+        this.logger.error('Failed to update booking status for notifications', err);
+      }
+
+      return {
+        paymentKey: 'wallet_balance',
+        iframeUrl: `/payment/callback?success=true&method=wallet_balance`,
+        orderId: 0,
+      };
+    }
 
     // Handle Cash on Board Directly
     if (paymentMethod === 'CASH') {
@@ -385,5 +483,205 @@ export class PaymobService {
       .digest('hex');
 
     return calculatedHmac === hmacHeader;
+  }
+
+  /**
+   * Initialize a Paymob topup for user's wallet.
+   */
+  public async initializeWalletTopup(data: {
+    userId: string;
+    amountEGP: number;
+    paymentMethod?: 'CARD' | 'WALLET';
+    walletNumber?: string;
+  }): Promise<{
+    paymentKey: string;
+    iframeUrl: string;
+    orderId: number;
+    redirectUrl?: string;
+  }> {
+    const paymentMethod = data.paymentMethod || 'CARD';
+    const amountCents = Math.round(data.amountEGP * 100);
+    const merchantOrderId = `wallet_${data.userId}_${Date.now()}`;
+
+    this.logger.log(
+      `Initializing wallet topup for user: ${data.userId} of amount EGP: ${data.amountEGP} using method: ${paymentMethod}`,
+    );
+
+    const isProduction =
+      this.configService.get<string>('nodeEnv') === 'production';
+
+    if (!this.apiKey) {
+      // Sandbox / Mock Mode
+      this.logger.warn(
+        `No Paymob API Key found. Using Mock ${paymentMethod} Wallet Topup Flow.`,
+      );
+
+      const mockOrderId = Math.floor(Math.random() * 1000000);
+      const mockPaymentKey = `pk_test_${Date.now()}`;
+
+      // Simulate webhook event asynchronously
+      setTimeout(() => {
+        this.processWebhook(
+          {
+            obj: {
+              order: { id: mockOrderId, merchant_order_id: merchantOrderId },
+              amount_cents: amountCents,
+              success: true,
+            } as any,
+          } as any,
+          '',
+        ).catch(console.error);
+      }, 1000);
+
+      const callbackUrl =
+        paymentMethod === 'WALLET'
+          ? `/payment/callback?success=true&order=${mockOrderId}&method=wallet&wallet=${data.walletNumber || '01000000000'}&type=wallet_topup`
+          : `/payment/callback?success=true&order=${mockOrderId}&method=card&type=wallet_topup`;
+
+      return {
+        paymentKey: mockPaymentKey,
+        iframeUrl: callbackUrl,
+        orderId: mockOrderId,
+        redirectUrl: callbackUrl,
+      };
+    }
+
+    try {
+      // 1. Authenticate
+      const authRes = await axios.post(
+        'https://accept.paymob.com/api/auth/tokens',
+        { api_key: this.apiKey },
+      );
+      const token = authRes.data.token;
+
+      // 2. Register Order
+      const orderRes = await axios.post(
+        'https://accept.paymob.com/api/ecommerce/orders',
+        {
+          auth_token: token,
+          delivery_needed: 'false',
+          amount_cents: amountCents,
+          currency: 'EGP',
+          merchant_order_id: merchantOrderId,
+          items: [],
+        },
+      );
+      const orderId = orderRes.data.id;
+
+      // Select proper integration ID based on method
+      const integrationId =
+        paymentMethod === 'WALLET'
+          ? this.walletIntegrationId || this.integrationId
+          : this.integrationId;
+
+      // 3. Request Payment Key
+      const keyRes = await axios.post(
+        'https://accept.paymob.com/api/acceptance/payment_keys',
+        {
+          auth_token: token,
+          amount_cents: amountCents,
+          expiration: 3600,
+          order_id: orderId,
+          billing_data: {
+            apartment: 'NA',
+            email: 'passenger@dride.com',
+            floor: 'NA',
+            first_name: 'Passenger',
+            street: 'NA',
+            building: 'NA',
+            phone_number: data.walletNumber || '+201000000000',
+            shipping_method: 'NA',
+            postal_code: 'NA',
+            city: 'Cairo',
+            country: 'EG',
+            last_name: 'User',
+            state: 'NA',
+          },
+          currency: 'EGP',
+          integration_id: integrationId,
+          lock_order_when_paid: 'false',
+        },
+      );
+
+      const paymentKey = keyRes.data.token;
+
+      if (paymentMethod === 'WALLET') {
+        const walletPayRes = await axios.post(
+          'https://accept.paymob.com/api/acceptance/payments/pay',
+          {
+            source: {
+              identifier: data.walletNumber || '01000000000',
+              subtype: 'WALLET',
+            },
+            payment_token: paymentKey,
+          },
+        );
+        const redirectUrl =
+          walletPayRes.data.iframe_redirection_url ||
+          walletPayRes.data.redirect_url;
+
+        return {
+          paymentKey,
+          iframeUrl: redirectUrl,
+          orderId,
+          redirectUrl,
+        };
+      }
+
+      return {
+        paymentKey,
+        iframeUrl: `https://accept.paymob.com/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
+        orderId,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to initialize Paymob wallet topup`, error);
+      throw new BadRequestException('Wallet topup payment initialization failed');
+    }
+  }
+
+  /**
+   * Fetch current user's wallet balance and ledger transaction list.
+   */
+  public async getUserWallet(userId: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { walletBalance: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        booking: {
+          include: {
+            trip: {
+              include: {
+                route: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      walletBalance: user.walletBalance,
+      transactions: transactions.map((tx) => ({
+        id: tx.id,
+        amountEGP: tx.amountEGP,
+        status: tx.status,
+        paymentMethod: tx.paymentMethod,
+        createdAt: tx.createdAt,
+        booking: tx.booking
+          ? {
+              id: tx.booking.id,
+              routeName:
+                tx.booking.trip?.route?.name || 'D-Ride Booking Deduction',
+              seats: tx.booking.seatNumbers,
+            }
+          : null,
+      })),
+    };
   }
 }
