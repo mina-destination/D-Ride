@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X } from 'lucide-react';
 
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -30,6 +30,15 @@ function RouteMapAutopan({ path }: { path: [number, number][] }) {
   return null;
 }
 
+function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
+  useMapEvents({
+    click(e) {
+      onClick(e.latlng);
+    },
+  });
+  return null;
+}
+
 function RouteSearchForm() {
   const { isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
@@ -50,6 +59,74 @@ function RouteSearchForm() {
   const [shakeFields, setShakeFields] = useState(false);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState<boolean>(false);
+
+  // Map modal states
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [mapPickerCoords, setMapPickerCoords] = useState<[number, number] | null>(null);
+  const [nearestStationFromMap, setNearestStationFromMap] = useState<any>(null);
+  const [mapLoading, setMapLoading] = useState(false);
+
+  const fetchNearestStationForCoords = async (coords: [number, number]) => {
+    try {
+      setMapLoading(true);
+      const results = await routesAPI.getNearestStation(coords[0], coords[1], 1);
+      if (results && results.length > 0) {
+        setNearestStationFromMap(results[0]);
+      } else {
+        setNearestStationFromMap(null);
+      }
+    } catch (err) {
+      console.error('Failed to get nearest station', err);
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  const handleOpenMapPicker = async () => {
+    setIsMapModalOpen(true);
+    let initialCoords: [number, number] = [30.0444, 31.2357];
+    if (fromStation && fromStation.lat && fromStation.lng) {
+      initialCoords = [fromStation.lat, fromStation.lng];
+    }
+    setMapPickerCoords(initialCoords);
+    await fetchNearestStationForCoords(initialCoords);
+  };
+
+  const handleMapClick = async (latlng: any) => {
+    const coords: [number, number] = [latlng.lat, latlng.lng];
+    setMapPickerCoords(coords);
+    await fetchNearestStationForCoords(coords);
+  };
+
+  const handleMarkerDragEnd = async (e: any) => {
+    const marker = e.target;
+    if (marker != null) {
+      const latLng = marker.getLatLng();
+      const coords: [number, number] = [latLng.lat, latLng.lng];
+      setMapPickerCoords(coords);
+      await fetchNearestStationForCoords(coords);
+    }
+  };
+
+  const handleConfirmMapSelection = () => {
+    if (nearestStationFromMap) {
+      const cp = nearestStationFromMap.checkpoint;
+      const routeName = nearestStationFromMap.route.name;
+      const parts = routeName.split(/\s+to\s+/i);
+      const fromC = parts.length >= 1 ? parts[0].trim() : '';
+      const city = fromC.charAt(0).toUpperCase() + fromC.slice(1);
+      
+      setFromCity(city);
+      setFromStation({
+        name: cp.name,
+        nameAr: cp.nameAr,
+        lat: cp.location.coordinates[1],
+        lng: cp.location.coordinates[0],
+        routeId: nearestStationFromMap.route.id
+      });
+      setIsMapModalOpen(false);
+    }
+  };
 
   // Load all routes to extract cities and stations
   useEffect(() => {
@@ -290,42 +367,75 @@ function RouteSearchForm() {
     <>
       <div className="from-to-container">
         {/* DETECT LOCATION ACTION */}
-        <button
-          type="button"
-          onClick={handleDetectLocation}
-          disabled={locationLoading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            width: '100%',
-            padding: '10px 14px',
-            background: locationLoading ? 'rgba(245, 183, 49, 0.05)' : 'rgba(245, 183, 49, 0.1)',
-            border: '1px dashed var(--primary)',
-            borderRadius: '8px',
-            color: 'var(--primary)',
-            fontSize: '0.82rem',
-            fontWeight: 'bold',
-            cursor: locationLoading ? 'not-allowed' : 'pointer',
-            marginBottom: locationNotice ? '0.5rem' : '1rem',
-            transition: 'all 0.2s',
-            opacity: locationLoading ? 0.7 : 1
-          }}
-          onMouseEnter={(e) => {
-            if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
-          }}
-          onMouseLeave={(e) => {
-            if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
-          }}
-        >
-          {locationLoading ? (
-            <div className="btn-loading-spinner" />
-          ) : (
-            <MapPin size={14} />
-          )}
-          {isRtl ? 'تحديد أقرب محطة' : 'Detect Nearest Station'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: locationNotice ? '0.5rem' : '1rem' }}>
+          {/* DETECT LOCATION ACTION */}
+          <button
+            type="button"
+            onClick={handleDetectLocation}
+            disabled={locationLoading}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              background: locationLoading ? 'rgba(245, 183, 49, 0.05)' : 'rgba(245, 183, 49, 0.1)',
+              border: '1px dashed var(--primary)',
+              borderRadius: '8px',
+              color: 'var(--primary)',
+              fontSize: '0.82rem',
+              fontWeight: 'bold',
+              cursor: locationLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              opacity: locationLoading ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
+            }}
+            onMouseLeave={(e) => {
+              if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
+            }}
+          >
+            {locationLoading ? (
+              <div className="btn-loading-spinner" />
+            ) : (
+              <MapPin size={14} />
+            )}
+            {isRtl ? 'تحديد أقرب محطة' : 'Detect Station'}
+          </button>
+
+          {/* SELECT ON MAP ACTION */}
+          <button
+            type="button"
+            onClick={handleOpenMapPicker}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              background: 'rgba(245, 183, 49, 0.1)',
+              border: '1px solid var(--primary)',
+              borderRadius: '8px',
+              color: 'var(--primary)',
+              fontSize: '0.82rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
+            }}
+          >
+            <Map size={14} />
+            {isRtl ? 'اختر على الخريطة' : 'Select on Map'}
+          </button>
+        </div>
 
         {/* GPS inline status banner */}
         {locationNotice && (
@@ -668,6 +778,95 @@ function RouteSearchForm() {
           Or browse all routes manually →
         </Link>
       </div>
+
+      {isMapModalOpen && mapPickerCoords && (
+        <div className="map-picker-overlay" onClick={() => setIsMapModalOpen(false)}>
+          <div className="map-picker-content" onClick={(e) => e.stopPropagation()}>
+            <div className="map-picker-header">
+              <h3 className="map-picker-title">
+                {isRtl ? 'اختر موقع الركوب على الخريطة' : 'Select Pickup Location on Map'}
+              </h3>
+              <button className="map-picker-close" onClick={() => setIsMapModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="map-picker-container">
+              <MapContainer
+                center={mapPickerCoords}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                
+                <Marker 
+                  position={mapPickerCoords}
+                  draggable={true}
+                  eventHandlers={{
+                    dragend: handleMarkerDragEnd
+                  }}
+                >
+                  <Popup>
+                    {isRtl ? 'اسحب الدبوس لتحديد موقع الركوب' : 'Drag this pin to your pickup point'}
+                  </Popup>
+                </Marker>
+
+                <MapClickHandler onClick={handleMapClick} />
+              </MapContainer>
+            </div>
+
+            {nearestStationFromMap ? (
+              <div className="map-picker-info">
+                <span className="map-picker-info-label">
+                  {isRtl ? 'أقرب محطة ركوب مطابقة' : 'Nearest Matched Station'}
+                </span>
+                <span className="map-picker-info-value">
+                  {isRtl 
+                    ? (nearestStationFromMap.checkpoint.nameAr || nearestStationFromMap.checkpoint.name)
+                    : nearestStationFromMap.checkpoint.name
+                  } 
+                  <span style={{ opacity: 0.6, fontSize: '0.8em', marginLeft: '6px' }}>
+                    ({isRtl ? 'على بعد' : ''} {nearestStationFromMap.distanceMeters} {isRtl ? 'متر' : 'meters away'})
+                  </span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {isRtl ? 'الخط' : 'Route'}: {nearestStationFromMap.route.name}
+                </span>
+              </div>
+            ) : (
+              <div className="map-picker-info" style={{ borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                <span className="map-picker-info-value" style={{ color: '#ef4444' }}>
+                  {isRtl ? '⚠️ لا توجد محطات قريبة في النطاق' : '⚠️ No stations found nearby.'}
+                </span>
+              </div>
+            )}
+
+            <div className="map-picker-actions">
+              <button 
+                className="map-picker-btn-cancel" 
+                onClick={() => setIsMapModalOpen(false)}
+              >
+                {isRtl ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button 
+                className="map-picker-btn-confirm" 
+                onClick={handleConfirmMapSelection}
+                disabled={!nearestStationFromMap || mapLoading}
+              >
+                {mapLoading ? (
+                  <div className="btn-loading-spinner" />
+                ) : (
+                  <MapPin size={16} />
+                )}
+                {isRtl ? 'تأكيد محطة الركوب' : 'Confirm Pickup Station'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

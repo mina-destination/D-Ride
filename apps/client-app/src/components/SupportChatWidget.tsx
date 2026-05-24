@@ -7,8 +7,6 @@ import {
   MessageSquare, 
   X, 
   Send, 
-  CornerDownLeft, 
-  User, 
   LifeBuoy, 
   Ticket,
   ChevronLeft,
@@ -18,7 +16,7 @@ import {
 
 export default function SupportChatWidget() {
   const { isAuthenticated, user } = useAuth();
-  const { t, isRtl } = useTranslation();
+  const { isRtl } = useTranslation();
   
   const [isOpen, setIsOpen] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -137,7 +135,7 @@ export default function SupportChatWidget() {
 
     socketRef.current.emit('sendMessage', {
       ticketId: activeTicket._id,
-      senderId: user._id || user.id,
+      senderId: user._id || (user as any).id || '',
       senderRole: user.role || 'PASSENGER',
       senderName: user.name,
       message: inputText.trim(),
@@ -330,7 +328,7 @@ export default function SupportChatWidget() {
                       </div>
                     ) : (
                       messages.map((msg, idx) => {
-                        const isMe = msg.senderId === user._id || msg.senderId === user.id;
+                        const isMe = msg.senderId === (user as any)?._id || msg.senderId === (user as any)?.id;
                         return (
                           <div 
                             key={idx}

@@ -72,6 +72,8 @@ export const routesAPI = {
     api.get('/routes/nearby', { params: { lat, lng, maxDistance } }),
   getNearestCheckpoint: (routeId: string, lat: number, lng: number): Promise<any> =>
     api.get(`/routes/${routeId}/nearest-checkpoint`, { params: { lat, lng } }),
+  getNearestStation: (lat: number, lng: number, limit?: number): Promise<any> =>
+    api.get('/routes/nearest', { params: { lat, lng, limit } }),
   smartSearch: (pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number, radius?: number): Promise<any> =>
     api.get('/routes/smart-search', { params: { pickupLat, pickupLng, dropoffLat, dropoffLng, radius } }),
 };
