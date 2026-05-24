@@ -9,7 +9,15 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, Inject, forwardRef, CanActivate, ExecutionContext, Injectable, UseGuards } from '@nestjs/common';
+import {
+  Logger,
+  Inject,
+  forwardRef,
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UseGuards,
+} from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -62,9 +70,11 @@ export class VehiclesGateway
     private readonly prisma: PrismaService,
   ) {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    this.redisClient = createClient({ url: redisUrl }) as RedisClientType;
+    this.redisClient = createClient({ url: redisUrl });
     this.redisClient.connect().catch((err) => {
-      this.logger.error(`VehiclesGateway failed to connect to Redis: ${err.message}`);
+      this.logger.error(
+        `VehiclesGateway failed to connect to Redis: ${err.message}`,
+      );
     });
   }
 
@@ -98,7 +108,9 @@ export class VehiclesGateway
   }
 
   handleConnection(client: any) {
-    this.logger.log(`Client connected: ${client.id} (User: ${client.user?.id})`);
+    this.logger.log(
+      `Client connected: ${client.id} (User: ${client.user?.id})`,
+    );
   }
 
   async handleDisconnect(client: any) {
@@ -106,19 +118,24 @@ export class VehiclesGateway
       const key = `d-ride:active-driver:${client.id}`;
       const driverDataStr = await this.redisClient.get(key);
       if (driverDataStr) {
-        const driverData = JSON.parse(driverDataStr) as { vehicleId: string; driverId: string };
+        const driverData = JSON.parse(driverDataStr) as {
+          vehicleId: string;
+          driverId: string;
+        };
         this.logger.warn(
           `Driver disconnected unexpectedly: socketId=${client.id}, driverId=${driverData.driverId}, vehicleId=${driverData.vehicleId}`,
         );
         client.leave(`vehicle_${driverData.vehicleId}`);
         await this.redisClient.del(key);
-        
+
         await this.vehiclesService.markVehicleOffline(driverData.vehicleId);
       } else {
         this.logger.log(`Client disconnected: ${client.id}`);
       }
     } catch (err: any) {
-      this.logger.error(`Error handling disconnect for client ${client.id}: ${err.message}`);
+      this.logger.error(
+        `Error handling disconnect for client ${client.id}: ${err.message}`,
+      );
     }
   }
 
@@ -129,8 +146,13 @@ export class VehiclesGateway
   ) {
     const user = client.user;
     if (!user) {
-      this.logger.error(`Unauthorized connection for subscribeToVehicle. Socket ID: ${client.id}`);
-      return { event: 'subscribed', data: { success: false, error: 'Unauthorized' } };
+      this.logger.error(
+        `Unauthorized connection for subscribeToVehicle. Socket ID: ${client.id}`,
+      );
+      return {
+        event: 'subscribed',
+        data: { success: false, error: 'Unauthorized' },
+      };
     }
 
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
@@ -152,16 +174,27 @@ export class VehiclesGateway
         this.logger.warn(
           `Access Denied: Passenger user ${user.id} attempted to subscribe to vehicle ${vehicleId} telemetry without a confirmed/boarded booking`,
         );
-        return { event: 'subscribed', data: { success: false, error: 'Access Denied: No active booking for this vehicle' } };
+        return {
+          event: 'subscribed',
+          data: {
+            success: false,
+            error: 'Access Denied: No active booking for this vehicle',
+          },
+        };
       }
     } else if (!isAdmin && user.role !== 'DRIVER') {
       this.logger.warn(
         `Access Denied: User ${user.id} with role ${user.role} attempted to subscribe to vehicle ${vehicleId} telemetry`,
       );
-      return { event: 'subscribed', data: { success: false, error: 'Access Denied' } };
+      return {
+        event: 'subscribed',
+        data: { success: false, error: 'Access Denied' },
+      };
     }
 
-    this.logger.log(`Client ${client.id} (User: ${user.id}, Role: ${user.role}) subscribed to vehicle ${vehicleId}`);
+    this.logger.log(
+      `Client ${client.id} (User: ${user.id}, Role: ${user.role}) subscribed to vehicle ${vehicleId}`,
+    );
     client.join(`vehicle_${vehicleId}`);
     return { event: 'subscribed', data: vehicleId };
   }
@@ -198,9 +231,14 @@ export class VehiclesGateway
   ) {
     const user = client.user;
     if (!user || user.role !== 'DRIVER') {
-      this.logger.error(`Unauthorized driverLocationPush attempt. Socket ID: ${client.id}`);
+      this.logger.error(
+        `Unauthorized driverLocationPush attempt. Socket ID: ${client.id}`,
+      );
       client.disconnect(true);
-      return { event: 'locationAck', data: { success: false, error: 'Unauthorized role' } };
+      return {
+        event: 'locationAck',
+        data: { success: false, error: 'Unauthorized role' },
+      };
     }
 
     const driverId = user.id;

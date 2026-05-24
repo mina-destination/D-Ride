@@ -15,8 +15,12 @@ export class RedisIoAdapter extends IoAdapter {
     const pubClient = createClient({ url: redisUrl });
     const subClient = pubClient.duplicate();
 
-    pubClient.on('error', (err) => this.logger.error(`Redis pubClient Error: ${err.message}`));
-    subClient.on('error', (err) => this.logger.error(`Redis subClient Error: ${err.message}`));
+    pubClient.on('error', (err) =>
+      this.logger.error(`Redis pubClient Error: ${err.message}`),
+    );
+    subClient.on('error', (err) =>
+      this.logger.error(`Redis subClient Error: ${err.message}`),
+    );
 
     await Promise.all([pubClient.connect(), subClient.connect()]);
 

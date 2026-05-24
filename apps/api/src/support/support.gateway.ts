@@ -83,7 +83,12 @@ export class SupportGateway
 
   handleConnection(client: any) {
     const user = client.user;
-    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'OPERATION')) {
+    if (
+      user &&
+      (user.role === 'ADMIN' ||
+        user.role === 'SUPER_ADMIN' ||
+        user.role === 'OPERATION')
+    ) {
       client.join('support_operators');
       this.logger.log(
         `Support client ${client.id} (User: ${user.id}, Role: ${user.role}) joined support_operators room`,

@@ -111,7 +111,12 @@ export class RoutesService {
         if (!route.path || !route.path.coordinates) return false;
         return route.path.coordinates.some(([rLng, rLat]: [number, number]) => {
           // Bounding Box filter check first (extremely fast O(1) float comparison)
-          if (rLat < minLat || rLat > maxLat || rLng < minLng || rLng > maxLng) {
+          if (
+            rLat < minLat ||
+            rLat > maxLat ||
+            rLng < minLng ||
+            rLng > maxLng
+          ) {
             return false;
           }
           // Only compute full Haversine if inside bounding box

@@ -48,6 +48,57 @@ export class TripsService {
     return t;
   }
 
+  private async cleanupExpiredBookings(tripId: string): Promise<number> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const expiredBookings = await this.prisma.booking.findMany({
+      where: {
+        tripId,
+        status: 'PENDING_PAYMENT',
+        createdAt: { lt: tenMinutesAgo },
+      },
+    });
+
+    if (expiredBookings.length > 0) {
+      const expiredIds = expiredBookings.map((b: any) => b.id);
+      await this.prisma.booking.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { status: 'CANCELLED' },
+      });
+    }
+
+    const activeBookings = await this.prisma.booking.findMany({
+      where: {
+        tripId,
+        OR: [
+          {
+            status: {
+              in: ['CONFIRMED', 'BOARDED', 'COMPLETED'],
+            },
+          },
+          {
+            status: 'PENDING_PAYMENT',
+            createdAt: { gte: tenMinutesAgo },
+          },
+        ],
+      },
+      select: { seatNumbers: true },
+    });
+
+    let activeBookedCount = 0;
+    activeBookings.forEach((b: any) => {
+      if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+        activeBookedCount += b.seatNumbers.length;
+      }
+    });
+
+    await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { bookedSeats: activeBookedCount },
+    });
+
+    return activeBookedCount;
+  }
+
   async findAll(): Promise<any[]> {
     const trips = await this.prisma.trip.findMany({
       include: {
@@ -61,6 +112,7 @@ export class TripsService {
   }
 
   async findById(id: string): Promise<any> {
+    await this.cleanupExpiredBookings(id);
     const trip = await this.prisma.trip.findUnique({
       where: { id },
       include: {
@@ -92,7 +144,22 @@ export class TripsService {
       },
       orderBy: { departureTime: 'asc' },
     });
-    return trips.map((t) => this.mapTrip(t));
+
+    // Clean up expired bookings for all found scheduled trips in parallel to correct their bookedSeats counts
+    await Promise.all(trips.map((t) => this.cleanupExpiredBookings(t.id)));
+
+    // Re-fetch trips to get the updated database states
+    const updatedTrips = await this.prisma.trip.findMany({
+      where,
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+      orderBy: { departureTime: 'asc' },
+    });
+
+    return updatedTrips.map((t) => this.mapTrip(t));
   }
 
   async create(data: any): Promise<any> {
