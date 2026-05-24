@@ -14,6 +14,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
@@ -133,6 +134,28 @@ export default function Navbar() {
                   </Link>
                 </li>
                 <li>
+                  <button 
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsOpen(false);
+                      setIsProfileOpen(true);
+                    }}
+                    className="profile-menu-item"
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      width: '100%', 
+                      textAlign: 'left', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <User size={16} /> {t('profile')}
+                  </button>
+                </li>
+                <li>
                   <Link 
                     to="/wallet" 
                     onClick={() => {
@@ -185,6 +208,112 @@ export default function Navbar() {
           </button>
         </li>
       </ul>
+
+      {isProfileOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(6, 6, 14, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px',
+          animation: 'fade-in 0.25s ease'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '380px',
+            padding: '30px 24px',
+            borderRadius: '20px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-md)',
+            background: 'var(--surface-elevated)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={() => setIsProfileOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'var(--primary)',
+                color: 'var(--text-on-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                boxShadow: '0 0 15px rgba(245, 183, 49, 0.3)'
+              }}>
+                {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+                {user?.name || 'Commuter'}
+              </h3>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--text-on-primary)',
+                background: 'var(--primary)',
+                padding: '4px 10px',
+                borderRadius: '100px',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                {user?.role || 'PASSENGER'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email Address</span>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.email || 'N/A'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone Number</span>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.phone || 'N/A'}</span>
+              </div>
+              {user?.role === 'PASSENGER' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Wallet Balance</span>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--primary)' }}>
+                    {user?.walletBalance !== undefined ? `${user.walletBalance} EGP` : '0 EGP'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <button 
+              className="btn btn-secondary btn-block"
+              onClick={() => setIsProfileOpen(false)}
+              style={{ marginTop: '10px', padding: '12px' }}
+            >
+              Close Profile
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
+
   );
 }
