@@ -90,11 +90,11 @@ export class CreateBookingDto {
   seatNumbers: number[];
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   pickupStopId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   dropoffStopId?: string;
 
   @IsOptional()
