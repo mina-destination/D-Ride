@@ -41,6 +41,18 @@ class StopDto {
 
   @IsNumber()
   order: number;
+
+  @IsString()
+  @IsOptional()
+  type?: string;
+
+  @IsNumber()
+  @IsOptional()
+  bufferTimeMinutes?: number;
+
+  @IsNumber()
+  @IsOptional()
+  geofenceRadiusMeters?: number;
 }
 
 export class CreateBookingDto {

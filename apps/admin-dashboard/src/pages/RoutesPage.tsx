@@ -88,6 +88,24 @@ const PRESET_IMAGES = [
   { label: 'Heliopolis Golden Sunsets', value: 'https://images.unsplash.com/photo-1472214222541-d510753a4907?auto=format&fit=crop&w=600&q=80' }
 ];
 
+// Utility to convert Google Drive share links to direct download URLs
+function cleanGoogleDriveLink(url: string): string {
+  if (!url) return '';
+  if (url.includes('drive.google.com')) {
+    // Format 1: /file/d/FILE_ID/view...
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+    // Format 2: open?id=FILE_ID or open.id=...
+    const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (queryMatch && queryMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${queryMatch[1]}`;
+    }
+  }
+  return url;
+}
+
 // Reusable nominatim location autocomplete input
 function SearchAutocomplete({
   placeholder,
@@ -505,11 +523,9 @@ export function RoutesPage() {
         message.error('Plot at least Start and End points.');
         return;
       }
-      setCurrentStep(3);
-    } else if (currentStep === 3) {
-      // Trigger snap and move to review
+      // Merged step: trigger snap and move directly to review
       await generateSnappedRoute(checkpoints);
-      setCurrentStep(4);
+      setCurrentStep(3);
     }
   };
 
@@ -704,8 +720,7 @@ export function RoutesPage() {
             items={[
               { title: 'Setup' },
               { title: 'Terminals' },
-              { title: 'Stops' },
-              { title: 'Metadata' },
+              { title: 'Stops & Checkpoints' },
               { title: 'Review & Snap' }
             ]} 
           />
@@ -758,6 +773,35 @@ export function RoutesPage() {
                     ))}
                   </div>
                 </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '15px', marginTop: '10px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Or Paste Custom Image URL / Google Drive link</label>
+                  <Input 
+                    placeholder="https://drive.google.com/file/d/... or regular image URL" 
+                    value={coverImage} 
+                    onChange={e => {
+                      const cleanUrl = cleanGoogleDriveLink(e.target.value);
+                      setCoverImage(cleanUrl);
+                    }} 
+                    size="large"
+                  />
+                  {coverImage && (
+                    <div style={{ marginTop: '15px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Banner Preview:</span>
+                      <div style={{
+                        marginTop: '8px',
+                        width: '100%',
+                        height: '140px',
+                        borderRadius: '8px',
+                        backgroundImage: `url(${coverImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }} />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -805,13 +849,13 @@ export function RoutesPage() {
               </div>
             )}
 
-            {/* STEP 2: INTERMEDIATE STOPS */}
+            {/* STEP 2: STOPS & CHECKPOINTS CUSTOMIZATION */}
             {currentStep === 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div style={{ padding: '12px', background: 'var(--surface-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <h4 style={{ margin: 0, fontSize: '13px' }}>Intermediate Boarding Checkpoints</h4>
+                  <h4 style={{ margin: 0, fontSize: '13px' }}>Stops & Checkpoints Customization</h4>
                   <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    Add locations where buses wait for riders. Click on the map to place pins between Start and End.
+                    Plot checkpoints on the map, then rename, buffer, and configure geofences for each stop below.
                   </p>
                 </div>
 
@@ -843,156 +887,140 @@ export function RoutesPage() {
                   />
                 </div>
 
-                <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {checkpoints.map((cp, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between', 
-                        padding: '8px 10px', 
-                        background: cp.type === 'START' ? 'rgba(16,185,129,0.06)' : cp.type === 'END' ? 'rgba(239,68,68,0.06)' : 'var(--surface-elevated)',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                        <span style={{
-                          width: '20px', 
-                          height: '20px', 
-                          borderRadius: '50%', 
-                          background: cp.type === 'START' ? '#10B981' : cp.type === 'END' ? '#EF4444' : '#3B82F6', 
-                          color: '#fff', 
-                          fontSize: '10px',
+                <div style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+                  {checkpoints.map((cp, idx) => {
+                    const isStart = cp.type === 'START';
+                    const isEnd = cp.type === 'END';
+                    return (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          padding: '12px', 
+                          background: isStart ? 'rgba(16, 185, 129, 0.04)' : isEnd ? 'rgba(239, 68, 68, 0.04)' : 'var(--surface-elevated)',
+                          borderRadius: '8px', 
+                          border: isStart ? '1px solid rgba(16, 185, 129, 0.2)' : isEnd ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid var(--border)', 
                           display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          fontWeight: 'bold',
-                          flexShrink: 0
-                        }}>
-                          {cp.type === 'START' ? 'S' : cp.type === 'END' ? 'E' : idx}
-                        </span>
-                        <strong style={{ fontSize: '12px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{cp.name}</strong>
+                          flexDirection: 'column', 
+                          gap: '8px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              background: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6',
+                              color: '#fff',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 'bold',
+                              flexShrink: 0
+                            }}>
+                              {isStart ? 'S' : isEnd ? 'E' : idx}
+                            </span>
+                            <span style={{ color: isStart ? '#10B981' : isEnd ? '#EF4444' : 'var(--text-primary)' }}>
+                              {isStart ? 'Start Terminal' : isEnd ? 'End Destination' : `Stop #${idx}`}
+                            </span>
+                          </span>
+
+                          <Space size="small">
+                            <Button 
+                              size="small" 
+                              icon={<ArrowUp size={12} />} 
+                              disabled={idx === 0} 
+                              onClick={() => moveCheckpoint(idx, 'up')}
+                            />
+                            <Button 
+                              size="small" 
+                              icon={<ArrowDown size={12} />} 
+                              disabled={idx === checkpoints.length - 1} 
+                              onClick={() => moveCheckpoint(idx, 'down')}
+                            />
+                            {!isStart && !isEnd && (
+                              <Button 
+                                type="text" 
+                                danger 
+                                size="small"
+                                icon={<Trash2 size={14} />} 
+                                onClick={() => deleteCheckpoint(idx)} 
+                              />
+                            )}
+                          </Space>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <Input 
+                            value={cp.name}
+                            onChange={e => {
+                              const updated = [...checkpoints];
+                              updated[idx].name = e.target.value;
+                              setCheckpoints(updated);
+                            }}
+                            placeholder="Stop Name (English)"
+                            size="small"
+                          />
+
+                          <Input 
+                            value={cp.nameAr || ''}
+                            onChange={e => {
+                              const updated = [...checkpoints];
+                              updated[idx].nameAr = e.target.value;
+                              setCheckpoints(updated);
+                            }}
+                            placeholder="Stop Name (Arabic) - optional"
+                            size="small"
+                            style={{ textAlign: 'right', direction: 'rtl' }}
+                          />
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                <Clock size={10} /> Buffer (mins)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={cp.bufferTimeMinutes}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={0}
+                              />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                <Radio size={10} /> Geofence (m)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={cp.geofenceRadiusMeters}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={10}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      {cp.type === 'CHECKPOINT' && (
-                        <Button 
-                          type="text" 
-                          danger 
-                          size="small"
-                          icon={<Trash2 size={14} />} 
-                          onClick={() => deleteCheckpoint(idx)} 
-                        />
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* STEP 3: CHECKPOINTS METADATA & SEQUENCING */}
+            {/* STEP 3: OSRM SNAPPING & REVIEW */}
             {currentStep === 3 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px' }}>Stop Buffers & Geofences</h4>
-                
-                {checkpoints.map((cp, idx) => (
-                  <div key={idx} style={{ padding: '12px', background: 'var(--surface-elevated)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          background: cp.type === 'START' ? '#10B981' : cp.type === 'END' ? '#EF4444' : '#3B82F6',
-                          color: '#fff',
-                          fontSize: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 'bold'
-                        }}>
-                          {cp.type === 'START' ? 'S' : cp.type === 'END' ? 'E' : idx}
-                        </span>
-                        {cp.type === 'START' ? 'Start Terminal' : cp.type === 'END' ? 'End Destination' : `Checkpoint #${idx}`}
-                      </span>
-
-                      <Space size="small">
-                        <Button 
-                          size="small" 
-                          icon={<ArrowUp size={12} />} 
-                          disabled={idx === 0} 
-                          onClick={() => moveCheckpoint(idx, 'up')}
-                        />
-                        <Button 
-                          size="small" 
-                          icon={<ArrowDown size={12} />} 
-                          disabled={idx === checkpoints.length - 1} 
-                          onClick={() => moveCheckpoint(idx, 'down')}
-                        />
-                      </Space>
-                    </div>
-
-                    <Input 
-                      value={cp.name}
-                      onChange={e => {
-                        const updated = [...checkpoints];
-                        updated[idx].name = e.target.value;
-                        setCheckpoints(updated);
-                      }}
-                      placeholder="Stop Name (English)"
-                      size="small"
-                    />
-
-                    <Input 
-                      value={cp.nameAr || ''}
-                      onChange={e => {
-                        const updated = [...checkpoints];
-                        updated[idx].nameAr = e.target.value;
-                        setCheckpoints(updated);
-                      }}
-                      placeholder="Stop Name (Arabic) - optional"
-                      size="small"
-                    />
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>
-                          <Clock size={10} style={{ display: 'inline', marginRight: '3px' }} /> Wait Buffer (mins)
-                        </span>
-                        <Input 
-                          type="number"
-                          value={cp.bufferTimeMinutes}
-                          onChange={e => {
-                            const updated = [...checkpoints];
-                            updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
-                            setCheckpoints(updated);
-                          }}
-                          size="small"
-                        />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>
-                          <Radio size={10} style={{ display: 'inline', marginRight: '3px' }} /> Geofence (meters)
-                        </span>
-                        <Input 
-                          type="number"
-                          value={cp.geofenceRadiusMeters}
-                          onChange={e => {
-                            const updated = [...checkpoints];
-                            updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
-                            setCheckpoints(updated);
-                          }}
-                          size="small"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* STEP 4: OSRM SNAPPING & REVIEW */}
-            {currentStep === 4 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div style={{ padding: '12px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
                   <CheckCircle2 size={32} style={{ color: '#10B981', margin: '0 auto 8px' }} />
@@ -1037,7 +1065,7 @@ export function RoutesPage() {
                   Back
                 </Button>
               )}
-              {currentStep < 4 ? (
+              {currentStep < 3 ? (
                 <Button 
                   type="primary" 
                   icon={<ArrowRight size={16} />} 

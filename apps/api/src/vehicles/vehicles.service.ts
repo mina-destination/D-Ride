@@ -25,6 +25,34 @@ function getDistance(
   return R * c; // in metres
 }
 
+function mapVehicleFromDb(v: any): any {
+  if (!v) return null;
+  let make = '';
+  let model = v.model;
+  if (v.model && v.model.includes('::')) {
+    const parts = v.model.split('::');
+    make = parts[0];
+    model = parts[1];
+  } else if (v.model) {
+    const spaceIdx = v.model.indexOf(' ');
+    if (spaceIdx !== -1) {
+      make = v.model.substring(0, spaceIdx);
+      model = v.model.substring(spaceIdx + 1);
+    } else {
+      make = 'D-Ride';
+      model = v.model;
+    }
+  }
+  return {
+    ...v,
+    _id: v.id,
+    make,
+    model,
+    licensePlate: v.plateNumber,
+    status: v.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE'
+  };
+}
+
 @Injectable()
 export class VehiclesService {
   private readonly logger = new Logger(VehiclesService.name);
@@ -40,37 +68,56 @@ export class VehiclesService {
     const vehicles = await this.prisma.vehicle.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return vehicles.map((v) => ({ ...v, _id: v.id }));
+    return vehicles.map(mapVehicleFromDb);
   }
 
   async createVehicle(data: any): Promise<any> {
+    const combinedModel = `${data.make || ''}::${data.model || ''}`;
     const vehicle = await this.prisma.vehicle.create({
       data: {
-        model: data.model,
-        plateNumber: data.plateNumber,
+        model: combinedModel,
+        plateNumber: data.licensePlate || data.plateNumber,
         capacity: data.capacity !== undefined ? data.capacity : 14,
         driverId: data.driverId,
         type: data.type || 'SHUTTLE_BUS',
-        isActive: data.isActive !== undefined ? data.isActive : true,
+        isActive: data.status === 'ACTIVE' || data.isActive === true,
       },
     });
-    return { ...vehicle, _id: vehicle.id };
+    return mapVehicleFromDb(vehicle);
   }
 
   async updateVehicle(id: string, data: any): Promise<any> {
     try {
+      const combinedModel = `${data.make || ''}::${data.model || ''}`;
+      const updateData: any = {};
+      if (data.model !== undefined || data.make !== undefined) {
+        updateData.model = combinedModel;
+      }
+      if (data.licensePlate !== undefined) {
+        updateData.plateNumber = data.licensePlate;
+      } else if (data.plateNumber !== undefined) {
+        updateData.plateNumber = data.plateNumber;
+      }
+      if (data.capacity !== undefined) {
+        updateData.capacity = data.capacity;
+      }
+      if (data.driverId !== undefined) {
+        updateData.driverId = data.driverId;
+      }
+      if (data.type !== undefined) {
+        updateData.type = data.type;
+      }
+      if (data.status !== undefined) {
+        updateData.isActive = data.status === 'ACTIVE';
+      } else if (data.isActive !== undefined) {
+        updateData.isActive = data.isActive;
+      }
+
       const vehicle = await this.prisma.vehicle.update({
         where: { id },
-        data: {
-          model: data.model,
-          plateNumber: data.plateNumber,
-          capacity: data.capacity,
-          driverId: data.driverId,
-          type: data.type,
-          isActive: data.isActive,
-        },
+        data: updateData,
       });
-      return { ...vehicle, _id: vehicle.id };
+      return mapVehicleFromDb(vehicle);
     } catch (err) {
       throw new NotFoundException('Vehicle not found');
     }
@@ -79,7 +126,7 @@ export class VehiclesService {
   async deleteVehicle(id: string): Promise<any> {
     try {
       const vehicle = await this.prisma.vehicle.delete({ where: { id } });
-      return { ...vehicle, _id: vehicle.id };
+      return mapVehicleFromDb(vehicle);
     } catch (err) {
       throw new NotFoundException('Vehicle not found');
     }
