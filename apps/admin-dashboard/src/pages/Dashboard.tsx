@@ -3,32 +3,10 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity, Flame } from 'lucide-react';
-import { bookingsAPI } from '../services/api';
+import { bookingsAPI, tripsAPI, vehiclesAPI } from '../services/api';
+import { io } from 'socket.io-client';
 
-const routePaths: Record<string, [number, number][]> = {
-  '1': [
-    [30.0444, 31.2357],
-    [30.0480, 31.2280],
-    [30.0520, 31.2150],
-    [30.0560, 31.2020],
-    [30.0620, 31.1850],
-    [30.0680, 31.1680]
-  ],
-  '2': [
-    [30.0770, 31.3400],
-    [30.0720, 31.3520],
-    [30.0650, 31.3680],
-    [30.0550, 31.3850],
-    [30.0420, 31.4050]
-  ],
-  '3': [
-    [30.0130, 31.2080],
-    [30.0050, 31.1850],
-    [29.9950, 31.1620],
-    [29.9820, 31.1350],
-    [29.9680, 31.1080]
-  ]
-};
+
 
 function MapPanController({ panTo }: { panTo: [number, number] | null }) {
   const map = useMap();
@@ -56,8 +34,11 @@ const activeBusIcon = new L.Icon({
   popupAnchor: [0, -35],
 });
 
+const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
+
 interface ActiveBus {
   id: string;
+  vehicleId?: string;
   plate: string;
   route: string;
   driver: string;
@@ -65,42 +46,12 @@ interface ActiveBus {
   lng: number;
   seats: string;
   speed: number;
+  status: string;
 }
 
 export default function DashboardPage() {
-  const [fleet, setFleet] = useState<ActiveBus[]>([
-    {
-      id: '1',
-      plate: 'ABC-123',
-      route: 'Maadi → Smart Village',
-      driver: 'Capt. Mohamed Soliman',
-      lat: 30.0444,
-      lng: 31.2357,
-      seats: '12 / 14',
-      speed: 48,
-    },
-    {
-      id: '2',
-      plate: 'XYZ-789',
-      route: 'Heliopolis → New Cairo',
-      driver: 'Capt. Tarek Hegazi',
-      lat: 30.0770,
-      lng: 31.3400,
-      seats: '8 / 14',
-      speed: 55,
-    },
-    {
-      id: '3',
-      plate: 'QWE-456',
-      route: 'Nasr City → 6th October',
-      driver: 'Capt. Ahmed Abdelrahman',
-      lat: 30.0130,
-      lng: 31.2080,
-      seats: '14 / 14 (Full)',
-      speed: 0, // Stopped at station
-    },
-  ]);
-
+  const [fleet, setFleet] = useState<ActiveBus[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
 
@@ -116,18 +67,128 @@ export default function DashboardPage() {
       .catch(console.error);
   }, []);
 
+  // Build active fleet array from trips and vehicles data
+  const buildFleet = (allTrips: any[], allVehicles: any[]) => {
+    const activeTrips = allTrips.filter(
+      (t) => t.status === 'BOARDING' || t.status === 'IN_TRANSIT' || t.status === 'SCHEDULED'
+    );
+
+    const activeBuses: ActiveBus[] = activeTrips.map((trip) => {
+      const v = trip.vehicleId;
+      const d = trip.driverId;
+      const r = trip.routeId;
+
+      const vehicleDetail = allVehicles.find((vh) => vh._id === v?._id);
+      const liveLoc = vehicleDetail?.locations?.[0];
+
+      let lat = 30.0444;
+      let lng = 31.2357;
+
+      if (liveLoc && liveLoc.location?.coordinates) {
+        lat = liveLoc.location.coordinates[1];
+        lng = liveLoc.location.coordinates[0];
+      } else if (r?.path?.coordinates && r.path.coordinates.length > 0) {
+        lng = r.path.coordinates[0][0];
+        lat = r.path.coordinates[0][1];
+      }
+
+      return {
+        id: trip._id,
+        vehicleId: v?._id || '',
+        plate: v?.licensePlate || 'N/A',
+        make: v?.make || 'D-Ride',
+        model: v?.model || 'Shuttle',
+        route: r?.name || 'Unassigned Route',
+        driver: d?.name || 'Unassigned Driver',
+        lat,
+        lng,
+        seats: `${trip.bookedSeats} / ${trip.availableSeats}`,
+        speed: liveLoc?.speedKmh || (trip.status === 'IN_TRANSIT' ? 50 : 0),
+        status: trip.status,
+      };
+    });
+
+    return activeBuses;
+  };
+
+  // Fetch trips and vehicles data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [tripsData, vehiclesData] = await Promise.all([
+          tripsAPI.getAll(),
+          vehiclesAPI.getAll()
+        ]);
+        setTrips(tripsData);
+        const builtFleet = buildFleet(tripsData, vehiclesData);
+        setFleet(builtFleet);
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      }
+    };
+
+    fetchDashboardData();
+    const pollInterval = setInterval(fetchDashboardData, 10000);
+
+    return () => clearInterval(pollInterval);
+  }, []);
+
+  // WebSockets live vehicle location tracking updates
+  useEffect(() => {
+    if (fleet.length === 0) return;
+
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      console.log('Dashboard connected to WebSocket server');
+      fleet.forEach((bus) => {
+        if (bus.vehicleId) {
+          socket.emit('subscribeToVehicle', bus.vehicleId);
+        }
+      });
+    });
+
+    socket.on('vehicleLocationUpdate', (data: any) => {
+      if (data && data.vehicleId && data.location) {
+        setFleet((prevFleet) =>
+          prevFleet.map((bus) => {
+            if (bus.vehicleId === data.vehicleId) {
+              return {
+                ...bus,
+                lat: data.location.latitude,
+                lng: data.location.longitude,
+                speed: data.speedKmh || 45,
+              };
+            }
+            return bus;
+          })
+        );
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fleet.map(b => b.vehicleId).join(',')]);
+
   // Fetch OSRM route curves for selected vehicle route
   useEffect(() => {
     if (!selectedBusId) {
       setSelectedRoutePath([]);
       return;
     }
-    const points = routePaths[selectedBusId];
+    const matchedTrip = trips.find(t => t._id === selectedBusId);
+    const points = matchedTrip?.routeId?.path?.coordinates?.map(
+      (c: number[]) => [c[1], c[0]] as [number, number]
+    ) || [];
+
     if (!points || points.length < 2) return;
 
     const fetchRoute = async () => {
       const coordsString = points
-        .map(p => `${p[1]},${p[0]}`) // Lng, Lat
+        .map((p: [number, number]) => `${p[1]},${p[0]}`) // Lng, Lat
         .join(';');
       try {
         const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
@@ -145,30 +206,7 @@ export default function DashboardPage() {
       }
     };
     fetchRoute();
-  }, [selectedBusId]);
-
-  // Simulate active GPS vehicle tracking telemetry
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFleet((prevFleet) =>
-        prevFleet.map((bus) => {
-          if (bus.speed === 0) return bus; // Stopped bus doesn't move
-          
-          // Sightly alter coordinate vectors to simulate driving
-          const latDelta = (Math.random() - 0.5) * 0.0015;
-          const lngDelta = (Math.random() - 0.5) * 0.0015;
-          return {
-            ...bus,
-            lat: bus.lat + latDelta,
-            lng: bus.lng + lngDelta,
-            speed: Math.max(30, Math.min(80, bus.speed + Math.floor((Math.random() - 0.5) * 10))),
-          };
-        })
-      );
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [selectedBusId, trips]);
 
   return (
     <>

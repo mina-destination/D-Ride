@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Space, message, Select, Tag } from 'antd';
-import { usersAPI } from '../services/api';
+import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, List, Rate, Avatar } from 'antd';
+import { usersAPI, reviewsAPI } from '../services/api';
 import { UserCog, Download } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
@@ -12,12 +12,51 @@ export function DriversPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [ratings, setRatings] = useState<Record<string, { averageRating: number; totalReviews: number }>>({});
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [activeDriverForReviews, setActiveDriverForReviews] = useState<any>(null);
+  const [driverReviews, setDriverReviews] = useState<any[]>([]);
+
+  const handleOpenReviewsModal = async (driver: any) => {
+    setActiveDriverForReviews(driver);
+    setIsReviewsModalOpen(true);
+    try {
+      setReviewsLoading(true);
+      const res = await reviewsAPI.getDriverReviews(driver._id);
+      setDriverReviews(res);
+    } catch (error) {
+      message.error('Failed to fetch driver reviews');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleCloseReviewsModal = () => {
+    setIsReviewsModalOpen(false);
+    setDriverReviews([]);
+    setActiveDriverForReviews(null);
+  };
 
   const fetchDrivers = async () => {
     try {
       setLoading(true);
       const res = await usersAPI.getByRole('DRIVER');
       setDrivers(res);
+
+      // Fetch rating stats for each driver
+      const ratingsData: Record<string, any> = {};
+      await Promise.all(
+        res.map(async (driver: any) => {
+          try {
+            const ratingRes = await reviewsAPI.getDriverRating(driver._id);
+            ratingsData[driver._id] = ratingRes;
+          } catch (err) {
+            console.error('Failed to fetch rating for driver', driver._id, err);
+          }
+        })
+      );
+      setRatings(ratingsData);
     } catch (error) {
       message.error('Failed to fetch drivers');
     } finally {
@@ -96,7 +135,24 @@ export function DriversPage() {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => <strong>{text}</strong>,
+      render: (text: string, record: any) => {
+        const ratingInfo = ratings[record._id];
+        return (
+          <div>
+            <strong>{text}</strong>
+            {ratingInfo && ratingInfo.totalReviews > 0 ? (
+              <div style={{ color: '#f5b731', fontSize: '0.85rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>⭐ {ratingInfo.averageRating.toFixed(1)}</span>
+                <span style={{ color: '#8c8c8c' }}>({ratingInfo.totalReviews} {ratingInfo.totalReviews === 1 ? 'review' : 'reviews'})</span>
+              </div>
+            ) : (
+              <div style={{ color: '#8c8c8c', fontSize: '0.85rem', marginTop: '2px' }}>
+                ⭐ No reviews yet
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Email',
@@ -127,6 +183,7 @@ export function DriversPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
+          <Button type="link" onClick={() => handleOpenReviewsModal(record)}>View Reviews</Button>
           <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
         </Space>
       ),
@@ -230,6 +287,58 @@ export function DriversPage() {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={activeDriverForReviews ? `Reviews for ${activeDriverForReviews.name}` : 'Driver Reviews'}
+        open={isReviewsModalOpen}
+        onCancel={handleCloseReviewsModal}
+        footer={[
+          <Button key="close" onClick={handleCloseReviewsModal}>
+            Close
+          </Button>,
+        ]}
+        width={600}
+        destroyOnClose
+      >
+        <List
+          loading={reviewsLoading}
+          itemLayout="horizontal"
+          dataSource={driverReviews}
+          locale={{ emptyText: 'No reviews found for this driver' }}
+          renderItem={(item: any) => {
+            const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }) : 'N/A';
+            return (
+              <List.Item>
+                <List.Item.Meta
+                  avatar={<Avatar src={item.userAvatar} style={{ backgroundColor: '#f5b731', color: 'black' }}>{item.userName[0]?.toUpperCase()}</Avatar>}
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span><strong>{item.userName}</strong></span>
+                      <span style={{ fontSize: '0.8rem', color: '#8c8c8c' }}>{dateStr}</span>
+                    </div>
+                  }
+                  description={
+                    <div style={{ marginTop: '4px' }}>
+                      <Rate disabled defaultValue={item.rating} style={{ fontSize: '0.9rem', color: '#f5b731' }} />
+                      {item.comment && (
+                        <p style={{ marginTop: '8px', color: 'var(--text-secondary)', fontStyle: 'italic', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          "{item.comment}"
+                        </p>
+                      )}
+                    </div>
+                  }
+                />
+              </List.Item>
+            );
+          }}
+        />
       </Modal>
     </div>
   );

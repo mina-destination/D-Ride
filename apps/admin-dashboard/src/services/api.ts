@@ -128,3 +128,11 @@ export const supportAPI = {
     api.post(`/support/tickets/${id}/reply`, { text, adminName }),
   getTicketMessages: (id: string): Promise<any> => api.get(`/support/tickets/${id}/messages`),
 };
+
+// ── Reviews API ─────────────────────────────────────────────
+export const reviewsAPI = {
+  getDriverRating: (driverId: string): Promise<any> =>
+    api.get(`/reviews/driver/${driverId}`),
+  getDriverReviews: (driverId: string): Promise<any> =>
+    api.get(`/reviews/driver/${driverId}/list`),
+};

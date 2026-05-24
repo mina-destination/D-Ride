@@ -83,7 +83,7 @@ The roadmap is structured into three execution phases designed to minimize risk,
 | **client-app** | React, Vite, React Leaflet, Paymob SDK | Geospatial UI, Wallet Checkout, Chat Component |
 | **driver-portal** | React, Vite, Web Audio API, Leaflet | QR Scanning, Audio Chimes, Street Routing Telemetry |
 | **admin-dashboard** | React, Ant Design v5, SVG, Leaflet | CRM Chat Feed, SVG Donut Metrics, Heatmaps |
-| **api (NestJS)** | NestJS, Mongoose, Socket.io, Redis | Geospatial Calculations, WebSocket Gateways, Ledgers |
+| **api (NestJS)** | NestJS, Prisma, Socket.io, PostgreSQL | Geospatial Calculations, WebSocket Gateways, Ledgers |
 
 ---
 

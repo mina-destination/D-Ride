@@ -31,7 +31,7 @@ D-Ride is built as a unified **Turborepo npm Workspaces Monorepo** containerized
 ```
 D-Ride/
 ├── apps/
-│   ├── api/                 # NestJS microservices server with Mongoose & Socket-io
+│   ├── api/                 # NestJS microservices server with Prisma & Socket-io
 │   ├── client-app/          # Passenger web portal (Vite/React, Leaflet Map, Paymob)
 │   ├── admin-dashboard/     # Administrative CRM (Ant Design v5, Route Planner, Live Simulator)
 │   └── driver-portal/       # Driver terminal app (Web Audio API, QR scanner, Live Telemetry)
@@ -48,7 +48,7 @@ D-Ride/
 ## ⚡ Tech Stack Highlights
 
 *   **Monorepo Engine**: [Turborepo](https://turbo.build/) + npm Workspaces
-*   **Backend Framework**: [NestJS](https://nestjs.com/) (TypeScript, MongoDB Mongoose, Redis)
+*   **Backend Framework**: [NestJS](https://nestjs.com/) (TypeScript, PostgreSQL, Prisma)
 *   **Frontends**: [React 18](https://react.dev/) + [Vite](https://vite.dev/) + [TypeScript](https://www.typescriptlang.org/)
 *   **Design & UI Styling**: [Ant Design v5](https://ant.design/) + Vanilla CSS design system
 *   **Geospatial Maps**: [React Leaflet](https://react-leaflet.js.org/) + OpenStreetMap
@@ -82,8 +82,8 @@ To run the packages in active development mode locally with Turborepo hot-reload
 # 1. Install dependencies in workspace
 npm install
 
-# 2. Run local databases (MongoDB & Redis)
-docker-compose up mongodb redis -d
+# 2. Run local database (PostgreSQL)
+docker-compose up postgres -d
 
 # 3. Spin up dev servers with Turborepo
 npm run dev

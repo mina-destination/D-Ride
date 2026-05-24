@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { bookingsAPI } from '../services/api';
-import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck } from 'lucide-react';
+import { bookingsAPI, reviewsAPI } from '../services/api';
+import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -23,6 +23,41 @@ export default function MyTripsPage() {
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
+
+  // Review Modal States
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
+  const [rating, setRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const handleOpenReviewModal = (bookingId: string) => {
+    setReviewBookingId(bookingId);
+    setRating(5);
+    setHoverRating(0);
+    setComment('');
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewBookingId || rating < 1) return;
+    try {
+      setSubmittingReview(true);
+      await reviewsAPI.submitReview({
+        bookingId: reviewBookingId,
+        rating,
+        comment,
+      });
+      alert('Thank you for your feedback! ⭐');
+      setShowReviewModal(false);
+      fetchBookings();
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const toggleFlip = (id: string) => {
     setFlippedBookings(prev => ({
@@ -249,11 +284,17 @@ export default function MyTripsPage() {
                             <span className="pass-label" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                               <User size={12} /> {t('driverLabel')}
                             </span>
-                            <span className="pass-value" style={{ fontSize: '0.9rem' }}>Captain Ahmed</span>
+                            <span className="pass-value" style={{ fontSize: '0.9rem' }}>
+                              {booking.tripId?.driver?.name || 'Captain Ahmed'}
+                            </span>
                           </div>
                           <div className="pass-info-block" style={{ minWidth: '120px' }}>
                             <span className="pass-label">{t('vehicleLabel')}</span>
-                            <span className="pass-value" style={{ fontSize: '0.9rem' }}>Toyota HiAce (DR-20)</span>
+                            <span className="pass-value" style={{ fontSize: '0.9rem' }}>
+                              {booking.tripId?.vehicle 
+                                ? `${booking.tripId.vehicle.model} (${booking.tripId.vehicle.plateNumber || ''})` 
+                                : 'Toyota HiAce (DR-20)'}
+                            </span>
                           </div>
                           <div className="pass-info-block" style={{ minWidth: '90px' }}>
                             <span className="pass-label" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -323,6 +364,71 @@ export default function MyTripsPage() {
                             >
                               {t('payNow')} <CreditCard size={14} />
                             </Link>
+                          )}
+                          {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && (
+                            <div style={{ width: '100%' }}>
+                              {booking.review ? (
+                                <div style={{ 
+                                  background: 'rgba(245, 183, 49, 0.05)',
+                                  border: '1px solid rgba(245, 183, 49, 0.2)',
+                                  borderRadius: '8px',
+                                  padding: '8px 12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  width: '100%'
+                                }}>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>YOUR FEEDBACK</span>
+                                  <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star 
+                                        key={star} 
+                                        size={14} 
+                                        fill={star <= booking.review.rating ? '#f5b731' : 'none'} 
+                                        stroke="#f5b731" 
+                                      />
+                                    ))}
+                                  </div>
+                                  {booking.review.comment && (
+                                    <p style={{ 
+                                      fontSize: '0.75rem', 
+                                      color: 'var(--text-secondary)', 
+                                      fontStyle: 'italic', 
+                                      textAlign: 'center',
+                                      margin: '4px 0 0 0',
+                                      wordBreak: 'break-word',
+                                      maxWidth: '150px'
+                                    }}>
+                                      "{booking.review.comment}"
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => handleOpenReviewModal(booking._id)}
+                                  className="auth-button"
+                                  style={{ 
+                                    background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', 
+                                    color: 'var(--text-on-primary)',
+                                    padding: '0.45rem 0.8rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 'bold',
+                                    textAlign: 'center',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    border: 'none',
+                                    boxShadow: '0 4px 10px rgba(245, 183, 49, 0.2)'
+                                  }}
+                                >
+                                  Rate Trip <Star size={14} fill="var(--text-on-primary)" />
+                                </button>
+                              )}
+                            </div>
                           )}
                           {booking.status === 'CANCELLED' && (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>No Actions</span>
@@ -401,6 +507,119 @@ export default function MyTripsPage() {
                 </strong>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RATE & REVIEW TRIP MODAL ────── */}
+      {showReviewModal && (
+        <div className="qr-modal-overlay" onClick={() => setShowReviewModal(false)}>
+          <div className="qr-modal-content" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setShowReviewModal(false)}
+              className="qr-modal-close-btn"
+            >
+              ✕
+            </button>
+
+            <h3 className="qr-modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              Rate Your Trip <Star size={22} fill="var(--primary)" color="var(--primary)" />
+            </h3>
+            <p className="qr-modal-subtitle">
+              How was your journey? Your rating helps us improve our service.
+            </p>
+
+            {/* Stars Selector Container */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', margin: '1.5rem 0' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    padding: '4px',
+                    transition: 'transform 0.15s ease'
+                  }}
+                  className="star-btn"
+                >
+                  <Star
+                    size={36}
+                    fill={star <= (hoverRating || rating) ? 'var(--primary)' : 'none'}
+                    stroke="var(--primary)"
+                    style={{
+                      transform: star <= (hoverRating || rating) ? 'scale(1.15)' : 'scale(1)',
+                      transition: 'transform 0.1s ease, fill 0.1s ease'
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Comment Area */}
+            <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+              <label 
+                htmlFor="review-comment" 
+                style={{ 
+                  display: 'block', 
+                  fontSize: '0.85rem', 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: '0.5rem',
+                  fontWeight: 600
+                }}
+              >
+                Leave a comment (optional):
+              </label>
+              <textarea
+                id="review-comment"
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Share details of your experience..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'inherit',
+                  resize: 'none',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              onClick={handleSubmitReview}
+              disabled={submittingReview}
+              className="auth-button"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '12px',
+                fontSize: '0.95rem',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                color: 'var(--text-on-primary)',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(245, 183, 49, 0.25)',
+                transition: 'opacity 0.2s'
+              }}
+            >
+              {submittingReview ? 'Submitting...' : 'Submit Feedback'}
+            </button>
           </div>
         </div>
       )}
