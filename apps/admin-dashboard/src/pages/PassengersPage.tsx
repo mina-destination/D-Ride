@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, Popconfirm } from 'antd';
 import { usersAPI } from '../services/api';
-import { Users, Zap, Ban, TrendingUp, Edit, Plus } from 'lucide-react';
+import { Users, Zap, Ban, TrendingUp, Edit, Plus, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 export function PassengersPage() {
   const [passengers, setPassengers] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export function PassengersPage() {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const fetchPassengers = async () => {
     try {
@@ -77,11 +79,16 @@ export function PassengersPage() {
 
   const filteredPassengers = passengers.filter(p => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       p.name?.toLowerCase().includes(term) ||
       p.email?.toLowerCase().includes(term) ||
-      p.phone?.includes(term)
-    );
+      p.phone?.includes(term);
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (p.status || 'ACTIVE') === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   // Calculate live statistics
@@ -182,6 +189,17 @@ export function PassengersPage() {
     },
   ];
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Passenger ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'name', label: 'Passenger Name' },
+      { key: 'email', label: 'Email Address' },
+      { key: 'phone', label: 'Phone Number' },
+      { key: 'status', label: 'Account Status', transform: (val: string) => val || 'ACTIVE' },
+    ];
+    exportToCSV(filteredPassengers, headers, 'passengers_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       {/* Page Header */}
@@ -199,6 +217,22 @@ export function PassengersPage() {
             style={{ width: 280 }} 
             allowClear 
           />
+          <Select
+            value={statusFilter}
+            onChange={value => setStatusFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Statuses</Select.Option>
+            <Select.Option value="ACTIVE">Active</Select.Option>
+            <Select.Option value="SUSPENDED">Suspended</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
+          >
+            Export CSV
+          </Button>
           <Button 
             type="primary" 
             size="large"

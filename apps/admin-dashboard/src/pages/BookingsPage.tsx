@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Space, message, Tag, Typography, Tooltip, Input, Select } from 'antd';
 import { bookingsAPI } from '../services/api';
-import { Ticket } from 'lucide-react';
+import { Ticket, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 const { Title, Paragraph } = Typography;
 
@@ -10,6 +11,7 @@ export function BookingsPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('ALL');
 
   const fetchBookings = async () => {
     try {
@@ -37,6 +39,24 @@ export function BookingsPage() {
     }
   };
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Booking ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'userId.name', label: 'Passenger Name' },
+      { key: 'userId.email', label: 'Passenger Email' },
+      { key: 'tripId.routeId.name', label: 'Route Name' },
+      { key: 'tripId.departureTime', label: 'Departure Time', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+      { key: 'seatNumbers', label: 'Seat Numbers', transform: (val: any, record: any) => {
+        const seats = val || (record.seatNumber ? [record.seatNumber] : []);
+        return seats.join(', ');
+      }},
+      { key: 'amountEGP', label: 'Fare (EGP)' },
+      { key: 'status', label: 'Booking Status' },
+      { key: 'paymentStatus', label: 'Payment Status' },
+    ];
+    exportToCSV(filteredBookings, headers, 'bookings_report');
+  };
+
   const filteredBookings = bookings.filter(b => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -49,7 +69,11 @@ export function BookingsPage() {
       statusFilter === 'ALL' || 
       (b.status || 'PENDING') === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesPaymentStatus = 
+      paymentStatusFilter === 'ALL' || 
+      (b.paymentStatus || 'PENDING') === paymentStatusFilter;
+
+    return matchesSearch && matchesStatus && matchesPaymentStatus;
   });
 
   const columns = [
@@ -178,6 +202,23 @@ export function BookingsPage() {
             <Select.Option value="PENDING">Pending</Select.Option>
             <Select.Option value="CANCELLED">Cancelled</Select.Option>
           </Select>
+          <Select
+            value={paymentStatusFilter}
+            onChange={value => setPaymentStatusFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Payments</Select.Option>
+            <Select.Option value="SUCCESS">Success</Select.Option>
+            <Select.Option value="PENDING">Pending</Select.Option>
+            <Select.Option value="FAILED">Failed</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            Export CSV
+          </Button>
         </Space>
       </div>
 

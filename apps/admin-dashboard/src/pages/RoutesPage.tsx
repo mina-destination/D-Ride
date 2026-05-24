@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Input, Space, message, Steps, Spin } from 'antd';
+import { Table, Button, Modal, Input, Space, message, Steps, Spin, Select } from 'antd';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,8 +16,10 @@ import {
   Activity,
   CheckCircle2,
   Clock,
-  Radio
+  Radio,
+  Download
 } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -246,6 +248,7 @@ export function RoutesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [distanceFilter, setDistanceFilter] = useState<string>('ALL');
 
   // Wizard state machine
   const [currentStep, setCurrentStep] = useState(0);
@@ -554,9 +557,19 @@ export function RoutesPage() {
     }
   };
 
-  const filteredRoutes = routes.filter(r => 
-    r.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRoutes = routes.filter(r => {
+    const matchesSearch = r.name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    let matchesDistance = true;
+    if (distanceFilter !== 'ALL' && r.distanceKm != null) {
+      const km = r.distanceKm;
+      if (distanceFilter === 'SHORT') matchesDistance = km <= 20;
+      else if (distanceFilter === 'MEDIUM') matchesDistance = km > 20 && km <= 50;
+      else if (distanceFilter === 'LONG') matchesDistance = km > 50;
+    }
+
+    return matchesSearch && matchesDistance;
+  });
 
   const columns = [
     {
@@ -612,6 +625,17 @@ export function RoutesPage() {
     },
   ];
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Route ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'name', label: 'Route Name' },
+      { key: 'distanceKm', label: 'Distance (Km)' },
+      { key: 'estimatedDurationMinutes', label: 'Estimated Duration (mins)' },
+      { key: 'checkpoints', label: 'Checkpoints Count', transform: (val: any[]) => val ? val.length : 0 },
+    ];
+    exportToCSV(filteredRoutes, headers, 'routes_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -628,6 +652,23 @@ export function RoutesPage() {
             style={{ width: 250 }}
             allowClear
           />
+          <Select
+            value={distanceFilter}
+            onChange={value => setDistanceFilter(value)}
+            style={{ width: 180 }}
+          >
+            <Select.Option value="ALL">All Distances</Select.Option>
+            <Select.Option value="SHORT">Short (≤20 km)</Select.Option>
+            <Select.Option value="MEDIUM">Medium (20–50 km)</Select.Option>
+            <Select.Option value="LONG">Long (50+ km)</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
+          >
+            Export CSV
+          </Button>
           <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)', border: 'none', color: '#000', fontWeight: 'bold' }}>
             + Create D-Ride Route
           </Button>

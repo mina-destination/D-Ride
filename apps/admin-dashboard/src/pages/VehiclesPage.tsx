@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Space, message, Select, InputNumber, Tag } from 'antd';
 import { vehiclesAPI } from '../services/api';
-import { CarFront } from 'lucide-react';
+import { CarFront, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 export function VehiclesPage() {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -10,6 +11,8 @@ export function VehiclesPage() {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [capacityFilter, setCapacityFilter] = useState<string>('ALL');
 
   const fetchVehicles = async () => {
     try {
@@ -78,11 +81,24 @@ export function VehiclesPage() {
 
   const filteredVehicles = vehicles.filter(v => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       v.licensePlate?.toLowerCase().includes(term) ||
       v.make?.toLowerCase().includes(term) ||
-      v.model?.toLowerCase().includes(term)
-    );
+      v.model?.toLowerCase().includes(term);
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (v.status || 'ACTIVE') === statusFilter;
+
+    let matchesCapacity = true;
+    if (capacityFilter !== 'ALL' && v.capacity != null) {
+      const cap = v.capacity;
+      if (capacityFilter === 'SMALL') matchesCapacity = cap <= 14;
+      else if (capacityFilter === 'MEDIUM') matchesCapacity = cap > 14 && cap <= 30;
+      else if (capacityFilter === 'LARGE') matchesCapacity = cap > 30;
+    }
+
+    return matchesSearch && matchesStatus && matchesCapacity;
   });
 
   const columns = [
@@ -133,6 +149,18 @@ export function VehiclesPage() {
     },
   ];
 
+  const handleExport = () => {
+    const headers = [
+      { key: '_id', label: 'Vehicle ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'make', label: 'Make' },
+      { key: 'model', label: 'Model' },
+      { key: 'licensePlate', label: 'License Plate' },
+      { key: 'capacity', label: 'Capacity (seats)' },
+      { key: 'status', label: 'Status', transform: (val: string) => val || 'ACTIVE' },
+    ];
+    exportToCSV(filteredVehicles, headers, 'vehicles_report');
+  };
+
   return (
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -149,6 +177,33 @@ export function VehiclesPage() {
             style={{ width: 250 }}
             allowClear
           />
+          <Select
+            value={statusFilter}
+            onChange={value => setStatusFilter(value)}
+            style={{ width: 160 }}
+          >
+            <Select.Option value="ALL">All Statuses</Select.Option>
+            <Select.Option value="ACTIVE">Active</Select.Option>
+            <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
+            <Select.Option value="OUT_OF_SERVICE">Out of Service</Select.Option>
+          </Select>
+          <Select
+            value={capacityFilter}
+            onChange={value => setCapacityFilter(value)}
+            style={{ width: 170 }}
+          >
+            <Select.Option value="ALL">All Capacities</Select.Option>
+            <Select.Option value="SMALL">Small (≤14 seats)</Select.Option>
+            <Select.Option value="MEDIUM">Medium (15–30 seats)</Select.Option>
+            <Select.Option value="LARGE">Large (30+ seats)</Select.Option>
+          </Select>
+          <Button 
+            onClick={handleExport} 
+            icon={<Download size={16} />}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
+          >
+            Export CSV
+          </Button>
           <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)' }}>
             + Add Vehicle
           </Button>

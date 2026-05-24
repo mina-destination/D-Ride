@@ -5,8 +5,9 @@ import { usersAPI, bookingsAPI, supportAPI } from '../services/api';
 import { 
   Users, Ban, TrendingUp, Phone, Mail, 
   Calendar, DollarSign, Activity, ChevronRight, Clock, MessageSquare, 
-  Trash2, UserCheck, Inbox, CheckCircle2
+  Trash2, UserCheck, Inbox, CheckCircle2, Download
 } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 
 export function CrmPage() {
   const { user: currentAdmin } = useAuth();
@@ -23,6 +24,10 @@ export function CrmPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  
+  // Filtering States for Tickets
+  const [ticketSearchTerm, setTicketSearchTerm] = useState('');
+  const [ticketStatusFilter, setTicketStatusFilter] = useState<string>('ALL');
   
   // User Drawer States
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
@@ -98,6 +103,53 @@ export function CrmPage() {
 
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  // Filter logic for Ticket list in CRM
+  const filteredCrmTickets = tickets.filter(t => {
+    const term = ticketSearchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      t.subject?.toLowerCase().includes(term) ||
+      t.message?.toLowerCase().includes(term) ||
+      t.name?.toLowerCase().includes(term) ||
+      t.email?.toLowerCase().includes(term) ||
+      t._id?.toLowerCase().includes(term);
+
+    const matchesStatus =
+      ticketStatusFilter === 'ALL' ||
+      (t.status || 'OPEN') === ticketStatusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // CSV export for Users tab
+  const handleExportUsers = () => {
+    const headers = [
+      { key: '_id', label: 'User ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'role', label: 'Role' },
+      { key: 'isActive', label: 'Status', transform: (val: any) => val !== false ? 'ACTIVE' : 'SUSPENDED' },
+      { key: 'createdAt', label: 'Registered On', transform: (val: string) => val ? new Date(val).toLocaleDateString() : '' },
+    ];
+    exportToCSV(filteredUsers, headers, 'crm_users_report');
+  };
+
+  // CSV export for Tickets tab
+  const handleExportTickets = () => {
+    const headers = [
+      { key: '_id', label: 'Ticket ID', transform: (val: string) => val.toUpperCase() },
+      { key: 'subject', label: 'Subject' },
+      { key: 'name', label: 'Passenger Name' },
+      { key: 'email', label: 'Passenger Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'message', label: 'Message' },
+      { key: 'status', label: 'Status' },
+      { key: 'replies', label: 'Replies Count', transform: (val: any) => val?.length?.toString() || '0' },
+      { key: 'createdAt', label: 'Submitted On', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+    ];
+    exportToCSV(filteredCrmTickets, headers, 'crm_tickets_report');
+  };
 
   // Calculate live statistics
   const totalUsers = users.length;
@@ -633,6 +685,13 @@ export function CrmPage() {
                     <Select.Option value="ACTIVE">Active Only</Select.Option>
                     <Select.Option value="SUSPENDED">Suspended Only</Select.Option>
                   </Select>
+                  <Button 
+                    onClick={handleExportUsers} 
+                    icon={<Download size={16} />}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    Export CSV
+                  </Button>
                 </div>
 
                 <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -656,16 +715,44 @@ export function CrmPage() {
               </span>
             ),
             children: (
-              <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <Table
-                  dataSource={tickets}
-                  columns={ticketColumns}
-                  rowKey="_id"
-                  loading={ticketsLoading}
-                  pagination={{ pageSize: 10, showSizeChanger: true }}
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '1.5rem' }}>
+                  <Input.Search 
+                    placeholder="Search subject, user, ID..." 
+                    value={ticketSearchTerm} 
+                    onSearch={value => setTicketSearchTerm(value)} 
+                    onChange={e => setTicketSearchTerm(e.target.value)} 
+                    style={{ width: 280 }} 
+                    allowClear 
+                  />
+                  <Select
+                    value={ticketStatusFilter}
+                    onChange={value => setTicketStatusFilter(value)}
+                    style={{ width: 150 }}
+                  >
+                    <Select.Option value="ALL">All Tickets</Select.Option>
+                    <Select.Option value="OPEN">Open Only</Select.Option>
+                    <Select.Option value="RESOLVED">Resolved Only</Select.Option>
+                  </Select>
+                  <Button 
+                    onClick={handleExportTickets} 
+                    icon={<Download size={16} />}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    Export CSV
+                  </Button>
+                </div>
+                <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <Table
+                    dataSource={filteredCrmTickets}
+                    columns={ticketColumns}
+                    rowKey="_id"
+                    loading={ticketsLoading}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+              </>
             ),
           }
         ]}
