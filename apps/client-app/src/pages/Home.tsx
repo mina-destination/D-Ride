@@ -1086,9 +1086,9 @@ export default function HomePage() {
           <div className="feature-card glass delay-2 animate-fade-in-up">
             <div className="feature-icon"><CreditCard size={28} /></div>
             <div>
-              <h3 className="feature-title">Cashless Payments</h3>
+              <h3 className="feature-title">Card & Cash Payments</h3>
               <p className="feature-desc">
-                Pay securely with cards, mobile wallets, or e-payment through our Paymob integration. No cash needed.
+                Pay securely online with cards through our Paymob integration, or pay in cash directly on board the bus.
               </p>
             </div>
           </div>

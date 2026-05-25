@@ -12,9 +12,7 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE'>('CARD');
-  const [walletNumber, setWalletNumber] = useState<string>('');
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH'>('CARD');
   const [allowCashOnDelivery, setAllowCashOnDelivery] = useState(true);
 
   useEffect(() => {
@@ -29,12 +27,7 @@ export default function PaymentPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    paymobAPI.getWallet()
-      .then(res => {
-        const data = res.data ?? res;
-        setWalletBalance(data.walletBalance);
-      })
-      .catch(err => console.error("Failed to load wallet balance:", err));
+
 
     api.get('/paymob/features')
       .then((res: any) => {
@@ -53,11 +46,6 @@ export default function PaymentPage() {
   const handleCheckout = async () => {
     if (!booking) return;
 
-    if (paymentMethod === 'WALLET' && !walletNumber.match(/^01[0125][0-9]{8}$/)) {
-      alert('Please enter a valid Egyptian mobile wallet number (e.g. 01012345678).');
-      return;
-    }
-
     setProcessing(true);
     try {
       // Initialize Paymob Checkout
@@ -65,7 +53,6 @@ export default function PaymentPage() {
         bookingId: booking._id || booking.id,
         amountCents: booking.amountEGP * 100,
         paymentMethod,
-        walletNumber: paymentMethod === 'WALLET' ? walletNumber : undefined,
       });
 
       // Redirect or navigate
@@ -94,8 +81,8 @@ export default function PaymentPage() {
 
   if (loading) {
     return (
-      <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: '4rem', paddingBottom: '4rem' }}>
-        <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem' }}>
+      <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
+        <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem', margin: '0 auto' }}>
           <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
               <Bus size={48} color="var(--text-secondary)" />
@@ -122,16 +109,18 @@ export default function PaymentPage() {
   const seatNumbers = booking.seatNumbers || [];
 
   return (
-    <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: '4rem', paddingBottom: '4rem' }}>
-      <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+    <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
+      <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
+        
+        {/* Header Section */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <Link to="/">
             <img src={logo} alt="D-Ride" className="auth-logo" />
           </Link>
-          <h1 style={{ color: 'var(--text-primary)', marginTop: '1rem', fontSize: '2rem', fontWeight: 800 }}>
-            Booking Payment
+          <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
+            Secure Ride Payment
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
             Cairo Commuter Minibus Fleet (14-Seater)
           </p>
         </div>
@@ -141,9 +130,11 @@ export default function PaymentPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '2rem',
+          marginBottom: '3rem',
           position: 'relative',
-          padding: '0 1.5rem'
+          padding: '0 1.5rem',
+          maxWidth: '600px',
+          margin: '0 auto 3rem auto'
         }}>
           {/* Progress Connecting Line */}
           <div style={{
@@ -185,7 +176,7 @@ export default function PaymentPage() {
             }}>
               ✓
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '6px' }}>Configure Commute</span>
+            <span className="stepper-label" style={{ color: 'var(--text-secondary)' }}>Configure Commute</span>
           </div>
 
           {/* Step 2 */}
@@ -206,7 +197,7 @@ export default function PaymentPage() {
             }}>
               2
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>Select Payment</span>
+            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>Select Payment</span>
           </div>
 
           {/* Step 3 */}
@@ -227,239 +218,211 @@ export default function PaymentPage() {
             }}>
               3
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: processing ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '6px' }}>Confirm Seat</span>
+            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>Confirm Seat</span>
           </div>
         </div>
 
-        <div className="auth-card solid-checkout-card" style={{ borderRadius: '20px', padding: '2rem' }}>
-          <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>
-            Reservation Details
-          </h3>
+        <div className="split-layout-container">
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Route</span>
-            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.routeId?.name || 'Standard Route'}</span>
-          </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Departure</span>
-            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-              {trip?.departureTime ? new Date(trip.departureTime).toLocaleString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : 'N/A'}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Selected Seats</span>
-            <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
-              {seatNumbers.length > 0 ? seatNumbers.map((s: any) => `#${s}`).join(', ') : 'None Selected'}
-            </span>
-          </div>
-
-          {booking.pickupCheckpoint && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Pickup Station</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{booking.pickupCheckpoint.name}</span>
-            </div>
-          )}
-
-          {booking.dropoffCheckpoint && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Dropoff Station</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{booking.dropoffCheckpoint.name}</span>
-            </div>
-          )}
-
-          {/* Cost breakdown */}
-          <div style={{
-            background: 'var(--surface-hover)',
-            borderRadius: '12px',
-            padding: '1.25rem',
-            margin: '1.5rem 0',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Seat Reservation ({seatNumbers.length} Seat(s))</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                {booking.amountEGP} EGP
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                {Math.round(booking.amountEGP * 0.14)} EGP
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Booking Fee</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
-                0.00 EGP (FREE)
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total Fare</span>
-              <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                {booking.amountEGP} EGP
-              </span>
-            </div>
-          </div>
-
-          {/* Payment Method Selector */}
-          <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-            <h4 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700 }}>
-              Payment Method 💳
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginBottom: '1.25rem' }}>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('CARD')}
-                className={`payment-method-btn ${paymentMethod === 'CARD' ? 'active' : ''}`}
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-              >
-                <span style={{ fontSize: '1.2rem' }}>💳</span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Card / Visa</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('WALLET')}
-                className={`payment-method-btn ${paymentMethod === 'WALLET' ? 'active' : ''}`}
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-              >
-                <span style={{ fontSize: '1.2rem' }}>📱</span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Mobile Wallet</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('WALLET_BALANCE')}
-                className={`payment-method-btn ${paymentMethod === 'WALLET_BALANCE' ? 'active' : ''}`}
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-              >
-                <span style={{ fontSize: '1.2rem' }}>💰</span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Prepaid Wallet</span>
-                {walletBalance !== null && (
-                  <span style={{ fontSize: '0.62rem', color: 'var(--primary)' }}>
-                    ({walletBalance} EGP)
-                  </span>
-                )}
-              </button>
-              {allowCashOnDelivery && (
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('CASH')}
-                  className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>💵</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Cash on Board</span>
-                </button>
-              )}
-            </div>
-
-            {paymentMethod === 'WALLET' && (
-              <div style={{
-                marginBottom: '1.25rem',
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--border)',
-                padding: '14px',
-                borderRadius: '10px',
-                animation: 'slideDownFade 0.3s ease'
-              }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
-                  Mobile Wallet Number (Vodafone, Orange, Etisalat Cash)
-                </label>
-                <input
-                  type="text"
-                  value={walletNumber}
-                  onChange={(e) => setWalletNumber(e.target.value)}
-                  placeholder="e.g. 01012345678"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface-hover)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    fontSize: '0.9rem'
-                  }}
-                />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>
-                  Standard 11-digit Egyptian mobile number.
-                </p>
+          {/* Left Panel: Payment Method Selection */}
+          <div className="main-panel">
+            
+            <div className="premium-card">
+              <div className="premium-card-title">
+                <span>💳</span> Select Payment Method
               </div>
-            )}
+              
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                All transaction gateways are end-to-end encrypted and comply with PCI-DSS standards.
+              </p>
 
-            {paymentMethod === 'WALLET_BALANCE' && (
-              <div 
-                className="success-box-opaque"
-                style={{
-                  marginBottom: '1.25rem',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem'
-                }}
-              >
-                💰 <strong>D-Ride Prepaid Wallet</strong>: Deducts <strong>{booking.amountEGP} EGP</strong> instantly from your wallet balance. Booking confirmation is instantaneous.
-                {walletBalance !== null && walletBalance < booking.amountEGP && (
-                  <div style={{ color: 'var(--error)', marginTop: '8px', fontWeight: 'bold' }}>
-                    ⚠️ Insufficient Balance! Please top up your wallet or choose another payment method.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                {/* Credit Card Card Option */}
+                <div 
+                  className={`payment-card-option ${paymentMethod === 'CARD' ? 'active' : ''}`}
+                  onClick={() => setPaymentMethod('CARD')}
+                >
+                  <div className="payment-card-radio">
+                    <div className="payment-card-radio-inner" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>💳</span>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>Credit Card / Debit Card</strong>
+                    </div>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Pay online instantly using Visa, Mastercard, or Meeza via the secure Paymob gateway.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cash Card Option */}
+                {allowCashOnDelivery && (
+                  <div 
+                    className={`payment-card-option ${paymentMethod === 'CASH' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('CASH')}
+                  >
+                    <div className="payment-card-radio">
+                      <div className="payment-card-radio-inner" />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>💵</span>
+                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>Cash on Board</strong>
+                      </div>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Pay cash directly to the driver upon boarding. Note that ticket reservations are still instant.
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {paymentMethod === 'CASH' && (
-              <div 
-                className="warning-box-opaque"
-                style={{
-                  marginBottom: '1.25rem',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem'
-                }}
-              >
-                🤝 <strong>Cash on Board</strong>: Pay directly to the minibus driver during boarding. Ticket confirmation is instant.
+              {/* Dynamic instruction box based on choice */}
+              {paymentMethod === 'CARD' ? (
+                <div 
+                  className="success-box-opaque"
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div>🔒 <strong>Secure Paymob Checkout</strong>: You will be redirected to the secure Paymob processing page to enter card details.</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Supported schemes: Visa, Mastercard, Meeza, and international bank cards.</div>
+                </div>
+              ) : (
+                <div 
+                  className="warning-box-opaque"
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.4
+                  }}
+                >
+                  🤝 <strong>Cash on Board</strong>: Please prepare exact change of <strong>{booking.amountEGP} EGP</strong> if possible to avoid delays during boarding check-in.
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* Right Panel: Summary & Checkout invoice */}
+          <div className="sidebar-panel">
+            
+            {/* Reservation Summary */}
+            <div className="premium-card">
+              <div className="premium-card-title">
+                <span>📋</span> Reservation Dossier
               </div>
-            )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Route Line</div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+                    {trip?.routeId?.name || 'Standard Route'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Departure Schedule</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
+                    {trip?.departureTime ? new Date(trip.departureTime).toLocaleString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : 'N/A'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Assigned Seats</div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem', marginTop: '2px' }}>
+                    {seatNumbers.length > 0 ? seatNumbers.map((s: any) => `#${s}`).join(', ') : 'None'}
+                  </div>
+                </div>
+
+                {/* Stations Timeline */}
+                <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                  {booking.pickupCheckpoint && (
+                    <div className="checkpoint-timeline-item pickup">
+                      <div className="checkpoint-timeline-dot" />
+                      <span className="checkpoint-timeline-label">Pickup Hub</span>
+                      <span className="checkpoint-timeline-value">{booking.pickupCheckpoint.name}</span>
+                    </div>
+                  )}
+                  {booking.dropoffCheckpoint && (
+                    <div className="checkpoint-timeline-item dropoff">
+                      <div className="checkpoint-timeline-dot" />
+                      <span className="checkpoint-timeline-label">Dropoff Hub</span>
+                      <span className="checkpoint-timeline-value">{booking.dropoffCheckpoint.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Cost breakdown */}
+            <div className="premium-card">
+              <div className="premium-card-title">
+                <span>🧾</span> Billing Details
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Seat Reserv. ({seatNumbers.length})</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{booking.amountEGP} EGP</span>
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{Math.round(booking.amountEGP * 0.14)} EGP</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Processing Fee</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>0.00 EGP (FREE)</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total Charge</span>
+                  <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>{booking.amountEGP} EGP</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkout Action Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button 
+                onClick={handleCheckout} 
+                className="auth-button" 
+                disabled={processing}
+                style={{ padding: '1rem' }}
+              >
+                {processing 
+                  ? 'Processing Securely...' 
+                  : paymentMethod === 'CASH' 
+                    ? 'Confirm Booking (Cash)' 
+                    : `Pay ${booking.amountEGP} EGP via Paymob`
+                }
+              </button>
+              
+              <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                <Lock size={12} /> Encrypted online checkouts. Cards and Cash accepted.
+              </p>
+            </div>
+
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Total Fare</span>
-            <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-              {booking.amountEGP} EGP
-            </span>
-          </div>
-
-          <button 
-            onClick={handleCheckout} 
-            className="auth-button" 
-            disabled={
-              processing || 
-              (paymentMethod === 'WALLET_BALANCE' && walletBalance !== null && walletBalance < booking.amountEGP)
-            }
-            style={{ marginTop: '2rem' }}
-          >
-            {processing 
-              ? 'Processing Securely...' 
-              : paymentMethod === 'CASH' 
-                ? 'Confirm Booking (Cash)' 
-                : paymentMethod === 'WALLET_BALANCE'
-                  ? 'Pay with Wallet Balance'
-                  : `Pay ${booking.amountEGP} EGP via Paymob`
-            }
-          </button>
-          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <Lock size={12} /> Secured via Paymob Egypt. Cards, Wallets, and Cash on Board supported.
-          </p>
         </div>
+
       </div>
     </div>
   );

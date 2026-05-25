@@ -13,6 +13,42 @@ import {
   Layers
 } from 'lucide-react';
 
+// Utility to convert Google Drive share links to direct download URLs
+function cleanGoogleDriveLink(url: string): string {
+  if (!url) return '';
+  
+  let fileId = '';
+  
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      fileId = match[1];
+    } else {
+      const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (queryMatch && queryMatch[1]) {
+        fileId = queryMatch[1];
+      }
+    }
+  } else if (url.includes('lh3.googleusercontent.com')) {
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      fileId = match[1];
+    }
+  } else if (url.includes('docs.google.com')) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      fileId = match[1];
+    }
+  }
+
+  if (fileId) {
+    // Use direct static CDN link to bypass tracking/redirect blocks in browsers like Brave
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  
+  return url;
+}
+
 // Fix default marker icon in Vite react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -204,7 +240,7 @@ export default function RoutesPage() {
                   {/* Card Banner */}
                   <div style={{
                     height: '110px',
-                    backgroundImage: `url(${route.coverImage || 'https://images.unsplash.com/photo-1541462608141-2f58c6e68e98?auto=format&fit=crop&w=600&q=80'})`,
+                    backgroundImage: `url("${cleanGoogleDriveLink(route.coverImage) || 'https://images.unsplash.com/photo-1541462608141-2f58c6e68e98?auto=format&fit=crop&w=600&q=80'}")`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative'
@@ -257,68 +293,42 @@ export default function RoutesPage() {
                     </div>
 
                     {/* Active Trips & Departure Times */}
-                    <div style={{ 
-                      marginTop: '0.75rem', 
-                      marginBottom: '1.25rem',
-                      padding: '0.75rem 1rem',
-                      background: 'var(--surface-hover)',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border)'
-                    }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '0.05em' }}>
-                        ⏰ Scheduled Trip Times
-                      </div>
-                      {tripsMap[route._id] && tripsMap[route._id].length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {tripsMap[route._id].map((trip) => {
-                            const timeStr = new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            const seatsLeft = trip.availableSeats - trip.bookedSeats;
-                            return (
-                              <button 
-                                key={trip._id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/checkout?tripId=${trip._id}&checkpointName=${encodeURIComponent(startStop?.name || '')}&dropoffCheckpointName=${encodeURIComponent(endStop?.name || '')}`);
-                                }}
-                                style={{
-                                  background: 'var(--surface)',
-                                  border: '1px solid var(--border)',
-                                  borderRadius: '8px',
-                                  padding: '6px 10px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: 'var(--primary)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '2px',
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.borderColor = 'var(--primary)';
-                                  e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 183, 49, 0.2)';
-                                  e.currentTarget.style.transform = 'translateY(-1px)';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.borderColor = 'var(--border)';
-                                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.02)';
-                                  e.currentTarget.style.transform = 'none';
-                                }}
-                              >
-                                <span>{timeStr}</span>
-                                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                                  {seatsLeft} seats
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', padding: '2px 0' }}>
-                          No active schedules today
-                        </span>
+                    <div 
+                      onClick={(e) => {
+                        if (tripsMap[route._id]?.length > 0) {
+                          e.stopPropagation();
+                          handleBook(route._id);
+                        }
+                      }}
+                      style={{ 
+                        marginTop: '0.75rem', 
+                        marginBottom: '1.25rem',
+                        padding: '0.75rem 1rem',
+                        background: 'var(--surface-hover)',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        cursor: tripsMap[route._id]?.length > 0 ? 'pointer' : 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onMouseEnter={e => {
+                        if (tripsMap[route._id]?.length > 0) {
+                          e.currentTarget.style.borderColor = 'rgba(245, 183, 49, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                    >
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        ⏰ {tripsMap[route._id] && tripsMap[route._id].length > 0 ? (
+                          <span><strong>{tripsMap[route._id].length} trips</strong> scheduled</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>No trips scheduled</span>
+                        )}
+                      </span>
+                      {tripsMap[route._id] && tripsMap[route._id].length > 0 && (
+                        <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700 }}>Book Shuttles →</span>
                       )}
                     </div>
 

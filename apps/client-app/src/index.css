@@ -362,7 +362,7 @@ textarea:focus-visible {
   justify-content: center;
   padding: 2rem;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* Animated aurora background for auth pages */
@@ -419,7 +419,7 @@ textarea:focus-visible {
 }
 
 .auth-logo:hover {
-  transform: scale(1.08) rotate(2deg);
+  transform: scale(1.08);
   box-shadow: 0 0 50px var(--glow-amber), 0 0 100px var(--glow-blue);
 }
 
@@ -651,3 +651,238 @@ textarea:focus-visible {
   transform: none;
   box-shadow: none;
 }
+
+/* ============================================================
+   Redesigned Split Layout & Premium Booking Cards
+   ============================================================ */
+
+.split-layout-container {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.main-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  position: sticky;
+  top: 7rem;
+  width: 100%;
+}
+
+/* Custom premium card design */
+.premium-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  padding: 2.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  transition: var(--transition-spring);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .premium-card {
+  background: var(--surface-elevated);
+  border: 1px solid rgba(245, 183, 49, 0.08);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+}
+
+.premium-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0.8;
+}
+
+.premium-card-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+/* Interactive Card Option buttons for Payments */
+.payment-card-option {
+  border: 2px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: var(--transition-spring);
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  position: relative;
+  text-align: left;
+}
+
+[data-theme="dark"] .payment-card-option {
+  background: var(--surface);
+}
+
+.payment-card-option:hover {
+  border-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .payment-card-option:hover {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.payment-card-option.active {
+  border-color: var(--primary);
+  background: rgba(245, 183, 49, 0.04);
+}
+
+[data-theme="dark"] .payment-card-option.active {
+  background: rgba(245, 183, 49, 0.03);
+  box-shadow: 0 0 20px rgba(245, 183, 49, 0.15);
+}
+
+.payment-card-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 3px;
+  transition: var(--transition-base);
+}
+
+.payment-card-option.active .payment-card-radio {
+  border-color: var(--primary);
+}
+
+.payment-card-radio-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  transform: scale(0);
+  transition: transform 0.2s ease;
+}
+
+.payment-card-option.active .payment-card-radio-inner {
+  transform: scale(1);
+}
+
+/* Visual timeline for checkpoints list */
+.checkpoint-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+  padding-left: 1.5rem;
+  margin-top: 1rem;
+}
+
+.checkpoint-timeline::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 2px;
+  background: var(--border);
+}
+
+.checkpoint-timeline-item {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.checkpoint-timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--background);
+  border: 2px solid var(--border);
+  z-index: 1;
+}
+
+.checkpoint-timeline-item.pickup .checkpoint-timeline-dot {
+  border-color: var(--primary);
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+
+.checkpoint-timeline-item.dropoff .checkpoint-timeline-dot {
+  border-color: var(--danger);
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+}
+
+.checkpoint-timeline-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.checkpoint-timeline-value {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-top: 1px;
+}
+
+.checkpoint-timeline-value-ar {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Stepper animation classes */
+.stepper-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+  transition: var(--transition-base);
+}
+
+/* Responsiveness media queries */
+@media (max-width: 992px) {
+  .split-layout-container {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .sidebar-panel {
+    position: static;
+  }
+}
+

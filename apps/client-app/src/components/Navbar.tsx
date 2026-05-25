@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Wallet, Bell } from 'lucide-react';
+import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Bell } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useState, useEffect, useRef } from 'react';
 
@@ -178,6 +178,15 @@ export default function Navbar() {
         </li>
         <li>
           <Link 
+            to="/partners" 
+            onClick={() => setIsOpen(false)}
+            className={isRouteActive('/partners') ? 'nav-link-active' : ''}
+          >
+            {t('partners')}
+          </Link>
+        </li>
+        <li>
+          <Link 
             to="/contact" 
             onClick={() => setIsOpen(false)}
             className={isRouteActive('/contact') ? 'nav-link-active' : ''}
@@ -232,18 +241,7 @@ export default function Navbar() {
                     <User size={16} /> {t('profile')}
                   </button>
                 </li>
-                <li>
-                  <Link 
-                    to="/wallet" 
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setIsOpen(false);
-                    }}
-                    className="profile-menu-item"
-                  >
-                    <Wallet size={16} /> {t('myWallet')}
-                  </Link>
-                </li>
+
                 <li>
                   <button 
                     onClick={() => {
@@ -370,14 +368,7 @@ export default function Navbar() {
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone Number</span>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.phone || 'N/A'}</span>
               </div>
-              {user?.role === 'PASSENGER' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Wallet Balance</span>
-                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    {user?.walletBalance !== undefined ? `${user.walletBalance} EGP` : '0 EGP'}
-                  </span>
-                </div>
-              )}
+
             </div>
 
             <button 
