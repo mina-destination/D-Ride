@@ -10,9 +10,6 @@ import compression from 'compression';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable high-velocity Gzip network compression
-  app.use(compression());
-
   // Integrate helmet middleware package for standard production HTTP security hardening
   app.use(helmet());
 
@@ -36,6 +33,9 @@ async function bootstrap() {
     }
   }
 
+  // Enable high-velocity Gzip network compression right before validation pipes
+  app.use(compression());
+
   // Enable global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -47,18 +47,21 @@ async function bootstrap() {
 
   // Enable CORS using environment-driven origin lookups (whitelisting passenger app, driver portal, and admin dashboard)
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+  const isProduction = process.env.NODE_ENV === 'production';
   const origins = allowedOriginsEnv
     ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
-    : [
-        'https://dride.app',
-        'https://passenger.dride.app',
-        'https://driver.dride.app',
-        'https://admin.dride.app',
-        'http://localhost:5173', // passenger client app
-        'http://localhost:5174', // driver portal
-        'http://localhost:5175', // admin dashboard
-        'http://localhost:3001',
-      ];
+    : (isProduction
+        ? [
+            'https://passenger.dride.app',
+            'https://driver.dride.app',
+            'https://admin.dride.app',
+          ]
+        : [
+            'http://localhost:5173', // passenger client app
+            'http://localhost:5174', // driver portal
+            'http://localhost:5175', // admin dashboard
+            'http://localhost:3001',
+          ]);
 
   app.enableCors({
     origin: origins,

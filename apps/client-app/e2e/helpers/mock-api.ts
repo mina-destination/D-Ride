@@ -367,4 +367,49 @@ export async function setupMockAPI(page: Page) {
       body: JSON.stringify({ data: { success: true } }),
     });
   });
+
+  // 14. Booking Details Mocking
+  await page.route(/\/api\/bookings\/[a-zA-Z0-9_-]+$/, async (route) => {
+    const url = route.request().url();
+    const bookingId = url.split('/').pop()?.split('?')[0];
+    if (bookingId === 'my-bookings') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          _id: bookingId || 'booking-new-123',
+          userId: 'user-123',
+          tripId: MOCK_TRIPS[0],
+          seatNumbers: [1],
+          pickupStopId: 'cp-1',
+          dropoffStopId: 'cp-3',
+          pickupCheckpoint: MOCK_ROUTES[0].checkpoints[0],
+          dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2],
+          status: 'PENDING',
+          paymentStatus: 'PENDING',
+          amountEGP: 65,
+          bookedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      }),
+    });
+  });
+
+  // 15. Paymob Features Mocking
+  await page.route('**/api/paymob/features', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          allowCashOnDelivery: true,
+        }
+      }),
+    });
+  });
 }

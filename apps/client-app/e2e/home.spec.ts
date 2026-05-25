@@ -53,23 +53,27 @@ test.describe('Home Page', () => {
     const searchBtn = page.locator('#search-trips-btn');
     await expect(searchBtn).toBeDisabled();
 
-    // Populate routes dropdown
-    const routeSelect = page.locator('#route-select');
-    await expect(routeSelect).toBeVisible();
-    await routeSelect.selectOption(MOCK_ROUTES[0]._id);
+    // Select From City "Maadi"
+    await page.locator('.from-to-field:has-text("From City") .custom-select-trigger').click();
+    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Maadi")').click();
 
-    // Checkpoint dropdown appears and search button is enabled
-    const checkpointSelect = page.locator('#checkpoint-select');
-    await expect(checkpointSelect).toBeVisible();
+    // Select To City "Smart Village"
+    await page.locator('.from-to-field:has-text("To City") .custom-select-trigger').click();
+    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Smart Village")').click();
+
+    // Search button is now enabled
     await expect(searchBtn).toBeEnabled();
 
-    // Select checkpoint and submit search
-    await checkpointSelect.selectOption(MOCK_ROUTES[0].checkpoints[1].name);
+    // Select From Station "Ring Road"
+    await page.locator('.from-to-field:has-text("From Station") .custom-select-trigger').click();
+    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Ring Road")').click();
+
+    // Click search
     await searchBtn.click();
 
-    // Navigates to search page with routeId and checkpointName parameters
+    // Navigates to search page with pickupLat, pickupLng, dropoffLat, dropoffLng
     await expect(page).toHaveURL(
-      new RegExp(`\\/search\\?routeId=${MOCK_ROUTES[0]._id}&checkpointName=${encodeURIComponent(MOCK_ROUTES[0].checkpoints[1].name)}`)
+      new RegExp(`\\/search\\?pickupLat=30\\.01&pickupLng=31\\.15&dropoffLat=30\\.08&dropoffLng=30\\.78`)
     );
   });
 });

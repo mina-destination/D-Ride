@@ -12,7 +12,7 @@ test.describe('Checkout & Seat Selection Page', () => {
     await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}`);
 
     await expect(page.locator('h1')).toHaveText('Toyota HiAce Seat Selection');
-    await expect(page.locator('text=Booking Summary')).toBeVisible();
+    await expect(page.locator('text=Commute Details')).toBeVisible();
 
     // Check fare starts at 0 EGP because no seat is selected
     await expect(page.locator('.auth-button')).toBeDisabled();
@@ -20,13 +20,13 @@ test.describe('Checkout & Seat Selection Page', () => {
   });
 
   test('should render 14 seats and handle seat selections correctly', async ({ page }) => {
-    await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}`);
+    await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}&passengers=2`);
 
     const busCabin = page.locator('.bus-cabin');
     await expect(busCabin).toBeVisible();
 
     // Check occupied seats are rendered with occupied class
-    const seat2 = page.locator('.bus-seat:text-is("2")');
+    const seat2 = page.locator('.bus-seat').filter({ hasText: /^2$/ });
     await expect(seat2).toHaveClass(/occupied/);
 
     // Clicking occupied seat should not select it
@@ -41,17 +41,17 @@ test.describe('Checkout & Seat Selection Page', () => {
     await expect(seat10).not.toHaveClass(/selected/);
 
     // Click available seat 1
-    const seat1 = page.locator('.bus-seat:text-is("1")');
+    const seat1 = page.locator('.bus-seat').filter({ hasText: /^1$/ });
     await expect(seat1).not.toHaveClass(/selected/);
     await seat1.click();
     await expect(seat1).toHaveClass(/selected/);
 
     // Check seat details card displays selected slot
-    await expect(page.locator('.seat-characteristic-card-slots')).toContainText('Seat #1');
+    await expect(page.locator('.premium-card-solid-amber')).toContainText('Seat #1');
     await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
 
     // Click another available seat 3
-    const seat3 = page.locator('.bus-seat:text-is("3")');
+    const seat3 = page.locator('.bus-seat').filter({ hasText: /^3$/ });
     await seat3.click();
     await expect(seat3).toHaveClass(/selected/);
     await expect(page.locator('text=Total Fare >> ..')).toContainText('130 EGP');
@@ -69,34 +69,20 @@ test.describe('Checkout & Seat Selection Page', () => {
     await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}`);
 
     // Select seat 1 to enable checkout button
-    await page.locator('.bus-seat:text-is("1")').click();
+    await page.locator('.bus-seat').filter({ hasText: /^1$/ }).click();
 
-    // Toggle Card payment (default)
-    const cardBtn = page.locator('.payment-method-btn:has-text("Card")');
-    await expect(cardBtn).toHaveClass(/active/);
+    // Click proceed to payment
+    await page.locator('.auth-button').click();
 
-    // Toggle Wallet payment
-    const walletBtn = page.locator('.payment-method-btn:has-text("Wallet")');
-    await walletBtn.click();
-    await expect(walletBtn).toHaveClass(/active/);
-    await expect(page.locator('text=Mobile Wallet Number')).toBeVisible();
+    // Navigates to payment page
+    await expect(page).toHaveURL(new RegExp(`\\/payment\\?bookingId=`));
 
-    // Fill invalid wallet number and trigger submit -> should show alert dialog
-    await page.fill('input[placeholder="e.g. 01012345678"]', '12345');
-    page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('Please enter a valid Egyptian mobile wallet number');
-      await dialog.dismiss();
-    });
-    await page.click('button:has-text("Pay 65 EGP via Paymob")');
+    // Verify Card payment is active by default
+    await expect(page.locator('.payment-card-option:has-text("Credit Card")')).toHaveClass(/active/);
 
-    // Fill valid wallet number
-    await page.fill('input[placeholder="e.g. 01012345678"]', '01012345678');
-
-    // Toggle Cash payment
-    const cashBtn = page.locator('.payment-method-btn:has-text("Cash")');
-    await cashBtn.click();
-    await expect(cashBtn).toHaveClass(/active/);
-    await expect(page.locator('strong:has-text("Cash on Board")')).toBeVisible();
+    // Select Cash payment
+    await page.locator('.payment-card-option:has-text("Cash on Board")').click();
+    await expect(page.locator('.payment-card-option:has-text("Cash on Board")')).toHaveClass(/active/);
 
     // Click Confirm Cash booking -> should redirect to my-trips page
     await page.click('button:has-text("Confirm Booking (Cash)")');

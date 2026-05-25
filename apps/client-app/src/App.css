@@ -1500,15 +1500,15 @@
 .bus-seat {
   width: 48px; /* Touch target optimized for mobile viewports */
   height: 48px; /* Touch target optimized for mobile viewports */
-  background: #111111; /* Opaque Deep Onyx */
-  border: 2.5px solid #444444; /* High visibility border */
+  background: #111111 !important; /* Opaque Deep Onyx */
+  border: 2.5px solid #444444 !important; /* High visibility border */
   border-radius: 8px 8px 4px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.85rem;
   font-weight: 800;
-  color: var(--text-secondary);
+  color: #ffffff !important;
   cursor: pointer;
   transition: var(--transition-base);
   user-select: none;
@@ -1516,25 +1516,25 @@
 }
 
 .bus-seat:hover:not(.occupied):not(.driver):not(.locked-luggage) {
-  border-color: #f5b731; /* Golden Amber */
-  background: #181818;
-  color: #f5b731;
+  border-color: #f5b731 !important; /* Golden Amber */
+  background: #1c1c1e !important;
+  color: #f5b731 !important;
 }
 
 .bus-seat.selected {
-  background: #f5b731; /* Solid Golden Amber */
-  border-color: #f5b731;
-  color: #111111; /* Deep Onyx text for high contrast */
+  background: #f5b731 !important; /* Solid Golden Amber */
+  border-color: #f5b731 !important;
+  color: #111111 !important; /* Deep Onyx text for high contrast */
   transform: scale(1.08);
-  box-shadow: 0 0 0 2px #111111, 0 0 0 4px #f5b731; /* Double high-contrast outline border */
+  box-shadow: 0 0 0 2px #111111, 0 0 0 4px #f5b731 !important; /* Double high-contrast outline border */
 }
 
 .bus-seat.occupied {
-  background: #222222; /* High contrast occupied seat */
-  border-color: #333333;
-  color: #555555;
+  background: #222222 !important; /* High contrast occupied seat */
+  border-color: #444444 !important;
+  color: #666666 !important;
   cursor: not-allowed;
-  opacity: 1; /* Opaque to prevent sun glare issues */
+  opacity: 1 !important; /* Opaque to prevent sun glare issues */
 }
 
 .bus-seat.driver {
@@ -1546,11 +1546,11 @@
 }
 
 .bus-seat.locked-luggage {
-  background: #2b1f0c; /* Deep opaque brown/amber */
-  border-color: #f5b731; /* Amber border */
-  color: #f5b731;
+  background: #3b2a14 !important; /* Deep opaque brown/amber */
+  border-color: #f5b731 !important; /* Amber border */
+  color: #f5b731 !important;
   cursor: not-allowed;
-  opacity: 1; /* Fully opaque */
+  opacity: 1 !important; /* Fully opaque */
 }
 
 .seat-legend {
@@ -2661,50 +2661,49 @@
 }
 
 .bus-seat.available {
-  background: #111111;
-  border-color: #444444;
+  background: #111111 !important;
+  border-color: #444444 !important;
 }
 
 .bus-seat.available:hover {
-  border-color: #f5b731;
-  background: #1c1c1e;
-  box-shadow: 0 0 10px rgba(245, 183, 49, 0.3);
+  border-color: #f5b731 !important;
+  background: #1c1c1e !important;
+  box-shadow: none !important;
 }
 
 .bus-seat.selected .bus-seat-inner {
-  background: #f5b731;
-  box-shadow: 0 0 15px rgba(245, 183, 49, 0.5);
+  background: #f5b731 !important;
+  box-shadow: none !important;
+  color: #111111 !important;
 }
 
 .bus-seat-cushion {
-  position: absolute;
-  bottom: 3px;
-  left: 3px;
-  right: 3px;
-  height: 12px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: none !important;
 }
 
 .bus-seat-stitching {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.15);
+  display: none !important;
 }
 
 .bus-seat.occupied {
-  cursor: not-allowed;
-  background: #222222;
-  border-color: #333333;
+  cursor: not-allowed !important;
+  background: #222222 !important;
+  border-color: #444444 !important;
+  color: #666666 !important;
+  opacity: 1 !important;
 }
 
 .bus-seat.locked-luggage {
-  background: #2b1f0c;
-  border-color: #f5b731;
-  cursor: not-allowed;
+  background: #3b2a14 !important;
+  border-color: #f5b731 !important;
+  color: #f5b731 !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.premium-card-solid-amber {
+  background: #0e0e1b !important;
+  border: 1.5px solid #f5b731 !important;
 }
 
 /* Stepper Connection Animations */
