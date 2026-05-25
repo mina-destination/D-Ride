@@ -509,4 +509,21 @@ export class BookingsService {
     });
     return this.mapBooking(updated);
   }
+
+  async findOne(id: string, userId: string): Promise<any> {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id, userId },
+      include: {
+        trip: {
+          include: {
+            route: true,
+            vehicle: true,
+            driver: true,
+          },
+        },
+      },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return this.mapBooking(booking);
+  }
 }

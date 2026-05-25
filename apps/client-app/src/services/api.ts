@@ -103,6 +103,7 @@ export const paymobAPI = {
 
 export const bookingsAPI = {
   getMyBookings: (): Promise<any> => api.get('/bookings/my-bookings'),
+  getById: (id: string): Promise<any> => api.get(`/bookings/${id}`),
   getOccupiedSeats: (tripId: string): Promise<any> => api.get(`/bookings/occupied/${tripId}`),
   create: (data: any): Promise<any> => api.post('/bookings', data),
   cancel: (id: string): Promise<any> => api.put(`/bookings/${id}/cancel`),

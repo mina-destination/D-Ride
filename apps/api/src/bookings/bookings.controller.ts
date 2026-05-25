@@ -110,4 +110,15 @@ export class BookingsController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async findById(@Request() req: any, @Param('id') id: string) {
+    const booking = await this.bookingsService.findOne(id, req.user.sub);
+    return {
+      success: true,
+      data: booking,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

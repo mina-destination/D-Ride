@@ -10,6 +10,7 @@ import RegisterPage from './pages/Register';
 import MyTripsPage from './pages/MyTrips';
 import TripSearchPage from './pages/TripSearch';
 import CheckoutPage from './pages/Checkout';
+import PaymentPage from './pages/Payment';
 import LiveTrackingPage from './pages/LiveTracking';
 import PaymentCallbackPage from './pages/PaymentCallback';
 import ContactPage from './pages/ContactPage';
@@ -125,6 +126,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
             </ProtectedRoute>
           }
         />
