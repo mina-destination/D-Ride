@@ -9,6 +9,7 @@ import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar,
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { cleanGoogleDriveLink } from '../utils/google-drive';
 
 // Fix default marker icon in Vite react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -1166,7 +1167,7 @@ export default function HomePage() {
                 }}
               >
                 <img
-                  src={partner.logoUrl}
+                  src={cleanGoogleDriveLink(partner.logoUrl)}
                   alt={partner.name}
                   style={{
                     maxWidth: '80px',
