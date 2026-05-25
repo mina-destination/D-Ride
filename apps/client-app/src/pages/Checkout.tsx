@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Ticket, Lock, Bus } from 'lucide-react';
+import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus } from 'lucide-react';
 
 import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -306,19 +306,21 @@ export default function CheckoutPage() {
     (coord: number[]) => [coord[1], coord[0]] as [number, number]
   ) || [];
 
-  if (!tripId) return <div className="auth-page"><div className="auth-card solid-checkout-card">No trip selected.</div></div>;
+  if (!tripId) return <div className="auth-page"><div className="premium-card">No trip selected.</div></div>;
 
   return (
-    <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: '4rem', paddingBottom: '4rem' }}>
-      <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+    <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
+      <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
+        
+        {/* Header Section */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <Link to="/">
             <img src={logo} alt="D-Ride" className="auth-logo" />
           </Link>
-          <h1 style={{ color: 'var(--text-primary)', marginTop: '1rem', fontSize: '2rem', fontWeight: 800 }}>
+          <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
             Toyota HiAce Seat Selection
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
             Cairo Commuter Minibus Fleet (14-Seater)
           </p>
         </div>
@@ -328,9 +330,11 @@ export default function CheckoutPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '2rem',
+          marginBottom: '3rem',
           position: 'relative',
-          padding: '0 1.5rem'
+          padding: '0 1.5rem',
+          maxWidth: '600px',
+          margin: '0 auto 3rem auto'
         }}>
           {/* Progress Connecting Line */}
           <div style={{
@@ -373,7 +377,7 @@ export default function CheckoutPage() {
             }}>
               1
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>Configure Commute</span>
+            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>Configure Commute</span>
           </div>
 
           {/* Step 2 */}
@@ -394,7 +398,7 @@ export default function CheckoutPage() {
             }}>
               2
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '6px' }}>Select Payment</span>
+            <span className="stepper-label" style={{ color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>Select Payment</span>
           </div>
 
           {/* Step 3 */}
@@ -415,487 +419,514 @@ export default function CheckoutPage() {
             }}>
               3
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: processing ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '6px' }}>Confirm Seat</span>
+            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>Confirm Seat</span>
           </div>
         </div>
 
         {loading ? (
-          <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="premium-card" style={{ textAlign: 'center', padding: '4rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
               <Bus size={48} color="var(--text-secondary)" />
             </div>
-            <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading trip configuration...</p>
+            <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Loading trip configuration...</p>
           </div>
         ) : trip ? (
-          <div className="auth-card solid-checkout-card" style={{ borderRadius: '20px', padding: '2rem' }}>
-            <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>
-              Booking Summary
-            </h3>
+          <div className="split-layout-container">
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Route</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip.routeId?.name || 'Standard Route'}</span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Departure</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{new Date(trip.departureTime).toLocaleString()}</span>
-            </div>
+            {/* Left Main Panel: Checkpoints and Seats */}
+            <div className="main-panel">
+              
+              {/* Checkpoint Selection Map */}
+              {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
+                <div className="premium-card">
+                  <div className="premium-card-title">
+                    <span>📍</span> Boarding & Dropoff Checkpoints
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Verify or select where the driver should pick you up and drop you off. Click markers or dots to adjust.
+                    </p>
+                    <button 
+                      type="button" 
+                      onClick={() => setMapLoadFailed(prev => !prev)}
+                      style={{ fontSize: '11px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', flexShrink: 0 }}
+                    >
+                      {mapLoadFailed ? 'Show Map' : 'Select Manually'}
+                    </button>
+                  </div>
 
-            {/* Checkpoint Selection Map */}
-            {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
-              <div style={{ marginTop: '1rem', marginBottom: '1.5rem', background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1rem', fontWeight: 700 }}>
-                    Boarding & Dropoff Checkpoints 📍
-                  </h4>
-                  <button 
-                    type="button" 
-                    onClick={() => setMapLoadFailed(prev => !prev)}
-                    style={{ fontSize: '11px', background: '#1c1c1e', color: '#f5b731', border: '1.5px solid #f5b731', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    {mapLoadFailed ? 'Show Map' : 'Select Manually'}
-                  </button>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Verify or select where the driver should pick you up and drop you off. Click markers or stepper below to adjust.
-                </p>
+                  {mapLoadFailed && (
+                    <div style={{
+                      background: 'rgba(245, 183, 49, 0.04)',
+                      border: '1px solid var(--primary)',
+                      padding: '1.25rem',
+                      borderRadius: '12px',
+                      marginBottom: '1.5rem',
+                      fontSize: '0.88rem',
+                      color: 'var(--text-primary)'
+                    }}>
+                      💡 <strong>Manual Selection Fallback</strong>: Select primary Cairo transit hubs below to map them to your route stops:
+                      
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Manual Pickup Hub</label>
+                          <select 
+                            onChange={(e) => {
+                              const hub = cairoTransitHubs.find(h => h.name === e.target.value);
+                              if (hub) handleTransitHubSelect(hub, 'pickup');
+                            }}
+                            style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
+                          >
+                            <option value="">Select Pickup</option>
+                            {cairoTransitHubs.map(h => (
+                              <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
+                            ))}
+                          </select>
+                        </div>
 
-                {mapLoadFailed && (
-                  <div style={{
-                    background: '#1a150c',
-                    border: '1.5px solid #f5b731',
-                    padding: '14px',
-                    borderRadius: '10px',
-                    marginBottom: '1rem',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-primary)'
-                  }}>
-                    💡 <strong>Manual Selection Fallback</strong>: Select primary Cairo transit hubs below to map them to your route stops:
-                    
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Manual Pickup Hub</label>
-                        <select 
-                          onChange={(e) => {
-                            const hub = cairoTransitHubs.find(h => h.name === e.target.value);
-                            if (hub) handleTransitHubSelect(hub, 'pickup');
-                          }}
-                          style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.82rem' }}
-                        >
-                          <option value="">Select Pickup</option>
-                          {cairoTransitHubs.map(h => (
-                            <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>Manual Dropoff Hub</label>
-                        <select 
-                          onChange={(e) => {
-                            const hub = cairoTransitHubs.find(h => h.name === e.target.value);
-                            if (hub) handleTransitHubSelect(hub, 'dropoff');
-                          }}
-                          style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.82rem' }}
-                        >
-                          <option value="">Select Dropoff</option>
-                          {cairoTransitHubs.map(h => (
-                            <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
-                          ))}
-                        </select>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Manual Dropoff Hub</label>
+                          <select 
+                            onChange={(e) => {
+                              const hub = cairoTransitHubs.find(h => h.name === e.target.value);
+                              if (hub) handleTransitHubSelect(hub, 'dropoff');
+                            }}
+                            style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
+                          >
+                            <option value="">Select Dropoff</option>
+                            {cairoTransitHubs.map(h => (
+                              <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1rem', display: mapLoadFailed ? 'none' : 'block' }}>
-                  <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      eventHandlers={{
-                        tileerror: () => {
-                          setMapLoadFailed(true);
-                        }
-                      }}
-                    />
-                    <MapFocusController coords={mapFocusCoords} />
-                    {polylinePath.length > 0 && (
-                      <Polyline positions={polylinePath} color="var(--primary)" weight={4} opacity={0.6} />
-                    )}
-                    {/* User Location */}
-                    {userLocation && (
-                      <CircleMarker center={userLocation} radius={8} pathOptions={{ fillColor: '#3b82f6', fillOpacity: 0.8, color: 'white', weight: 2 }}>
-                        <Popup>You are here</Popup>
-                      </CircleMarker>
-                    )}
-                    {/* Checkpoints */}
-                    {trip.routeId.checkpoints.map((cp: any, idx: number) => {
-                      const cpCoords: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
+                  <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem', display: mapLoadFailed ? 'none' : 'block' }}>
+                    <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        eventHandlers={{
+                          tileerror: () => {
+                            setMapLoadFailed(true);
+                          }
+                        }}
+                      />
+                      <MapFocusController coords={mapFocusCoords} />
+                      {polylinePath.length > 0 && (
+                        <Polyline positions={polylinePath} color="var(--primary)" weight={4} opacity={0.6} />
+                      )}
+                      {/* User Location */}
+                      {userLocation && (
+                        <CircleMarker center={userLocation} radius={8} pathOptions={{ fillColor: '#3b82f6', fillOpacity: 0.8, color: 'white', weight: 2 }}>
+                          <Popup>You are here</Popup>
+                        </CircleMarker>
+                      )}
+                      {/* Checkpoints */}
+                      {trip.routeId.checkpoints.map((cp: any, idx: number) => {
+                        const cpCoords: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
+                        const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
+                        const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
+                        
+                        return (
+                          <Marker 
+                            key={idx} 
+                            position={cpCoords}
+                            icon={isPickup ? goldIcon : (isDropoff ? redIcon : blueIcon)}
+                          >
+                            <Popup>
+                              <strong>{cp.name}</strong>
+                              {cp.nameAr && <><br />{cp.nameAr}</>}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setSelectedPickupCheckpoint(cp); 
+                                    setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                  }}
+                                  style={{ fontSize: '11px', padding: '6px 12px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  Set Pickup
+                                </button>
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setSelectedDropoffCheckpoint(cp); 
+                                    setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                  }}
+                                  style={{ fontSize: '11px', padding: '6px 12px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  Set Dropoff
+                                </button>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        );
+                      })}
+                    </MapContainer>
+                  </div>
+
+                  {/* Checkpoint Stepper Progress bar */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    position: 'relative', 
+                    margin: '1.5rem 0 1rem 0',
+                    overflowX: 'auto',
+                    paddingBottom: '0.75rem',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    zIndex: 2
+                  }} className="checkpoint-scrollbar">
+                    {/* Connecting Line */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '12px', 
+                      left: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
+                      right: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
+                      height: '4px', 
+                      background: 'var(--border)', 
+                      zIndex: 0 
+                    }} />
+                    
+                    {/* Colored Active Progress Line */}
+                    {(() => {
+                      const checkpoints = trip.routeId.checkpoints || [];
+                      if (checkpoints.length < 2) return null;
+                      
+                      const pickupIdx = selectedPickupCheckpoint 
+                        ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
+                        : 0;
+                      const dropoffIdx = selectedDropoffCheckpoint 
+                        ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
+                        : checkpoints.length - 1;
+                        
+                      if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
+                        const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
+                        const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
+                        const widthPercent = endPercent - startPercent;
+                        
+                        return (
+                          <div style={{ 
+                            position: 'absolute', 
+                            top: '12px', 
+                            left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
+                            width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
+                            height: '4px', 
+                            background: 'var(--primary)', 
+                            zIndex: 0,
+                            transition: 'all 0.3s ease'
+                          }} />
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {trip.routeId.checkpoints.map((cp: any, cpIdx: number) => {
                       const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
                       const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
                       
-                      return (
-                        <Marker 
-                          key={idx} 
-                          position={cpCoords}
-                          icon={isPickup ? goldIcon : (isDropoff ? redIcon : blueIcon)}
-                        >
-                          <Popup>
-                            <strong>{cp.name}</strong>
-                            {cp.nameAr && <><br />{cp.nameAr}</>}
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                              <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setSelectedPickupCheckpoint(cp); 
-                                  setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                }}
-                                style={{ fontSize: '12px', padding: '10px 16px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Set Pickup
-                              </button>
-                              <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setSelectedDropoffCheckpoint(cp); 
-                                  setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                }}
-                                style={{ fontSize: '12px', padding: '10px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Set Dropoff
-                              </button>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      );
-                    })}
-                  </MapContainer>
-                </div>
-
-
-                {/* Checkpoint Stepper Progress bar */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  position: 'relative', 
-                  margin: '1.5rem 0 1rem 0',
-                  overflowX: 'auto',
-                  paddingBottom: '0.5rem',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  zIndex: 2
-                }} className="checkpoint-scrollbar">
-                  {/* Connecting Line */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '12px', 
-                    left: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
-                    right: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
-                    height: '4px', 
-                    background: 'var(--border)', 
-                    zIndex: 0 
-                  }} />
-                  
-                  {/* Colored Active Progress Line */}
-                  {(() => {
-                    const checkpoints = trip.routeId.checkpoints || [];
-                    if (checkpoints.length < 2) return null;
-                    
-                    const pickupIdx = selectedPickupCheckpoint 
-                      ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
-                      : 0;
-                    const dropoffIdx = selectedDropoffCheckpoint 
-                      ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
-                      : checkpoints.length - 1;
-                      
-                    if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
-                      const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
-                      const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
-                      const widthPercent = endPercent - startPercent;
-                      
-                      return (
-                        <div style={{ 
-                          position: 'absolute', 
-                          top: '12px', 
-                          left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
-                          width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
-                          height: '4px', 
-                          background: 'var(--primary)', 
-                          zIndex: 0,
-                          transition: 'all 0.3s ease'
-                        }} />
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  {trip.routeId.checkpoints.map((cp: any, cpIdx: number) => {
-                    const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
-                    const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
-                    
-                    const checkpoints = trip.routeId.checkpoints || [];
-                    const pickupIdx = selectedPickupCheckpoint 
-                      ? checkpoints.findIndex((item: any) => item.name === selectedPickupCheckpoint.name)
-                      : 0;
-                    const dropoffIdx = selectedDropoffCheckpoint 
-                      ? checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoint.name)
-                      : checkpoints.length - 1;
-                      
-                    const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
-                    
-                    let dotBg = 'var(--surface-hover)';
-                    let dotBorder = '3px solid var(--border)';
-                    let dotShadow = 'none';
-                    
-                    if (isPickup) {
-                      dotBg = 'var(--primary)';
-                      dotBorder = '4px solid var(--surface)';
-                      dotShadow = '0 0 15px var(--primary)';
-                    } else if (isDropoff) {
-                      dotBg = '#EF4444';
-                      dotBorder = '4px solid var(--surface)';
-                      dotShadow = '0 0 15px #EF4444';
-                    } else if (isActiveRoute) {
-                      dotBg = 'rgba(245, 183, 49, 0.2)';
-                      dotBorder = '3px solid var(--primary)';
-                    }
-                    
-                    return (
-                      <div 
-                        key={cpIdx} 
-                        onClick={() => {
-                          let updated = false;
-                          if (cpIdx < dropoffIdx) {
-                            setSelectedPickupCheckpoint(cp);
-                            updated = true;
-                          } else if (cpIdx > pickupIdx) {
-                            setSelectedDropoffCheckpoint(cp);
-                            updated = true;
-                          }
-                          if (updated) {
-                            setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                          }
-                        }}
-                        style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          alignItems: 'center', 
-                          flex: 1, 
-                          minWidth: '100px',
-                          zIndex: 1, 
-                          position: 'relative', 
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s'
-                        }}
-                      >
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: dotBg,
-                          border: dotBorder,
-                          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: dotShadow,
-                        }}>
-                          {(isPickup || isDropoff) && (
-                            <div style={{
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '50%',
-                              background: 'var(--text-on-primary)'
-                            }} />
-                          )}
-                        </div>
+                      const checkpoints = trip.routeId.checkpoints || [];
+                      const pickupIdx = selectedPickupCheckpoint 
+                        ? checkpoints.findIndex((item: any) => item.name === selectedPickupCheckpoint.name)
+                        : 0;
+                      const dropoffIdx = selectedDropoffCheckpoint 
+                        ? checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoint.name)
+                        : checkpoints.length - 1;
                         
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          fontWeight: (isPickup || isDropoff) ? 800 : 500, 
-                          color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
-                          marginTop: '6px', 
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}>
-                          {cp.name}
-                        </span>
-                        {cp.nameAr && (
+                      const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
+                      
+                      let dotBg = 'var(--surface-hover)';
+                      let dotBorder = '3px solid var(--border)';
+                      let dotShadow = 'none';
+                      
+                      if (isPickup) {
+                        dotBg = 'var(--primary)';
+                        dotBorder = '4px solid var(--surface)';
+                        dotShadow = '0 0 15px var(--primary)';
+                      } else if (isDropoff) {
+                        dotBg = '#EF4444';
+                        dotBorder = '4px solid var(--surface)';
+                        dotShadow = '0 0 15px #EF4444';
+                      } else if (isActiveRoute) {
+                        dotBg = 'rgba(245, 183, 49, 0.2)';
+                        dotBorder = '3px solid var(--primary)';
+                      }
+                      
+                      return (
+                        <div 
+                          key={cpIdx} 
+                          onClick={() => {
+                            let updated = false;
+                            if (cpIdx < dropoffIdx) {
+                              setSelectedPickupCheckpoint(cp);
+                              updated = true;
+                            } else if (cpIdx > pickupIdx) {
+                              setSelectedDropoffCheckpoint(cp);
+                              updated = true;
+                            }
+                            if (updated) {
+                              setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                            }
+                          }}
+                          style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            flex: 1, 
+                            minWidth: '100px',
+                            zIndex: 1, 
+                            position: 'relative', 
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s'
+                          }}
+                        >
+                          <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: dotBg,
+                            border: dotBorder,
+                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: dotShadow,
+                          }}>
+                            {(isPickup || isDropoff) && (
+                              <div style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: 'var(--text-on-primary)'
+                              }} />
+                            )}
+                          </div>
+                          
                           <span style={{ 
-                            fontSize: '0.65rem', 
-                            color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
+                            fontSize: '0.75rem', 
+                            fontWeight: (isPickup || isDropoff) ? 800 : 500, 
+                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
+                            marginTop: '6px', 
                             textAlign: 'center',
                             transition: 'all 0.2s'
                           }}>
-                            {cp.nameAr}
+                            {cp.name}
                           </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {selectedPickupCheckpoint && (
-                    <div style={{ background: 'var(--surface-hover)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Pickup</div>
-                          <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedPickupCheckpoint.name}</div>
-                          {selectedPickupCheckpoint.nameAr && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedPickupCheckpoint.nameAr}</div>}
+                          {cp.nameAr && (
+                            <span style={{ 
+                              fontSize: '0.65rem', 
+                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
+                              textAlign: 'center',
+                              transition: 'all 0.2s'
+                            }}>
+                              {cp.nameAr}
+                            </span>
+                          )}
                         </div>
-                        <span style={{ fontSize: '20px' }}>📍</span>
-                      </div>
-                    </div>
-                  )}
-                  {selectedDropoffCheckpoint && (
-                    <div style={{ background: 'var(--surface-hover)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Dropoff</div>
-                          <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedDropoffCheckpoint.name}</div>
-                          {selectedDropoffCheckpoint.nameAr && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedDropoffCheckpoint.nameAr}</div>}
-                        </div>
-                        <span style={{ fontSize: '20px', color: '#EF4444' }}>🏁</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Interactive Toyota HiAce Minibus Chassis Shell */}
-            <div className="seat-selector-container" style={{ marginTop: '1.5rem', background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '2rem 1.5rem', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1rem', fontWeight: 700 }}>Select Your Seats</h4>
-                <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  Toyota HiAce L2H2
-                </span>
-              </div>
-
-              {/* Seats Selection Progress Badge */}
-              <div 
-                className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.5rem',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem'
-                }}
-              >
-                <span>
-                  Requested Seats (from search):
-                </span>
-                <span style={{ 
-                  fontWeight: 'bold', 
-                  color: selectedSeats.length === requiredSeatsCount ? 'var(--success)' : 'var(--primary)'
-                }}>
-                  {selectedSeats.length} / {requiredSeatsCount} Selected
-                </span>
-              </div>
-
-              <div className="bus-cabin" style={{ margin: '0 auto' }}>
-                {/* Windshield */}
-                <div className="bus-windshield windshield-opaque" style={{ height: '14px', borderRadius: '10px 10px 2px 2px', marginBottom: '1rem' }} />
-                
-                {/* HiAce Dashboard / Cockpit line */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                  <span title="Steering Wheel" style={{ opacity: 0.6 }}><Settings size={18} /></span>
-                  <span style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Dashboard</span>
-                  <span title="Dashboard console" style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
-                </div>
-
-                {/* Driver & VIP Row */}
-                <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <User size={16} />
-                  </div>
-                  <div className="cabin-aisle" style={{ width: '44px' }} />
-                  {renderSeat(1)}
-                </div>
-
-                {/* Sliding Entry Door Visual Break */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0 12px 0' }}>
-                  <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '8px', color: 'var(--primary)', padding: '2px 8px', borderRadius: '3px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    <ArrowRightToLine size={10} /> Sliding door entry
+                      );
+                    })}
                   </div>
                 </div>
+              )}
 
-                {/* Row 2 */}
-                <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  {renderSeat(2)}
-                  {renderSeat(3)}
-                  <div className="cabin-aisle" style={{ width: '44px' }} />
-                  {renderSeat(4)}
+              {/* Interactive Minibus Grid */}
+              <div className="premium-card">
+                <div className="premium-card-title">
+                  <span>💺</span> Toyota HiAce Cabin Layout
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Click available seats to select them. Locked seats are reserved for luggage.
+                  </p>
+                  <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    Toyota HiAce L2H2
+                  </span>
                 </div>
 
-                {/* Row 3 */}
-                <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  {renderSeat(5)}
-                  {renderSeat(6)}
-                  <div className="cabin-aisle" style={{ width: '44px' }} />
-                  {renderSeat(7)}
+                <div 
+                  className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '2rem',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '0.88rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <span>Requested Seats:</span>
+                  <span>{selectedSeats.length} of {requiredSeatsCount} Selected</span>
                 </div>
 
-                {/* Row 4 */}
-                <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  {renderSeat(8)}
-                  {renderSeat(9)}
-                  <div className="cabin-aisle" style={{ width: '44px' }} />
-                  {renderSeat(10)}
+                <div className="bus-cabin" style={{ margin: '0 auto', maxWidth: '300px' }}>
+                  {/* Windshield */}
+                  <div className="bus-windshield windshield-opaque" style={{ height: '14px', borderRadius: '10px 10px 2px 2px', marginBottom: '1.25rem' }} />
+                  
+                  {/* HiAce Dashboard */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                    <span title="Steering Wheel" style={{ opacity: 0.6 }}><Settings size={18} /></span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>Dashboard</span>
+                    <span title="Dashboard console" style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
+                  </div>
+
+                  {/* Driver & VIP Row */}
+                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                       <User size={16} />
+                    </div>
+                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    {renderSeat(1)}
+                  </div>
+
+                  {/* Sliding Entry Door */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0 12px 0' }}>
+                    <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: 'var(--primary)', padding: '3px 8px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <ArrowRightToLine size={10} /> Sliding door entry
+                    </div>
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    {renderSeat(2)}
+                    {renderSeat(3)}
+                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    {renderSeat(4)}
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    {renderSeat(5)}
+                    {renderSeat(6)}
+                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    {renderSeat(7)}
+                  </div>
+
+                  {/* Row 4 */}
+                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    {renderSeat(8)}
+                    {renderSeat(9)}
+                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    {renderSeat(10)}
+                  </div>
+
+                  {/* Row 5 */}
+                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    {renderSeat(11)}
+                    {renderSeat(12)}
+                    {renderSeat(13)}
+                    {renderSeat(14)}
+                  </div>
                 </div>
 
-                {/* Row 5 */}
-                <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  {renderSeat(11)}
-                  {renderSeat(12)}
-                  {renderSeat(13)}
-                  {renderSeat(14)}
+                {/* Legends */}
+                <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--border)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Available</span>
+                  </div>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Selected</span>
+                  </div>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', opacity: 0.5, fontWeight: 500 }}>Occupied</span>
+                  </div>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Luggage</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Legends */}
-              <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                  <div className="legend-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--border)' }}></div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Available</span>
+            </div>
+
+            {/* Right Sticky Sidebar Panel: Summary and Reservation Actions */}
+            <div className="sidebar-panel">
+              
+              {/* Booking Summary Card */}
+              <div className="premium-card">
+                <div className="premium-card-title">
+                  <span>📋</span> Commute Details
                 </div>
-                <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                  <div className="legend-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Selected</span>
-                </div>
-                <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                  <div className="legend-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
-                  <span style={{ color: 'var(--text-secondary)', opacity: 0.5 }}>Occupied</span>
-                </div>
-                <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
-                  <span style={{ color: 'var(--text-secondary)' }}>Luggage Hold</span>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Line Route</div>
+                    <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+                      {trip.routeId?.name || 'Standard Route'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Departure Time</div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
+                      {new Date(trip.departureTime).toLocaleString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Route Checkpoints Details */}
+                  <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                    <div className="checkpoint-timeline-item pickup">
+                      <div className="checkpoint-timeline-dot" />
+                      <span className="checkpoint-timeline-label">Selected Pickup</span>
+                      <span className="checkpoint-timeline-value">{selectedPickupCheckpoint?.name || 'Not Selected'}</span>
+                      {selectedPickupCheckpoint?.nameAr && (
+                        <span className="checkpoint-timeline-value-ar">{selectedPickupCheckpoint.nameAr}</span>
+                      )}
+                    </div>
+                    
+                    <div className="checkpoint-timeline-item dropoff">
+                      <div className="checkpoint-timeline-dot" />
+                      <span className="checkpoint-timeline-label">Selected Dropoff</span>
+                      <span className="checkpoint-timeline-value">{selectedDropoffCheckpoint?.name || 'Not Selected'}</span>
+                      {selectedDropoffCheckpoint?.nameAr && (
+                        <span className="checkpoint-timeline-value-ar">{selectedDropoffCheckpoint.nameAr}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* High-Fidelity Reactive Seat Characteristic Cards */}
+              {/* Reactive Seat details card */}
               {selectedSeats.length > 0 && (
-                <div className="seat-characteristic-card">
-                  <div className="seat-characteristic-card-header">
-                    <span style={{ display: 'flex', alignItems: 'center' }}><Ticket size={24} color="var(--primary)" /></span>
-                    <strong className="seat-characteristic-card-title">
-                      Selected Slots ({selectedSeats.length} {selectedSeats.length === 1 ? 'Seat' : 'Seats'})
-                    </strong>
+                <div className="premium-card" style={{
+                  background: 'rgba(245, 183, 49, 0.03)',
+                  borderColor: 'rgba(245, 183, 49, 0.2)'
+                }}>
+                  <div className="premium-card-title" style={{ borderBottomColor: 'rgba(245, 183, 49, 0.1)', color: 'var(--primary)' }}>
+                    <span>🎫</span> Selected Slots
                   </div>
-                  <div className="seat-characteristic-card-slots">
+                  
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '1rem' }}>
                     {selectedSeats.map(num => (
-                      <span key={num} className="seat-characteristic-card-slot">
+                      <span key={num} style={{
+                        background: 'var(--primary)',
+                        color: 'var(--text-on-primary)',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold'
+                      }}>
                         Seat #{num}
                       </span>
                     ))}
                   </div>
-                  <p className="seat-characteristic-card-desc">
+
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
                     {selectedSeats.length === 1 
                       ? getSeatLabel(selectedSeats[0]).desc
                       : "Booking multiple spaces in a single transaction. All boarding passes will be dispatched simultaneously!"
@@ -903,79 +934,82 @@ export default function CheckoutPage() {
                   </p>
                 </div>
               )}
+
+              {/* Invoice breakdown card */}
+              <div className="premium-card">
+                <div className="premium-card-title">
+                  <span>🧾</span> Invoice Breakdown
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Selected Slots ({selectedSeats.length})</span>
+                    <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
+                      {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Base Fare</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {trip.priceEGP * selectedSeats.length - Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Booking Fee</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
+                      0.00 EGP (FREE)
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total Fare</span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                      {trip.priceEGP * selectedSeats.length} EGP
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Trigger Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button 
+                  onClick={handleReserve} 
+                  className="auth-button" 
+                  disabled={
+                    processing || 
+                    selectedSeats.length !== requiredSeatsCount
+                  }
+                  style={{ padding: '1rem' }}
+                >
+                  {processing 
+                    ? 'Reserving Seats...' 
+                    : selectedSeats.length !== requiredSeatsCount
+                      ? `Select exactly ${requiredSeatsCount} seat(s)`
+                      : 'Confirm & Proceed to Payment'
+                  }
+                </button>
+                
+                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <Lock size={12} /> Seats will be temporarily held for 10 minutes.
+                </p>
+              </div>
+
             </div>
 
-            {/* Price breakdown invoice card */}
-            <div style={{
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: '16px',
-              padding: '1.25rem 1.5rem',
-              marginTop: '2rem',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem'
-            }}>
-              <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.95rem', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                Invoice Breakdown 🧾
-              </h4>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Selected Slots</span>
-                <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
-                  {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None Selected'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Base Fare</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {trip.priceEGP * selectedSeats.length - Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Booking Fee</span>
-                <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
-                  0.00 EGP (FREE)
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-                <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total Fare</span>
-                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                  {trip.priceEGP * selectedSeats.length} EGP
-                </span>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleReserve} 
-              className="auth-button" 
-              disabled={
-                processing || 
-                selectedSeats.length !== requiredSeatsCount
-              }
-              style={{ marginTop: '2rem' }}
-            >
-              {processing 
-                ? 'Reserving Seats...' 
-                : selectedSeats.length !== requiredSeatsCount
-                  ? `Select exactly ${requiredSeatsCount} seat(s) (Currently ${selectedSeats.length}/${requiredSeatsCount})`
-                  : 'Confirm & Proceed to Payment'
-              }
-            </button>
-            <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              <Lock size={12} /> Seats will be temporarily held for 10 minutes during checkout.
-            </p>
           </div>
         ) : (
-          <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <p>Trip configuration not found.</p>
-            <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>Return to Home</button>
+          <div className="premium-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>Trip configuration not found.</p>
+            <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1.5rem' }}>Return to Home</button>
           </div>
         )}
       </div>

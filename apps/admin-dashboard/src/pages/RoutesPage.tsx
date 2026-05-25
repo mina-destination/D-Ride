@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Clock,
   Radio,
-  Download
+  Download,
+  Compass
 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
@@ -92,22 +93,44 @@ const PRESET_IMAGES = [
 // Utility to convert Google Drive share links to direct download URLs
 function cleanGoogleDriveLink(url: string): string {
   if (!url) return '';
+  
+  let fileId = '';
+  
   if (url.includes('drive.google.com')) {
     // Format 1: /file/d/FILE_ID/view...
     const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      fileId = match[1];
+    } else {
+      // Format 2: open?id=FILE_ID or open.id=...
+      const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (queryMatch && queryMatch[1]) {
+        fileId = queryMatch[1];
+      }
     }
-    // Format 2: open?id=FILE_ID or open.id=...
-    const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (queryMatch && queryMatch[1]) {
-      return `https://lh3.googleusercontent.com/d/${queryMatch[1]}`;
+  } else if (url.includes('lh3.googleusercontent.com')) {
+    // Format 3: lh3.googleusercontent.com/d/FILE_ID
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      fileId = match[1];
+    }
+  } else if (url.includes('docs.google.com')) {
+    // Format 4: docs.google.com/file/d/FILE_ID/...
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      fileId = match[1];
     }
   }
+
+  if (fileId) {
+    // Use direct static CDN link to bypass tracking/redirect blocks in browsers like Brave
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  
   return url;
 }
 
-// Reusable nominatim location autocomplete input
+// Reusable nominatim location autocomplete input with coordinates & keyboard support
 function SearchAutocomplete({
   placeholder,
   value,
@@ -123,7 +146,9 @@ function SearchAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [debouncedValue, setDebouncedValue] = useState(value || '');
+  const [activeIndex, setActiveIndex] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const justSelectedRef = useRef<boolean>(false);
 
   // Debounce the input value
   useEffect(() => {
@@ -138,8 +163,14 @@ function SearchAutocomplete({
 
   // Handle results fetching from Nominatim with debounced value
   useEffect(() => {
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+
     if (!debouncedValue || debouncedValue.length < 3) {
       setResults([]);
+      setActiveIndex(0);
       return;
     }
 
@@ -147,11 +178,60 @@ function SearchAutocomplete({
     const fetchResults = async () => {
       setLoading(true);
       try {
+        // Detect coordinates: match latitude and longitude separated by comma/space/semicolon
+        const match = debouncedValue.match(/^\s*(-?\d+(?:\.\d+)?)\s*[\s,;]\s*(-?\d+(?:\.\d+)?)\s*$/);
+        if (match) {
+          const lat = parseFloat(match[1]);
+          const lng = parseFloat(match[2]);
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            // Raw coordinates option
+            const rawOption = {
+              display_name: `Coordinates: Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`,
+              name: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+              lon: lng.toString(),
+              lat: lat.toString(),
+              is_coords: true,
+              is_raw: true
+            };
+            
+            if (active) {
+              setResults([rawOption]);
+              setOpen(true);
+              setActiveIndex(0);
+            }
+            
+            // Try to reverse geocode using OSM reverse geocoding
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+              const data = await res.json();
+              if (active) {
+                if (data && data.display_name) {
+                  const resolvedOption = {
+                    display_name: data.display_name,
+                    name: data.name || data.display_name.split(',')[0] || `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+                    lon: lng.toString(),
+                    lat: lat.toString(),
+                    is_coords: true,
+                    is_resolved: true
+                  };
+                  setResults([resolvedOption, rawOption]);
+                  setActiveIndex(0);
+                }
+              }
+            } catch (err) {
+              console.error('Reverse geocoding failed', err);
+            }
+            return;
+          }
+        }
+
+        // Standard address search
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(debouncedValue)}&countrycodes=eg&limit=5`);
         const data = await res.json();
         if (active) {
           setResults(data);
           setOpen(true);
+          setActiveIndex(0);
         }
       } catch (err) {
         console.error(err);
@@ -182,12 +262,43 @@ function SearchAutocomplete({
     };
   }, []);
 
+  const selectOption = (item: any) => {
+    justSelectedRef.current = true;
+    const displayName = item.display_name;
+    const shortName = item.name || displayName.split(',')[0];
+    onSelect(shortName, parseFloat(item.lon), parseFloat(item.lat));
+    setOpen(false);
+    setResults([]);
+    setActiveIndex(0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || results.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % results.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev - 1 + results.length) % results.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < results.length) {
+        selectOption(results[activeIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+    }
+  };
+
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: 9999 }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: open && results.length > 0 ? 10005 : 9999 }}>
       <Input
         placeholder={placeholder}
         value={value}
         onChange={e => {
+          justSelectedRef.current = false;
           onChange(e.target.value);
           setOpen(true);
         }}
@@ -196,6 +307,7 @@ function SearchAutocomplete({
             setOpen(true);
           }
         }}
+        onKeyDown={handleKeyDown}
         suffix={loading ? <Spin size="small" /> : '🔍'}
       />
       {open && results.length > 0 && (
@@ -209,21 +321,18 @@ function SearchAutocomplete({
           borderRadius: '8px',
           boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
           zIndex: 10000,
-          maxHeight: '200px',
+          maxHeight: '220px',
           overflowY: 'auto',
           marginTop: '6px'
         }}>
           {results.map((r, idx) => {
             const displayName = r.display_name;
             const shortName = r.name || displayName.split(',')[0];
+            const isHighlighted = idx === activeIndex;
             return (
               <div
                 key={idx}
-                onClick={() => {
-                  onSelect(shortName, parseFloat(r.lon), parseFloat(r.lat));
-                  setOpen(false);
-                  setResults([]);
-                }}
+                onClick={() => selectOption(r)}
                 style={{
                   padding: '10px 14px',
                   cursor: 'pointer',
@@ -231,16 +340,47 @@ function SearchAutocomplete({
                   borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
                   color: 'var(--text-primary)',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px'
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'transparent',
+                  transition: 'background-color 0.15s ease'
                 }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                onMouseEnter={() => setActiveIndex(idx)}
               >
-                <strong>{shortName}</strong>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {displayName}
-                </span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: r.is_coords 
+                    ? 'rgba(245, 183, 49, 0.15)' 
+                    : 'rgba(16, 185, 129, 0.15)',
+                  color: r.is_coords ? '#F5B731' : '#10B981',
+                  flexShrink: 0
+                }}>
+                  {r.is_coords ? <Compass size={14} /> : <MapPin size={14} />}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                  <strong style={{ 
+                    color: isHighlighted ? 'var(--primary-color)' : 'var(--text-primary)',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {shortName}
+                  </strong>
+                  <span style={{ 
+                    fontSize: '10px', 
+                    color: 'var(--text-muted)', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    whiteSpace: 'nowrap' 
+                  }}>
+                    {displayName}
+                  </span>
+                </div>
               </div>
             );
           })}
@@ -664,7 +804,7 @@ export function RoutesPage() {
           width: '120px',
           height: '64px',
           borderRadius: '8px',
-          backgroundImage: `url(${imgUrl || PRESET_IMAGES[0].value})`,
+          backgroundImage: `url("${imgUrl || PRESET_IMAGES[0].value}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           border: '1px solid var(--border)',
@@ -828,7 +968,7 @@ export function RoutesPage() {
                           boxShadow: coverImage === img.value ? '0 4px 15px rgba(245, 183, 49, 0.25)' : 'none'
                         }}
                       >
-                        <div style={{ height: '70px', backgroundImage: `url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                        <div style={{ height: '70px', backgroundImage: `url("${img.value}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                         <div style={{ padding: '6px', fontSize: '11px', fontWeight: 600, textAlign: 'center', background: 'var(--surface-elevated)' }}>
                           {img.label}
                         </div>
@@ -861,7 +1001,7 @@ export function RoutesPage() {
                         width: '100%',
                         height: '140px',
                         borderRadius: '8px',
-                        backgroundImage: `url(${coverImage})`,
+                        backgroundImage: `url("${coverImage}")`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         border: '1px solid var(--border)',

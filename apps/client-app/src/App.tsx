@@ -15,7 +15,7 @@ import LiveTrackingPage from './pages/LiveTracking';
 import PaymentCallbackPage from './pages/PaymentCallback';
 import ContactPage from './pages/ContactPage';
 import RoutesPage from './pages/RoutesPage';
-import WalletPage from './pages/WalletPage';
+import PartnersPage from './pages/PartnersPage';
 import './App.css';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -102,6 +102,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/routes" element={<RoutesPage />} />
+        <Route path="/partners" element={<PartnersPage />} />
         <Route path="/login" element={<AnonymousRoute><LoginPage /></AnonymousRoute>} />
         <Route path="/register" element={<AnonymousRoute><RegisterPage /></AnonymousRoute>} />
         <Route path="/search" element={<TripSearchPage />} />
@@ -137,14 +138,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/wallet"
-          element={
-            <ProtectedRoute>
-              <WalletPage />
-            </ProtectedRoute>
-          }
-        />
+
         <Route
           path="/track"
           element={
