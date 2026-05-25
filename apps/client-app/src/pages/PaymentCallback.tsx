@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/d-ride-logo.jpeg';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function PaymentCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
 
   useEffect(() => {
@@ -17,10 +19,11 @@ export default function PaymentCallbackPage() {
 
     if (isSuccess) {
       setStatus('success');
+      addNotification('Payment Successful ✅', 'Your transaction was completed and your seat is secured.');
     } else {
       setStatus('failed');
     }
-  }, [searchParams]);
+  }, [searchParams, addNotification]);
 
   return (
     <div className="auth-page">

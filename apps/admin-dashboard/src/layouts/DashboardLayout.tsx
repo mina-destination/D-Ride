@@ -285,10 +285,25 @@ export default function DashboardLayout() {
     <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header">
-            <img src={logo} alt="D-Ride" className="sidebar-logo" />
-            <span className="sidebar-brand-text">D-Ride</span>
-          </div>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '0.75rem' }}>
+          {isSidebarCollapsed ? (
+            <div className="sidebar-logo-collapsed" title="D-Ride Admin Center">
+              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+                <rect width="100" height="100" rx="24" fill="#F5B731" />
+                <g transform="translate(10, 8) scale(0.8)">
+                  <path d="M18 20 H52 C72 20 82 32 78 50 C74 68 58 76 38 76 H10 L18 20 Z" fill="black" />
+                  <path d="M30 32 H46 C56 32 62 38 60 47 C58 56 50 64 38 64 H24 L30 32 Z" fill="#F5B731" />
+                  <path d="M10 84 Q 50 82 85 70" stroke="black" strokeWidth="6" strokeLinecap="round" fill="none" />
+                </g>
+              </svg>
+            </div>
+          ) : (
+            <>
+              <img src={logo} alt="D-Ride" className="sidebar-logo" />
+              <span className="sidebar-brand-text">D-Ride</span>
+            </>
+          )}
+        </div>
 
         <nav className="sidebar-nav">
           {finalNavItems.map((item, i) =>
@@ -299,6 +314,7 @@ export default function DashboardLayout() {
                 key={item.path}
                 to={item.path!}
                 end={item.path === '/'}
+                title={isSidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `sidebar-item${isActive ? ' active' : ''}`
                 }
@@ -310,8 +326,14 @@ export default function DashboardLayout() {
           )}
         </nav>
 
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-text">Operated by Destination</span>
+        <div className="sidebar-footer" style={{ textAlign: isSidebarCollapsed ? 'center' : 'left' }}>
+          {isSidebarCollapsed ? (
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, cursor: 'help' }} title="Operated by Destination">
+              © D
+            </span>
+          ) : (
+            <span className="sidebar-footer-text">Operated by Destination</span>
+          )}
         </div>
       </aside>
 

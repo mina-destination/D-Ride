@@ -63,6 +63,8 @@ export const authAPI = {
     api.post('/auth/login', { email, password }),
   register: (data: { name: string; email: string; phone: string; password: string }): Promise<any> =>
     api.post('/auth/register', data),
+  googleLogin: (data: { email: string; name: string; googleId: string }): Promise<any> =>
+    api.post('/auth/google', data),
   getProfile: (): Promise<any> => api.get('/auth/profile'),
 };
 

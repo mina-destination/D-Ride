@@ -2075,6 +2075,54 @@
 
 /* ── QR CODE BOARDING PASS MODAL ────── */
 
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes modalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalZoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+}
+
 .qr-modal-overlay {
   position: fixed;
   top: 0;
@@ -2089,6 +2137,11 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  animation: modalFadeIn 0.3s ease-out forwards;
+}
+
+.qr-modal-overlay.closing {
+  animation: modalFadeOut 0.3s ease-in forwards;
 }
 
 .qr-modal-content {
@@ -2103,7 +2156,11 @@
   text-align: center;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(245, 183, 49, 0.05);
   position: relative;
-  animation: slide-down 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: modalZoomIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.qr-modal-content.closing {
+  animation: modalZoomOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .qr-modal-close-btn {

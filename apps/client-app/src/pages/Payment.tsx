@@ -3,11 +3,13 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, paymobAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Lock, Bus } from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function PaymentPage() {
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,8 @@ export default function PaymentPage() {
 
       // Redirect or navigate
       if (paymentMethod === 'CASH') {
+        const routeName = booking.tripId?.routeId?.name || 'your commute';
+        addNotification('Booking Confirmed 🎫', `Your seat reservation for "${routeName}" is confirmed. Please pay cash on board.`);
         navigate('/my-trips');
       } else if (paymobResult.redirectUrl) {
         window.location.href = paymobResult.redirectUrl;

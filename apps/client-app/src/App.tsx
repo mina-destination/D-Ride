@@ -161,13 +161,17 @@ function AppRoutes() {
   );
 }
 
+import { NotificationProvider } from './context/NotificationContext';
+
 function App() {
   return (
     <BrowserRouter>
       <LanguageProvider>
         <ThemeProvider>
           <AuthProvider>
-            <AppRoutes />
+            <NotificationProvider>
+              <AppRoutes />
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </LanguageProvider>

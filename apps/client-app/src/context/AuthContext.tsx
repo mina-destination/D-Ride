@@ -17,6 +17,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; phone: string; password: string }) => Promise<void>;
+  loginWithGoogle: (data: { email: string; name: string; googleId: string }) => Promise<void>;
   logout: () => void;
 }
 
@@ -72,6 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('dride_user', JSON.stringify(userData));
   };
 
+  const loginWithGoogle = async (data: { email: string; name: string; googleId: string }) => {
+    const result: any = await authAPI.googleLogin(data);
+    const { user: userData, accessToken } = result;
+
+    const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];
+    if (adminRoles.includes(userData?.role?.toUpperCase())) {
+      throw new Error('Access denied. Administrators cannot sign in to the client application.');
+    }
+
+    setUser(userData);
+    setToken(accessToken);
+    localStorage.setItem('dride_token', accessToken);
+    localStorage.setItem('dride_user', JSON.stringify(userData));
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -81,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isAuthenticated: !!user && !!token, isLoading, login, register, logout }}
+      value={{ user, token, isAuthenticated: !!user && !!token, isLoading, login, register, loginWithGoogle, logout }}
     >
       {children}
     </AuthContext.Provider>

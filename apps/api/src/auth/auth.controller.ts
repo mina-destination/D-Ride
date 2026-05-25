@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -25,6 +26,12 @@ export class AuthController {
   async login(@Body() data: LoginDto) {
     const user = await this.authService.validateUser(data.email, data.password);
     const result = await this.authService.login(user);
+    return { success: true, data: result, timestamp: new Date().toISOString() };
+  }
+
+  @Post('google')
+  async googleLogin(@Body() data: GoogleLoginDto) {
+    const result = await this.authService.googleLogin(data);
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 

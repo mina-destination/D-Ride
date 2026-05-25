@@ -5,10 +5,12 @@ import { bookingsAPI, reviewsAPI } from '../services/api';
 import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function MyTripsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { addNotification } = useNotifications();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +34,26 @@ export default function MyTripsPage() {
   const [comment, setComment] = useState<string>('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Modal closing transition animation states
+  const [isQrClosing, setIsQrClosing] = useState(false);
+  const [isReviewClosing, setIsReviewClosing] = useState(false);
+
+  const handleCloseQrModal = () => {
+    setIsQrClosing(true);
+    setTimeout(() => {
+      setShowQrModal(false);
+      setIsQrClosing(false);
+    }, 280);
+  };
+
+  const handleCloseReviewModal = () => {
+    setIsReviewClosing(true);
+    setTimeout(() => {
+      setShowReviewModal(false);
+      setIsReviewClosing(false);
+    }, 280);
+  };
+
   const handleOpenReviewModal = (bookingId: string) => {
     setReviewBookingId(bookingId);
     setRating(5);
@@ -50,7 +72,7 @@ export default function MyTripsPage() {
         comment,
       });
       alert('Thank you for your feedback! ⭐');
-      setShowReviewModal(false);
+      handleCloseReviewModal();
       fetchBookings();
     } catch (err: any) {
       alert(err.message || 'Failed to submit review');
@@ -115,6 +137,9 @@ export default function MyTripsPage() {
     if (confirm('Are you sure you want to cancel this trip booking?')) {
       try {
         await bookingsAPI.cancel(id);
+        const targetBooking = bookings.find(b => b._id === id);
+        const routeName = targetBooking?.tripId?.routeId?.name || 'your D-Ride commute';
+        addNotification('Booking Cancelled ❌', `Your seat reservation for "${routeName}" was successfully cancelled.`);
         fetchBookings();
       } catch {
         alert('Failed to cancel');
@@ -466,10 +491,10 @@ export default function MyTripsPage() {
 
       {/* ── QR CODE BOARDING PASS MODAL ────── */}
       {showQrModal && qrValue && (
-        <div className="qr-modal-overlay" onClick={() => setShowQrModal(false)}>
-          <div className="qr-modal-content" onClick={e => e.stopPropagation()}>
+        <div className={`qr-modal-overlay ${isQrClosing ? 'closing' : ''}`} onClick={handleCloseQrModal}>
+          <div className={`qr-modal-content ${isQrClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
             <button 
-              onClick={() => setShowQrModal(false)}
+              onClick={handleCloseQrModal}
               className="qr-modal-close-btn"
             >
               ✕
@@ -513,10 +538,10 @@ export default function MyTripsPage() {
 
       {/* ── RATE & REVIEW TRIP MODAL ────── */}
       {showReviewModal && (
-        <div className="qr-modal-overlay" onClick={() => setShowReviewModal(false)}>
-          <div className="qr-modal-content" onClick={e => e.stopPropagation()}>
+        <div className={`qr-modal-overlay ${isReviewClosing ? 'closing' : ''}`} onClick={handleCloseReviewModal}>
+          <div className={`qr-modal-content ${isReviewClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
             <button 
-              onClick={() => setShowReviewModal(false)}
+              onClick={handleCloseReviewModal}
               className="qr-modal-close-btn"
             >
               ✕
