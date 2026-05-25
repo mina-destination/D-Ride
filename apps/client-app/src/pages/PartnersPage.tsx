@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { partnersAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import { Globe, ArrowRight, Award, ShieldCheck, Zap } from 'lucide-react';
+import { cleanGoogleDriveLink } from '../utils/google-drive';
 
 export default function PartnersPage() {
   const { language } = useTranslation();
@@ -153,7 +154,7 @@ export default function PartnersPage() {
                       padding: '1rem'
                     }}>
                       <img
-                        src={partner.logoUrl}
+                        src={cleanGoogleDriveLink(partner.logoUrl)}
                         alt={partner.name}
                         style={{
                           maxWidth: '120px',

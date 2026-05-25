@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Space, message, Tag, Switch } from 'antd';
 import { partnersAPI } from '../services/api';
 import { Handshake } from 'lucide-react';
+import { cleanGoogleDriveLink } from '../utils/google-drive';
 
 export function PartnersPage() {
   const [partners, setPartners] = useState<any[]>([]);
@@ -52,11 +53,15 @@ export function PartnersPage() {
 
   const handleSubmit = async (values: any) => {
     try {
+      const payload = {
+        ...values,
+        logoUrl: cleanGoogleDriveLink(values.logoUrl),
+      };
       if (editingId) {
-        await partnersAPI.update(editingId, values);
+        await partnersAPI.update(editingId, payload);
         message.success('Partner updated successfully');
       } else {
-        await partnersAPI.create(values);
+        await partnersAPI.create(payload);
         message.success('Partner added successfully');
       }
       setIsModalOpen(false);
@@ -108,7 +113,7 @@ export function PartnersPage() {
           border: '1px solid var(--border)'
         }}>
           <img
-            src={record.logoUrl}
+            src={cleanGoogleDriveLink(record.logoUrl)}
             alt={record.name}
             style={{
               height: '36px',
