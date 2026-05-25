@@ -133,4 +133,43 @@ export class AuthService {
       permissions,
     };
   }
+
+  async googleLogin(data: { email: string; name: string; googleId: string }) {
+    let user = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (!user) {
+      // Create user since they don't exist
+      const randomPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+      user = await this.prisma.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          phone: '',
+          password: hashedPassword,
+          role: Role.PASSENGER,
+        },
+      });
+      this.logger.log(`Google User registered: ${user.email} (${user.role})`);
+    } else {
+      this.logger.log(`Google User logged in: ${user.email}`);
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const permissions = await this.getPermissionsForRole(user.role);
+    return {
+      user: {
+        _id: user.id,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        permissions,
+      },
+      accessToken: this.jwtService.sign(payload),
+    };
+  }
 }

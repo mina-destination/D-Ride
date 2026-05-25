@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { paymobAPI } from '../services/api';
+import { useNotifications } from '../context/NotificationContext';
 import { 
   Wallet, 
   CreditCard, 
@@ -15,6 +16,7 @@ import {
 
 export default function WalletPage() {
   const { t, isRtl } = useTranslation();
+  const { addNotification } = useNotifications();
   const [walletData, setWalletData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [topupAmount, setTopupAmount] = useState('');
@@ -66,6 +68,7 @@ export default function WalletPage() {
       });
 
       if (res && res.iframeUrl) {
+        addNotification('Topup Initiated 💳', `You are being redirected to complete your wallet topup of ${amount} EGP.`);
         // In local development or sandbox, we might simulate success or redirect to callback.
         // Redirect passenger to the payment window.
         window.location.href = res.iframeUrl;

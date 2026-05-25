@@ -5,6 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Bell } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useState, useEffect, useRef } from 'react';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -16,29 +17,7 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { 
-      id: 1, 
-      title: 'Trip Confirmed 🎫', 
-      description: 'Your ride to Cairo University is confirmed for tomorrow at 8:30 AM.', 
-      time: '5 mins ago', 
-      read: false 
-    },
-    { 
-      id: 2, 
-      title: 'Wallet Credited 💳', 
-      description: 'Your account has been credited with EGP 150.00.', 
-      time: '1 hour ago', 
-      read: false 
-    },
-    { 
-      id: 3, 
-      title: 'Welcome to D-Ride! 🚌', 
-      description: 'Thank you for choosing us for your daily commute. Book your first ride today!', 
-      time: '1 day ago', 
-      read: true 
-    }
-  ]);
+  const { notifications, markRead, markAllRead } = useNotifications();
 
   const dropdownRef = useRef<HTMLLIElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -65,14 +44,7 @@ export default function Navbar() {
     navigate('/login');
   };
 
-  const markNotificationAsRead = (id: number) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
-  const markAllNotificationsAsRead = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
+  // Local handlers removed, context handlers used directly
 
   // Helper to check if a hash-link is active (for anchor sections on home page)
   const isHashActive = (hash: string) => {
@@ -110,7 +82,7 @@ export default function Navbar() {
               <div className="notification-dropdown-header">
                 <span>{t('notifications')}</span>
                 <button 
-                  onClick={markAllNotificationsAsRead}
+                  onClick={(e) => { e.stopPropagation(); markAllRead(); }}
                   className="mark-all-read-btn"
                 >
                   {t('markAllRead')}
@@ -125,7 +97,7 @@ export default function Navbar() {
                     <li 
                       key={item.id} 
                       className={`notification-dropdown-item ${item.read ? 'read' : 'unread'}`}
-                      onClick={() => markNotificationAsRead(item.id)}
+                      onClick={() => markRead(item.id)}
                     >
                       <div className="notification-item-title">{item.title}</div>
                       <div className="notification-item-desc">{item.description}</div>
