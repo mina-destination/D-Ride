@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import api, { bookingsAPI, paymobAPI, routesAPI } from '../services/api';
+import api, { bookingsAPI, routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Ticket, Lock, Bus } from 'lucide-react';
 
@@ -67,7 +67,6 @@ export default function CheckoutPage() {
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
   const [mapLoadFailed, setMapLoadFailed] = useState(false);
-  const [allowCashOnDelivery, setAllowCashOnDelivery] = useState(true);
 
   const cairoTransitHubs = [
     { name: 'Ramses Station', nameAr: 'محطة رمسيس', lat: 30.0626, lng: 31.2468 },
@@ -101,10 +100,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE'>('CARD');
-  const [walletNumber, setWalletNumber] = useState<string>('');
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-
   useEffect(() => {
     if (!tripId) return;
     
@@ -117,23 +112,6 @@ export default function CheckoutPage() {
     bookingsAPI.getOccupiedSeats(tripId)
       .then(seats => setOccupiedSeats(seats))
       .catch(console.error);
-
-    paymobAPI.getWallet()
-      .then(data => setWalletBalance(data.walletBalance))
-      .catch(err => console.error("Failed to load wallet balance:", err));
-
-    api.get('/paymob/features')
-      .then((res: any) => {
-        const allowed = res ? (res.allowCashOnDelivery ?? res.data?.allowCashOnDelivery) : false;
-        setAllowCashOnDelivery(!!allowed);
-        if (!allowed) {
-          setPaymentMethod(prev => prev === 'CASH' ? 'CARD' : prev);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to load feature flags:", err);
-        setAllowCashOnDelivery(true);
-      });
 
   }, [tripId]);
 
@@ -212,22 +190,17 @@ export default function CheckoutPage() {
     }
   }, [trip, searchParams]);
 
-  const handleCheckout = async () => {
+  const handleReserve = async () => {
     if (selectedSeats.length !== requiredSeatsCount) {
       alert(`Please select exactly ${requiredSeatsCount} seat(s) to match your search request.`);
       return;
     }
 
-    if (paymentMethod === 'WALLET' && !walletNumber.match(/^01[0125][0-9]{8}$/)) {
-      alert('Please enter a valid Egyptian mobile wallet number (e.g. 01012345678).');
-      return;
-    }
-
     setProcessing(true);
     try {
-      // 1. Create the booking with all selected seat numbers
+      // Create the booking with all selected seat numbers
       const booking = await bookingsAPI.create({
-        tripId: trip._id,
+        tripId: trip._id || trip.id,
         seatNumbers: selectedSeats,
         pickupStopId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id, 
         dropoffStopId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id, 
@@ -235,26 +208,10 @@ export default function CheckoutPage() {
         dropoffCheckpoint: selectedDropoffCheckpoint || undefined,
       });
 
-      // 2. Initialize Paymob Checkout
-      const paymobResult = await paymobAPI.checkout({
-        bookingId: booking._id,
-        amountCents: trip.priceEGP * selectedSeats.length * 100, // Cost * seats count to cents
-        paymentMethod,
-        walletNumber: paymentMethod === 'WALLET' ? walletNumber : undefined,
-      });
-
-      // 3. Redirect to the Paymob iframe / redirect URL
-      if (paymentMethod === 'CASH') {
-        navigate('/my-trips');
-      } else if (paymobResult.redirectUrl) {
-        window.location.href = paymobResult.redirectUrl;
-      } else if (paymobResult.iframeUrl) {
-        window.location.href = paymobResult.iframeUrl;
-      } else {
-        navigate('/my-trips');
-      }
+      // Redirect to the payment checkout page
+      navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (error) {
-      alert('Checkout failed: ' + ((error as any)?.message || 'Unknown error'));
+      alert('Reservation failed: ' + ((error as any)?.message || 'Unknown error'));
       setProcessing(false);
     }
   };
@@ -995,156 +952,24 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Payment Method Selector */}
-            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700 }}>
-                Payment Method 💳
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginBottom: '1.25rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('CARD')}
-                  className={`payment-method-btn ${paymentMethod === 'CARD' ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>💳</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Card / Visa</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('WALLET')}
-                  className={`payment-method-btn ${paymentMethod === 'WALLET' ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>📱</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Mobile Wallet</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('WALLET_BALANCE')}
-                  className={`payment-method-btn ${paymentMethod === 'WALLET_BALANCE' ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>💰</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Prepaid Wallet</span>
-                  {walletBalance !== null && (
-                    <span style={{ fontSize: '0.62rem', color: 'var(--primary)' }}>
-                      ({walletBalance} EGP)
-                    </span>
-                  )}
-                </button>
-                {allowCashOnDelivery && (
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('CASH')}
-                    className={`payment-method-btn ${paymentMethod === 'CASH' ? 'active' : ''}`}
-                    style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 4px', height: 'auto', minHeight: '60px' }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>💵</span>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>Cash on Board</span>
-                  </button>
-                )}
-              </div>
-
-
-              {paymentMethod === 'WALLET' && (
-                <div style={{
-                  marginBottom: '1.25rem',
-                  background: 'var(--surface-elevated)',
-                  border: '1px solid var(--border)',
-                  padding: '14px',
-                  borderRadius: '10px',
-                  animation: 'slideDownFade 0.3s ease'
-                }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
-                    Mobile Wallet Number (Vodafone, Orange, Etisalat Cash)
-                  </label>
-                  <input
-                    type="text"
-                    value={walletNumber}
-                    onChange={(e) => setWalletNumber(e.target.value)}
-                    placeholder="e.g. 01012345678"
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface-hover)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      fontSize: '0.9rem'
-                    }}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>
-                    Standard 11-digit Egyptian mobile number.
-                  </p>
-                </div>
-              )}
-
-              {paymentMethod === 'WALLET_BALANCE' && (
-                <div 
-                  className="success-box-opaque"
-                  style={{
-                    marginBottom: '1.25rem',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  💰 <strong>D-Ride Prepaid Wallet</strong>: Deducts <strong>{trip.priceEGP * selectedSeats.length} EGP</strong> instantly from your wallet balance. Booking confirmation is instantaneous.
-                  {walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length && (
-                    <div style={{ color: 'var(--error)', marginTop: '8px', fontWeight: 'bold' }}>
-                      ⚠️ Insufficient Balance! Please top up your wallet or choose another payment method.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod === 'CASH' && (
-                <div 
-                  className="warning-box-opaque"
-                  style={{
-                    marginBottom: '1.25rem',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  🤝 <strong>Cash on Board</strong>: Pay directly to the minibus driver during boarding. Ticket confirmation is instant.
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-              <span style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Total Fare</span>
-              <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                {trip.priceEGP * selectedSeats.length} EGP
-              </span>
-            </div>
-
             <button 
-              onClick={handleCheckout} 
+              onClick={handleReserve} 
               className="auth-button" 
               disabled={
                 processing || 
-                selectedSeats.length !== requiredSeatsCount || 
-                (paymentMethod === 'WALLET_BALANCE' && walletBalance !== null && walletBalance < trip.priceEGP * selectedSeats.length)
+                selectedSeats.length !== requiredSeatsCount
               }
               style={{ marginTop: '2rem' }}
             >
               {processing 
-                ? 'Processing Securely...' 
+                ? 'Reserving Seats...' 
                 : selectedSeats.length !== requiredSeatsCount
                   ? `Select exactly ${requiredSeatsCount} seat(s) (Currently ${selectedSeats.length}/${requiredSeatsCount})`
-                  : paymentMethod === 'CASH' 
-                    ? 'Confirm Booking (Cash)' 
-                    : paymentMethod === 'WALLET_BALANCE'
-                      ? 'Pay with Wallet Balance'
-                      : `Pay ${trip.priceEGP * selectedSeats.length} EGP via Paymob`
+                  : 'Confirm & Proceed to Payment'
               }
             </button>
             <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              <Lock size={12} /> Secured via Paymob Egypt. Cards, Wallets, and Cash on Board supported.
+              <Lock size={12} /> Seats will be temporarily held for 10 minutes during checkout.
             </p>
           </div>
         ) : (
