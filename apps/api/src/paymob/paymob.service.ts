@@ -82,17 +82,70 @@ export class PaymobService {
       const parts = bookingId.split('_');
       const userId = parts[1]; // wallet_userId_timestamp
 
-      const existingTx = await this.prisma.transaction.findFirst({
+      await this.prisma.$transaction(async (tx) => {
+        const existingTx = await tx.transaction.findFirst({
+          where: { paymobOrderId: orderId },
+        });
+        if (existingTx) {
+          this.logger.warn(
+            `Wallet topup transaction already processed for order: ${orderId}. Skipping.`,
+          );
+          return;
+        }
+
+        await tx.transaction.create({
+          data: {
+            paymobOrderId: orderId,
+            amountEGP: amountCents / 100,
+            status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
+            paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+            paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
+            userId: userId,
+            bookingId: null,
+            rawResponse: payload as any,
+          },
+        });
+
+        if (success) {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              walletBalance: { increment: amountCents / 100 },
+            },
+          });
+          this.logger.log(
+            `User ${userId} wallet topped up with ${amountCents / 100} EGP successfully.`,
+          );
+        }
+      });
+      return;
+    }
+
+    // Step 2-4: Wrap standard booking confirmation update paths inside isolated transaction
+    await this.prisma.$transaction(async (tx) => {
+      const existingTx = await tx.transaction.findFirst({
         where: { paymobOrderId: orderId },
       });
       if (existingTx) {
         this.logger.warn(
-          `Wallet topup transaction already processed for order: ${orderId}. Skipping.`,
+          `Transaction already processed for order: ${orderId}. Skipping.`,
         );
         return;
       }
 
-      await this.prisma.transaction.create({
+      // Retrieve userId from booking if available
+      let userId = '';
+      if (bookingId) {
+        const booking = await tx.booking.findUnique({
+          where: { id: bookingId },
+        });
+        if (booking) {
+          userId = booking.userId;
+        }
+      }
+
+      // Record the transaction inside the transaction boundary
+      await tx.transaction.create({
         data: {
           paymobOrderId: orderId,
           amountEGP: amountCents / 100,
@@ -100,69 +153,35 @@ export class PaymobService {
           paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
           paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
           userId: userId,
-          bookingId: null,
+          bookingId: bookingId || null,
           rawResponse: payload as any,
         },
       });
 
-      if (success) {
-        await this.prisma.user.update({
-          where: { id: userId },
+      this.logger.log(
+        `Transaction recorded inside transaction: order=${orderId}, status=${success ? 'SUCCESS' : 'FAILED'}`,
+      );
+
+      // Update booking status directly inside database transaction
+      if (success && bookingId) {
+        await tx.booking.update({
+          where: { id: bookingId },
           data: {
-            walletBalance: { increment: amountCents / 100 },
+            status: 'CONFIRMED',
+            paymentStatus: 'SUCCESS',
           },
         });
-        this.logger.log(
-          `User ${userId} wallet topped up with ${amountCents / 100} EGP successfully.`,
-        );
       }
-      return;
-    }
-
-    // Step 2: Idempotency lock — prevent race conditions and double-charging
-    const existingTx = await this.prisma.transaction.findFirst({
-      where: { paymobOrderId: orderId },
-    });
-    if (existingTx) {
-      this.logger.warn(
-        `Transaction already processed for order: ${orderId}. Skipping.`,
-      );
-      return;
-    }
-
-    // Retrieve userId from booking if available
-    let userId = '';
-    if (bookingId) {
-      const booking = await this.prisma.booking.findUnique({
-        where: { id: bookingId },
-      });
-      if (booking) {
-        userId = booking.userId;
-      }
-    }
-
-    // Step 3: Record the transaction
-    await this.prisma.transaction.create({
-      data: {
-        paymobOrderId: orderId,
-        amountEGP: amountCents / 100,
-        status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-        paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
-        paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
-        userId: userId,
-        bookingId: bookingId || null,
-        rawResponse: payload as any,
-      },
     });
 
-    this.logger.log(
-      `Transaction recorded: order=${orderId}, status=${success ? 'SUCCESS' : 'FAILED'}`,
-    );
-
-    // Step 4: Update booking status
+    // Step 5: Trigger side-effects outside transaction boundary (like notifications)
     if (success && bookingId) {
-      await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
-      this.logger.log(`Booking ${bookingId} confirmed.`);
+      try {
+        await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
+        this.logger.log(`Booking ${bookingId} confirmed & notification triggered.`);
+      } catch (err: any) {
+        this.logger.error(`Error in bookingsService.updateStatus: ${err.message}`, err.stack);
+      }
     }
   }
 
@@ -288,7 +307,7 @@ export class PaymobService {
     }
 
     const isProduction =
-      this.configService.get<string>('nodeEnv') === 'production';
+      this.configService.get<string>('nodeEnv') === 'production' || process.env.NODE_ENV === 'production';
 
     if (!this.apiKey) {
       if (isProduction) {

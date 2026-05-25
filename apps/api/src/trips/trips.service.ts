@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 
@@ -256,7 +256,7 @@ export class TripsService {
     if (!trip) throw new NotFoundException('Trip not found');
 
     if (trip.driverId && trip.driverId !== driverId) {
-      throw new Error('You are not authorized to update this trip status');
+      throw new ForbiddenException('You are not authorized to update this trip status');
     }
 
     const validStatuses = [
@@ -267,7 +267,7 @@ export class TripsService {
       'CANCELLED',
     ];
     if (!validStatuses.includes(status.toUpperCase())) {
-      throw new Error('Invalid trip status');
+      throw new BadRequestException('Invalid trip status');
     }
 
     const data: any = { status: status.toUpperCase() as TripStatus };

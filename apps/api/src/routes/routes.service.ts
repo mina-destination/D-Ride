@@ -174,15 +174,21 @@ export class RoutesService {
       const checkpoints = route.checkpoints as any[];
       if (!checkpoints || checkpoints.length < 2) continue;
 
-      let pickupCp: any = null;
-      let pickupDistance = Infinity;
-      let pickupIdx = -1;
+      let bestPickupCp: any = null;
+      let bestPickupDistance = Infinity;
+      let bestPickupIdx = -1;
 
-      let dropoffCp: any = null;
-      let dropoffDistance = Infinity;
-      let dropoffIdx = -1;
+      let optimalPickupCp: any = null;
+      let optimalPickupIdx = -1;
+      let optimalPickupDistance = Infinity;
 
-      // Single-pass execution to find nearest pickup and dropoff checkpoints
+      let optimalDropoffCp: any = null;
+      let optimalDropoffIdx = -1;
+      let optimalDropoffDistance = Infinity;
+
+      let bestPairDistanceSum = Infinity;
+
+      // Single-pass O(N) dynamic programming sweep over checkpoints to find the optimal pair
       for (let i = 0; i < checkpoints.length; i++) {
         const cp = checkpoints[i];
         if (!cp.location?.coordinates) continue;
@@ -191,40 +197,45 @@ export class RoutesService {
         const distToPickup = getDistance(pickupLng, pickupLat, cpLng, cpLat);
         const distToDropoff = getDistance(dropoffLng, dropoffLat, cpLng, cpLat);
 
-        if (distToPickup < pickupDistance) {
-          pickupDistance = distToPickup;
-          pickupCp = cp;
-          pickupIdx = i;
+        // Try to form a pair using the best pickup checkpoint seen so far and the current checkpoint as dropoff
+        if (bestPickupDistance <= radiusMeters && distToDropoff <= radiusMeters) {
+          const totalDist = bestPickupDistance + distToDropoff;
+          if (totalDist < bestPairDistanceSum) {
+            bestPairDistanceSum = totalDist;
+            optimalPickupCp = bestPickupCp;
+            optimalPickupIdx = bestPickupIdx;
+            optimalPickupDistance = bestPickupDistance;
+            optimalDropoffCp = cp;
+            optimalDropoffIdx = i;
+            optimalDropoffDistance = distToDropoff;
+          }
         }
 
-        if (distToDropoff < dropoffDistance) {
-          dropoffDistance = distToDropoff;
-          dropoffCp = cp;
-          dropoffIdx = i;
+        // Update the best pickup candidate seen so far (its index is automatically < any subsequent index)
+        if (distToPickup < bestPickupDistance) {
+          bestPickupDistance = distToPickup;
+          bestPickupCp = cp;
+          bestPickupIdx = i;
         }
       }
 
-      // Both checkpoints must be within radius
-      if (pickupDistance > radiusMeters || dropoffDistance > radiusMeters)
-        continue;
-
-      // Pickup must come BEFORE dropoff in the route sequence (correct travel direction)
-      if (pickupIdx >= dropoffIdx) continue;
-
-      results.push({
-        route: { ...route, _id: route.id },
-        pickupCheckpoint: {
-          ...pickupCp,
-          distanceMeters: Math.round(pickupDistance),
-          index: pickupIdx,
-        },
-        dropoffCheckpoint: {
-          ...dropoffCp,
-          distanceMeters: Math.round(dropoffDistance),
-          index: dropoffIdx,
-        },
-        totalWalkingDistance: Math.round(pickupDistance + dropoffDistance),
-      });
+      // If we successfully paired checkpoints within the search radius
+      if (bestPairDistanceSum !== Infinity) {
+        results.push({
+          route: { ...route, _id: route.id },
+          pickupCheckpoint: {
+            ...optimalPickupCp,
+            distanceMeters: Math.round(optimalPickupDistance),
+            index: optimalPickupIdx,
+          },
+          dropoffCheckpoint: {
+            ...optimalDropoffCp,
+            distanceMeters: Math.round(optimalDropoffDistance),
+            index: optimalDropoffIdx,
+          },
+          totalWalkingDistance: Math.round(bestPairDistanceSum),
+        });
+      }
     }
 
     // Sort by total walking distance (closest combined pickup+dropoff first)

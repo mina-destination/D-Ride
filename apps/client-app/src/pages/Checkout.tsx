@@ -16,7 +16,7 @@ const blueIcon = new L.Icon({
   iconAnchor: [16, 52],
   popupAnchor: [1, -44],
   shadowSize: [52, 52],
-  className: 'p-2 touch-manipulation'
+  className: 'p-3 touch-manipulation'
 });
 
 const goldIcon = new L.Icon({
@@ -26,7 +26,7 @@ const goldIcon = new L.Icon({
   iconAnchor: [16, 52],
   popupAnchor: [1, -44],
   shadowSize: [52, 52],
-  className: 'p-2 touch-manipulation'
+  className: 'p-3 touch-manipulation'
 });
 
 const redIcon = new L.Icon({
@@ -36,7 +36,7 @@ const redIcon = new L.Icon({
   iconAnchor: [16, 52],
   popupAnchor: [1, -44],
   shadowSize: [52, 52],
-  className: 'p-2 touch-manipulation'
+  className: 'p-3 touch-manipulation'
 });
 
 function MapFocusController({ coords }: { coords: [number, number] | null }) {
@@ -258,7 +258,7 @@ export default function CheckoutPage() {
     return (
       <div 
         key={num}
-        className="p-1 touch-manipulation"
+        className="p-3 touch-manipulation"
         style={{ cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer' }}
         onClick={() => {
           if (!isLocked && !isOccupied) {
@@ -373,7 +373,7 @@ export default function CheckoutPage() {
               fontWeight: 'bold',
               fontSize: '13px',
               border: '3px solid var(--background)',
-              boxShadow: '0 0 10px rgba(245, 183, 49, 0.2)'
+              boxShadow: 'none'
             }}>
               1
             </div>
@@ -458,7 +458,7 @@ export default function CheckoutPage() {
 
                   {mapLoadFailed && (
                     <div style={{
-                      background: 'rgba(245, 183, 49, 0.04)',
+                      background: '#1c1c1e',
                       border: '1px solid var(--primary)',
                       padding: '1.25rem',
                       borderRadius: '12px',
@@ -646,13 +646,13 @@ export default function CheckoutPage() {
                       if (isPickup) {
                         dotBg = 'var(--primary)';
                         dotBorder = '4px solid var(--surface)';
-                        dotShadow = '0 0 15px var(--primary)';
+                        dotShadow = 'none';
                       } else if (isDropoff) {
                         dotBg = '#EF4444';
                         dotBorder = '4px solid var(--surface)';
-                        dotShadow = '0 0 15px #EF4444';
+                        dotShadow = 'none';
                       } else if (isActiveRoute) {
-                        dotBg = 'rgba(245, 183, 49, 0.2)';
+                        dotBg = '#2b2b2b';
                         dotBorder = '3px solid var(--primary)';
                       }
                       
@@ -903,11 +903,8 @@ export default function CheckoutPage() {
 
               {/* Reactive Seat details card */}
               {selectedSeats.length > 0 && (
-                <div className="premium-card" style={{
-                  background: 'rgba(245, 183, 49, 0.03)',
-                  borderColor: 'rgba(245, 183, 49, 0.2)'
-                }}>
-                  <div className="premium-card-title" style={{ borderBottomColor: 'rgba(245, 183, 49, 0.1)', color: 'var(--primary)' }}>
+                <div className="premium-card premium-card-solid-amber">
+                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: 'var(--primary)' }}>
                     <span>🎫</span> Selected Slots
                   </div>
                   

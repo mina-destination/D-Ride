@@ -10,8 +10,8 @@ test.describe('Trip Search Page', () => {
   test('should display "No Route Selected" message if routeId param is missing', async ({ page }) => {
     await page.goto('/search');
 
-    await expect(page.locator('text=No Route Selected')).toBeVisible();
-    await expect(page.locator('text=Please go back and select a route')).toBeVisible();
+    await expect(page.locator('text=No Search Parameters')).toBeVisible();
+    await expect(page.locator('text=Please go back and select a route or enter your location')).toBeVisible();
 
     const backBtn = page.locator('button:has-text("Back to Home")');
     await expect(backBtn).toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Trip Search Page', () => {
 
     // Verify page header
     await expect(page.locator('h1')).toHaveText('Available Trips');
-    await expect(page.locator('text=' + route.name)).toBeVisible();
+    await expect(page.locator('text=' + route.name).first()).toBeVisible();
 
     // Verify trip cards are rendered
     const tripCards = page.locator('.trip-card');
@@ -42,7 +42,7 @@ test.describe('Trip Search Page', () => {
     await expect(firstCard.locator('.trip-amenities')).toBeVisible();
 
     // Verify checkpoint timeline displays checkpoints
-    await expect(firstCard.locator('text=Boarding Checkpoint Timeline')).toBeVisible();
+    await expect(firstCard.locator('text=Route Stops')).toBeVisible();
     await expect(firstCard.locator('.checkpoint-step >> text=Maadi Square')).toBeVisible();
     await expect(firstCard.locator('.checkpoint-step >> text=Ring Road')).toBeVisible();
     await expect(firstCard.locator('.checkpoint-step >> text=Smart Village Gate')).toBeVisible();

@@ -175,26 +175,13 @@ export class BookingsService {
         throw new BadRequestException('Not enough available seats');
       }
 
-      // 4. Pull all active bookings to build the occupied seat indexes
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      // 4. Pull all active non-cancelled/non-refunded bookings to build the occupied seat indexes
       const activeBookings = await tx.booking.findMany({
         where: {
           tripId: tripIdStr,
-          OR: [
-            {
-              status: {
-                in: [
-                  BookingStatus.CONFIRMED,
-                  BookingStatus.BOARDED,
-                  BookingStatus.COMPLETED,
-                ],
-              },
-            },
-            {
-              status: BookingStatus.PENDING_PAYMENT,
-              createdAt: { gte: tenMinutesAgo },
-            },
-          ],
+          status: {
+            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+          },
         },
         select: { seatNumbers: true },
       });

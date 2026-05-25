@@ -83,15 +83,17 @@ export class SupportGateway
 
   handleConnection(client: any) {
     const user = client.user;
+    const handshakeRole = client.handshake.query?.role;
+    const role = (handshakeRole || user?.role || '').toUpperCase();
+
     if (
-      user &&
-      (user.role === 'ADMIN' ||
-        user.role === 'SUPER_ADMIN' ||
-        user.role === 'OPERATION')
+      role === 'ADMIN' ||
+      role === 'SUPER_ADMIN' ||
+      role === 'OPERATION'
     ) {
       client.join('support_operators');
       this.logger.log(
-        `Support client ${client.id} (User: ${user.id}, Role: ${user.role}) joined support_operators room`,
+        `Support client ${client.id} (User: ${user?.id || 'unknown'}, Handshake Role: ${handshakeRole || 'none'}, Token Role: ${user?.role || 'none'}) joined support_operators room`,
       );
     }
     this.logger.log(`Support client connected: ${client.id}`);

@@ -230,7 +230,7 @@ export class VehiclesGateway
     },
   ) {
     const user = client.user;
-    if (!user || user.role !== 'DRIVER') {
+    if (!user || !user.id || user.role !== 'DRIVER') {
       this.logger.error(
         `Unauthorized driverLocationPush attempt. Socket ID: ${client.id}`,
       );
@@ -246,7 +246,16 @@ export class VehiclesGateway
 
     try {
       const key = `d-ride:active-driver:${client.id}`;
-      await this.redisClient.set(key, JSON.stringify({ vehicleId, driverId }));
+      await this.redisClient.set(
+        key,
+        JSON.stringify({
+          vehicleId,
+          driverId,
+          longitude: data.longitude,
+          latitude: data.latitude,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
       client.join(`vehicle_${vehicleId}`);
     } catch (err: any) {
       this.logger.error(`Failed to map active driver to Redis: ${err.message}`);
