@@ -292,7 +292,7 @@ function SearchAutocomplete({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: open && results.length > 0 ? 10005 : 9999 }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: open ? 10005 : 9999 }}>
       <Input
         placeholder={placeholder}
         value={value}
@@ -302,14 +302,12 @@ function SearchAutocomplete({
           setOpen(true);
         }}
         onFocus={() => {
-          if (value && value.length >= 3) {
-            setOpen(true);
-          }
+          setOpen(true);
         }}
         onKeyDown={handleKeyDown}
         suffix={loading ? <Spin size="small" /> : '🔍'}
       />
-      {open && results.length > 0 && (
+      {open && (results.length > 0 || !value || value.length < 3 || loading) && (
         <div style={{
           position: 'absolute',
           top: '100%',
@@ -320,69 +318,131 @@ function SearchAutocomplete({
           borderRadius: '8px',
           boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
           zIndex: 10000,
-          maxHeight: '220px',
+          maxHeight: '260px',
           overflowY: 'auto',
-          marginTop: '6px'
+          marginTop: '6px',
+          padding: '4px 0'
         }}>
-          {results.map((r, idx) => {
-            const displayName = r.display_name;
-            const shortName = r.name || displayName.split(',')[0];
-            const isHighlighted = idx === activeIndex;
-            return (
-              <div
-                key={idx}
-                onClick={() => selectOption(r)}
-                style={{
-                  padding: '10px 14px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'transparent',
-                  transition: 'background-color 0.15s ease'
-                }}
-                onMouseEnter={() => setActiveIndex(idx)}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  backgroundColor: r.is_coords 
-                    ? 'rgba(245, 183, 49, 0.15)' 
-                    : 'rgba(16, 185, 129, 0.15)',
-                  color: r.is_coords ? '#F5B731' : '#10B981',
-                  flexShrink: 0
-                }}>
-                  {r.is_coords ? <Compass size={14} /> : <MapPin size={14} />}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                  <strong style={{ 
-                    color: isHighlighted ? 'var(--primary-color)' : 'var(--text-primary)',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap'
+          {results.length > 0 ? (
+            results.map((r, idx) => {
+              const displayName = r.display_name;
+              const shortName = r.name || displayName.split(',')[0];
+              const isHighlighted = idx === activeIndex;
+              return (
+                <div
+                  key={idx}
+                  onClick={() => selectOption(r)}
+                  style={{
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'transparent',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    backgroundColor: r.is_coords 
+                      ? 'rgba(245, 183, 49, 0.15)' 
+                      : 'rgba(16, 185, 129, 0.15)',
+                    color: r.is_coords ? '#F5B731' : '#10B981',
+                    flexShrink: 0
                   }}>
-                    {shortName}
-                  </strong>
-                  <span style={{ 
-                    fontSize: '10px', 
-                    color: 'var(--text-muted)', 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis', 
-                    whiteSpace: 'nowrap' 
-                  }}>
-                    {displayName}
-                  </span>
+                    {r.is_coords ? <Compass size={14} /> : <MapPin size={14} />}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                    <strong style={{ 
+                      color: isHighlighted ? 'var(--primary-color)' : 'var(--text-primary)',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {shortName}
+                    </strong>
+                    <span style={{ 
+                      fontSize: '10px', 
+                      color: 'var(--text-muted)', 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap' 
+                    }}>
+                      {displayName}
+                    </span>
+                  </div>
                 </div>
+              );
+            })
+          ) : loading ? (
+            <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+              <Spin size="small" style={{ marginRight: '8px' }} /> Searching Egypt map...
+            </div>
+          ) : value && value.length >= 3 ? (
+            <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+              😞 No locations found in Egypt.
+              <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.8 }}>
+                Tip: Try double-clicking on the map to place a terminal manually!
               </div>
-            );
-          })}
+            </div>
+          ) : (
+            <div style={{ padding: '8px 14px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Quick-Select Hubs (Cairo)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {POPULAR_TERMINALS.map((pt, pIdx) => (
+                  <div
+                    key={pIdx}
+                    onClick={() => {
+                      onSelect(pt.name, pt.lng, pt.lat);
+                      setOpen(false);
+                    }}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = 'var(--surface-hover)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                    }}
+                  >
+                    <MapPin size={12} style={{ color: 'var(--primary-color)' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <span style={{ fontWeight: 600 }}>{pt.name}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        {pt.lat.toFixed(3)}, {pt.lng.toFixed(3)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {value && value.length >= 1 && value.length < 3 && (
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic', textAlign: 'center' }}>
+                  Type at least 3 characters to search Osm Nominatim...
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
