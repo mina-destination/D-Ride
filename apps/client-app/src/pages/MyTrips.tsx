@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { bookingsAPI, reviewsAPI } from '../services/api';
-import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star } from 'lucide-react';
+import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star, Share2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
+import { shareTicketPdf } from '../utils/pdfUtils';
 
 export default function MyTripsPage() {
   const { user } = useAuth();
@@ -282,6 +283,21 @@ export default function MyTripsPage() {
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
                           {t('passId')}: #{booking._id.slice(-6).toUpperCase()}
                         </div>
+                        {booking.boardingNumber && (
+                          <div style={{ 
+                            fontSize: '11px', 
+                            color: 'var(--primary)', 
+                            fontWeight: 'bold', 
+                            marginBottom: '0.5rem',
+                            background: 'rgba(245, 183, 49, 0.1)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(245, 183, 49, 0.25)',
+                            display: 'inline-block'
+                          }}>
+                            Code: #{booking.boardingNumber}
+                          </div>
+                        )}
                         
                         <button 
                           onClick={() => toggleFlip(booking._id)}
@@ -327,6 +343,16 @@ export default function MyTripsPage() {
                             </span>
                             <span className="pass-value" style={{ fontSize: '0.9rem', color: 'var(--success)' }}>Verified</span>
                           </div>
+                          {booking.boardingNumber && (
+                            <div className="pass-info-block" style={{ minWidth: '90px' }}>
+                              <span className="pass-label">
+                                Boarding Code
+                              </span>
+                              <span className="pass-value" style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 'bold' }}>
+                                #{booking.boardingNumber}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -360,6 +386,27 @@ export default function MyTripsPage() {
                                 {t('trackLive')}
                               </Link>
                               <button 
+                                onClick={() => shareTicketPdf(booking, user)}
+                                className="auth-button"
+                                style={{ 
+                                  background: 'var(--surface-hover)', 
+                                  color: 'var(--text-primary)',
+                                  border: '1px solid var(--border)',
+                                  padding: '0.45rem 0.8rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 'bold',
+                                  textAlign: 'center',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <Share2 size={12} /> Share PDF
+                              </button>
+                              <button 
                                 onClick={() => handleCancel(booking._id)}
                                 className="btn-danger-outline"
                               >
@@ -391,7 +438,28 @@ export default function MyTripsPage() {
                             </Link>
                           )}
                           {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && (
-                            <div style={{ width: '100%' }}>
+                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                              <button 
+                                onClick={() => shareTicketPdf(booking, user)}
+                                className="auth-button"
+                                style={{ 
+                                  background: 'var(--surface-hover)', 
+                                  color: 'var(--text-primary)',
+                                  border: '1px solid var(--border)',
+                                  padding: '0.45rem 0.8rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 'bold',
+                                  textAlign: 'center',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <Share2 size={12} /> Share PDF
+                              </button>
                               {booking.review ? (
                                 <div style={{ 
                                   background: 'rgba(245, 183, 49, 0.05)',

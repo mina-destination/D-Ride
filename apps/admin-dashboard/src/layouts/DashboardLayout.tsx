@@ -9,43 +9,43 @@ import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 
 const navItems = [
   { label: 'Overview', type: 'section' as const },
-  { path: '/', icon: <LayoutDashboard size={18} />, label: 'Analytics' },
+  { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
   
   { label: 'Fleet Operations', type: 'section' as const },
-  { path: '/routes', icon: <Map size={18} />, label: 'Network Routes' },
-  { path: '/trips', icon: <Bus size={18} />, label: 'Trip Schedules' },
-  { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicle Fleet' },
-  { path: '/drivers', icon: <UserCog size={18} />, label: 'Driver Partners' },
+  { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
+  { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
+  { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicles' },
+  { path: '/drivers', icon: <UserCog size={18} />, label: 'Drivers' },
   
   { label: 'Customer Relations', type: 'section' as const },
-  { path: '/passengers', icon: <Users size={18} />, label: 'Passenger Registry' },
-  { path: '/crm', icon: <Megaphone size={18} />, label: 'Marketing CRM' },
-  { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Center' },
+  { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
+  { path: '/crm', icon: <Megaphone size={18} />, label: 'CRM' },
+  { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Tickets' },
   
   { label: 'Finance & Sales', type: 'section' as const },
-  { path: '/bookings', icon: <Ticket size={18} />, label: 'Reservations' },
-  { path: '/payments', icon: <CreditCard size={18} />, label: 'Transactions' },
+  { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
+  { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
   
   { label: 'Administration', type: 'section' as const },
-  { path: '/administrators', icon: <Shield size={18} />, label: 'Staff Access' },
-  { path: '/settings', icon: <Settings size={18} />, label: 'System Settings' },
-  { path: '/partners', icon: <Handshake size={18} />, label: 'Brand Partners' },
+  { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
+  { path: '/settings', icon: <Settings size={18} />, label: 'Settings' },
+  { path: '/partners', icon: <Handshake size={18} />, label: 'Partners' },
 ];
 
 const pageTitles: Record<string, string> = {
-  '/': 'Analytics Overview',
-  '/routes': 'Network Routes',
-  '/trips': 'Trip Schedules',
-  '/vehicles': 'Vehicle Fleet',
-  '/drivers': 'Driver Partners',
-  '/bookings': 'Reservations',
-  '/payments': 'Transactions',
-  '/passengers': 'Passenger Registry',
-  '/crm': 'Marketing CRM',
-  '/support-tickets': 'Support Center',
-  '/administrators': 'Staff Access Control',
-  '/settings': 'System Settings',
-  '/partners': 'Brand Partners',
+  '/': 'Dashboard',
+  '/routes': 'Routes',
+  '/trips': 'Trips',
+  '/vehicles': 'Vehicles',
+  '/drivers': 'Drivers',
+  '/bookings': 'Bookings',
+  '/payments': 'Payments',
+  '/passengers': 'Passengers',
+  '/crm': 'CRM',
+  '/support-tickets': 'Support Tickets',
+  '/administrators': 'Administrators',
+  '/settings': 'Settings',
+  '/partners': 'Partners',
 };
 
 const pathPermissionMap: Record<string, string> = {
@@ -65,10 +65,16 @@ const pathPermissionMap: Record<string, string> = {
 };
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, syncProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Dynamically sync profile permissions on route changes
+  useEffect(() => {
+    syncProfile();
+  }, [location.pathname]);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([

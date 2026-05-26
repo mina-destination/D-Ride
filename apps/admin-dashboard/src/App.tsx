@@ -4,7 +4,6 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import { antThemeConfig, antThemeConfigDark } from '@transport/shared-theme';
 import { useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { authAPI } from './services/api';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
@@ -27,26 +26,14 @@ import './App.css';
 import { Result, Button, Space } from 'antd';
 
 function ProtectedRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, user, logout, syncProfile } = useAuth();
   const [syncing, setSyncing] = useState(true);
-  const [syncedUser, setSyncedUser] = useState<any>(user);
 
   useEffect(() => {
     let active = true;
-    const syncProfile = async () => {
+    const sync = async () => {
       if (isAuthenticated) {
-        try {
-          const profile = await authAPI.getProfile();
-          if (active) {
-            setSyncedUser(profile);
-            localStorage.setItem('dride_user', JSON.stringify(profile));
-          }
-        } catch (error) {
-          console.error('Failed to sync profile permissions dynamically', error);
-          if (active) {
-            logout();
-          }
-        }
+        await syncProfile();
       }
       if (active) {
         setSyncing(false);
@@ -54,12 +41,12 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
     };
 
     setSyncing(true);
-    syncProfile();
+    sync();
 
     return () => {
       active = false;
     };
-  }, [isAuthenticated, logout]);
+  }, [isAuthenticated, syncProfile]);
 
   if (isLoading || syncing) {
     return (
@@ -78,11 +65,11 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  const currentUser = syncedUser || user;
+  const currentUser = user;
 
   if (currentUser) {
     const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];

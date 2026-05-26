@@ -110,24 +110,39 @@ async function bootstrap() {
   });
 
   console.log('Seeding Routes with Checkpoints...');
+
+  const getSnappedRoute = async (checkpoints: [number, number][]) => {
+    try {
+      const coordsString = checkpoints.map(c => `${c[0]},${c[1]}`).join(';');
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0].geometry;
+      }
+    } catch (err) {
+      console.error('Failed to snap route:', err);
+    }
+    return {
+      type: 'LineString',
+      coordinates: checkpoints
+    };
+  };
+
+  const alexCoords: [number, number][] = [
+    [31.2357, 30.0444],
+    [31.1171, 30.0131],
+    [30.29, 30.85],
+    [29.9187, 31.2001]
+  ];
+  const alexPath = await getSnappedRoute(alexCoords);
+
   const cairoToAlex = await prisma.route.create({
     data: {
       name: 'Cairo to Alexandria',
       distanceKm: 220,
       estimatedDurationMinutes: 180,
-      path: {
-        type: 'LineString',
-        coordinates: [
-          [31.2357, 30.0444],
-          [31.1171, 30.0131],
-          [30.985, 30.125],
-          [30.65, 30.45],
-          [30.49, 30.61],
-          [30.29, 30.85],
-          [29.98, 31.12],
-          [29.9187, 31.2001],
-        ],
-      } as any,
+      path: alexPath,
       checkpoints: [
         {
           name: 'Ramses Square Start',
@@ -161,27 +176,20 @@ async function bootstrap() {
     },
   });
 
+  const dahabCoords: [number, number][] = [
+    [31.2825, 30.0635],
+    [32.3, 29.98],
+    [34.33, 27.91],
+    [34.5152, 28.501]
+  ];
+  const dahabPath = await getSnappedRoute(dahabCoords);
+
   const cairoToDahab = await prisma.route.create({
     data: {
       name: 'Cairo to Dahab',
       distanceKm: 550,
       estimatedDurationMinutes: 420,
-      path: {
-        type: 'LineString',
-        coordinates: [
-          [31.2357, 30.0444],
-          [31.75, 30.05],
-          [32.3, 29.98],
-          [32.58, 29.99],
-          [32.71, 29.58],
-          [33.1, 29.04],
-          [33.18, 28.89],
-          [33.62, 28.24],
-          [34.33, 27.91],
-          [34.42, 28.2],
-          [34.5152, 28.501],
-        ],
-      } as any,
+      path: dahabPath,
       checkpoints: [
         {
           name: 'Abbassia Terminal Start',
@@ -239,6 +247,7 @@ async function bootstrap() {
       paymentStatus: PaymentStatus.SUCCESS,
       amountEGP: 250,
       pickupCheckpoint: { name: 'Ramses Square Start' },
+      boardingNumber: 12,
     },
   });
 
@@ -251,6 +260,7 @@ async function bootstrap() {
       paymentStatus: PaymentStatus.SUCCESS,
       amountEGP: 250,
       pickupCheckpoint: { name: 'Ramses Square Start' },
+      boardingNumber: 8,
     },
   });
 
