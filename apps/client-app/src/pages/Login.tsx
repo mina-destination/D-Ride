@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { LogIn, RefreshCw } from 'lucide-react';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -63,7 +65,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err?.message || 'Invalid credentials');
+      setError(err?.message || t('invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -74,32 +76,32 @@ export default function LoginPage() {
       <div className="auth-card glass">
         <div className="auth-header">
           <img src={logo} alt="D-Ride" className="auth-logo" />
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to book your ride</p>
+          <h1 className="auth-title">{t('loginTitle')}</h1>
+          <p className="auth-subtitle">{t('loginSubtitle')}</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('loginEmailLabel')}</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('loginEmailPlaceholder')}
               required
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t('loginPasswordLabel')}</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t('loginPasswordPlaceholder')}
               required
             />
           </div>
@@ -107,12 +109,12 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <RefreshCw size={18} className="animate-spin" />
-                Signing In...
+                {t('loggingIn')}
               </>
             ) : (
               <>
                 <LogIn size={18} />
-                Sign In
+                {t('loginBtn')}
               </>
             )}
           </button>
@@ -159,7 +161,7 @@ export default function LoginPage() {
         </button>
 
         <div className="auth-switch">
-          Don't have an account? <Link to="/register">Register</Link>
+          {t('dontHaveAccount')} <Link to="/register">{t('signUpNow')}</Link>
         </div>
       </div>
 

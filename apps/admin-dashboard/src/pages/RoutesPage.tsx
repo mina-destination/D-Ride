@@ -521,8 +521,7 @@ export function RoutesPage() {
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
   const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
 
-  // Quick Fill pricing state
-  const [quickFillTotal, setQuickFillTotal] = useState<number>(0);
+
 
   const fetchRoutes = async () => {
     try {
@@ -1223,49 +1222,6 @@ export function RoutesPage() {
                   />
                 </div>
 
-                {/* QUICK FILL PRICING ASSISTANT */}
-                <div style={{ 
-                  padding: '10px 12px', 
-                  background: 'rgba(245, 183, 49, 0.06)', 
-                  border: '1px dashed rgba(245, 183, 49, 0.3)', 
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  flexWrap: 'wrap'
-                }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary-color)', whiteSpace: 'nowrap' }}>⚡ Quick Fill Pricing:</span>
-                  <Input
-                    type="number"
-                    placeholder="Total route fare (EGP)"
-                    value={quickFillTotal || ''}
-                    onChange={e => setQuickFillTotal(parseFloat(e.target.value) || 0)}
-                    size="small"
-                    style={{ width: '140px' }}
-                    min={0}
-                  />
-                  <Button
-                    size="small"
-                    type="primary"
-                    disabled={!quickFillTotal || checkpoints.length < 2}
-                    onClick={() => {
-                      const totalTime = checkpoints[checkpoints.length - 1]?.minutesFromStart || 1;
-                      setCheckpoints(prev => {
-                        return prev.map(cp => {
-                          const ratio = (cp.minutesFromStart || 0) / totalTime;
-                          return { ...cp, priceFromStartEGP: Math.round(quickFillTotal * ratio) };
-                        });
-                      });
-                      message.success(`Prices auto-distributed across ${checkpoints.length} stops!`);
-                    }}
-                    style={{ background: 'var(--primary-color)', border: 'none', color: '#000', fontWeight: 700, fontSize: '11px' }}
-                  >
-                    Auto-Fill Prices
-                  </Button>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    Distributes proportionally based on each stop's time from start
-                  </span>
-                </div>
 
                 <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
                   {checkpoints.map((cp, idx) => {

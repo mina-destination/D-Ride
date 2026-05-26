@@ -4,6 +4,7 @@ import api, { bookingsAPI, routesAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../context/LanguageContext';
 
 import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -57,6 +58,7 @@ export default function CheckoutPage() {
   const requiredSeatsCount = passengersParam ? Math.max(1, parseInt(passengersParam, 10)) : 1;
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t, isRtl } = useTranslation();
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -223,7 +225,7 @@ export default function CheckoutPage() {
 
   const handleReserve = async () => {
     if (selectedSeats.length !== requiredSeatsCount) {
-      alert(`Please select exactly ${requiredSeatsCount} seat(s) to match your search request.`);
+      alert(t('pleaseSelectSeatsToMatch', { count: requiredSeatsCount }));
       return;
     }
 
@@ -244,17 +246,17 @@ export default function CheckoutPage() {
       // Redirect to the payment checkout page
       navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (error) {
-      alert('Reservation failed: ' + ((error as any)?.message || 'Unknown error'));
+      alert(t('reservationFailed') + ((error as any)?.message || 'Unknown error'));
       setProcessing(false);
     }
   };
 
   const getSeatLabel = (num: number) => {
-    if (num === 1) return { label: 'Front VIP Cockpit Seat ⭐', desc: 'Front-row seat with scenic dashboard views next to the driver!' };
-    if ([4, 7, 10].includes(num)) return { label: 'Premium Window Seat 🪟', desc: 'Window-side seat with scenic community views.' };
-    if ([11, 14].includes(num)) return { label: 'Rear Window Seat 🪟', desc: 'Comfortable window seat on the rear row.' };
-    if ([2, 5, 8, 12, 13].includes(num)) return { label: 'Spacious Aisle Seat 🚶', desc: 'Easy-access seat located directly on the cabin aisle.' };
-    return { label: 'Standard Cabin Seat 💺', desc: 'Comfortable mid-cabin passenger seat.' };
+    if (num === 1) return { label: t('vipCockpitSeat'), desc: t('vipCockpitSeatDesc') };
+    if ([4, 7, 10].includes(num)) return { label: t('premiumWindowSeat'), desc: t('premiumWindowSeatDesc') };
+    if ([11, 14].includes(num)) return { label: t('rearWindowSeat'), desc: t('rearWindowSeatDesc') };
+    if ([2, 5, 8, 12, 13].includes(num)) return { label: t('spaciousAisleSeat'), desc: t('spaciousAisleSeatDesc') };
+    return { label: t('standardCabinSeat'), desc: t('standardCabinSeatDesc') };
   };
 
   const toggleSeatSelection = (num: number) => {
@@ -311,11 +313,11 @@ export default function CheckoutPage() {
             minWidth: '48px',
             minHeight: '48px'
           }}
-          title={isLocked ? "Luggage Hold Area (Locked by Admin)" : isOccupied ? `Seat #${num} (Occupied)` : `Seat #${num}`}
+          title={isLocked ? t('luggageHoldAreaLocked') : isOccupied ? t('seatOccupiedTitle', { num }) : t('seatTitle', { num })}
         >
           <div className="bus-seat-inner" style={{ minWidth: '40px', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isLocked ? (
-              <span style={{ display: 'flex', alignItems: 'center', color: '#f5b731' }} title="Luggage Hold Area"><Briefcase size={16} /></span>
+              <span style={{ display: 'flex', alignItems: 'center' }} title={t('luggageLegend')}><Briefcase size={16} /></span>
             ) : (
               <>
                 {/* Premium Cushion & Stitching */}
@@ -323,9 +325,9 @@ export default function CheckoutPage() {
                 <div className="bus-seat-stitching" />
                 <span style={{ 
                   zIndex: 2, 
-                  fontSize: '0.85rem', 
-                  fontWeight: '900', 
-                  color: isSelected ? '#111111' : '#ffffff'
+                  fontSize: '0.78rem', 
+                  fontWeight: 'bold', 
+                  color: isSelected ? 'black' : 'var(--text-secondary)'
                 }}>
                   {num}
                 </span>
@@ -341,11 +343,11 @@ export default function CheckoutPage() {
     (coord: number[]) => [coord[1], coord[0]] as [number, number]
   ) || [];
 
-  if (!tripId) return <div className="auth-page"><div className="premium-card">No trip selected.</div></div>;
+  if (!tripId) return <div className="auth-page"><div className="premium-card">{t('noTripSelected')}</div></div>;
 
   return (
-    <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
-      <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', width: '100%', paddingTop: '6rem', paddingBottom: '2rem', background: 'var(--background)' }}>
+      <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
         
         {/* Header Section */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -353,10 +355,10 @@ export default function CheckoutPage() {
             <img src={logo} alt="D-Ride" className="auth-logo" />
           </Link>
           <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
-            Toyota HiAce Seat Selection
+            {t('seatSelectionTitle')}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-            Cairo Commuter Minibus Fleet (14-Seater)
+            {t('fleetDesc')}
           </p>
         </div>
 
@@ -412,7 +414,7 @@ export default function CheckoutPage() {
             }}>
               1
             </div>
-            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>Configure Commute</span>
+            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>{t('configureCommuteStepper')}</span>
           </div>
 
           {/* Step 2 */}
@@ -433,7 +435,7 @@ export default function CheckoutPage() {
             }}>
               2
             </div>
-            <span className="stepper-label" style={{ color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>Select Payment</span>
+            <span className="stepper-label" style={{ color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('selectPaymentStepper')}</span>
           </div>
 
           {/* Step 3 */}
@@ -454,7 +456,7 @@ export default function CheckoutPage() {
             }}>
               3
             </div>
-            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>Confirm Seat</span>
+            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('confirmSeatStepper')}</span>
           </div>
         </div>
 
@@ -463,7 +465,7 @@ export default function CheckoutPage() {
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
               <Bus size={48} color="var(--text-secondary)" />
             </div>
-            <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Loading trip configuration...</p>
+            <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('loadingTripConfig')}</p>
           </div>
         ) : trip ? (
           <div className="split-layout-container">
@@ -475,19 +477,19 @@ export default function CheckoutPage() {
               {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
                 <div className="premium-card">
                   <div className="premium-card-title">
-                    <span>📍</span> Boarding & Dropoff Checkpoints
+                    <span>📍</span> {t('boardingAndDropoffTitle')}
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                     <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      Verify or select where the driver should pick you up and drop you off. Click markers or dots to adjust.
+                      {t('verifyStopsHelper')}
                     </p>
                     <button 
                       type="button" 
                       onClick={() => setMapLoadFailed(prev => !prev)}
                       style={{ fontSize: '11px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', flexShrink: 0 }}
                     >
-                      {mapLoadFailed ? 'Show Map' : 'Select Manually'}
+                      {mapLoadFailed ? t('showMapBtn') : t('selectManuallyBtn')}
                     </button>
                   </div>
 
@@ -501,11 +503,11 @@ export default function CheckoutPage() {
                       fontSize: '0.88rem',
                       color: 'var(--text-primary)'
                     }}>
-                      💡 <strong>Manual Selection Fallback</strong>: Select primary Cairo transit hubs below to map them to your route stops:
+                      💡 <strong>{t('manualSelectionFallback')}</strong>: {t('manualSelectionFallbackDesc')}
                       
                       <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Manual Pickup Hub</label>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>{t('manualPickupHubLabel')}</label>
                           <select 
                             onChange={(e) => {
                               const hub = cairoTransitHubs.find(h => h.name === e.target.value);
@@ -513,7 +515,7 @@ export default function CheckoutPage() {
                             }}
                             style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
                           >
-                            <option value="">Select Pickup</option>
+                            <option value="">{t('selectPickupOption')}</option>
                             {cairoTransitHubs.map(h => (
                               <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
                             ))}
@@ -521,7 +523,7 @@ export default function CheckoutPage() {
                         </div>
 
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Manual Dropoff Hub</label>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>{t('manualDropoffHubLabel')}</label>
                           <select 
                             onChange={(e) => {
                               const hub = cairoTransitHubs.find(h => h.name === e.target.value);
@@ -529,7 +531,7 @@ export default function CheckoutPage() {
                             }}
                             style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
                           >
-                            <option value="">Select Dropoff</option>
+                            <option value="">{t('selectDropoffOption')}</option>
                             {cairoTransitHubs.map(h => (
                               <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
                             ))}
@@ -676,21 +678,21 @@ export default function CheckoutPage() {
                         
                       const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
                       
-                      let dotBg = '#222222';
-                      let dotBorder = '3px solid #444444';
+                      let dotBg = 'var(--surface-hover)';
+                      let dotBorder = '3px solid var(--border)';
                       let dotShadow = 'none';
                       
                       if (isPickup) {
-                        dotBg = '#f5b731';
-                        dotBorder = '4px solid #111111';
+                        dotBg = 'var(--primary)';
+                        dotBorder = '4px solid var(--surface)';
                         dotShadow = 'none';
                       } else if (isDropoff) {
                         dotBg = '#EF4444';
-                        dotBorder = '4px solid #111111';
+                        dotBorder = '4px solid var(--surface)';
                         dotShadow = 'none';
                       } else if (isActiveRoute) {
-                        dotBg = '#111111';
-                        dotBorder = '3px solid #f5b731';
+                        dotBg = '#2b2b2b';
+                        dotBorder = '3px solid var(--primary)';
                       }
                       
                       return (
@@ -739,15 +741,15 @@ export default function CheckoutPage() {
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
-                                background: '#ffffff'
+                                background: 'var(--text-on-primary)'
                               }} />
                             )}
                           </div>
                           
                           <span style={{ 
                             fontSize: '0.75rem', 
-                            fontWeight: (isPickup || isDropoff) ? 900 : 700, 
-                            color: isPickup ? '#f5b731' : (isDropoff ? '#EF4444' : '#ffffff'), 
+                            fontWeight: (isPickup || isDropoff) ? 800 : 500, 
+                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
                             marginTop: '6px', 
                             textAlign: 'center',
                             transition: 'all 0.2s'
@@ -757,10 +759,9 @@ export default function CheckoutPage() {
                           {cp.nameAr && (
                             <span style={{ 
                               fontSize: '0.65rem', 
-                              color: isPickup ? '#FEF3CD' : (isDropoff ? '#F87171' : '#bbbbbb'),
+                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
                               textAlign: 'center',
-                              transition: 'all 0.2s',
-                              fontWeight: 700
+                              transition: 'all 0.2s'
                             }}>
                               {cp.nameAr}
                             </span>
@@ -775,15 +776,15 @@ export default function CheckoutPage() {
               {/* Interactive Minibus Grid */}
               <div className="premium-card">
                 <div className="premium-card-title">
-                  <span>💺</span> Toyota HiAce Cabin Layout
+                  <span>💺</span> {t('cabinLayoutTitle')}
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    Click available seats to select them. Locked seats are reserved for luggage.
+                    {t('cabinLayoutDesc')}
                   </p>
                   <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    Toyota HiAce L2H2
+                    {t('hiaceModelLabel')}
                   </span>
                 </div>
 
@@ -800,87 +801,97 @@ export default function CheckoutPage() {
                     fontWeight: 600
                   }}
                 >
-                  <span>Requested Seats:</span>
-                  <span>{selectedSeats.length} of {requiredSeatsCount} Selected</span>
+                  <span>{t('requestedSeatsLabel')}:</span>
+                  <span>{t('requestedSeatsCountLabel', { count: selectedSeats.length, required: requiredSeatsCount })}</span>
                 </div>
 
-                <div className="bus-cabin" style={{ margin: '0 auto', maxWidth: '300px' }}>
+                <div className="bus-cabin">
                   {/* Windshield */}
-                  <div className="bus-windshield windshield-opaque" style={{ height: '14px', borderRadius: '10px 10px 2px 2px', marginBottom: '1.25rem' }} />
+                  <div className="bus-windshield windshield-opaque" style={{ marginBottom: '1rem' }} />
                   
                   {/* HiAce Dashboard */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                     <span title="Steering Wheel" style={{ opacity: 0.6 }}><Settings size={18} /></span>
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>Dashboard</span>
-                    <span title="Dashboard console" style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>{t('dashboardLabel')}</span>
+                    <span title={t('dashboardLabel')} style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
                   </div>
 
                   {/* Driver & VIP Row */}
-                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div className="cabin-row" style={{ marginBottom: '1rem' }}>
                     <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                        <User size={16} />
                     </div>
-                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    <div className="cabin-aisle" />
                     {renderSeat(1)}
                   </div>
 
                   {/* Sliding Entry Door */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0 12px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '2px 0 10px 0' }}>
                     <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: 'var(--primary)', padding: '3px 8px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      <ArrowRightToLine size={10} /> Sliding door entry
+                      <ArrowRightToLine size={10} /> {t('slidingDoorEntryLabel')}
                     </div>
                   </div>
 
                   {/* Row 2 */}
-                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div className="cabin-row">
                     {renderSeat(2)}
                     {renderSeat(3)}
-                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    <div className="cabin-aisle" />
                     {renderSeat(4)}
                   </div>
 
                   {/* Row 3 */}
-                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div className="cabin-row">
                     {renderSeat(5)}
                     {renderSeat(6)}
-                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    <div className="cabin-aisle" />
                     {renderSeat(7)}
                   </div>
 
                   {/* Row 4 */}
-                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div className="cabin-row">
                     {renderSeat(8)}
                     {renderSeat(9)}
-                    <div className="cabin-aisle" style={{ width: '44px' }} />
+                    <div className="cabin-aisle" />
                     {renderSeat(10)}
                   </div>
 
-                  {/* Row 5 */}
-                  <div className="cabin-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  {/* Row 5 - Rear */}
+                  <div className="cabin-row" style={{ marginBottom: '0.5rem' }}>
                     {renderSeat(11)}
                     {renderSeat(12)}
                     {renderSeat(13)}
                     {renderSeat(14)}
                   </div>
-                </div>
 
-                {/* Legends */}
-                <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--border)' }}></div>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Available</span>
-                  </div>
-                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)' }}></div>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Selected</span>
-                  </div>
-                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
-                    <span style={{ color: 'var(--text-secondary)', opacity: 0.5, fontWeight: 500 }}>Occupied</span>
-                  </div>
-                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Luggage</span>
+                  {/* Rear bumper */}
+                  <div style={{ 
+                    width: '60%', 
+                    height: '6px', 
+                    margin: '0.5rem auto 0', 
+                    background: 'var(--border)', 
+                    borderRadius: '0 0 4px 4px',
+                    opacity: 0.6
+                  }} />
+
+                  {/* Legends */}
+                  <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--border)' }}></div>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('availableLegend')}</span>
+                    </div>
+                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)' }}></div>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('selectedLegend')}</span>
+                    </div>
+                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
+                      <span style={{ color: 'var(--text-secondary)', opacity: 0.5, fontWeight: 500 }}>{t('occupiedLegend')}</span>
+                    </div>
+                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('luggageLegend')}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -893,22 +904,22 @@ export default function CheckoutPage() {
               {/* Booking Summary Card */}
               <div className="premium-card">
                 <div className="premium-card-title">
-                  <span>📋</span> Commute Details
+                  <span>📋</span> {t('commuteDetailsLabel')}
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div>
-                    <div style={{ fontSize: '11px', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 900 }}>Line Route</div>
-                    <div style={{ fontWeight: 900, color: '#ffffff', fontSize: '1.1rem', marginTop: '2px' }}>
-                      {trip.routeId?.name || 'Standard Route'}
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('lineRouteLabel')}</div>
+                    <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+                      {trip.routeId?.name || t('standardRoute')}
                     </div>
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '11px', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 900 }}>
-                      {selectedPickupCheckpoint?.localizedDepartureTime ? 'Localized Boarding Time' : 'Departure Time'}
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                      {selectedPickupCheckpoint?.localizedDepartureTime ? t('localizedBoardingTimeLabel') : t('departureTime')}
                     </div>
-                    <div style={{ fontWeight: 900, color: '#f5b731', fontSize: '0.95rem', marginTop: '2px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
                       {(() => {
                         const baseTime = new Date(trip.departureTime).getTime();
                         const timeToUse = selectedPickupCheckpoint?.localizedDepartureTime 
@@ -931,37 +942,31 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Route Checkpoints Details */}
-                  <div className="checkpoint-timeline" style={{ borderTop: '2px solid #f5b731', paddingTop: '1.25rem' }}>
+                  <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
                     <div className="checkpoint-timeline-item pickup">
                       <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label" style={{ color: '#f5b731', fontWeight: 900 }}>Selected Pickup</span>
-                      <span className="checkpoint-timeline-value" style={{ color: '#ffffff', fontWeight: 900 }}>
-                        {selectedPickupCheckpoint?.name || 'Not Selected'}
+                      <span className="checkpoint-timeline-label">{t('selectedPickup')}</span>
+                      <span className="checkpoint-timeline-value">
+                        {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('notSelectedLabel')) : (selectedPickupCheckpoint?.name || t('notSelectedLabel'))}
                         {selectedPickupCheckpoint?.localizedDepartureTime && (
-                          <span style={{ fontSize: '0.8rem', color: '#f5b731', marginLeft: '8px', fontWeight: 900 }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
                             ({new Date(selectedPickupCheckpoint.localizedDepartureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                           </span>
                         )}
                       </span>
-                      {selectedPickupCheckpoint?.nameAr && (
-                        <span className="checkpoint-timeline-value-ar" style={{ color: '#FEF3CD', fontWeight: 700 }}>{selectedPickupCheckpoint.nameAr}</span>
-                      )}
                     </div>
                     
                     <div className="checkpoint-timeline-item dropoff">
                       <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label" style={{ color: '#EF4444', fontWeight: 900 }}>Selected Dropoff</span>
-                      <span className="checkpoint-timeline-value" style={{ color: '#ffffff', fontWeight: 900 }}>
-                        {selectedDropoffCheckpoint?.name || 'Not Selected'}
+                      <span className="checkpoint-timeline-label">{t('selectedDropoff')}</span>
+                      <span className="checkpoint-timeline-value">
+                        {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('notSelectedLabel')) : (selectedDropoffCheckpoint?.name || t('notSelectedLabel'))}
                         {selectedDropoffCheckpoint?.localizedArrivalTime && (
-                          <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px', fontWeight: 900 }}>
+                          <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
                             ({new Date(selectedDropoffCheckpoint.localizedArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                           </span>
                         )}
                       </span>
-                      {selectedDropoffCheckpoint?.nameAr && (
-                        <span className="checkpoint-timeline-value-ar" style={{ color: '#F87171', fontWeight: 700 }}>{selectedDropoffCheckpoint.nameAr}</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -970,29 +975,29 @@ export default function CheckoutPage() {
               {/* Reactive Seat details card */}
               {selectedSeats.length > 0 && (
                 <div className="premium-card premium-card-solid-amber">
-                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: '#f5b731' }}>
-                    <span>🎫</span> Selected Slots
+                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: 'var(--primary)' }}>
+                    <span>🎫</span> {t('selectedSlots')}
                   </div>
                   
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '1rem' }}>
                     {selectedSeats.map(num => (
                       <span key={num} style={{
-                        background: '#f5b731',
-                        color: '#111111',
+                        background: 'var(--primary)',
+                        color: 'var(--text-on-primary)',
                         padding: '4px 10px',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        fontWeight: '900'
+                        fontWeight: 'bold'
                       }}>
-                        Seat #{num}
+                        {t('seatTitle', { num })}
                       </span>
                     ))}
                   </div>
 
-                  <p style={{ fontSize: '0.8rem', color: '#ffffff', lineHeight: 1.4, margin: 0, fontWeight: 700 }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
                     {selectedSeats.length === 1 
                       ? getSeatLabel(selectedSeats[0]).desc
-                      : "Booking multiple spaces in a single transaction. All boarding passes will be dispatched simultaneously!"
+                      : t('bookingMultipleSeatsDesc')
                     }
                   </p>
                 </div>
@@ -1001,48 +1006,48 @@ export default function CheckoutPage() {
               {/* Invoice breakdown card */}
               <div className="premium-card">
                 <div className="premium-card-title">
-                  <span>🧾</span> Invoice Breakdown
+                  <span>🧾</span> {t('invoiceBreakdownLabel')}
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid #444444', paddingBottom: '8px', marginBottom: '8px' }}>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Leg Segment</span>
-                    <span style={{ fontWeight: 900, color: '#f5b731', textAlign: 'right' }}>
-                      {selectedPickupCheckpoint?.name || 'Start'} ➔ {selectedDropoffCheckpoint?.name || 'End'}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('legSegmentLabel')}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', textAlign: 'right' }}>
+                      {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('startLabel')) : (selectedPickupCheckpoint?.name || t('startLabel'))} ➔ {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('endLabel')) : (selectedDropoffCheckpoint?.name || t('endLabel'))}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Selected Slots ({selectedSeats.length})</span>
-                    <span style={{ fontWeight: '900', color: selectedSeats.length > 0 ? '#f5b731' : '#ffffff' }}>
-                      {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None'}
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('selectedSlots')} ({selectedSeats.length})</span>
+                    <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
+                      {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : t('notSelectedLabel')}
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Base Fare (Leg sub-total)</span>
-                    <span style={{ fontWeight: 900, color: '#ffffff' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('baseFareLabel')}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {Math.round(legSubTotalFare * 0.86)} EGP
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>VAT (14% Included)</span>
-                    <span style={{ fontWeight: 900, color: '#ffffff' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {legSubTotalFare - Math.round(legSubTotalFare * 0.86)} EGP
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Booking Fee</span>
-                    <span style={{ fontWeight: '900', color: '#10b981' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('bookingFeeLabel')}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
                       0.00 EGP (FREE)
                     </span>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #f5b731', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff' }}>Total Fare</span>
-                    <span style={{ fontSize: '1.3rem', fontWeight: '900', color: '#f5b731' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalFare')}</span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                       {legSubTotalFare} EGP
                     </span>
                   </div>
@@ -1061,15 +1066,15 @@ export default function CheckoutPage() {
                   style={{ padding: '1rem' }}
                 >
                   {processing 
-                    ? 'Reserving Seats...' 
+                    ? t('reservingSeatsLoading')
                     : selectedSeats.length !== requiredSeatsCount
-                      ? `Select exactly ${requiredSeatsCount} seat(s)`
-                      : 'Confirm & Proceed to Payment'
+                      ? t('selectRequiredSeatsButton', { count: requiredSeatsCount })
+                      : t('confirmAndProceedBtn')
                   }
                 </button>
                 
-                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: '#ffffff', fontWeight: 700 }}>
-                  <Lock size={12} style={{ color: '#f5b731' }} /> Seats will be temporarily held for 10 minutes.
+                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <Lock size={12} /> {t('seatsTemporaryHoldInfo')}
                 </p>
               </div>
 
@@ -1078,8 +1083,8 @@ export default function CheckoutPage() {
           </div>
         ) : (
           <div className="premium-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <p style={{ color: 'var(--text-secondary)' }}>Trip configuration not found.</p>
-            <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1.5rem' }}>Return to Home</button>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('tripConfigNotFound')}</p>
+            <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1.5rem' }}>{t('returnToHome')}</button>
           </div>
         )}
       </div>

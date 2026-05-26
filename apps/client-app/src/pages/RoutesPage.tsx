@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { 
   Map as MapIcon, 
   Clock, 
@@ -98,6 +99,7 @@ export default function RoutesPage() {
   const navigate = useNavigate();
   const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
   const { theme } = useTheme();
+  const { t, language } = useTranslation();
 
   useEffect(() => {
     routesAPI.getAll()
@@ -146,7 +148,7 @@ export default function RoutesPage() {
         padding: '3rem 2rem',
         borderBottom: '1px solid var(--border)',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'clip',
         textAlign: 'center'
       }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.05, backgroundImage: 'radial-gradient(#F5B731 1px, transparent 0)', backgroundSize: '24px 24px' }} />
@@ -165,14 +167,13 @@ export default function RoutesPage() {
             display: 'inline-block',
             marginBottom: '1rem'
           }}>
-            Commute Networks
+            {t('routesCommuteNetworks')}
           </span>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem', letterSpacing: '-0.02em' }}>
-            D-Ride Routes Explorer
+            {t('routesExplorerTitle')}
           </h1>
           <p style={{ fontSize: '1rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
-            Browse fixed transit lines, view custom checkpoints, see schedules, and track wait buffers. 
-            Choose a route below to view its snapped roadway coordinates and timeline.
+            {t('routesExplorerDesc')}
           </p>
         </div>
       </div>
@@ -180,14 +181,14 @@ export default function RoutesPage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '400px', gap: '1rem' }}>
           <div className="app-loading-spinner" style={{ width: '40px', height: '40px', border: '3px solid rgba(245, 183, 49, 0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Fetching Egypt commute routes...</span>
+          <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('routesLoading')}</span>
         </div>
       ) : routes.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', textAlign: 'center' }}>
           <MapIcon size={64} style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>No Routes Registered</h2>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{t('routesNoRegisteredTitle')}</h2>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: 0 }}>
-            There are currently no active transit routes in the system. Check back later or ask an administrator to add one.
+            {t('routesNoRegisteredDesc')}
           </p>
         </div>
       ) : (
@@ -204,7 +205,7 @@ export default function RoutesPage() {
           {/* LEFT COLUMN: ROUTE CARDS LIST */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Available Lines ({routes.length})
+              {t('routesAvailableLines', { count: routes.length })}
             </h3>
             
             {routes.map(route => {
@@ -281,15 +282,15 @@ export default function RoutesPage() {
                   <div style={{ padding: '1.25rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: '#10B981', fontWeight: 'bold' }}>🟢 Start:</span>
+                        <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('routesStartPrefix')}</span>
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {startStop ? startStop.name : 'Origin'}
+                          {startStop ? (language === 'ar' && startStop.nameAr ? startStop.nameAr : startStop.name) : 'Origin'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: '#EF4444', fontWeight: 'bold' }}>🏁 End:</span>
+                        <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{t('routesEndPrefix')}</span>
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {endStop ? endStop.name : 'Destination'}
+                          {endStop ? (language === 'ar' && endStop.nameAr ? endStop.nameAr : endStop.name) : 'Destination'}
                         </span>
                       </div>
                     </div>
@@ -324,19 +325,19 @@ export default function RoutesPage() {
                     >
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         ⏰ {tripsMap[route._id] && tripsMap[route._id].length > 0 ? (
-                          <span><strong>{tripsMap[route._id].length} trips</strong> scheduled</span>
+                          <span>{t('routesTripsScheduled', { count: tripsMap[route._id].length })}</span>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>No trips scheduled</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('routesNoTripsScheduled')}</span>
                         )}
                       </span>
                       {tripsMap[route._id] && tripsMap[route._id].length > 0 && (
-                        <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700 }}>Book Shuttles →</span>
+                        <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700 }}>{t('routesBookShuttles')}</span>
                       )}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={14} /> {route.estimatedDurationMinutes || 30} mins ride
+                        <Clock size={14} /> {t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}
                       </span>
                       
                       <button 
@@ -361,7 +362,7 @@ export default function RoutesPage() {
                         onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
                         onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                       >
-                        Book Ride <ChevronRight size={14} />
+                        {t('routesBookRideBtn')} <ChevronRight size={14} style={{ transform: language === 'ar' ? 'rotate(180deg)' : 'none' }} />
                       </button>
                     </div>
                   </div>
@@ -384,10 +385,10 @@ export default function RoutesPage() {
               }}>
                 <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <MapIcon size={20} style={{ color: 'var(--primary)' }} /> Interactive Transit Track
+                    <MapIcon size={20} style={{ color: 'var(--primary)' }} /> {t('routesInteractiveTrack')}
                   </h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Layers size={14} /> Snapped Roadways (OSRM)
+                    <Layers size={14} /> {t('routesSnappedRoadways')}
                   </span>
                 </div>
                 
@@ -428,14 +429,15 @@ export default function RoutesPage() {
                         >
                           <Popup>
                             <div style={{ fontFamily: 'Inter, sans-serif' }}>
-                              <strong style={{ display: 'block', fontSize: '13px' }}>{cp.name}</strong>
-                              {cp.nameAr && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.nameAr}</span>}
+                              <strong style={{ display: 'block', fontSize: '13px' }}>{language === 'ar' && cp.nameAr ? cp.nameAr : cp.name}</strong>
+                              {language !== 'ar' && cp.nameAr && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.nameAr}</span>}
+                              {language === 'ar' && cp.name && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.name}</span>}
                               <hr style={{ margin: '6px 0', border: 'none', borderBottom: '1px solid #eee' }} />
                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                                Type: {cp.type}<br />
-                                Order: Stop #{cp.order}<br />
-                                Wait Buffer: {cp.bufferTimeMinutes} mins<br />
-                                Geofence: {cp.geofenceRadiusMeters} meters
+                                {language === 'ar' ? 'النوع:' : 'Type:'} {cp.type === 'START' ? t('routesOriginTerminal') : cp.type === 'END' ? t('routesFinalTerminal') : t('routesStopNum', { num: cp.order })}<br />
+                                {language === 'ar' ? 'الترتيب:' : 'Order:'} {cp.order}<br />
+                                {language === 'ar' ? 'وقت الانتظار:' : 'Wait Buffer:'} {cp.bufferTimeMinutes} {language === 'ar' ? 'دقائق' : 'mins'}<br />
+                                {language === 'ar' ? 'السياج الجغرافي:' : 'Geofence:'} {cp.geofenceRadiusMeters} {language === 'ar' ? 'متر' : 'meters'}
                               </span>
                             </div>
                           </Popup>
@@ -455,7 +457,7 @@ export default function RoutesPage() {
                 boxShadow: '0 10px 30px rgba(0,0,0,0.04)'
               }}>
                 <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Navigation size={20} style={{ color: 'var(--primary)' }} /> Checkpoint Sequence Timeline
+                  <Navigation size={20} style={{ color: 'var(--primary)' }} /> {t('routesTimelineTitle')}
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -465,7 +467,8 @@ export default function RoutesPage() {
                     position: 'absolute',
                     top: '15px',
                     bottom: '15px',
-                    left: '14px',
+                    left: language === 'ar' ? 'auto' : '14px',
+                    right: language === 'ar' ? '14px' : 'auto',
                     width: '3px',
                     backgroundColor: 'var(--border)',
                     zIndex: 0
@@ -485,7 +488,8 @@ export default function RoutesPage() {
                           gap: '1.5rem', 
                           marginBottom: idx < activeRoute.checkpoints.length - 1 ? '1.5rem' : 0, 
                           position: 'relative',
-                          zIndex: 1
+                          zIndex: 1,
+                          flexDirection: language === 'ar' ? 'row-reverse' : 'row'
                         }}
                       >
                         {/* Timeline Pin */}
@@ -516,24 +520,27 @@ export default function RoutesPage() {
                           border: '1px solid var(--border)',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          flexDirection: language === 'ar' ? 'row-reverse' : 'row',
+                          textAlign: language === 'ar' ? 'right' : 'left'
                         }}>
                           <div>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: color, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
-                              {isStart ? 'Origin Terminal' : isEnd ? 'Final Terminal' : `Stop #${idx}`}
+                              {isStart ? t('routesOriginTerminal') : isEnd ? t('routesFinalTerminal') : t('routesStopNum', { num: idx })}
                             </span>
-                            <strong style={{ fontSize: '1rem', color: 'var(--text-primary)', display: 'block' }}>{cp.name}</strong>
-                            {cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.nameAr}</span>}
+                            <strong style={{ fontSize: '1rem', color: 'var(--text-primary)', display: 'block' }}>{language === 'ar' && cp.nameAr ? cp.nameAr : cp.name}</strong>
+                            {language === 'ar' && cp.name && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.name}</span>}
+                            {language !== 'ar' && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.nameAr}</span>}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: language === 'ar' ? 'left' : 'right', flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>Buffer</span>
-                              <strong style={{ color: 'var(--text-primary)' }}>{cp.bufferTimeMinutes || 0} mins</strong>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('routesBuffer')}</span>
+                              <strong style={{ color: 'var(--text-primary)' }}>{cp.bufferTimeMinutes || 0} {language === 'ar' ? 'دقائق' : 'mins'}</strong>
                             </div>
                             <div style={{ width: '1px', backgroundColor: 'var(--border)', margin: '0 4px' }} />
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>Geofence</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('routesGeofence')}</span>
                               <strong style={{ color: 'var(--text-primary)' }}>{cp.geofenceRadiusMeters || 50}m</strong>
                             </div>
                           </div>
@@ -555,11 +562,13 @@ export default function RoutesPage() {
                   alignItems: 'start',
                   gap: '8px',
                   fontSize: '0.8rem',
-                  color: 'var(--text-secondary)'
+                  color: 'var(--text-secondary)',
+                  flexDirection: language === 'ar' ? 'row-reverse' : 'row',
+                  textAlign: language === 'ar' ? 'right' : 'left'
                 }}>
                   <Info size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
                   <div>
-                    <strong>Egypt Mass-Transit Compliance:</strong> Buses are scheduled to wait the full wait buffer time at each checkpoint. Boarding gates close exactly at the buffer timeout. Always check your ticket geofence validation area upon boarding.
+                    <strong>{t('routesComplianceTitle')}</strong> {t('routesComplianceDesc')}
                   </div>
                 </div>
 

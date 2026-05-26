@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useNotifications } from '../context/NotificationContext';
+import { useTranslation } from '../context/LanguageContext';
 
 export default function PaymentCallbackPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
@@ -19,11 +21,11 @@ export default function PaymentCallbackPage() {
 
     if (isSuccess) {
       setStatus('success');
-      addNotification('Payment Successful ✅', 'Your transaction was completed and your seat is secured.');
+      addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
     } else {
       setStatus('failed');
     }
-  }, [searchParams, addNotification]);
+  }, [searchParams, addNotification, t]);
 
   return (
     <div className="auth-page">
@@ -34,17 +36,17 @@ export default function PaymentCallbackPage() {
           </Link>
         </div>
 
-        {status === 'loading' && <p>Verifying payment...</p>}
+        {status === 'loading' && <p>{t('verifyingPayment')}</p>}
 
         {status === 'success' && (
           <>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
-            <h2>Payment Successful!</h2>
+            <h2>{t('paymentSuccessful')}</h2>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
-              Your transaction has been processed and your seat is confirmed.
+              {t('paymentSuccessDesc')}
             </p>
             <button onClick={() => navigate('/my-trips')} className="auth-button">
-              View My Trips
+              {t('viewMyTrips')}
             </button>
           </>
         )}
@@ -52,12 +54,12 @@ export default function PaymentCallbackPage() {
         {status === 'failed' && (
           <>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❌</div>
-            <h2>Payment Failed</h2>
+            <h2>{t('paymentFailed')}</h2>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
-              We could not process your payment. Please try again.
+              {t('paymentFailedDesc')}
             </p>
             <button onClick={() => navigate('/')} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-              Return to Home
+              {t('returnToHome')}
             </button>
           </>
         )}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripsAPI, routesAPI } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 // Map imports removed
 
@@ -40,18 +41,18 @@ function cleanGoogleDriveLink(url: string): string {
   return url;
 }
 
-const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string) => {
+const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string, isRtl?: boolean) => {
   const [y, m, d] = groupDateStr.split('-').map(Number);
   const groupDate = new Date(y, m - 1, d);
   
-  const formatted = groupDate.toLocaleDateString(undefined, { 
+  const formatted = groupDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { 
     weekday: 'long', 
     month: 'long', 
     day: 'numeric' 
   });
 
   if (!targetDateStr) return formatted;
-  if (groupDateStr === targetDateStr) return `🎯 ${formatted} (Selected Date)`;
+  if (groupDateStr === targetDateStr) return isRtl ? `🎯 ${formatted} (التاريخ المحدد)` : `🎯 ${formatted} (Selected Date)`;
 
   const [ty, tm, td] = targetDateStr.split('-').map(Number);
   const targetDate = new Date(ty, tm - 1, td);
@@ -59,15 +60,16 @@ const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string) => {
   const diffTime = groupDate.getTime() - targetDate.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   
-  if (diffDays === -1) return `📅 ${formatted} (Yesterday)`;
-  if (diffDays === 1) return `📅 ${formatted} (Tomorrow)`;
-  if (diffDays < 0) return `📅 ${formatted} (${Math.abs(diffDays)} Days Before)`;
-  return `📅 ${formatted} (${diffDays} Days After)`;
+  if (diffDays === -1) return isRtl ? `📅 ${formatted} (أمس)` : `📅 ${formatted} (Yesterday)`;
+  if (diffDays === 1) return isRtl ? `📅 ${formatted} (غداً)` : `📅 ${formatted} (Tomorrow)`;
+  if (diffDays < 0) return isRtl ? `📅 ${formatted} (قبل ${Math.abs(diffDays)} يوم/أيام)` : `📅 ${formatted} (${Math.abs(diffDays)} Days Before)`;
+  return isRtl ? `📅 ${formatted} (بعد ${diffDays} يوم/أيام)` : `📅 ${formatted} (${diffDays} Days After)`;
 };
 
 // Map configurations removed
 
 export default function TripSearchPage() {
+  const { t, isRtl } = useTranslation();
   const [searchParams] = useSearchParams();
   const routeId = searchParams.get('routeId');
   const pickupLat = searchParams.get('pickupLat');
@@ -82,16 +84,16 @@ export default function TripSearchPage() {
   const navigate = useNavigate();
 
   const dateString = useMemo(() => {
-    if (!date) return 'Next 5 Days';
+    if (!date) return t('next5days');
     const [year, month, day] = date.split('-').map(Number);
     const parsedDate = new Date(year, month - 1, day);
-    return parsedDate.toLocaleDateString(undefined, { 
+    return parsedDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
     });
-  }, [date]);
+  }, [date, isRtl, t]);
 
   const [route, setRoute] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
@@ -297,9 +299,9 @@ export default function TripSearchPage() {
     return (
       <div className="auth-page">
         <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h2>No Search Parameters</h2>
-          <p>Please go back and select a route or enter your location to search for trips.</p>
-          <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>Back to Home</button>
+          <h2>{t('noSearchParameters')}</h2>
+          <p>{t('noSearchParametersDesc')}</p>
+          <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>{t('backToHome')}</button>
         </div>
       </div>
     );
@@ -312,23 +314,23 @@ export default function TripSearchPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }} className="animate-fade-in-up">
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-            Available Trips
+            {t('availableTrips')}
           </h1>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {isSmartMode ? (
-              <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem', background: '#111111', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '2px solid #f5b731' }}>
+              <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem', background: 'var(--surface-hover)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)' }}>
                 <span>📍</span>
-                <span style={{ fontWeight: 900, color: '#ffffff' }}>
-                  Smart Search: Pickups & Dropoffs within 5km
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {t('smartSearchSubtitle')}
                 </span>
               </div>
             ) : route && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#111111', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '2px solid #f5b731' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface-hover)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)' }}>
                 <span>📍</span>
-                <span style={{ fontWeight: 900, color: '#ffffff' }}>{route.name}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{isRtl ? (route.nameAr || route.name) : route.name}</span>
               </div>
             )}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#111111', color: '#f5b731', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '2px solid #f5b731', fontWeight: 900 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(245, 183, 49, 0.1)', color: 'var(--primary)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-2xl)', border: '1px solid rgba(245, 183, 49, 0.25)', fontWeight: 700 }}>
               <span>📅</span>
               <span>{dateString}</span>
             </div>
@@ -339,14 +341,14 @@ export default function TripSearchPage() {
         {loading ? (
           <div className="glass" style={{ textAlign: 'center', padding: '3rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem' }}>
             <div className="app-loading-spinner"></div>
-            <p style={{ color: '#ffffff', fontWeight: 900 }}>Searching for the best rides...</p>
+            <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('searchingRides')}</p>
           </div>
         ) : sortedTrips.length === 0 ? (
           <div className="glass" style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: 'var(--radius-xl)' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 900 }}>No trips found</h3>
-            <p style={{ color: '#ffffff', marginBottom: '2rem', fontWeight: 700 }}>We couldn't find any scheduled trips for the selected dates.</p>
-            <button onClick={() => navigate('/')} className="btn-primary">Search Another Route</button>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t('noTripsFound')}</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('noTripsFoundDesc')}</p>
+            <button onClick={() => navigate('/')} className="btn-primary">{t('searchAnotherRoute')}</button>
           </div>
         ) : (
           <div>
@@ -364,10 +366,10 @@ export default function TripSearchPage() {
               <div style={{ 
                 display: 'flex', 
                 gap: '0.75rem', 
-                background: '#111111',
+                background: 'var(--surface-elevated)',
                 padding: '6px',
                 borderRadius: 'var(--radius-lg)',
-                border: '2px solid #f5b731',
+                border: '1px solid var(--border)',
                 maxWidth: 'fit-content'
               }}>
                 <button 
@@ -376,15 +378,14 @@ export default function TripSearchPage() {
                     padding: '0.5rem 1.2rem',
                     borderRadius: 'var(--radius-md)',
                     fontSize: '0.85rem',
-                    fontWeight: 900,
+                    fontWeight: 700,
                     cursor: 'pointer',
-                    background: sortBy === 'earliest' ? '#f5b731' : 'transparent',
-                    color: sortBy === 'earliest' ? '#111111' : '#ffffff',
-                    border: sortBy === 'earliest' ? 'none' : '1px solid #444444',
+                    background: sortBy === 'earliest' ? 'var(--primary)' : 'transparent',
+                    color: sortBy === 'earliest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
                     transition: 'var(--transition-base)'
                   }}
                 >
-                  🕒 Earliest
+                  🕒 {t('earliest')}
                 </button>
                 <button 
                   onClick={() => setSortBy('cheapest')}
@@ -392,15 +393,14 @@ export default function TripSearchPage() {
                     padding: '0.5rem 1.2rem',
                     borderRadius: 'var(--radius-md)',
                     fontSize: '0.85rem',
-                    fontWeight: 900,
+                    fontWeight: 700,
                     cursor: 'pointer',
-                    background: sortBy === 'cheapest' ? '#f5b731' : 'transparent',
-                    color: sortBy === 'cheapest' ? '#111111' : '#ffffff',
-                    border: sortBy === 'cheapest' ? 'none' : '1px solid #444444',
+                    background: sortBy === 'cheapest' ? 'var(--primary)' : 'transparent',
+                    color: sortBy === 'cheapest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
                     transition: 'var(--transition-base)'
                   }}
                 >
-                  💰 Cheapest
+                  💰 {t('cheapest')}
                 </button>
                 {isSmartMode && (
                   <button 
@@ -409,22 +409,21 @@ export default function TripSearchPage() {
                       padding: '0.5rem 1.2rem',
                       borderRadius: 'var(--radius-md)',
                       fontSize: '0.85rem',
-                      fontWeight: 900,
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      background: sortBy === 'walks' ? '#f5b731' : 'transparent',
-                      color: sortBy === 'walks' ? '#111111' : '#ffffff',
-                      border: sortBy === 'walks' ? 'none' : '1px solid #444444',
+                      background: sortBy === 'walks' ? 'var(--primary)' : 'transparent',
+                      color: sortBy === 'walks' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
                       transition: 'var(--transition-base)'
                     }}
                   >
-                    🚶 Fewest Walks
+                    🚶 {t('fewestWalks')}
                   </button>
                 )}
               </div>
 
               {/* Date Input Selector */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#ffffff', fontWeight: 900 }}>Date:</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('travelDateLabel')}:</span>
                 <input 
                   type="date"
                   value={date || ''}
@@ -438,13 +437,13 @@ export default function TripSearchPage() {
                     navigate(`/search?${newParams.toString()}`);
                   }}
                   style={{
-                    background: '#111111',
-                    border: '2px solid #f5b731',
+                    background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-md)',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     padding: '0.4rem 0.8rem',
                     fontSize: '0.85rem',
-                    fontWeight: 900,
+                    fontWeight: 600,
                     outline: 'none',
                     cursor: 'pointer',
                     transition: 'border-color 0.2s',
@@ -572,13 +571,11 @@ export default function TripSearchPage() {
                                 animationDelay: `${idx * 0.1}s`, 
                                 display: 'flex', 
                                 flexDirection: 'column',
-                                borderRadius: '16px', 
-                                overflow: 'hidden', 
                                 border: activeTripId === trip._id 
-                                  ? '2.5px solid #f5b731' 
+                                  ? '1px solid var(--primary)' 
                                   : isTargetDate 
-                                    ? '2.5px solid #444444' 
-                                    : '2.5px solid #222222',
+                                    ? '1px solid var(--border)' 
+                                    : '1px solid rgba(255, 255, 255, 0.05)',
                                 position: 'relative',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease'
@@ -593,8 +590,8 @@ export default function TripSearchPage() {
                                   width: '20px',
                                   height: '20px',
                                   borderRadius: '50%',
-                                  background: '#06060e',
-                                  border: '2px solid #f5b731',
+                                  background: 'var(--background)',
+                                  border: '1px solid var(--border)',
                                   zIndex: 5
                                 }} />
                                 {/* Ticket Punch Cutout Bottom */}
@@ -605,8 +602,8 @@ export default function TripSearchPage() {
                                   width: '20px',
                                   height: '20px',
                                   borderRadius: '50%',
-                                  background: '#06060e',
-                                  border: '2px solid #f5b731',
+                                  background: 'var(--background)',
+                                  border: '1px solid var(--border)',
                                   zIndex: 5
                                 }} />
 
@@ -630,11 +627,11 @@ export default function TripSearchPage() {
                                     zIndex: 1
                                   }} />
                                   <div style={{ zIndex: 2, position: 'relative' }}>
-                                    <span style={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', color: '#f5b731', letterSpacing: '1px' }}>
-                                      Active Shuttle
+                                    <span style={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '1px' }}>
+                                      {t('activeShuttle')}
                                     </span>
-                                    <h4 style={{ margin: '4px 0 0 0', color: '#ffffff', fontSize: '1rem', fontWeight: 900 }}>
-                                      {currentRoute?.name || 'Destination'}
+                                    <h4 style={{ margin: '4px 0 0 0', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 800 }}>
+                                      {isRtl ? (currentRoute?.nameAr || currentRoute?.name || 'الوجهة') : (currentRoute?.name || 'Destination')}
                                     </h4>
                                   </div>
                                 </div>
@@ -648,51 +645,51 @@ export default function TripSearchPage() {
                                       alignItems: 'center', 
                                       gap: '4px', 
                                       fontSize: '0.75rem', 
-                                      fontWeight: 900, 
-                                      color: '#111111', 
-                                      background: '#f5b731',
+                                      fontWeight: 700, 
+                                      color: 'var(--primary)', 
+                                      background: 'rgba(245, 183, 49, 0.08)',
                                       padding: '3px 8px',
                                       borderRadius: '6px',
                                       width: 'fit-content'
                                     }}>
                                       <span>📅</span>
-                                      <span>{boardingDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                      <span>{boardingDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                     </div>
                                     {!isTargetDate && (
                                       <span style={{ 
                                         fontSize: '0.65rem', 
-                                        fontWeight: 900, 
-                                        color: '#ffffff',
-                                        background: '#444444',
-                                        padding: '3px 8px',
+                                        fontWeight: 700, 
+                                        color: 'var(--text-muted)',
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        padding: '2px 8px',
                                         borderRadius: '4px',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.5px'
                                       }}>
-                                        Alternative Date
+                                        {t('alternativeDate')}
                                       </span>
                                     )}
                                   </div>
 
                                   <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
                                     <div className="trip-time-block">
-                                      <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 900, color: '#ffffff' }}>{pickupTimeStr}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 900, color: '#ffffff' }}>
-                                        {pickupCp?.name || 'Boarding Stop'}
+                                      <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{pickupTimeStr}</span>
+                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop'))}
                                       </span>
                                     </div>
                                     
                                     <div className="trip-timeline" style={{ margin: '0 0.75rem' }}>
-                                      <span className="trip-duration" style={{ color: '#ffffff', fontWeight: 900 }}>{durationMinutes} min</span>
-                                      <div className="timeline-dot" style={{ background: '#f5b731' }}></div>
-                                      <div className="timeline-line" style={{ background: '#f5b731' }}></div>
-                                      <div className="timeline-dot" style={{ background: '#f5b731' }}></div>
+                                      <span className="trip-duration">{durationMinutes} min</span>
+                                      <div className="timeline-dot"></div>
+                                      <div className="timeline-line"></div>
+                                      <div className="timeline-dot"></div>
                                     </div>
                                     
                                     <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
-                                      <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 900, color: '#ffffff' }}>{dropoffTimeStr}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 900, color: '#ffffff' }}>
-                                        {dropoffCp?.name || 'Dropoff Stop'}
+                                      <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{dropoffTimeStr}</span>
+                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop'))}
                                       </span>
                                     </div>
                                   </div>
@@ -701,32 +698,32 @@ export default function TripSearchPage() {
                                     <div style={{
                                       marginTop: '0.75rem',
                                       fontSize: '0.7rem',
-                                      background: '#111111',
-                                      color: '#ffffff',
+                                      background: 'rgba(245, 183, 49, 0.06)',
+                                      color: 'var(--primary)',
                                       padding: '4px 10px',
                                       borderRadius: '8px',
-                                      border: '2px solid #f5b731',
-                                      fontWeight: 800,
+                                      border: '1px solid rgba(245, 183, 49, 0.15)',
+                                      fontWeight: 600,
                                       alignSelf: 'center',
                                       display: 'flex',
                                       alignItems: 'center',
                                       gap: '4px'
                                     }}>
-                                      🚶 Walks: {trip.totalWalkingDistance}m total ({trip.pickupCheckpoint.distanceMeters}m to pickup · {trip.dropoffCheckpoint.distanceMeters}m from dropoff)
+                                      🚶 {t('walksTotal', { total: trip.totalWalkingDistance, pickup: trip.pickupCheckpoint.distanceMeters, dropoff: trip.dropoffCheckpoint.distanceMeters })}
                                     </div>
                                   )}
                                 </div>
 
                                 {/* Dashed Perforated Separator Line */}
-                                <div className="trip-card-divider" style={{ margin: '0.75rem 0', width: '2px', borderLeft: '2.5px dashed #f5b731', zIndex: 1 }}></div>
+                                <div className="trip-card-divider" style={{ margin: '0.75rem 0', width: '2px', borderLeft: '2px dashed var(--border)', zIndex: 1 }}></div>
 
                                 {/* Right Column: Pricing & Booking */}
                                 <div className="trip-card-right" style={{ padding: '1.5rem 1.25rem', minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                                  <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 900, color: '#f5b731' }}>
-                                    {dynamicLegPrice} <span style={{ fontSize: '0.85rem', color: '#ffffff' }}>EGP</span>
+                                  <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+                                    {dynamicLegPrice} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{isRtl ? 'ج.م' : 'EGP'}</span>
                                   </div>
-                                  <div className="trip-seats" style={{ fontSize: '0.8rem', color: seatsLeft <= 5 ? '#EF4444' : '#10B981', fontWeight: 900 }}>
-                                    <span className="seat-icon">💺</span> {seatsLeft} seats left
+                                  <div className="trip-seats" style={{ fontSize: '0.8rem', color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)' }}>
+                                    <span className="seat-icon">💺</span> {t('seatsLeft', { count: seatsLeft })}
                                   </div>
                                   <div className="trip-amenities" style={{ margin: '6px 0' }}>
                                     <span title="Air Conditioned">❄️</span>
@@ -745,7 +742,7 @@ export default function TripSearchPage() {
                                     className="auth-button" 
                                     style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', fontSize: '0.85rem', minHeight: '36px' }}
                                   >
-                                    Book Seat 🎟️
+                                    {t('bookSeatTicket')}
                                   </button>
                                 </div>
                               </div>
@@ -754,8 +751,8 @@ export default function TripSearchPage() {
                               {currentRoute?.checkpoints && currentRoute.checkpoints.length > 0 && (
                                 <div style={{ 
                                   padding: '1rem 1.25rem', 
-                                  background: '#1c1c1e', 
-                                  borderTop: '2px solid #f5b731',
+                                  background: 'rgba(255, 255, 255, 0.02)', 
+                                  borderTop: '1px solid var(--border)',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   gap: '0.5rem'
@@ -769,39 +766,39 @@ export default function TripSearchPage() {
                                   }}>
                                     <span style={{ 
                                       fontSize: '0.75rem', 
-                                      fontWeight: 900, 
+                                      fontWeight: 700, 
                                       textTransform: 'uppercase', 
-                                      color: '#ffffff',
+                                      color: 'var(--text-secondary)',
                                       letterSpacing: '0.05em',
                                       display: 'flex',
                                       alignItems: 'center',
                                       gap: '6px'
                                     }}>
-                                      📍 Route Stops (Select stops)
+                                      📍 {t('routeStopsSelect')}
                                     </span>
                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                       {selectedCheckpoints[trip._id] && (
                                         <span style={{ 
                                           fontSize: '0.72rem', 
-                                          fontWeight: 900, 
-                                          color: '#111111',
-                                          background: '#f5b731',
+                                          fontWeight: 600, 
+                                          color: 'var(--primary)',
+                                          background: 'rgba(245, 183, 49, 0.1)',
                                           padding: '2px 8px',
                                           borderRadius: '6px'
                                         }}>
-                                          Pickup: {selectedCheckpoints[trip._id]}
+                                          {t('pickup')}: {isRtl ? (routeCps.find((item: any) => item.name === selectedCheckpoints[trip._id])?.nameAr || selectedCheckpoints[trip._id]) : selectedCheckpoints[trip._id]}
                                         </span>
                                       )}
                                       {selectedDropoffCheckpoints[trip._id] && (
                                         <span style={{ 
                                           fontSize: '0.72rem', 
-                                          fontWeight: 900, 
-                                          color: '#ffffff',
-                                          background: '#EF4444',
+                                          fontWeight: 600, 
+                                          color: '#EF4444',
+                                          background: 'rgba(239, 68, 68, 0.1)',
                                           padding: '2px 8px',
                                           borderRadius: '6px'
                                         }}>
-                                          Dropoff: {selectedDropoffCheckpoints[trip._id]}
+                                          {t('dropoff')}: {isRtl ? (routeCps.find((item: any) => item.name === selectedDropoffCheckpoints[trip._id])?.nameAr || selectedDropoffCheckpoints[trip._id]) : selectedDropoffCheckpoints[trip._id]}
                                         </span>
                                       )}
                                     </div>
@@ -874,21 +871,21 @@ export default function TripSearchPage() {
                                         
                                       const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
                                       
-                                      let dotBg = '#222222';
-                                      let dotBorder = '3px solid #444444';
+                                      let dotBg = 'var(--surface-hover)';
+                                      let dotBorder = '3px solid var(--border)';
                                       let dotShadow = 'none';
                                       
                                       if (isPickup) {
-                                        dotBg = '#f5b731';
-                                        dotBorder = '4px solid #111111';
-                                        dotShadow = 'none';
+                                        dotBg = 'var(--primary)';
+                                        dotBorder = '4px solid var(--surface)';
+                                        dotShadow = '0 0 15px var(--primary)';
                                       } else if (isDropoff) {
                                         dotBg = '#EF4444';
-                                        dotBorder = '4px solid #111111';
-                                        dotShadow = 'none';
+                                        dotBorder = '4px solid var(--surface)';
+                                        dotShadow = '0 0 15px #EF4444';
                                       } else if (isActiveRoute) {
-                                        dotBg = '#111111';
-                                        dotBorder = '3px solid #f5b731';
+                                        dotBg = 'rgba(245, 183, 49, 0.2)';
+                                        dotBorder = '3px solid var(--primary)';
                                       }
 
                                       // Calculate segment price delta relative to currently selected pickup & dropoff
@@ -953,9 +950,9 @@ export default function TripSearchPage() {
                                               position: 'absolute',
                                               top: '-16px',
                                               fontSize: '0.6rem',
-                                              fontWeight: 900,
-                                              background: '#f5b731',
-                                              color: '#111111',
+                                              fontWeight: 800,
+                                              background: 'rgba(245, 183, 49, 0.1)',
+                                              color: 'var(--primary)',
                                               padding: '1px 5px',
                                               borderRadius: '4px',
                                               whiteSpace: 'nowrap',
@@ -983,15 +980,15 @@ export default function TripSearchPage() {
                                                 width: '6px',
                                                 height: '6px',
                                                 borderRadius: '50%',
-                                                background: '#ffffff'
+                                                background: 'var(--text-on-primary)'
                                               }} />
                                             )}
                                           </div>
                                           
                                           <span style={{ 
                                             fontSize: '0.75rem', 
-                                            fontWeight: (isPickup || isDropoff) ? 900 : 700, 
-                                            color: isPickup ? '#f5b731' : (isDropoff ? '#EF4444' : '#ffffff'), 
+                                            fontWeight: (isPickup || isDropoff) ? 800 : 500, 
+                                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
                                             marginTop: '6px', 
                                             textAlign: 'center',
                                             transition: 'all 0.2s'
@@ -1001,10 +998,9 @@ export default function TripSearchPage() {
                                           {cp.nameAr && (
                                             <span style={{ 
                                               fontSize: '0.65rem', 
-                                              color: isPickup ? '#FEF3CD' : (isDropoff ? '#F87171' : '#bbbbbb'),
+                                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
                                               textAlign: 'center',
-                                              transition: 'all 0.2s',
-                                              fontWeight: 700
+                                              transition: 'all 0.2s'
                                             }}>
                                               {cp.nameAr}
                                             </span>
@@ -1014,8 +1010,8 @@ export default function TripSearchPage() {
                                             <span style={{
                                               fontSize: '0.65rem',
                                               fontWeight: 'bold',
-                                              color: priceDeltaLabel.startsWith('+') ? '#EF4444' : '#10B981',
-                                              background: priceDeltaLabel.startsWith('+') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                              color: priceDeltaLabel.startsWith('+') ? 'var(--danger)' : 'var(--success)',
+                                              background: priceDeltaLabel.startsWith('+') ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
                                               padding: '1px 4px',
                                               borderRadius: '3px',
                                               marginTop: '2px',

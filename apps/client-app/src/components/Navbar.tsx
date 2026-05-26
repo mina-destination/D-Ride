@@ -44,6 +44,17 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
+    setIsOpen(false);
+    if (location.pathname === '/') {
+      e.preventDefault();
+      const element = document.getElementById(hash.replace('#', ''));
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   // Local handlers removed, context handlers used directly
 
   // Helper to check if a hash-link is active (for anchor sections on home page)
@@ -122,22 +133,22 @@ export default function Navbar() {
 
       <ul className={`nav-links ${isOpen ? 'mobile-open' : ''}`}>
         <li>
-          <a 
-            href="/#how-it-works" 
-            onClick={() => setIsOpen(false)}
+          <Link 
+            to="/#how-it-works" 
+            onClick={(e) => handleAnchorClick(e, '#how-it-works')}
             className={isHashActive('#how-it-works') ? 'nav-link-active' : ''}
           >
             {t('howItWorks')}
-          </a>
+          </Link>
         </li>
         <li>
-          <a 
-            href="/#features" 
-            onClick={() => setIsOpen(false)}
+          <Link 
+            to="/#features" 
+            onClick={(e) => handleAnchorClick(e, '#features')}
             className={isHashActive('#features') ? 'nav-link-active' : ''}
           >
             {t('features')}
-          </a>
+          </Link>
         </li>
         <li>
           <Link 

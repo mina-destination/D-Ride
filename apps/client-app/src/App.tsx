@@ -16,7 +16,40 @@ import PaymentCallbackPage from './pages/PaymentCallback';
 import ContactPage from './pages/ContactPage';
 import RoutesPage from './pages/RoutesPage';
 import PartnersPage from './pages/PartnersPage';
+import AboutPage from './pages/AboutPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import './App.css';
+
+function ScrollToHashElement() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (hash) {
+      const id = hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        const timer = setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return () => clearTimeout(timer);
+      } else {
+        const timer = setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 200);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash]);
+
+  return null;
+}
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
@@ -97,6 +130,7 @@ function AnonymousRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <>
+      <ScrollToHashElement />
       <Navbar />
       <SupportChatWidget />
       <Routes>
@@ -155,6 +189,9 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

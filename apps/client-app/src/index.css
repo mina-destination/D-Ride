@@ -110,7 +110,9 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* Smooth scrolling handled via JS scrollIntoView for targeted elements.
+     CSS scroll-behavior: smooth causes janky main-thread scroll on heavy pages. */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -121,7 +123,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  position: relative;
+  /* Removed position: relative — it can interfere with scroll containment
+     when combined with overflow-x: hidden on some browsers */
 }
 
 /* Subtle animated grid background for the whole page in dark mode */
@@ -137,6 +140,8 @@ body {
   z-index: 0;
   mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
+  will-change: transform; /* GPU-promote to avoid scroll-triggered repaints */
+  transform: translateZ(0);
 }
 
 a {
@@ -276,20 +281,20 @@ textarea:focus-visible {
 /* ── Utility Classes ───────────────────────────────────────── */
 
 .glass {
-  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 2px solid #f5b731 !important; /* Sharp Golden Amber borders */
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-  opacity: 1 !important;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .glass-light {
-  background: #111111 !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 2px solid #f5b731 !important;
-  opacity: 1 !important;
+  background: var(--surface-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
 }
 
 .animate-fade-in-up {

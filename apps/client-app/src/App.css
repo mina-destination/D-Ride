@@ -19,27 +19,10 @@
   backdrop-filter: blur(30px) saturate(1.6);
   -webkit-backdrop-filter: blur(30px) saturate(1.6);
   border-bottom: 1px solid var(--glass-border);
+  will-change: transform;
+  transform: translateZ(0); /* GPU layer to prevent backdrop-filter scroll jank */
 }
 
-/* Custom premium card design */
-.premium-card {
-  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
-  border: 2px solid #f5b731 !important; /* Sharp Golden Amber borders */
-  border-radius: var(--radius-2xl);
-  padding: 2.25rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-  transition: var(--transition-spring);
-  position: relative;
-  overflow: hidden;
-  opacity: 1 !important;
-}
-
-[data-theme="dark"] .premium-card {
-  background: #111111 !important;
-  border: 2px solid #f5b731 !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-  opacity: 1 !important;
-}
 
 .nav-logo {
   height: 48px;
@@ -307,6 +290,8 @@
   pointer-events: none;
   animation: float 10s ease-in-out infinite;
   filter: blur(40px);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .hero-bg-gradient-2 {
@@ -320,6 +305,8 @@
   pointer-events: none;
   animation: float 12s ease-in-out infinite reverse;
   filter: blur(40px);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .hero-content {
@@ -1130,20 +1117,18 @@
 
 .trip-card {
   display: flex;
-  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
+  background: var(--surface);
   border-radius: var(--radius-xl);
   overflow: hidden;
   transition: var(--transition-spring);
   margin-bottom: 1rem;
-  border: 2px solid #f5b731 !important; /* Sharp Golden Amber border */
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-  opacity: 1 !important;
+  border: 1px solid var(--border);
 }
 
 .trip-card:hover {
   transform: translateY(-4px);
-  border-color: #f5b731 !important;
-  box-shadow: 0 15px 40px rgba(245, 183, 49, 0.25) !important;
+  border-color: rgba(245, 183, 49, 0.3);
+  box-shadow: 0 15px 40px rgba(245, 183, 49, 0.08), 0 5px 15px rgba(0, 0, 0, 0.06);
 }
 
 .trip-card-left {
@@ -1474,105 +1459,169 @@
 }
 
 .bus-cabin {
-  width: 220px;
+  width: 100%;
+  max-width: 280px;
   background: var(--surface-hover);
-  border: 4px solid var(--border);
-  border-radius: 40px 40px 15px 15px;
-  padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+  border: 3px solid var(--border);
+  border-top: 6px solid var(--border);
+  border-radius: 50px 50px 12px 12px;
+  padding: 1.5rem 1.25rem 1.5rem;
   position: relative;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  margin: 1.5rem 0;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 1.5rem auto;
 }
 
+/* Left side mirror */
 .bus-cabin::before {
   content: '';
   position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 4px;
+  top: 32px;
+  left: -14px;
+  width: 10px;
+  height: 22px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 6px 0 0 6px;
+  border: 2px solid var(--border);
+  border-right: none;
+}
+
+/* Right side mirror */
+.bus-cabin::after {
+  content: '';
+  position: absolute;
+  top: 32px;
+  right: -14px;
+  width: 10px;
+  height: 22px;
+  background: var(--border);
+  border-radius: 0 6px 6px 0;
+  border: 2px solid var(--border);
+  border-left: none;
 }
 
 .bus-windshield {
-  position: absolute;
-  top: 25px;
-  left: 15px;
-  right: 15px;
-  height: 12px;
-  background: rgba(245, 183, 49, 0.1);
-  border: 1px solid rgba(245, 183, 49, 0.3);
-  border-radius: 8px 8px 2px 2px;
+  width: calc(100% + 2px);
+  margin-left: -1px;
+  height: 16px;
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.15) 0%, rgba(100, 180, 255, 0.05) 100%);
+  border: 2px solid rgba(100, 180, 255, 0.25);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  position: relative;
+}
+
+[data-theme="dark"] .bus-windshield {
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.08) 0%, rgba(100, 180, 255, 0.02) 100%);
+  border-color: rgba(100, 180, 255, 0.15);
 }
 
 .cabin-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   align-items: center;
 }
 
 .cabin-aisle {
-  width: 38px;
+  width: 30px;
   height: 38px;
+  position: relative;
+}
+
+/* Aisle center line */
+.cabin-aisle::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  opacity: 0.4;
 }
 
 .bus-seat {
   width: 48px; /* Touch target optimized for mobile viewports */
   height: 48px; /* Touch target optimized for mobile viewports */
-  background: #111111 !important; /* Opaque Deep Onyx */
-  border: 2.5px solid #444444 !important; /* High visibility border */
+  background: #e5e7eb !important; /* Light mode default: light grey */
+  border: 2.5px solid #d1d5db !important; /* Light mode border */
   border-radius: 8px 8px 4px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.85rem;
   font-weight: 800;
-  color: #ffffff !important;
+  color: #111827 !important;
   cursor: pointer;
   transition: var(--transition-base);
   user-select: none;
   box-shadow: none;
 }
 
+[data-theme="dark"] .bus-seat {
+  background: #111111 !important; /* Opaque Deep Onyx */
+  border-color: #444444 !important;
+  color: #ffffff !important;
+}
+
 .bus-seat:hover:not(.occupied):not(.driver):not(.locked-luggage) {
-  border-color: #f5b731 !important; /* Golden Amber */
+  border-color: var(--primary) !important; /* Golden Amber */
+  background: #fdf2d5 !important;
+  color: var(--primary-dark) !important;
+}
+
+[data-theme="dark"] .bus-seat:hover:not(.occupied):not(.driver):not(.locked-luggage) {
   background: #1c1c1e !important;
-  color: #f5b731 !important;
+  color: var(--primary) !important;
 }
 
 .bus-seat.selected {
-  background: #f5b731 !important; /* Solid Golden Amber */
-  border-color: #f5b731 !important;
-  color: #111111 !important; /* Deep Onyx text for high contrast */
+  background: var(--primary) !important; /* Solid Golden Amber */
+  border-color: var(--primary) !important;
+  color: var(--text-on-primary) !important;
   transform: scale(1.08);
-  box-shadow: 0 0 0 2px #111111, 0 0 0 4px #f5b731 !important; /* Double high-contrast outline border */
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary) !important; /* Double high-contrast outline border */
 }
 
 .bus-seat.occupied {
-  background: #222222 !important; /* High contrast occupied seat */
-  border-color: #444444 !important;
-  color: #666666 !important;
+  background: #FECACA !important; /* Light red background */
+  border-color: #EF4444 !important; /* Red border */
+  color: #B91C1C !important; /* Dark red text */
   cursor: not-allowed;
+  opacity: 0.85 !important;
+}
+
+[data-theme="dark"] .bus-seat.occupied {
+  background: #450a0a !important; /* Deep dark red */
+  border-color: #DC2626 !important; /* Red border */
+  color: #F87171 !important; /* Light red text */
   opacity: 1 !important; /* Opaque to prevent sun glare issues */
 }
 
 .bus-seat.driver {
   background: transparent;
-  border: 2px dashed #444444;
-  color: #666666;
+  border: 2px dashed var(--border);
+  color: var(--text-muted);
   cursor: not-allowed;
   font-size: 1.1rem;
 }
 
 .bus-seat.locked-luggage {
+  background: var(--primary-light) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-dark) !important;
+  cursor: not-allowed;
+  opacity: 1 !important; /* Fully opaque */
+}
+
+[data-theme="dark"] .bus-seat.locked-luggage {
   background: #3b2a14 !important; /* Deep opaque brown/amber */
   border-color: #f5b731 !important; /* Amber border */
   color: #f5b731 !important;
-  cursor: not-allowed;
-  opacity: 1 !important; /* Fully opaque */
 }
 
 .seat-legend {
@@ -2683,20 +2732,30 @@
 }
 
 .bus-seat.available {
+  background: #e5e7eb !important;
+  border-color: #d1d5db !important;
+}
+
+[data-theme="dark"] .bus-seat.available {
   background: #111111 !important;
   border-color: #444444 !important;
 }
 
 .bus-seat.available:hover {
-  border-color: #f5b731 !important;
-  background: #1c1c1e !important;
+  border-color: var(--primary) !important;
+  background: #fdf2d5 !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .bus-seat.available:hover {
+  border-color: #f5b731 !important;
+  background: #1c1c1e !important;
+}
+
 .bus-seat.selected .bus-seat-inner {
-  background: #f5b731 !important;
+  background: var(--primary) !important;
   box-shadow: none !important;
-  color: #111111 !important;
+  color: var(--text-on-primary) !important;
 }
 
 .bus-seat-cushion {
@@ -2709,24 +2768,40 @@
 
 .bus-seat.occupied {
   cursor: not-allowed !important;
-  background: #222222 !important;
-  border-color: #444444 !important;
-  color: #666666 !important;
+  background: #FECACA !important;
+  border-color: #EF4444 !important;
+  color: #B91C1C !important;
+  opacity: 0.85 !important;
+}
+
+[data-theme="dark"] .bus-seat.occupied {
+  background: #450a0a !important;
+  border-color: #DC2626 !important;
+  color: #F87171 !important;
   opacity: 1 !important;
 }
 
 .bus-seat.locked-luggage {
-  background: #3b2a14 !important;
-  border-color: #f5b731 !important;
-  color: #f5b731 !important;
+  background: var(--primary-light) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-dark) !important;
   cursor: not-allowed !important;
   opacity: 1 !important;
 }
 
+[data-theme="dark"] .bus-seat.locked-luggage {
+  background: #3b2a14 !important;
+  border-color: #f5b731 !important;
+  color: #f5b731 !important;
+}
+
 .premium-card-solid-amber {
-  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
-  border: 2px solid #f5b731 !important; /* Sharp Golden Amber borders */
-  opacity: 1 !important;
+  background: var(--primary-light) !important;
+  border: 1.5px solid var(--primary) !important;
+}
+
+[data-theme="dark"] .premium-card-solid-amber {
+  background: #0e0e1b !important;
 }
 
 /* Stepper Connection Animations */
@@ -3120,39 +3195,66 @@
 
 /* Opaque style overrides for sub-components in checkout to prevent transparency issues */
 .windshield-opaque {
-  background: #1c1c1e !important;
-  border: 2px solid #f5b731 !important;
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.12) 0%, rgba(100, 180, 255, 0.04) 100%) !important;
+  border: 2px solid rgba(100, 180, 255, 0.2) !important;
+  border-top: none !important;
   opacity: 1 !important;
+}
+
+[data-theme="dark"] .windshield-opaque {
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.06) 0%, rgba(100, 180, 255, 0.02) 100%) !important;
+  border-color: rgba(100, 180, 255, 0.12) !important;
 }
 
 .checkpoint-badge-opaque {
-  background: #1c1c1e !important;
-  border: 1.5px solid #f5b731 !important;
+  background: var(--surface-hover) !important;
+  border: 1.5px solid var(--primary) !important;
   opacity: 1 !important;
+}
+
+[data-theme="dark"] .checkpoint-badge-opaque {
+  background: #1c1c1e !important;
 }
 
 .door-entry-opaque {
-  background: #111111 !important;
-  border: 1.5px solid #f5b731 !important;
+  background: var(--surface-hover) !important;
+  border: 1.5px solid var(--primary) !important;
+  color: var(--primary-dark) !important;
   opacity: 1 !important;
+}
+
+[data-theme="dark"] .door-entry-opaque {
+  background: #111111 !important;
+  color: var(--primary) !important;
 }
 
 .warning-box-opaque {
-  background: #1a150c !important;
-  border: 1.5px solid #f5b731 !important;
-  color: #f5b731 !important;
+  background: var(--primary-light) !important;
+  border: 1.5px solid var(--primary) !important;
+  color: var(--primary-dark) !important;
   opacity: 1 !important;
+}
+
+[data-theme="dark"] .warning-box-opaque {
+  background: #1a150c !important;
+  color: var(--primary) !important;
 }
 
 .success-box-opaque {
-  background: #0b1c14 !important;
-  border: 1.5px solid #10b981 !important;
-  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  border: 1.5px solid var(--success) !important;
+  color: var(--success) !important;
   opacity: 1 !important;
 }
 
+[data-theme="dark"] .success-box-opaque {
+  background: #0b1c14 !important;
+  color: var(--success) !important;
+}
+
+/* Alternative Trip cards */
 .alternative-trip-card {
-  opacity: 1 !important; /* Stark, fully opaque under glare conditions */
+  opacity: 0.55 !important;
   transform: scale(0.95) !important;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -3360,232 +3462,6 @@
   transform: scale(1.06);
 }
 
-/* ============================================================
-   Cohesive Theme-Specific High-Contrast overrides
-   ============================================================ */
-
-/* ── DEFAULT / LIGHT THEME CARD STYLES ───────────────────── */
-.trip-card,
-.premium-card,
-.solid-checkout-card,
-.boarding-pass,
-.ticket-front,
-.ticket-back,
-.auth-card,
-.glass,
-.glass-light {
-  background: #ffffff !important; /* Premium fully opaque pure white card */
-  border: 2px solid #e2e8f0 !important; /* Soft high-contrast border */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
-  color: #111827 !important;
-  opacity: 1 !important;
-}
-
-/* Hover/Focus border transformations */
-.trip-card:hover,
-.premium-card:hover,
-.solid-checkout-card:hover,
-.boarding-pass:hover,
-.auth-card:hover,
-.glass:hover {
-  border-color: #f5b731 !important; /* Golden Amber highlight */
-  box-shadow: 0 12px 35px rgba(245, 183, 49, 0.15) !important;
-}
-
-/* Stepper check in ticket summary borders */
-.trip-card {
-  border: 2px solid #e2e8f0 !important;
-}
-
-.trip-card.connector-glow {
-  border-color: #f5b731 !important;
-}
-
-/* Typographic color hierarchy inside light cards */
-.trip-card p, .premium-card p, .solid-checkout-card p, .boarding-pass p, .ticket-front p, .ticket-back p, .auth-card p, .glass p,
-.trip-card span:not(.stepper-label):not(.passenger-count), .premium-card span:not(.stepper-label), .boarding-pass span:not(.stepper-label), .ticket-front span:not(.stepper-label), .ticket-back span:not(.stepper-label), .auth-card span:not(.stepper-label), .glass span:not(.stepper-label),
-.trip-card div:not(.leaflet-container):not(.bus-cabin), .premium-card div, .solid-checkout-card div, .boarding-pass div, .ticket-front div, .ticket-back div, .auth-card div, .glass div {
-  color: #374151 !important; /* Deep charcoal for high contrast body copy */
-}
-
-/* Headings and bold tags */
-.trip-card h1, .premium-card h1, .solid-checkout-card h1, .auth-card h1, .glass h1,
-.trip-card h2, .premium-card h2, .solid-checkout-card h2, .auth-card h2, .glass h2,
-.trip-card h3, .premium-card h3, .solid-checkout-card h3, .auth-card h3, .glass h3,
-.trip-card h4, .premium-card h4, .solid-checkout-card h4, .auth-card h4, .glass h4,
-.trip-card strong, .premium-card strong, .solid-checkout-card strong, .auth-card strong, .glass strong,
-.auth-title, .auth-subtitle, .trip-time {
-  color: #111827 !important; /* Pure black for headings */
-}
-
-/* Amber highlights for numbers and accents */
-.stat-value,
-.step-number,
-.premium-card-title,
-.premium-card-title span,
-.checkpoint-timeline-label,
-.pass-route-title {
-  color: #b45309 !important; /* Dark amber (better contrast on white) */
-}
-
-/* Muted secondary descriptions */
-.stat-label,
-.step-card p,
-.step-desc,
-.field-label,
-.passenger-selector label,
-.pass-label {
-  color: #6b7280 !important; /* Muted slate/grey */
-  font-weight: 600 !important;
-}
-
-/* Inputs and Forms inside Light Cards */
-.glass .field-select-wrapper,
-.glass .passenger-selector,
-.premium-card .field-select-wrapper,
-.premium-card .passenger-selector,
-.solid-checkout-card .field-select-wrapper,
-.solid-checkout-card .passenger-selector {
-  background: #f8fafc !important;
-  border: 1.5px solid #cbd5e1 !important;
-}
-
-.glass .field-input,
-.glass .passenger-selector span,
-.premium-card .field-input,
-.premium-card .passenger-selector span,
-.solid-checkout-card .field-input,
-.solid-checkout-card .passenger-selector span {
-  color: #111827 !important;
-}
-
-.glass .field-input::placeholder,
-.premium-card .field-input::placeholder,
-.solid-checkout-card .field-input::placeholder {
-  color: #94a3b8 !important;
-}
-
-.glass .field-input::-webkit-calendar-picker-indicator,
-.premium-card .field-input::-webkit-calendar-picker-indicator,
-.solid-checkout-card .field-input::-webkit-calendar-picker-indicator {
-  filter: invert(0) !important;
-}
-
-.passenger-control-btn {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #111827 !important;
-}
-
-.passenger-control-btn:hover:not(:disabled) {
-  background: #f5b731 !important;
-  color: #111111 !important;
-  border-color: #f5b731 !important;
-}
-
-.passenger-control-btn:disabled {
-  background: #f8fafc !important;
-  color: #cbd5e1 !important;
-  border-color: #cbd5e1 !important;
-}
-
-/* Focus and input states */
-.glass .field-select-wrapper:focus-within,
-.premium-card .field-select-wrapper:focus-within,
-.solid-checkout-card .field-select-wrapper:focus-within {
-  border-color: #d97706 !important;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2) !important;
-}
-
-/* Dropdowns in Light Cards */
-.glass .custom-dropdown-menu,
-.premium-card .custom-dropdown-menu,
-.solid-checkout-card .custom-dropdown-menu {
-  background: #ffffff !important;
-  border: 1.5px solid #cbd5e1 !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.glass .custom-dropdown-item,
-.premium-card .custom-dropdown-item,
-.solid-checkout-card .custom-dropdown-item {
-  color: #374151 !important;
-}
-
-.glass .custom-dropdown-item:hover,
-.premium-card .custom-dropdown-item:hover,
-.solid-checkout-card .custom-dropdown-item:hover {
-  background: #f1f5f9 !important;
-  color: #b45309 !important;
-}
-
-.glass .custom-dropdown-item.selected,
-.premium-card .custom-dropdown-item.selected,
-.solid-checkout-card .custom-dropdown-item.selected {
-  background: #fef3c7 !important;
-  color: #b45309 !important;
-}
-
-/* Disabled Search button inside Light Mode */
-.search-btn:disabled {
-  background: #2a2a2e !important;
-  color: #666666 !important;
-  opacity: 1 !important;
-  cursor: not-allowed !important;
-  border: 1px solid #444444 !important;
-}
-
-/* Auth form field input overrides */
-.glass .auth-field input,
-.glass .auth-field textarea,
-.glass .auth-field select,
-.premium-card .auth-field input,
-.premium-card .auth-field textarea,
-.premium-card .auth-field select,
-.solid-checkout-card .auth-field input,
-.solid-checkout-card .auth-field textarea,
-.solid-checkout-card .auth-field select {
-  background: #1e1e1e !important;
-  border: 1.5px solid #f5b731 !important;
-  color: #ffffff !important;
-}
-
-.glass .auth-field input:focus,
-.glass .auth-field textarea:focus,
-.glass .auth-field select:focus,
-.premium-card .auth-field input:focus,
-.premium-card .auth-field textarea:focus,
-.premium-card .auth-field select:focus,
-.solid-checkout-card .auth-field input:focus,
-.solid-checkout-card .auth-field textarea:focus,
-.solid-checkout-card .auth-field select:focus {
-  border-color: #ffffff !important;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15) !important;
-}
-
-/* Leaflet geometry control buttons expanded touch targets */
-.leaflet-bar a {
-  width: 48px !important;
-  height: 48px !important;
-  line-height: 48px !important;
-  font-size: 20px !important;
-  background-color: #111111 !important; /* Stark Deep Onyx */
-  border: 2px solid #f5b731 !important; /* Sharp Golden Amber */
-  color: #f5b731 !important; /* Golden Amber symbol */
-  font-weight: 900 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  opacity: 1 !important;
-}
-
-.leaflet-bar a:hover {
-  background-color: #1c1c1e !important;
-  color: #ffffff !important;
-  border-color: #ffffff !important;
-}
 
 
 

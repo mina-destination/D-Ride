@@ -22,6 +22,7 @@ export class PaymobService {
   private readonly iframeId: string;
   private readonly integrationId: string;
   private readonly walletIntegrationId: string;
+  private readonly apiBaseUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -39,6 +40,10 @@ export class PaymobService {
     this.walletIntegrationId = this.configService.get<string>(
       'paymob.walletIntegrationId',
       '',
+    );
+    this.apiBaseUrl = this.configService.get<string>(
+      'paymob.apiBaseUrl',
+      'https://accept.paymob.com',
     );
   }
 
@@ -365,7 +370,7 @@ export class PaymobService {
     try {
       // 1. Authenticate
       const authRes = await axios.post(
-        'https://accept.paymob.com/api/auth/tokens',
+        `${this.apiBaseUrl}/api/auth/tokens`,
         {
           api_key: this.apiKey,
         },
@@ -374,7 +379,7 @@ export class PaymobService {
 
       // 2. Register Order
       const orderRes = await axios.post(
-        'https://accept.paymob.com/api/ecommerce/orders',
+        `${this.apiBaseUrl}/api/ecommerce/orders`,
         {
           auth_token: token,
           delivery_needed: 'false',
@@ -394,7 +399,7 @@ export class PaymobService {
 
       // 3. Request Payment Key
       const keyRes = await axios.post(
-        'https://accept.paymob.com/api/acceptance/payment_keys',
+        `${this.apiBaseUrl}/api/acceptance/payment_keys`,
         {
           auth_token: token,
           amount_cents: data.amountCents,
@@ -426,7 +431,7 @@ export class PaymobService {
       if (paymentMethod === 'WALLET') {
         // For wallets, request payment page redirect link
         const walletPayRes = await axios.post(
-          'https://accept.paymob.com/api/acceptance/payments/pay',
+          `${this.apiBaseUrl}/api/acceptance/payments/pay`,
           {
             source: {
               identifier: data.walletNumber || '01000000000',
@@ -450,15 +455,16 @@ export class PaymobService {
       // Standard Credit Card IFrame
       return {
         paymentKey,
-        iframeUrl: `https://accept.paymob.com/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
+        iframeUrl: `${this.apiBaseUrl}/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
         orderId,
       };
-    } catch (error) {
+    } catch (error: any) {
+      const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
       this.logger.error(
-        `Failed to initialize Paymob checkout for ${paymentMethod}`,
+        `Failed to initialize Paymob checkout for ${paymentMethod}: ${errorDetail}`,
         error,
       );
-      throw new BadRequestException('Payment initialization failed');
+      throw new BadRequestException(`Payment initialization failed: ${errorDetail}`);
     }
   }
 
@@ -604,14 +610,14 @@ export class PaymobService {
     try {
       // 1. Authenticate
       const authRes = await axios.post(
-        'https://accept.paymob.com/api/auth/tokens',
+        `${this.apiBaseUrl}/api/auth/tokens`,
         { api_key: this.apiKey },
       );
       const token = authRes.data.token;
 
       // 2. Register Order
       const orderRes = await axios.post(
-        'https://accept.paymob.com/api/ecommerce/orders',
+        `${this.apiBaseUrl}/api/ecommerce/orders`,
         {
           auth_token: token,
           delivery_needed: 'false',
@@ -631,7 +637,7 @@ export class PaymobService {
 
       // 3. Request Payment Key
       const keyRes = await axios.post(
-        'https://accept.paymob.com/api/acceptance/payment_keys',
+        `${this.apiBaseUrl}/api/acceptance/payment_keys`,
         {
           auth_token: token,
           amount_cents: amountCents,
@@ -662,7 +668,7 @@ export class PaymobService {
 
       if (paymentMethod === 'WALLET') {
         const walletPayRes = await axios.post(
-          'https://accept.paymob.com/api/acceptance/payments/pay',
+          `${this.apiBaseUrl}/api/acceptance/payments/pay`,
           {
             source: {
               identifier: data.walletNumber || '01000000000',
@@ -685,13 +691,14 @@ export class PaymobService {
 
       return {
         paymentKey,
-        iframeUrl: `https://accept.paymob.com/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
+        iframeUrl: `${this.apiBaseUrl}/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
         orderId,
       };
-    } catch (error) {
-      this.logger.error(`Failed to initialize Paymob wallet topup`, error);
+    } catch (error: any) {
+      const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
+      this.logger.error(`Failed to initialize Paymob wallet topup: ${errorDetail}`, error);
       throw new BadRequestException(
-        'Wallet topup payment initialization failed',
+        `Wallet topup payment initialization failed: ${errorDetail}`,
       );
     }
   }
