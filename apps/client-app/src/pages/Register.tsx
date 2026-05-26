@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { UserPlus, RefreshCw } from 'lucide-react';
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -60,12 +62,20 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Egyptian phone validation
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError(t('phoneMustBe11'));
+      return;
+    }
+
     setLoading(true);
     try {
       await register({ name, email, phone, password });
       navigate('/');
     } catch (err: any) {
-      setError(err?.message || 'Registration failed');
+      setError(err?.message || t('registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -76,54 +86,54 @@ export default function RegisterPage() {
       <div className="auth-card glass">
         <div className="auth-header">
           <img src={logo} alt="D-Ride" className="auth-logo" />
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join the smarter commute</p>
+          <h1 className="auth-title">{t('registerTitle')}</h1>
+          <p className="auth-subtitle">{t('registerSubtitle')}</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-field">
-            <label htmlFor="name">Full Name</label>
+            <label htmlFor="name">{t('registerNameLabel')}</label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ahmed Hassan"
+              placeholder={t('registerNamePlaceholder')}
               required
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('loginEmailLabel')}</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('loginEmailPlaceholder')}
               required
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="phone">Phone</label>
+            <label htmlFor="phone">{t('registerPhoneLabel')}</label>
             <input
               id="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+20 1XX XXX XXXX"
+              placeholder={t('registerPhonePlaceholder')}
               required
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t('loginPasswordLabel')}</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 6 characters"
+              placeholder={t('loginPasswordPlaceholder')}
               required
               minLength={6}
             />
@@ -132,12 +142,12 @@ export default function RegisterPage() {
             {loading ? (
               <>
                 <RefreshCw size={18} className="animate-spin" />
-                Creating Account...
+                {t('registering')}
               </>
             ) : (
               <>
                 <UserPlus size={18} />
-                Get Started
+                {t('registerBtn')}
               </>
             )}
           </button>
@@ -184,7 +194,7 @@ export default function RegisterPage() {
         </button>
 
         <div className="auth-switch">
-          Already have an account? <Link to="/login">Sign In</Link>
+          {t('alreadyHaveAccount')} <Link to="/login">{t('signInNow')}</Link>
         </div>
       </div>
 

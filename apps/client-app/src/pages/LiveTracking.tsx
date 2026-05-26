@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { Microscope, Square, Rocket } from 'lucide-react';
 
 // Fix for default marker icon in react-leaflet
@@ -25,6 +26,7 @@ const busIcon = new L.Icon({
 });
 
 export default function LiveTrackingPage() {
+  const { t, isRtl } = useTranslation();
   const { theme } = useTheme();
   const mapTileUrl = theme === 'dark'
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -139,9 +141,9 @@ export default function LiveTrackingPage() {
     return (
       <div className="auth-page">
         <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h2>No Vehicle Selected</h2>
-          <p>Please select a trip from your bookings to track.</p>
-          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>Back to My Trips</Link>
+          <h2>{t('noVehicleSelected')}</h2>
+          <p>{t('selectTripToTrack')}</p>
+          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
         </div>
       </div>
     );
@@ -196,19 +198,19 @@ export default function LiveTrackingPage() {
                 background: location ? 'var(--success)' : 'var(--danger)',
                 animation: location ? 'pulse 2s infinite' : 'none'
               }} />
-              {location ? 'Active GPS Tracking' : 'Vehicle Offline'}
+              {location ? t('activeGpsTracking') : t('vehicleOffline')}
             </span>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              STATUS: {trip?.status || 'SCHEDULED'}
+              {isRtl ? 'الحالة:' : 'STATUS:'} {trip?.status === 'SCHEDULED' ? t('statusScheduled') : (trip?.status || t('statusScheduled'))}
             </span>
           </div>
 
           <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0', lineHeight: 1.3 }}>
-            {trip?.routeId?.name || 'Loading Route...'}
+            {isRtl ? (trip?.routeId?.nameAr || trip?.routeId?.name || t('loadingRoute')) : (trip?.routeId?.name || t('loadingRoute'))}
           </h3>
 
           <div style={{ background: 'var(--surface-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--text-secondary)' }}>
-            <strong>Scheduled Departure:</strong> {trip ? new Date(trip.departureTime).toLocaleString() : 'Loading...'}
+            <strong>{t('scheduledDeparture')}</strong> {trip ? new Date(trip.departureTime).toLocaleString(isRtl ? 'ar-EG' : 'en-US') : t('loadingRoute')}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
@@ -216,31 +218,31 @@ export default function LiveTrackingPage() {
           {/* Fallback Info for Offline State */}
           {!location ? (
             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-              ℹ️ <strong>Minibus details will update soon.</strong> The driver has not started broadcasting live GPS location yet. This usually starts 10-15 minutes prior to departure when the boarding gates open.
+              ℹ️ {t('minibusDetailsWillUpdate')}
             </div>
           ) : (
             <div style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 500 }}>
-              🟢 Minibus is on route. Tracking coordinates broadcasted smoothly.
+              🟢 {t('minibusOnRoute')}
             </div>
           )}
 
           {/* Vehicle & Driver Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', margin: '4px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Vehicle Model:</span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('vehicleModel')}</span>
               <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
                 {trip?.vehicleId?.model ? `${trip.vehicleId.make || ''} ${trip.vehicleId.model}`.trim() : 'Toyota HiAce'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>License Plate:</span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('licensePlate')}</span>
               <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {trip?.vehicleId?.licensePlate || trip?.vehicleId?.plateNumber || 'ط ر ق ٥٤٣٢'}
+                {trip?.vehicleId?.licensePlate || trip?.vehicleId?.plateNumber || (isRtl ? 'ط ر ق ٥٤٣٢' : ' ط ر ق ٥٤٣٢')}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Driver Partner:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.driverId?.name || 'Capt. Mohamed Hegazi'}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('driverPartner')}</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{trip?.driverId?.name || (isRtl ? 'كابتن محمد حجازي' : 'Capt. Mohamed Hegazi')}</span>
             </div>
           </div>
 
@@ -263,10 +265,10 @@ export default function LiveTrackingPage() {
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
             >
-              📞 Call Operator
+              📞 {t('callOperator')}
             </a>
             <button 
-              onClick={() => alert('Support ticket created. D-Ride support agent will contact you shortly.')}
+              onClick={() => alert(t('supportTicketCreatedAlert'))}
               style={{
                 flex: 1,
                 padding: '10px',
@@ -280,7 +282,7 @@ export default function LiveTrackingPage() {
                 transition: 'var(--transition-base)'
               }}
             >
-              💬 Support Chat
+              💬 {t('supportChat')}
             </button>
           </div>
         </div>
@@ -294,10 +296,10 @@ export default function LiveTrackingPage() {
             <>
               <Polyline positions={polylinePath} color="var(--primary)" weight={5} opacity={0.8} />
               <Marker position={polylinePath[0]}>
-                <Popup>🏁 Departure Terminal</Popup>
+                <Popup>🏁 {t('departureTerminal')}</Popup>
               </Marker>
               <Marker position={polylinePath[polylinePath.length - 1]}>
-                <Popup>🏁 Destination Station</Popup>
+                <Popup>🏁 {t('destinationStation')}</Popup>
               </Marker>
             </>
           )}
@@ -305,7 +307,7 @@ export default function LiveTrackingPage() {
             <Marker position={[location.lat, location.lng]} icon={busIcon}>
               <Popup>
                 <div>
-                  <h4 style={{ margin: '0 0 4px 0', color: 'var(--primary)' }}>Shuttle Active Location</h4>
+                  <h4 style={{ margin: '0 0 4px 0', color: 'var(--primary)' }}>{t('shuttleActiveLocation')}</h4>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Lat: {location.lat.toFixed(5)}, Lng: {location.lng.toFixed(5)}</span>
                 </div>
               </Popup>

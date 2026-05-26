@@ -35,7 +35,7 @@ export default function PartnersPage() {
       position: 'relative',
       zIndex: 1,
       background: 'var(--background)',
-      overflow: 'hidden'
+      overflowX: 'clip' as any
     }}>
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />

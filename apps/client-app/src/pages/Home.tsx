@@ -54,7 +54,7 @@ function RouteSearchForm() {
     : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
   const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-  const { isRtl } = useTranslation();
+  const { t, isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
   const [fromStation, setFromStation] = useState<any>(null);
   const [toStation, setToStation] = useState<any>(null);
@@ -304,19 +304,19 @@ function RouteSearchForm() {
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
-      setLocationNotice(isRtl ? "⚠️ تحديد الموقع الجغرافي غير مدعوم في متصفحك" : "⚠️ Geolocation is not supported by your browser");
+      setLocationNotice(t('gpsNotSupported'));
       setTimeout(() => setLocationNotice(null), 5000);
       return;
     }
     setLocationLoading(true);
-    setLocationNotice(isRtl ? "⏳ جاري تحديد موقعك..." : "⏳ Detecting your location...");
+    setLocationNotice(t('detectingLocation'));
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
 
         if (allCheckpoints.length === 0) {
-          setLocationNotice(isRtl ? "⚠️ لا توجد محطات معرفة حالياً" : "⚠️ No stations defined in the platform currently.");
+          setLocationNotice(t('noStationsDefined'));
           setLocationLoading(false);
           setTimeout(() => setLocationNotice(null), 5000);
           return;
@@ -338,16 +338,18 @@ function RouteSearchForm() {
         setFromStation(nearestStation);
         setFromQuery(isRtl ? (nearestStation.nameAr || nearestStation.name) : nearestStation.name);
 
-        const matchedMsg = isRtl
-          ? `📍 تم العثور على أقرب محطة: ${nearestStation.nameAr || nearestStation.name} في ${nearestStation.city} (على بعد ${minDistance.toFixed(2)} كم)`
-          : `📍 Matched nearest station: ${nearestStation.name} in ${nearestStation.city} (${minDistance.toFixed(2)} km away)`;
+        const matchedMsg = t('matchedNearestStation', {
+          name: isRtl ? (nearestStation.nameAr || nearestStation.name) : nearestStation.name,
+          city: nearestStation.city,
+          distance: minDistance.toFixed(2)
+        });
 
         setLocationNotice(matchedMsg);
         setLocationLoading(false);
         setTimeout(() => setLocationNotice(null), 5000);
       },
       (error) => {
-        setLocationNotice(isRtl ? `⚠️ فشل في تحديد الموقع: ${error.message}` : `⚠️ Failed to retrieve location: ${error.message}`);
+        setLocationNotice(t('failedToRetrieveLocation', { message: error.message }));
         setLocationLoading(false);
         setTimeout(() => setLocationNotice(null), 5000);
       }
@@ -424,7 +426,7 @@ function RouteSearchForm() {
             ) : (
               <MapPin size={14} />
             )}
-            {isRtl ? 'تحديد أقرب محطة' : 'Detect Station'}
+            {t('detectStation')}
           </button>
 
           <button
@@ -448,7 +450,7 @@ function RouteSearchForm() {
             }}
           >
             <Map size={14} />
-            {isRtl ? 'اختر على الخريطة' : 'Select on Map'}
+            {t('selectOnMap')}
           </button>
         </div>
 
@@ -472,13 +474,13 @@ function RouteSearchForm() {
         {/* BOARDING (FROM) AUTOCOMPLETE */}
         <div className="from-to-row" style={{ position: 'relative', zIndex: 30 }} ref={fromRef}>
           <div className="from-to-field full-width">
-            <label className="field-label">{isRtl ? 'من أين ستركب؟' : 'Where are you boarding?'}</label>
+            <label className="field-label">{t('whereAreYouBoarding')}</label>
             <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" />
               <input
                 type="text"
                 className="field-input"
-                placeholder={isRtl ? 'ابحث عن محطة ركوب...' : 'Search boarding stop...'}
+                placeholder={t('searchBoardingStopPlaceholder')}
                 value={fromQuery}
                 onFocus={() => {
                   setFromFocused(true);
@@ -518,7 +520,7 @@ function RouteSearchForm() {
                 <div className="custom-dropdown-menu" style={{ width: '100%' }}>
                   {Object.keys(groupedFrom).length === 0 ? (
                     <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
-                      {isRtl ? 'لا توجد محطات مطابقة' : 'No matching stations'}
+                      {t('noMatchingStations')}
                     </div>
                   ) : (
                     Object.entries(groupedFrom).map(([city, items]) => (
@@ -574,7 +576,7 @@ function RouteSearchForm() {
         {/* DESTINATION (TO) AUTOCOMPLETE */}
         <div className="from-to-row" style={{ position: 'relative', zIndex: 20 }} ref={toRef}>
           <div className="from-to-field full-width">
-            <label className="field-label">{isRtl ? 'إلى أين تريد الذهاب؟' : 'Where are you going?'}</label>
+            <label className="field-label">{t('whereAreYouGoing')}</label>
             <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
               <input
@@ -582,8 +584,8 @@ function RouteSearchForm() {
                 className="field-input"
                 placeholder={
                   !fromStation
-                    ? (isRtl ? 'اختر محطة الركوب أولاً' : 'Select boarding stop first')
-                    : (isRtl ? 'ابحث عن وجهتك...' : 'Search destination stop...')
+                    ? t('selectBoardingStopFirst')
+                    : t('searchDestinationStopPlaceholder')
                 }
                 value={toQuery}
                 onFocus={() => {
@@ -624,12 +626,12 @@ function RouteSearchForm() {
                 <div className="custom-dropdown-menu" style={{ width: '100%' }}>
                   {!fromStation && (
                     <div className="custom-dropdown-item" style={{ color: 'var(--primary)', cursor: 'default', fontWeight: 600, fontSize: '0.8rem', textAlign: 'center', padding: '12px' }}>
-                      {isRtl ? '⚠️ الرجاء اختيار محطة الركوب أولاً لمعرفة الوجهات المتاحة' : '⚠️ Please select a boarding stop first to see reachable destinations'}
+                      {t('selectBoardingStopFirst')}
                     </div>
                   )}
                   {fromStation && Object.keys(groupedTo).length === 0 ? (
                     <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
-                      {isRtl ? 'لا توجد محطات تالية متاحة' : 'No reachable stops found'}
+                      {t('noReachableStopsFound')}
                     </div>
                   ) : (
                     fromStation && Object.entries(groupedTo).map(([city, items]) => (
@@ -670,11 +672,10 @@ function RouteSearchForm() {
             </div>
           </div>
         </div>
-
-        {/* ROW 3: DATE */}
+                             {/* ROW 3: DATE */}
         <div className="from-to-row">
           <div className="from-to-field full-width">
-            <label className="field-label">Travel Date</label>
+            <label className="field-label">{t('travelDateLabel')}</label>
             <div className="field-select-wrapper">
               <Calendar size={16} className="field-icon-left" />
               <input
@@ -691,7 +692,7 @@ function RouteSearchForm() {
         {/* ROW 4: PASSENGERS */}
         <div className="from-to-row">
           <div className="from-to-field full-width">
-            <label className="field-label">Number of Seats</label>
+            <label className="field-label">{t('numberOfSeatsLabel')}</label>
             <div className="passenger-selector">
               <Users size={16} className="field-icon-left" style={{ color: 'var(--primary)', position: 'static' }} />
               <span
@@ -704,7 +705,7 @@ function RouteSearchForm() {
                   marginLeft: '8px',
                 }}
               >
-                {passengers} {passengers === 1 ? 'Seat' : 'Seats'}
+                {t(passengers === 1 ? 'seatCountSingular' : 'seatCountPlural', { count: passengers })}
               </span>
               <div className="passenger-controls">
                 <button
@@ -730,8 +731,6 @@ function RouteSearchForm() {
         </div>
       </div>
 
-
-
       <button
         className="search-btn"
         onClick={handleSearch}
@@ -739,7 +738,7 @@ function RouteSearchForm() {
         id="search-trips-btn"
         style={{ marginTop: '0.5rem' }}
       >
-        Show Trips <Search size={18} />
+        {t('showTripsBtn')} <Search size={18} />
       </button>
 
       {/* Fallback to manual route selection */}
@@ -758,7 +757,7 @@ function RouteSearchForm() {
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
-          Or browse all routes manually →
+          {t('browseRoutesManually')}
         </Link>
       </div>
 
@@ -767,7 +766,7 @@ function RouteSearchForm() {
           <div className="map-picker-content" onClick={(e) => e.stopPropagation()}>
             <div className="map-picker-header">
               <h3 className="map-picker-title">
-                {isRtl ? 'اختر موقع الركوب على الخريطة' : 'Select Pickup Location on Map'}
+                {t('selectPickupLocationOnMap')}
               </h3>
               <button className="map-picker-close" onClick={() => setIsMapModalOpen(false)}>
                 <X size={20} />
@@ -793,7 +792,7 @@ function RouteSearchForm() {
                   }}
                 >
                   <Popup>
-                    {isRtl ? 'اسحب الدبوس لتحديد موقع الركوب' : 'Drag this pin to your pickup point'}
+                    {t('dragPinToPickupPoint')}
                   </Popup>
                 </Marker>
 
@@ -804,7 +803,7 @@ function RouteSearchForm() {
             {nearestStationFromMap ? (
               <div className="map-picker-info">
                 <span className="map-picker-info-label">
-                  {isRtl ? 'أقرب محطة ركوب مطابقة' : 'Nearest Matched Station'}
+                  {t('nearestMatchedStationMap')}
                 </span>
                 <span className="map-picker-info-value">
                   {isRtl 
@@ -812,17 +811,17 @@ function RouteSearchForm() {
                     : nearestStationFromMap.checkpoint.name
                   } 
                   <span style={{ opacity: 0.6, fontSize: '0.8em', marginLeft: '6px' }}>
-                    ({isRtl ? 'على بعد' : ''} {nearestStationFromMap.distanceMeters} {isRtl ? 'متر' : 'meters away'})
+                    ({nearestStationFromMap.distanceMeters} {t('metersAway')})
                   </span>
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {isRtl ? 'الخط' : 'Route'}: {nearestStationFromMap.route.name}
+                  {t('route')}: {nearestStationFromMap.route.name}
                 </span>
               </div>
             ) : (
               <div className="map-picker-info" style={{ borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}>
                 <span className="map-picker-info-value" style={{ color: '#ef4444' }}>
-                  {isRtl ? '⚠️ لا توجد محطات قريبة في النطاق' : '⚠️ No stations found nearby.'}
+                  {t('noStationsFoundNearbyMap')}
                 </span>
               </div>
             )}
@@ -832,7 +831,7 @@ function RouteSearchForm() {
                 className="map-picker-btn-cancel" 
                 onClick={() => setIsMapModalOpen(false)}
               >
-                {isRtl ? 'إلغاء' : 'Cancel'}
+                {t('cancelBtn')}
               </button>
               <button 
                 className="map-picker-btn-confirm" 
@@ -844,7 +843,7 @@ function RouteSearchForm() {
                 ) : (
                   <MapPin size={16} />
                 )}
-                {isRtl ? 'تأكيد محطة الركوب' : 'Confirm Pickup Station'}
+                {t('confirmPickupStationBtn')}
               </button>
             </div>
           </div>
@@ -857,6 +856,7 @@ function RouteSearchForm() {
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [partners, setPartners] = useState<any[]>([]);
 
   useEffect(() => {
@@ -876,30 +876,28 @@ export default function HomePage() {
           <div className="hero-text">
             <div className="hero-badge">
               <span className="hero-badge-dot" />
-              Live Route Telemetry Enabled
+              {t('liveRouteTelemetryBadge')}
             </div>
             <h1 className="hero-title">
-              Your Daily<br />
-              Commute,{' '}
-              <span className="hero-title-accent">Reinvented.</span>
+              {t('heroTitlePart1')}<br />
+              {t('heroTitlePart2')}{' '}
+              <span className="hero-title-accent">{t('heroTitleAccent')}</span>
             </h1>
             <p className="hero-subtitle">
-              Smart mass-transit for Cairo and beyond. Book your seat on
-              comfortable, air-conditioned buses with fixed routes,
-              real-time tracking, and cashless payments.
+              {t('heroSubtitle')}
             </p>
             <div className="hero-actions">
               {isAuthenticated ? (
                 <Link to="/my-trips" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  <Ticket size={20} /> My Trips
+                  <Ticket size={20} /> {t('myTrips')}
                 </Link>
               ) : (
                 <Link to="/register" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  <Bus size={20} /> Book a Ride
+                  <Bus size={20} /> {t('bookARideBtn')}
                 </Link>
               )}
               <a href="#how-it-works" className="btn-secondary">
-                Learn More →
+                {t('learnMoreBtn')}
               </a>
             </div>
           </div>
@@ -909,8 +907,8 @@ export default function HomePage() {
               <div className="hero-card-header">
                 <div className="hero-card-icon"><MapPin size={24} /></div>
                 <div>
-                  <div className="hero-card-title">Find Your Route</div>
-                  <div className="hero-card-subtitle">Select your destination</div>
+                  <div className="hero-card-title">{t('findYourRouteCardTitle')}</div>
+                  <div className="hero-card-subtitle">{t('selectYourDestinationCardSub')}</div>
                 </div>
               </div>
               <RouteSearchForm />
@@ -922,30 +920,30 @@ export default function HomePage() {
       {/* ── Stats Bar ────────────────────────────────────── */}
       <div className="stats-bar">
         <div className="stat-card glass delay-1 animate-fade-in-up">
-          <div className="stat-value">150+</div>
-          <div className="stat-label">Daily Routes</div>
+          <div className="stat-value">{t('dailyRoutesVal')}</div>
+          <div className="stat-label">{t('dailyRoutesLbl')}</div>
         </div>
         <div className="stat-card glass delay-2 animate-fade-in-up">
-          <div className="stat-value">50K+</div>
-          <div className="stat-label">Happy Riders</div>
+          <div className="stat-value">{t('happyRidersVal')}</div>
+          <div className="stat-label">{t('happyRidersLbl')}</div>
         </div>
         <div className="stat-card glass delay-3 animate-fade-in-up">
-          <div className="stat-value">200+</div>
-          <div className="stat-label">Vehicles</div>
+          <div className="stat-value">{t('vehiclesVal')}</div>
+          <div className="stat-label">{t('vehiclesLbl')}</div>
         </div>
         <div className="stat-card glass delay-4 animate-fade-in-up">
-          <div className="stat-value">4.8⭐</div>
-          <div className="stat-label">Avg Rating</div>
+          <div className="stat-value">{t('avgRatingVal')}</div>
+          <div className="stat-label">{t('avgRatingLbl')}</div>
         </div>
       </div>
 
       {/* ── How It Works ─────────────────────────────────── */}
       <section className="section" id="how-it-works">
         <div className="section-header">
-          <div className="section-badge">Simple & Fast</div>
-          <h2 className="section-title">How It Works</h2>
+          <div className="section-badge">{t('simpleAndFast')}</div>
+          <h2 className="section-title">{t('howItWorksTitle')}</h2>
           <p className="section-subtitle">
-            Get from A to B in three simple steps. No haggling, no uncertainty — just a smooth, reliable commute.
+            {t('howItWorksDesc')}
           </p>
         </div>
 
@@ -953,25 +951,25 @@ export default function HomePage() {
           <div className="step-card glass delay-1 animate-fade-in-up">
             <div className="step-number">1</div>
             <div className="step-icon"><Search size={32} /></div>
-            <h3 className="step-title">Search</h3>
+            <h3 className="step-title">{t('step1Title')}</h3>
             <p className="step-desc">
-              Enter your pickup and destination. We'll show you the best available routes with live ETAs.
+              {t('step1Desc')}
             </p>
           </div>
           <div className="step-card glass delay-2 animate-fade-in-up">
             <div className="step-number">2</div>
             <div className="step-icon"><Ticket size={32} /></div>
-            <h3 className="step-title">Book</h3>
+            <h3 className="step-title">{t('step2Title')}</h3>
             <p className="step-desc">
-              Select your preferred trip and pay securely through our integrated Paymob checkout. Instant confirmation.
+              {t('step2Desc')}
             </p>
           </div>
           <div className="step-card glass delay-3 animate-fade-in-up">
             <div className="step-number">3</div>
             <div className="step-icon"><Bus size={32} /></div>
-            <h3 className="step-title">Ride</h3>
+            <h3 className="step-title">{t('step3Title')}</h3>
             <p className="step-desc">
-              Track your bus in real-time, board with your digital ticket, and enjoy a comfortable air-conditioned ride.
+              {t('step3Desc')}
             </p>
           </div>
         </div>
@@ -980,10 +978,10 @@ export default function HomePage() {
       {/* ── Features ──────────────────────────────────────── */}
       <section className="section" id="features">
         <div className="section-header">
-          <div className="section-badge">Why D-Ride</div>
-          <h2 className="section-title">Built for Cairo's Streets</h2>
+          <div className="section-badge">{t('whyDride')}</div>
+          <h2 className="section-title">{t('builtForCairoStreets')}</h2>
           <p className="section-subtitle">
-            We understand the Egyptian commute. That's why every feature is designed to make your daily journey better.
+            {t('builtForCairoStreetsDesc')}
           </p>
         </div>
 
@@ -991,36 +989,36 @@ export default function HomePage() {
           <div className="feature-card glass delay-1 animate-fade-in-up">
             <div className="feature-icon"><MapPin size={28} /></div>
             <div>
-              <h3 className="feature-title">Real-Time GPS Tracking</h3>
+              <h3 className="feature-title">{t('featureGpsTitle')}</h3>
               <p className="feature-desc">
-                Know exactly where your bus is. Live location updates every few seconds so you never miss your ride.
+                {t('featureGpsDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-2 animate-fade-in-up">
             <div className="feature-icon"><CreditCard size={28} /></div>
             <div>
-              <h3 className="feature-title">Card & Cash Payments</h3>
+              <h3 className="feature-title">{t('featurePaymentTitle')}</h3>
               <p className="feature-desc">
-                Pay securely online with cards through our Paymob integration, or pay in cash directly on board the bus.
+                {t('featurePaymentDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-3 animate-fade-in-up">
             <div className="feature-icon"><Snowflake size={28} /></div>
             <div>
-              <h3 className="feature-title">Comfort Guaranteed</h3>
+              <h3 className="feature-title">{t('featureComfortTitle')}</h3>
               <p className="feature-desc">
-                Air-conditioned vehicles, reserved seats, and a guaranteed boarding experience. No standing, no crowding.
+                {t('featureComfortDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-4 animate-fade-in-up">
             <div className="feature-icon"><Zap size={28} /></div>
             <div>
-              <h3 className="feature-title">Fixed Pricing</h3>
+              <h3 className="feature-title">{t('featurePricingTitle')}</h3>
               <p className="feature-desc">
-                Transparent, fixed pricing for every route. Know exactly what you'll pay before you book — no surge pricing.
+                {t('featurePricingDesc')}
               </p>
             </div>
           </div>
@@ -1031,10 +1029,10 @@ export default function HomePage() {
       {partners.length > 0 && (
         <section className="section" id="partners" style={{ paddingBottom: '3rem' }}>
           <div className="section-header">
-            <div className="section-badge">Trusted Collaborations</div>
-            <h2 className="section-title">Our Partners</h2>
+            <div className="section-badge">{t('trustedCollaborations')}</div>
+            <h2 className="section-title">{t('ourPartnersTitle')}</h2>
             <p className="section-subtitle">
-              We work in partnership with Egypt's leading organizations, universities, and payment networks to deliver a seamless journey.
+              {t('partnersSub')}
             </p>
           </div>
 
@@ -1082,15 +1080,15 @@ export default function HomePage() {
         <div className="footer-content">
           <div className="footer-brand">
             <img src={logo} alt="D-Ride" className="footer-logo" />
-            <span className="footer-tagline">Operated by Destination</span>
+            <span className="footer-tagline">{t('operatedBy')}</span>
           </div>
           <ul className="footer-links">
-            <li><a href="#">About</a></li>
-            <li><a href="#">Terms</a></li>
-            <li><a href="#">Privacy</a></li>
-            <li><a href="#">Contact</a></li>
+            <li><Link to="/about">{t('about')}</Link></li>
+            <li><Link to="/terms">{t('terms')}</Link></li>
+            <li><Link to="/privacy">{t('privacy')}</Link></li>
+            <li><Link to="/contact">{t('contact')}</Link></li>
           </ul>
-          <span className="footer-copyright">© 2026 D-Ride. All rights reserved.</span>
+          <span className="footer-copyright">{t('allRightsReserved')}</span>
         </div>
       </footer>
     </>

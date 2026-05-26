@@ -16,7 +16,7 @@ import {
 
 export default function SupportChatWidget() {
   const { isAuthenticated, user } = useAuth();
-  const { isRtl } = useTranslation();
+  const { t, isRtl } = useTranslation();
   
   const [isOpen, setIsOpen] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -219,10 +219,10 @@ export default function SupportChatWidget() {
               )}
               <div>
                 <strong style={{ display: 'block', fontSize: '0.95rem' }}>
-                  {activeTicket ? activeTicket.subject : (isRtl ? 'الدعم الفني دي-رايد' : 'D-Ride Help Desk')}
+                  {activeTicket ? activeTicket.subject : t('supportHelpDesk')}
                 </strong>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {activeTicket ? (isRtl ? 'محادثة فورية مباشرة' : 'Real-time Live Chat') : (isRtl ? 'متاحين على مدار الساعة' : 'Online / Available 24/7')}
+                  {activeTicket ? t('supportLiveChatStatus') : t('supportOnlineStatus')}
                 </span>
               </div>
             </div>
@@ -242,9 +242,7 @@ export default function SupportChatWidget() {
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ marginBottom: '1rem' }}>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    {isRtl 
-                      ? 'حدد تذكرة دعم حالية لبدء المحادثة المباشرة مع وكلائنا:' 
-                      : 'Select an active ticket to chat directly with our dispatch operators:'}
+                    {t('supportTicketSelectionDesc')}
                   </p>
                 </div>
 
@@ -257,10 +255,10 @@ export default function SupportChatWidget() {
                     <div style={{ textAlign: 'center', padding: '2rem 1rem', border: '1px dashed var(--border)', borderRadius: '8px', margin: 'auto 0' }}>
                       <HelpCircle size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                        {isRtl ? 'لا توجد تذاكر دعم مفتوحة حالياً.' : 'No active support tickets found.'}
+                        {t('supportNoActiveTickets')}
                       </p>
                       <a href="/contact" onClick={() => setIsOpen(false)} className="btn btn-cta" style={{ display: 'inline-flex', fontSize: '0.8rem', padding: '6px 12px' }}>
-                        {isRtl ? 'فتح تذكرة دعم جديدة' : 'Create Support Ticket'}
+                        {t('supportCreateTicketBtn')}
                       </a>
                     </div>
                   ) : (
@@ -303,7 +301,7 @@ export default function SupportChatWidget() {
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.8rem', marginTop: '0.8rem', textAlign: 'center' }}>
                     <a href="/contact" onClick={() => setIsOpen(false)} style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary-color)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <Ticket size={14} />
-                      {isRtl ? 'هل تحتاج إلى فتح تذكرة جديدة؟' : 'Need to open a new ticket?'}
+                      {t('supportNeedNewTicketPrompt')}
                     </a>
                   </div>
                 )}
@@ -321,14 +319,14 @@ export default function SupportChatWidget() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {/* Initial message description card */}
                     <div style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Original Issue Ticket</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('supportOriginalTicketCardHeader')}</span>
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>{activeTicket.message}</p>
                     </div>
 
                     {/* Messages list */}
                     {messages.length === 0 ? (
                       <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', margin: 'auto 0' }}>
-                        {isRtl ? 'ابدأ المحادثة! وكلاؤنا متصلون الآن.' : 'No messages in this chat yet. Start the conversation!'}
+                        {t('supportStartChattingPlaceholder')}
                       </div>
                     ) : (
                       messages.map((msg, idx) => {
@@ -357,7 +355,7 @@ export default function SupportChatWidget() {
                               {msg.message}
                             </div>
                             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px', padding: '0 4px' }}>
-                              {isMe ? 'You' : msg.senderName} • {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {isMe ? (isRtl ? 'أنت' : 'You') : msg.senderName} • {new Date(msg.createdAt).toLocaleTimeString(isRtl ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                         );
@@ -376,13 +374,13 @@ export default function SupportChatWidget() {
               {activeTicket.status === 'RESOLVED' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', padding: '6px', borderRadius: '6px', color: 'var(--success)', fontSize: '0.8rem' }}>
                   <CheckCircle size={14} />
-                  <span>{isRtl ? 'هذه التذكرة مغلقة وحُلت.' : 'This support ticket has been resolved.'}</span>
+                  <span>{t('supportTicketClosedResolved')}</span>
                 </div>
               ) : (
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '6px' }}>
                   <input
                     type="text"
-                    placeholder={isRtl ? 'اكتب رسالة...' : 'Type message...'}
+                    placeholder={t('supportTypeMessagePlaceholder')}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     style={{
