@@ -32,8 +32,10 @@ export class TripsController {
   async search(
     @Query('routeId') routeId?: string,
     @Query('date') date?: string,
+    @Query('pickupCheckpointName') pickupCheckpointName?: string,
+    @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
   ) {
-    const trips = await this.tripsService.searchTrips(routeId, date);
+    const trips = await this.tripsService.searchTrips(routeId, date, pickupCheckpointName, dropoffCheckpointName);
     return { success: true, data: trips, timestamp: new Date().toISOString() };
   }
 
@@ -46,8 +48,12 @@ export class TripsController {
   }
 
   @Get(':id')
-  async findById(@Param('id') id: string) {
-    const trip = await this.tripsService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @Query('pickupCheckpointName') pickupCheckpointName?: string,
+    @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
+  ) {
+    const trip = await this.tripsService.findById(id, pickupCheckpointName, dropoffCheckpointName);
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }
 

@@ -80,16 +80,6 @@ function MapClickHandler({
   return null;
 }
 
-// Curated travel cover pictures for Egypt
-const PRESET_IMAGES = [
-  { label: 'Smart Village Premium Tech Hub', value: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80' },
-  { label: 'Maadi Scenic Ring Road Corridor', value: 'https://images.unsplash.com/photo-1541462608141-2f58c6e68e98?auto=format&fit=crop&w=600&q=80' },
-  { label: 'Cairo Downtown Historic Architecture', value: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80' },
-  { label: 'New Cairo Modern Corporate District', value: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80' },
-  { label: '6th of October Industrial Complex', value: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=600&q=80' },
-  { label: 'Heliopolis Golden Sunsets', value: 'https://images.unsplash.com/photo-1472214222541-d510753a4907?auto=format&fit=crop&w=600&q=80' }
-];
-
 // Utility to convert Google Drive share links to direct download URLs
 function cleanGoogleDriveLink(url: string): string {
   if (!url) return '';
@@ -129,6 +119,15 @@ function cleanGoogleDriveLink(url: string): string {
   
   return url;
 }
+
+const POPULAR_TERMINALS = [
+  { name: '✈️ Cairo Airport', lng: 31.4056, lat: 30.1219 },
+  { name: '🚉 Ramses Station', lng: 31.2464, lat: 30.0631 },
+  { name: '📍 Heliopolis', lng: 31.3283, lat: 30.0911 },
+  { name: '🏡 New Cairo (AUC)', lng: 31.5034, lat: 30.0169 },
+  { name: '🏢 Smart Village', lng: 30.7811, lat: 30.0769 },
+  { name: '🌳 Maadi', lng: 31.2755, lat: 29.9602 }
+];
 
 // Reusable nominatim location autocomplete input with coordinates & keyboard support
 function SearchAutocomplete({
@@ -419,7 +418,7 @@ export function RoutesPage() {
   // Wizard state machine
   const [currentStep, setCurrentStep] = useState(0);
   const [routeName, setRouteName] = useState('');
-  const [coverImage, setCoverImage] = useState(PRESET_IMAGES[0].value);
+  const [coverImage, setCoverImage] = useState('');
   const [distanceKm, setDistanceKm] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(0);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
@@ -459,7 +458,7 @@ export function RoutesPage() {
     if (route) {
       setEditingId(route._id);
       setRouteName(route.name);
-      setCoverImage(route.coverImage || PRESET_IMAGES[0].value);
+      setCoverImage(route.coverImage || '');
       setDistanceKm(route.distanceKm || 0);
       setDurationMinutes(route.estimatedDurationMinutes || 0);
       setCheckpoints(route.checkpoints || []);
@@ -472,7 +471,7 @@ export function RoutesPage() {
     } else {
       setEditingId(null);
       setRouteName('');
-      setCoverImage(PRESET_IMAGES[0].value);
+      setCoverImage('');
       setDistanceKm(0);
       setDurationMinutes(0);
       setPoints([]);
@@ -526,7 +525,7 @@ export function RoutesPage() {
 
     setEditingId(null);
     setRouteName(reversedName);
-    setCoverImage(route.coverImage || PRESET_IMAGES[0].value);
+    setCoverImage(route.coverImage || '');
     setCheckpoints(syncedCps);
     
     await generateSnappedRoute(syncedCps);
@@ -565,7 +564,8 @@ export function RoutesPage() {
       order: 1,
       type: 'START' as const,
       bufferTimeMinutes: 5,
-      geofenceRadiusMeters: 100
+      geofenceRadiusMeters: 100,
+      minutesFromStart: 0
     };
     setCheckpoints(prev => {
       const updated = [...prev];
@@ -588,7 +588,8 @@ export function RoutesPage() {
       order: checkpoints.length + 1,
       type: 'END' as const,
       bufferTimeMinutes: 0,
-      geofenceRadiusMeters: 100
+      geofenceRadiusMeters: 100,
+      minutesFromStart: 0
     };
     setCheckpoints(prev => {
       const updated = [...prev];
@@ -623,7 +624,8 @@ export function RoutesPage() {
         order: checkpoints.length + 1,
         type: 'CHECKPOINT' as const,
         bufferTimeMinutes: 2,
-        geofenceRadiusMeters: 50
+        geofenceRadiusMeters: 50,
+        minutesFromStart: 0
       };
       setCheckpoints(prev => {
         const updated = [...prev];
@@ -799,17 +801,26 @@ export function RoutesPage() {
       title: 'Landscape Banner',
       dataIndex: 'coverImage',
       key: 'coverImage',
-      render: (imgUrl: string) => (
+      render: (imgUrl: string, r: any) => (
         <div style={{
           width: '120px',
           height: '64px',
           borderRadius: '8px',
-          backgroundImage: `url("${imgUrl || PRESET_IMAGES[0].value}")`,
+          backgroundImage: imgUrl ? `url("${imgUrl}")` : 'linear-gradient(135deg, var(--primary-color, #f5b731) 0%, #1a202c 100%)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           border: '1px solid var(--border)',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-        }} />
+          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+        }}>
+          {!imgUrl && (r.name ? r.name.substring(0, 2).toUpperCase() : 'DR')}
+        </div>
       )
     },
     {
@@ -952,38 +963,7 @@ export function RoutesPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Select Cover Landscape Banner</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {PRESET_IMAGES.map((img, idx) => (
-                      <div 
-                        key={idx}
-                        onClick={() => setCoverImage(img.value)}
-                        style={{
-                          border: coverImage === img.value ? '3px solid var(--primary-color)' : '1px solid var(--border)',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          transition: 'all 0.2s',
-                          boxShadow: coverImage === img.value ? '0 4px 15px rgba(245, 183, 49, 0.25)' : 'none'
-                        }}
-                      >
-                        <div style={{ height: '70px', backgroundImage: `url("${img.value}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                        <div style={{ padding: '6px', fontSize: '11px', fontWeight: 600, textAlign: 'center', background: 'var(--surface-elevated)' }}>
-                          {img.label}
-                        </div>
-                        {coverImage === img.value && (
-                          <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--primary-color)', color: '#000', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
-                            ✓
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '15px', marginTop: '10px' }}>
-                  <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Or Paste Custom Image URL / Google Drive link</label>
+                  <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Route Banner Image URL / Google Drive link (Optional)</label>
                   <Input 
                     placeholder="https://drive.google.com/file/d/... or regular image URL" 
                     value={coverImage} 
@@ -1187,40 +1167,57 @@ export function RoutesPage() {
                             style={{ textAlign: 'right', direction: 'rtl' }}
                           />
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
-                            <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                <Clock size={10} /> Buffer (mins)
-                              </span>
-                              <Input 
-                                type="number"
-                                value={cp.bufferTimeMinutes}
-                                onChange={e => {
-                                  const updated = [...checkpoints];
-                                  updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
-                                  setCheckpoints(updated);
-                                }}
-                                size="small"
-                                min={0}
-                              />
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                <Radio size={10} /> Geofence (m)
-                              </span>
-                              <Input 
-                                type="number"
-                                value={cp.geofenceRadiusMeters}
-                                onChange={e => {
-                                  const updated = [...checkpoints];
-                                  updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
-                                  setCheckpoints(updated);
-                                }}
-                                size="small"
-                                min={10}
-                              />
-                            </div>
-                          </div>
+                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '2px' }}>
+                             <div>
+                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                 <Clock size={10} /> Buffer (mins)
+                               </span>
+                               <Input 
+                                 type="number"
+                                 value={cp.bufferTimeMinutes}
+                                 onChange={e => {
+                                   const updated = [...checkpoints];
+                                   updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
+                                   setCheckpoints(updated);
+                                 }}
+                                 size="small"
+                                 min={0}
+                               />
+                             </div>
+                             <div>
+                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                 <Clock size={10} /> From Start (m)
+                               </span>
+                               <Input 
+                                 type="number"
+                                 value={isStart ? 0 : (cp.minutesFromStart ?? 0)}
+                                 onChange={e => {
+                                   const updated = [...checkpoints];
+                                   updated[idx].minutesFromStart = parseInt(e.target.value, 10) || 0;
+                                   setCheckpoints(updated);
+                                 }}
+                                 size="small"
+                                 min={0}
+                                 disabled={isStart}
+                               />
+                             </div>
+                             <div>
+                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                 <Radio size={10} /> Geofence (m)
+                               </span>
+                               <Input 
+                                 type="number"
+                                 value={cp.geofenceRadiusMeters}
+                                 onChange={e => {
+                                   const updated = [...checkpoints];
+                                   updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
+                                   setCheckpoints(updated);
+                                 }}
+                                 size="small"
+                                 min={10}
+                               />
+                             </div>
+                           </div>
                         </div>
                       </div>
                     );

@@ -81,8 +81,8 @@ export const routesAPI = {
 };
 
 export const tripsAPI = {
-  search: (routeId: string, date?: string): Promise<any> => 
-    api.get('/trips/search', { params: { routeId, date } }),
+  search: (routeId: string, date?: string, pickupCheckpointName?: string, dropoffCheckpointName?: string): Promise<any> => 
+    api.get('/trips/search', { params: { routeId, date, pickupCheckpointName, dropoffCheckpointName } }),
 };
 
 export const paymobAPI = {

@@ -51,6 +51,10 @@ class StopDto {
   @IsNumber()
   @IsOptional()
   geofenceRadiusMeters?: number;
+
+  @IsNumber()
+  @IsOptional()
+  minutesFromStart?: number;
 }
 
 class PathDto {

@@ -564,6 +564,14 @@ export function TripsPage() {
                   {selectedRoute.checkpoints.map((cp: any, index: number) => {
                     const isStart = cp.type === 'START';
                     const isEnd = cp.type === 'END';
+                    let etaText = '';
+                    if (selectedDepartureTime) {
+                      const dt = dayjs(selectedDepartureTime);
+                      if (dt.isValid()) {
+                        const offset = cp.minutesFromStart ?? 0;
+                        etaText = `@ ${dt.add(offset, 'minute').format('hh:mm A')}`;
+                      }
+                    }
                     return (
                       <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{
@@ -585,9 +593,14 @@ export function TripsPage() {
                             background: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'
                           }} />
                           {cp.name}
+                          {etaText && (
+                            <span style={{ fontSize: '9.5px', marginLeft: '4px', opacity: 0.9 }}>
+                              {etaText}
+                            </span>
+                          )}
                           {cp.bufferTimeMinutes > 0 && (
-                            <span style={{ fontSize: '9px', opacity: 0.8, fontWeight: 'normal' }}>
-                              ({cp.bufferTimeMinutes}m)
+                            <span style={{ fontSize: '9px', opacity: 0.7, fontWeight: 'normal', marginLeft: '4px' }}>
+                              ({cp.bufferTimeMinutes}m buf)
                             </span>
                           )}
                         </div>

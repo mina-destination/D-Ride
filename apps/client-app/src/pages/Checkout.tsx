@@ -104,7 +104,13 @@ export default function CheckoutPage() {
     if (!tripId) return;
     
     setLoading(true);
-    api.get(`/trips/${tripId}`)
+    const cpName = searchParams.get('checkpointName');
+    const dropoffCpName = searchParams.get('dropoffCheckpointName');
+    const query = new URLSearchParams();
+    if (cpName) query.set('pickupCheckpointName', cpName);
+    if (dropoffCpName) query.set('dropoffCheckpointName', dropoffCpName);
+
+    api.get(`/trips/${tripId}?${query.toString()}`)
       .then(data => setTrip(data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -113,7 +119,7 @@ export default function CheckoutPage() {
       .then(seats => setOccupiedSeats(seats))
       .catch(console.error);
 
-  }, [tripId]);
+  }, [tripId, searchParams]);
 
 
   useEffect(() => {
@@ -866,15 +872,26 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Departure Time</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                      {selectedPickupCheckpoint?.estimatedDepartureTime || selectedPickupCheckpoint?.minutesFromStart !== undefined ? 'Estimated Boarding Time' : 'Departure Time'}
+                    </div>
                     <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
-                      {new Date(trip.departureTime).toLocaleString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {(() => {
+                        const baseTime = new Date(trip.departureTime).getTime();
+                        const timeToUse = selectedPickupCheckpoint?.estimatedDepartureTime 
+                          ? new Date(selectedPickupCheckpoint.estimatedDepartureTime)
+                          : (selectedPickupCheckpoint?.minutesFromStart !== undefined
+                              ? new Date(baseTime + selectedPickupCheckpoint.minutesFromStart * 60000)
+                              : new Date(trip.departureTime));
+                        
+                        return timeToUse.toLocaleString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                      })()}
                     </div>
                   </div>
 
