@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripsAPI, routesAPI } from '../services/api';
-import logo from '../assets/d-ride-logo.jpeg';
 
 // Map imports removed
 
@@ -312,9 +311,6 @@ export default function TripSearchPage() {
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }} className="animate-fade-in-up">
-          <Link to="/">
-            <img src={logo} alt="D-Ride" className="auth-logo" />
-          </Link>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
             Available Trips
           </h1>

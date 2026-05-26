@@ -3361,29 +3361,208 @@
 }
 
 /* ============================================================
-   Outdoor Glare-Resistant & Ergonomic Touch Enhancements
+   Cohesive Theme-Specific High-Contrast overrides
    ============================================================ */
 
-/* High-contrast solid typography weight overrides */
-.trip-card, .premium-card, .solid-checkout-card {
-  font-weight: 700 !important;
-  color: #ffffff !important;
+/* ── DEFAULT / LIGHT THEME CARD STYLES ───────────────────── */
+.trip-card,
+.premium-card,
+.solid-checkout-card,
+.boarding-pass,
+.ticket-front,
+.ticket-back,
+.auth-card,
+.glass,
+.glass-light {
+  background: #ffffff !important; /* Premium fully opaque pure white card */
+  border: 2px solid #e2e8f0 !important; /* Soft high-contrast border */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+  color: #111827 !important;
+  opacity: 1 !important;
 }
 
-.trip-card p, .premium-card p, .solid-checkout-card p,
-.trip-card span:not(.stepper-label), .premium-card span:not(.stepper-label),
-.trip-card div, .premium-card div, .solid-checkout-card div {
-  color: #ffffff !important;
+/* Hover/Focus border transformations */
+.trip-card:hover,
+.premium-card:hover,
+.solid-checkout-card:hover,
+.boarding-pass:hover,
+.auth-card:hover,
+.glass:hover {
+  border-color: #f5b731 !important; /* Golden Amber highlight */
+  box-shadow: 0 12px 35px rgba(245, 183, 49, 0.15) !important;
 }
 
-.trip-card .trip-time, 
-.trip-card .trip-location, 
-.trip-card .trip-price, 
-.trip-card .trip-seats,
-.premium-card .premium-card-title,
+/* Stepper check in ticket summary borders */
+.trip-card {
+  border: 2px solid #e2e8f0 !important;
+}
+
+.trip-card.connector-glow {
+  border-color: #f5b731 !important;
+}
+
+/* Typographic color hierarchy inside light cards */
+.trip-card p, .premium-card p, .solid-checkout-card p, .boarding-pass p, .ticket-front p, .ticket-back p, .auth-card p, .glass p,
+.trip-card span:not(.stepper-label):not(.passenger-count), .premium-card span:not(.stepper-label), .boarding-pass span:not(.stepper-label), .ticket-front span:not(.stepper-label), .ticket-back span:not(.stepper-label), .auth-card span:not(.stepper-label), .glass span:not(.stepper-label),
+.trip-card div:not(.leaflet-container):not(.bus-cabin), .premium-card div, .solid-checkout-card div, .boarding-pass div, .ticket-front div, .ticket-back div, .auth-card div, .glass div {
+  color: #374151 !important; /* Deep charcoal for high contrast body copy */
+}
+
+/* Headings and bold tags */
+.trip-card h1, .premium-card h1, .solid-checkout-card h1, .auth-card h1, .glass h1,
+.trip-card h2, .premium-card h2, .solid-checkout-card h2, .auth-card h2, .glass h2,
+.trip-card h3, .premium-card h3, .solid-checkout-card h3, .auth-card h3, .glass h3,
+.trip-card h4, .premium-card h4, .solid-checkout-card h4, .auth-card h4, .glass h4,
+.trip-card strong, .premium-card strong, .solid-checkout-card strong, .auth-card strong, .glass strong,
+.auth-title, .auth-subtitle, .trip-time {
+  color: #111827 !important; /* Pure black for headings */
+}
+
+/* Amber highlights for numbers and accents */
+.stat-value,
+.step-number,
 .premium-card-title,
-.checkpoint-timeline-value {
-  font-weight: 900 !important;
+.premium-card-title span,
+.checkpoint-timeline-label,
+.pass-route-title {
+  color: #b45309 !important; /* Dark amber (better contrast on white) */
+}
+
+/* Muted secondary descriptions */
+.stat-label,
+.step-card p,
+.step-desc,
+.field-label,
+.passenger-selector label,
+.pass-label {
+  color: #6b7280 !important; /* Muted slate/grey */
+  font-weight: 600 !important;
+}
+
+/* Inputs and Forms inside Light Cards */
+.glass .field-select-wrapper,
+.glass .passenger-selector,
+.premium-card .field-select-wrapper,
+.premium-card .passenger-selector,
+.solid-checkout-card .field-select-wrapper,
+.solid-checkout-card .passenger-selector {
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+.glass .field-input,
+.glass .passenger-selector span,
+.premium-card .field-input,
+.premium-card .passenger-selector span,
+.solid-checkout-card .field-input,
+.solid-checkout-card .passenger-selector span {
+  color: #111827 !important;
+}
+
+.glass .field-input::placeholder,
+.premium-card .field-input::placeholder,
+.solid-checkout-card .field-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.glass .field-input::-webkit-calendar-picker-indicator,
+.premium-card .field-input::-webkit-calendar-picker-indicator,
+.solid-checkout-card .field-input::-webkit-calendar-picker-indicator {
+  filter: invert(0) !important;
+}
+
+.passenger-control-btn {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #111827 !important;
+}
+
+.passenger-control-btn:hover:not(:disabled) {
+  background: #f5b731 !important;
+  color: #111111 !important;
+  border-color: #f5b731 !important;
+}
+
+.passenger-control-btn:disabled {
+  background: #f8fafc !important;
+  color: #cbd5e1 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Focus and input states */
+.glass .field-select-wrapper:focus-within,
+.premium-card .field-select-wrapper:focus-within,
+.solid-checkout-card .field-select-wrapper:focus-within {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2) !important;
+}
+
+/* Dropdowns in Light Cards */
+.glass .custom-dropdown-menu,
+.premium-card .custom-dropdown-menu,
+.solid-checkout-card .custom-dropdown-menu {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.glass .custom-dropdown-item,
+.premium-card .custom-dropdown-item,
+.solid-checkout-card .custom-dropdown-item {
+  color: #374151 !important;
+}
+
+.glass .custom-dropdown-item:hover,
+.premium-card .custom-dropdown-item:hover,
+.solid-checkout-card .custom-dropdown-item:hover {
+  background: #f1f5f9 !important;
+  color: #b45309 !important;
+}
+
+.glass .custom-dropdown-item.selected,
+.premium-card .custom-dropdown-item.selected,
+.solid-checkout-card .custom-dropdown-item.selected {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+}
+
+/* Disabled Search button inside Light Mode */
+.search-btn:disabled {
+  background: #2a2a2e !important;
+  color: #666666 !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  border: 1px solid #444444 !important;
+}
+
+/* Auth form field input overrides */
+.glass .auth-field input,
+.glass .auth-field textarea,
+.glass .auth-field select,
+.premium-card .auth-field input,
+.premium-card .auth-field textarea,
+.premium-card .auth-field select,
+.solid-checkout-card .auth-field input,
+.solid-checkout-card .auth-field textarea,
+.solid-checkout-card .auth-field select {
+  background: #1e1e1e !important;
+  border: 1.5px solid #f5b731 !important;
+  color: #ffffff !important;
+}
+
+.glass .auth-field input:focus,
+.glass .auth-field textarea:focus,
+.glass .auth-field select:focus,
+.premium-card .auth-field input:focus,
+.premium-card .auth-field textarea:focus,
+.premium-card .auth-field select:focus,
+.solid-checkout-card .auth-field input:focus,
+.solid-checkout-card .auth-field textarea:focus,
+.solid-checkout-card .auth-field select:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15) !important;
 }
 
 /* Leaflet geometry control buttons expanded touch targets */
