@@ -151,3 +151,19 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# Playwright test artifacts
+**/playwright-report/
+**/test-results/
+playwright-report/
+test-results/
+
+# Stale metadata compiler output
+**/*.resolved
+*.resolved
+
+# Secure local environment files
+**/.env*
+.env
+.env.*
+!.env.example

@@ -1,11 +1,67 @@
-**/node_modules
-.git
+# Dependency and cache directories
+node_modules/
+**/node_modules/
+.npm/
+.eslintcache
+
+# Build tools & cache layers
+.git/
 .gitignore
-*.md
+.dockerignore
+.turbo/
+**/.turbo/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# Workspace outputs
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+.next/
+**/.next/
+coverage/
+**/coverage/
+.nyc_output/
+
+# Testing framework boundaries
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+playwright.config.ts
+e2e/
+**/e2e/
+
+# Frontend applications & shared assets
+apps/client-app/
+apps/admin-dashboard/
+apps/driver-portal/
+packages/shared-theme/
+
+# Local Dev environment profiles
 .env
 .env.*
+**/.env*
 !.env.example
-**/dist
-**/build
-**/coverage
-**/.turbo
+
+# Large static branding assets and markdown docs
+*.md
+**/*.md
+docs/
+**/*.jpeg
+**/*.png
+**/*.jpg
+*.resolved
+**/*.resolved
+D-ride logo.jpeg
+D_RIDE_ARCHITECTURE_SUMMARY.md
+ROADMAP.md
+README.md
+deploy.sh
+cloudbuild.yaml
+docker-compose.yml
+install_docker.sh
