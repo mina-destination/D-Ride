@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from '../context/LanguageContext';
+import api from '../services/api';
 
 export default function PaymentCallbackPage() {
   const { t } = useTranslation();
@@ -10,16 +11,34 @@ export default function PaymentCallbackPage() {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
+  const processedRef = useRef(false);
 
   useEffect(() => {
+    if (processedRef.current) return;
+    processedRef.current = true;
+
     // Paymob redirects with `success=true` or `success=false`
     const isSuccess = searchParams.get('success') === 'true';
+    const bookingId = searchParams.get('bookingId');
+    const amountStr = searchParams.get('amount');
     
-    // In a real app, we might also want to verify the transaction status with our backend 
-    // by passing the order ID or transaction ID here to make sure it wasn't tampered with.
-    // For now, we trust the webhook already updated the DB and we just show the UI based on URL.
-
-    if (isSuccess) {
+    // In local development, the backend runs on localhost, so Paymob webhooks cannot reach it directly.
+    // Therefore, we confirm the transaction on the backend directly via this redirect callback.
+    if (isSuccess && bookingId) {
+      api.post('/paymob/confirm', {
+        bookingId,
+        success: true,
+        amount: amountStr ? parseFloat(amountStr) : undefined,
+      })
+      .then(() => {
+        setStatus('success');
+        addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
+      })
+      .catch((err) => {
+        console.error('Failed to confirm payment on backend:', err);
+        setStatus('failed');
+      });
+    } else if (isSuccess) {
       setStatus('success');
       addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
     } else {

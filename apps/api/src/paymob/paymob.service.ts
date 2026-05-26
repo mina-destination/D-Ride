@@ -383,7 +383,7 @@ export class PaymobService {
         'clientUrl',
         'http://localhost:5173',
       );
-      const redirectionUrl = `${clientUrl}/payment/callback`;
+      const redirectionUrl = `${clientUrl}/payment/callback?bookingId=${data.bookingId}`;
 
       const intentionRes = await axios.post(
         `${this.apiBaseUrl}/v1/intention/`,
@@ -615,7 +615,7 @@ export class PaymobService {
         'clientUrl',
         'http://localhost:5173',
       );
-      const redirectionUrl = `${clientUrl}/payment/callback`;
+      const redirectionUrl = `${clientUrl}/payment/callback?bookingId=${merchantOrderId}&amount=${data.amountEGP}`;
 
       const intentionRes = await axios.post(
         `${this.apiBaseUrl}/v1/intention/`,
@@ -738,5 +738,87 @@ export class PaymobService {
           : null,
       })),
     };
+  }
+
+  public async confirmPaymentDirect(
+    bookingId: string,
+    amountEGP?: number,
+  ): Promise<void> {
+    if (bookingId.startsWith('wallet_')) {
+      const parts = bookingId.split('_');
+      const userId = parts[1];
+
+      // Check if we already recorded this direct confirmation transaction
+      const existingTx = await this.prisma.transaction.findFirst({
+        where: {
+          userId,
+          paymentMethod: 'CARD',
+          bookingId: bookingId,
+        },
+      });
+      if (existingTx) {
+        this.logger.warn(`Wallet topup already confirmed for: ${bookingId}`);
+        return;
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.transaction.create({
+          data: {
+            paymobOrderId: Math.floor(Math.random() * 1000000),
+            amountEGP: amountEGP || 0,
+            status: PaymentStatus.SUCCESS,
+            paymentMethod: 'CARD',
+            userId: userId,
+            bookingId: bookingId, // store the wallet order id here
+          },
+        });
+
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            walletBalance: { increment: amountEGP || 0 },
+          },
+        });
+      });
+      this.logger.log(
+        `Confirmed wallet topup of ${amountEGP} EGP for user ${userId} via client redirect.`,
+      );
+    } else {
+      // Booking confirmation
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+      if (!booking || booking.status === 'CONFIRMED') {
+        return;
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: 'CONFIRMED',
+            paymentStatus: 'SUCCESS',
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            paymobOrderId: Math.floor(Math.random() * 1000000),
+            amountEGP: booking.amountEGP,
+            status: PaymentStatus.SUCCESS,
+            paymentMethod: 'CARD',
+            userId: booking.userId,
+            bookingId: bookingId,
+          },
+        });
+      });
+
+      try {
+        await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
+      } catch (err) {
+        this.logger.error('Failed to trigger updateStatus notifications', err);
+      }
+      this.logger.log(`Confirmed booking ${bookingId} via client redirect.`);
+    }
   }
 }
