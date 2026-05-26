@@ -46,6 +46,17 @@ export class PaymobController {
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 
+  @Post('confirm')
+  async confirmPayment(
+    @Body() body: { bookingId: string; success: boolean; amount?: number }
+  ) {
+    this.logger.log(`Direct confirmation request for: ${body.bookingId}, success: ${body.success}`);
+    if (body.success && body.bookingId) {
+      await this.paymobService.confirmPaymentDirect(body.bookingId, body.amount);
+    }
+    return { success: true };
+  }
+
   @Get('features')
   async getFeatures() {
     const allowCash = this.paymobService.isCashAllowed();
