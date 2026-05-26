@@ -310,11 +310,7 @@ export class RoutesService {
       }
 
       if (!pickupCp || !dropoffCp) {
-        // Coordinate proximity based matching
-        let bestPickupCp: any = null;
-        let bestPickupDistance = Infinity;
-        let bestPickupIdx = -1;
-
+        // Coordinate proximity based matching using strict sequence validator
         let optimalPickupCp: any = null;
         let optimalPickupIdx = -1;
         let optimalPickupDistance = Infinity;
@@ -325,39 +321,31 @@ export class RoutesService {
 
         let bestPairDistanceSum = Infinity;
 
+        // Loop over checkpoints and ensure we only form pairs where i < j (pickup is strictly before dropoff)
         for (let i = 0; i < checkpoints.length; i++) {
-          const cp = checkpoints[i];
-          if (!cp.location?.coordinates) continue;
-          const [cpLng, cpLat] = cp.location.coordinates;
+          const cpI = checkpoints[i];
+          if (!cpI.location?.coordinates) continue;
+          const [cpILng, cpILat] = cpI.location.coordinates;
+          const distToPickup = getDistance(pickupLng, pickupLat, cpILng, cpILat);
+          if (distToPickup > radiusMeters) continue;
 
-          const distToPickup = getDistance(pickupLng, pickupLat, cpLng, cpLat);
-          const distToDropoff = getDistance(
-            dropoffLng,
-            dropoffLat,
-            cpLng,
-            cpLat,
-          );
+          for (let j = i + 1; j < checkpoints.length; j++) {
+            const cpJ = checkpoints[j];
+            if (!cpJ.location?.coordinates) continue;
+            const [cpJLng, cpJLat] = cpJ.location.coordinates;
+            const distToDropoff = getDistance(dropoffLng, dropoffLat, cpJLng, cpJLat);
+            if (distToDropoff > radiusMeters) continue;
 
-          if (
-            bestPickupDistance <= radiusMeters &&
-            distToDropoff <= radiusMeters
-          ) {
-            const totalDist = bestPickupDistance + distToDropoff;
+            const totalDist = distToPickup + distToDropoff;
             if (totalDist < bestPairDistanceSum) {
               bestPairDistanceSum = totalDist;
-              optimalPickupCp = bestPickupCp;
-              optimalPickupIdx = bestPickupIdx;
-              optimalPickupDistance = bestPickupDistance;
-              optimalDropoffCp = cp;
-              optimalDropoffIdx = i;
+              optimalPickupCp = cpI;
+              optimalPickupIdx = i;
+              optimalPickupDistance = distToPickup;
+              optimalDropoffCp = cpJ;
+              optimalDropoffIdx = j;
               optimalDropoffDistance = distToDropoff;
             }
-          }
-
-          if (distToPickup < bestPickupDistance) {
-            bestPickupDistance = distToPickup;
-            bestPickupCp = cp;
-            bestPickupIdx = i;
           }
         }
 
@@ -371,6 +359,11 @@ export class RoutesService {
         dropoffCp = optimalDropoffCp;
         dropoffIdx = optimalDropoffIdx;
         dropoffDistance = optimalDropoffDistance;
+      }
+
+      // Final Directional Sequence Validation guard
+      if (pickupIdx === -1 || dropoffIdx === -1 || pickupIdx >= dropoffIdx) {
+        continue;
       }
 
       // Calculate timelines & leg dynamic segments
@@ -389,10 +382,7 @@ export class RoutesService {
       const dropoffPrice = Number(
         dropoffCp.priceFromStartEGP || trip.priceEGP || 0,
       );
-      let amountEGP = dropoffPrice - pickupPrice;
-      if (amountEGP <= 0) {
-        amountEGP = Number(trip.priceEGP || 0);
-      }
+      const amountEGP = dropoffPrice - pickupPrice;
 
       const mappedTrip = this.mapSearchTrip(trip);
       mappedTrip.priceEGP = amountEGP; // override trip priceEGP to be dynamic leg-based pricing

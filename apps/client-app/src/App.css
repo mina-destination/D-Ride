@@ -21,6 +21,26 @@
   border-bottom: 1px solid var(--glass-border);
 }
 
+/* Custom premium card design */
+.premium-card {
+  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
+  border: 2px solid #f5b731 !important; /* Sharp Golden Amber borders */
+  border-radius: var(--radius-2xl);
+  padding: 2.25rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  transition: var(--transition-spring);
+  position: relative;
+  overflow: hidden;
+  opacity: 1 !important;
+}
+
+[data-theme="dark"] .premium-card {
+  background: #111111 !important;
+  border: 2px solid #f5b731 !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  opacity: 1 !important;
+}
+
 .nav-logo {
   height: 48px;
   width: auto;
@@ -1110,18 +1130,20 @@
 
 .trip-card {
   display: flex;
-  background: var(--surface);
+  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
   border-radius: var(--radius-xl);
   overflow: hidden;
   transition: var(--transition-spring);
   margin-bottom: 1rem;
-  border: 1px solid var(--border);
+  border: 2px solid #f5b731 !important; /* Sharp Golden Amber border */
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  opacity: 1 !important;
 }
 
 .trip-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(245, 183, 49, 0.3);
-  box-shadow: 0 15px 40px rgba(245, 183, 49, 0.08), 0 5px 15px rgba(0, 0, 0, 0.06);
+  border-color: #f5b731 !important;
+  box-shadow: 0 15px 40px rgba(245, 183, 49, 0.25) !important;
 }
 
 .trip-card-left {
@@ -2702,8 +2724,9 @@
 }
 
 .premium-card-solid-amber {
-  background: #0e0e1b !important;
-  border: 1.5px solid #f5b731 !important;
+  background: #111111 !important; /* Stark, fully opaque Solid Deep Onyx */
+  border: 2px solid #f5b731 !important; /* Sharp Golden Amber borders */
+  opacity: 1 !important;
 }
 
 /* Stepper Connection Animations */
@@ -3129,7 +3152,7 @@
 }
 
 .alternative-trip-card {
-  opacity: 0.55 !important;
+  opacity: 1 !important; /* Stark, fully opaque under glare conditions */
   transform: scale(0.95) !important;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -3335,6 +3358,54 @@
 .partner-grid-card:hover .partner-grid-logo {
   filter: grayscale(0%) opacity(1) contrast(100%);
   transform: scale(1.06);
+}
+
+/* ============================================================
+   Outdoor Glare-Resistant & Ergonomic Touch Enhancements
+   ============================================================ */
+
+/* High-contrast solid typography weight overrides */
+.trip-card, .premium-card, .solid-checkout-card {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+.trip-card p, .premium-card p, .solid-checkout-card p,
+.trip-card span:not(.stepper-label), .premium-card span:not(.stepper-label),
+.trip-card div, .premium-card div, .solid-checkout-card div {
+  color: #ffffff !important;
+}
+
+.trip-card .trip-time, 
+.trip-card .trip-location, 
+.trip-card .trip-price, 
+.trip-card .trip-seats,
+.premium-card .premium-card-title,
+.premium-card-title,
+.checkpoint-timeline-value {
+  font-weight: 900 !important;
+}
+
+/* Leaflet geometry control buttons expanded touch targets */
+.leaflet-bar a {
+  width: 48px !important;
+  height: 48px !important;
+  line-height: 48px !important;
+  font-size: 20px !important;
+  background-color: #111111 !important; /* Stark Deep Onyx */
+  border: 2px solid #f5b731 !important; /* Sharp Golden Amber */
+  color: #f5b731 !important; /* Golden Amber symbol */
+  font-weight: 900 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 1 !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #1c1c1e !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
 }
 
 

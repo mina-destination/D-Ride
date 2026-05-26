@@ -26,6 +26,26 @@ export class TripsService {
       routeCopy = { ...trip.route };
       if (routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
         const depTime = new Date(trip.departureTime).getTime();
+
+        let pickupIdx = -1;
+        let dropoffIdx = -1;
+
+        routeCopy.checkpoints.forEach((cp: any, idx: number) => {
+          if (pickupCheckpointName && cp.name === pickupCheckpointName) {
+            pickupIdx = idx;
+          }
+          if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
+            dropoffIdx = idx;
+          }
+        });
+
+        // Directional Sequence Validation: Enforce pickup is strictly before dropoff
+        if (pickupCheckpointName && dropoffCheckpointName) {
+          if (pickupIdx === -1 || dropoffIdx === -1 || pickupIdx >= dropoffIdx) {
+            return null; // Reject this candidate
+          }
+        }
+
         routeCopy.checkpoints = routeCopy.checkpoints.map((cp: any) => {
           const minutes = cp.minutesFromStart || 0;
           const offsetMs = minutes * 60 * 1000;
@@ -36,10 +56,16 @@ export class TripsService {
           };
 
           if (pickupCheckpointName && cp.name === pickupCheckpointName) {
-            pickupCheckpoint = cpWithTimes;
+            pickupCheckpoint = {
+              ...cpWithTimes,
+              localizedDepartureTime: new Date(depTime + offsetMs).toISOString(),
+            };
           }
           if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
-            dropoffCheckpoint = cpWithTimes;
+            dropoffCheckpoint = {
+              ...cpWithTimes,
+              localizedArrivalTime: new Date(depTime + offsetMs).toISOString(),
+            };
           }
 
           return cpWithTimes;
@@ -57,10 +83,7 @@ export class TripsService {
       const dropoffPrice = Number(
         dropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0,
       );
-      let segmentPrice = dropoffPrice - pickupPrice;
-      if (segmentPrice <= 0) {
-        segmentPrice = Number(trip.priceEGP || 0);
-      }
+      const segmentPrice = dropoffPrice - pickupPrice;
       t.priceEGP = segmentPrice;
       t.amountEGP = segmentPrice;
       t.localizedPriceEGP = segmentPrice;
@@ -177,7 +200,7 @@ export class TripsService {
       },
       orderBy: { departureTime: 'asc' },
     });
-    return trips.map((t) => this.mapTrip(t));
+    return trips.map((t) => this.mapTrip(t)).filter((t) => t !== null);
   }
 
   async findById(
@@ -195,7 +218,11 @@ export class TripsService {
       },
     });
     if (!trip) throw new NotFoundException('Trip not found');
-    return this.mapTrip(trip, pickupCheckpointName, dropoffCheckpointName);
+    const result = this.mapTrip(trip, pickupCheckpointName, dropoffCheckpointName);
+    if (!result) {
+      throw new BadRequestException('Invalid route checkpoint sequence');
+    }
+    return result;
   }
 
   async searchTrips(
@@ -237,9 +264,9 @@ export class TripsService {
       orderBy: { departureTime: 'asc' },
     });
 
-    return updatedTrips.map((t) =>
-      this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName),
-    );
+    return updatedTrips
+      .map((t) => this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName))
+      .filter((t) => t !== null);
   }
 
   async create(data: any): Promise<any> {
