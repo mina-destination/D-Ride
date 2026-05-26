@@ -676,21 +676,21 @@ export default function CheckoutPage() {
                         
                       const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
                       
-                      let dotBg = 'var(--surface-hover)';
-                      let dotBorder = '3px solid var(--border)';
+                      let dotBg = '#222222';
+                      let dotBorder = '3px solid #444444';
                       let dotShadow = 'none';
                       
                       if (isPickup) {
-                        dotBg = 'var(--primary)';
-                        dotBorder = '4px solid var(--surface)';
+                        dotBg = '#f5b731';
+                        dotBorder = '4px solid #111111';
                         dotShadow = 'none';
                       } else if (isDropoff) {
                         dotBg = '#EF4444';
-                        dotBorder = '4px solid var(--surface)';
+                        dotBorder = '4px solid #111111';
                         dotShadow = 'none';
                       } else if (isActiveRoute) {
-                        dotBg = '#2b2b2b';
-                        dotBorder = '3px solid var(--primary)';
+                        dotBg = '#111111';
+                        dotBorder = '3px solid #f5b731';
                       }
                       
                       return (
@@ -720,6 +720,7 @@ export default function CheckoutPage() {
                             cursor: 'pointer',
                             transition: 'transform 0.2s'
                           }}
+                          className="p-3 touch-manipulation min-w-[48px] min-h-[48px]"
                         >
                           <div style={{
                             width: '24px',
@@ -738,15 +739,15 @@ export default function CheckoutPage() {
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
-                                background: 'var(--text-on-primary)'
+                                background: '#ffffff'
                               }} />
                             )}
                           </div>
                           
                           <span style={{ 
                             fontSize: '0.75rem', 
-                            fontWeight: (isPickup || isDropoff) ? 800 : 500, 
-                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
+                            fontWeight: (isPickup || isDropoff) ? 900 : 700, 
+                            color: isPickup ? '#f5b731' : (isDropoff ? '#EF4444' : '#ffffff'), 
                             marginTop: '6px', 
                             textAlign: 'center',
                             transition: 'all 0.2s'
@@ -756,9 +757,10 @@ export default function CheckoutPage() {
                           {cp.nameAr && (
                             <span style={{ 
                               fontSize: '0.65rem', 
-                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
+                              color: isPickup ? '#FEF3CD' : (isDropoff ? '#F87171' : '#bbbbbb'),
                               textAlign: 'center',
-                              transition: 'all 0.2s'
+                              transition: 'all 0.2s',
+                              fontWeight: 700
                             }}>
                               {cp.nameAr}
                             </span>
@@ -896,24 +898,26 @@ export default function CheckoutPage() {
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Line Route</div>
-                    <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 900 }}>Line Route</div>
+                    <div style={{ fontWeight: 900, color: '#ffffff', fontSize: '1.1rem', marginTop: '2px' }}>
                       {trip.routeId?.name || 'Standard Route'}
                     </div>
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                      {selectedPickupCheckpoint?.estimatedDepartureTime || selectedPickupCheckpoint?.minutesFromStart !== undefined ? 'Estimated Boarding Time' : 'Departure Time'}
+                    <div style={{ fontSize: '11px', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 900 }}>
+                      {selectedPickupCheckpoint?.localizedDepartureTime ? 'Localized Boarding Time' : 'Departure Time'}
                     </div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
+                    <div style={{ fontWeight: 900, color: '#f5b731', fontSize: '0.95rem', marginTop: '2px' }}>
                       {(() => {
                         const baseTime = new Date(trip.departureTime).getTime();
-                        const timeToUse = selectedPickupCheckpoint?.estimatedDepartureTime 
-                          ? new Date(selectedPickupCheckpoint.estimatedDepartureTime)
-                          : (selectedPickupCheckpoint?.minutesFromStart !== undefined
-                              ? new Date(baseTime + selectedPickupCheckpoint.minutesFromStart * 60000)
-                              : new Date(trip.departureTime));
+                        const timeToUse = selectedPickupCheckpoint?.localizedDepartureTime 
+                          ? new Date(selectedPickupCheckpoint.localizedDepartureTime)
+                          : (selectedPickupCheckpoint?.estimatedDepartureTime 
+                              ? new Date(selectedPickupCheckpoint.estimatedDepartureTime)
+                              : (selectedPickupCheckpoint?.minutesFromStart !== undefined
+                                  ? new Date(baseTime + selectedPickupCheckpoint.minutesFromStart * 60000)
+                                  : new Date(trip.departureTime)));
                         
                         return timeToUse.toLocaleString('en-US', {
                           weekday: 'short',
@@ -927,22 +931,36 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Route Checkpoints Details */}
-                  <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                  <div className="checkpoint-timeline" style={{ borderTop: '2px solid #f5b731', paddingTop: '1.25rem' }}>
                     <div className="checkpoint-timeline-item pickup">
                       <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">Selected Pickup</span>
-                      <span className="checkpoint-timeline-value">{selectedPickupCheckpoint?.name || 'Not Selected'}</span>
+                      <span className="checkpoint-timeline-label" style={{ color: '#f5b731', fontWeight: 900 }}>Selected Pickup</span>
+                      <span className="checkpoint-timeline-value" style={{ color: '#ffffff', fontWeight: 900 }}>
+                        {selectedPickupCheckpoint?.name || 'Not Selected'}
+                        {selectedPickupCheckpoint?.localizedDepartureTime && (
+                          <span style={{ fontSize: '0.8rem', color: '#f5b731', marginLeft: '8px', fontWeight: 900 }}>
+                            ({new Date(selectedPickupCheckpoint.localizedDepartureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                          </span>
+                        )}
+                      </span>
                       {selectedPickupCheckpoint?.nameAr && (
-                        <span className="checkpoint-timeline-value-ar">{selectedPickupCheckpoint.nameAr}</span>
+                        <span className="checkpoint-timeline-value-ar" style={{ color: '#FEF3CD', fontWeight: 700 }}>{selectedPickupCheckpoint.nameAr}</span>
                       )}
                     </div>
                     
                     <div className="checkpoint-timeline-item dropoff">
                       <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">Selected Dropoff</span>
-                      <span className="checkpoint-timeline-value">{selectedDropoffCheckpoint?.name || 'Not Selected'}</span>
+                      <span className="checkpoint-timeline-label" style={{ color: '#EF4444', fontWeight: 900 }}>Selected Dropoff</span>
+                      <span className="checkpoint-timeline-value" style={{ color: '#ffffff', fontWeight: 900 }}>
+                        {selectedDropoffCheckpoint?.name || 'Not Selected'}
+                        {selectedDropoffCheckpoint?.localizedArrivalTime && (
+                          <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px', fontWeight: 900 }}>
+                            ({new Date(selectedDropoffCheckpoint.localizedArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                          </span>
+                        )}
+                      </span>
                       {selectedDropoffCheckpoint?.nameAr && (
-                        <span className="checkpoint-timeline-value-ar">{selectedDropoffCheckpoint.nameAr}</span>
+                        <span className="checkpoint-timeline-value-ar" style={{ color: '#F87171', fontWeight: 700 }}>{selectedDropoffCheckpoint.nameAr}</span>
                       )}
                     </div>
                   </div>
@@ -952,26 +970,26 @@ export default function CheckoutPage() {
               {/* Reactive Seat details card */}
               {selectedSeats.length > 0 && (
                 <div className="premium-card premium-card-solid-amber">
-                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: 'var(--primary)' }}>
+                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: '#f5b731' }}>
                     <span>🎫</span> Selected Slots
                   </div>
                   
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '1rem' }}>
                     {selectedSeats.map(num => (
                       <span key={num} style={{
-                        background: 'var(--primary)',
-                        color: 'var(--text-on-primary)',
+                        background: '#f5b731',
+                        color: '#111111',
                         padding: '4px 10px',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        fontWeight: 'bold'
+                        fontWeight: '900'
                       }}>
                         Seat #{num}
                       </span>
                     ))}
                   </div>
 
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  <p style={{ fontSize: '0.8rem', color: '#ffffff', lineHeight: 1.4, margin: 0, fontWeight: 700 }}>
                     {selectedSeats.length === 1 
                       ? getSeatLabel(selectedSeats[0]).desc
                       : "Booking multiple spaces in a single transaction. All boarding passes will be dispatched simultaneously!"
@@ -987,38 +1005,45 @@ export default function CheckoutPage() {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid #444444', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Leg Segment</span>
+                    <span style={{ fontWeight: 900, color: '#f5b731', textAlign: 'right' }}>
+                      {selectedPickupCheckpoint?.name || 'Start'} ➔ {selectedDropoffCheckpoint?.name || 'End'}
+                    </span>
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Selected Slots ({selectedSeats.length})</span>
-                    <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Selected Slots ({selectedSeats.length})</span>
+                    <span style={{ fontWeight: '900', color: selectedSeats.length > 0 ? '#f5b731' : '#ffffff' }}>
                       {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : 'None'}
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Base Fare</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {Math.round(legPrice * selectedSeats.length * 0.86)} EGP
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Base Fare (Leg sub-total)</span>
+                    <span style={{ fontWeight: 900, color: '#ffffff' }}>
+                      {Math.round(legSubTotalFare * 0.86)} EGP
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {legPrice * selectedSeats.length - Math.round(legPrice * selectedSeats.length * 0.86)} EGP
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>VAT (14% Included)</span>
+                    <span style={{ fontWeight: 900, color: '#ffffff' }}>
+                      {legSubTotalFare - Math.round(legSubTotalFare * 0.86)} EGP
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Booking Fee</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>Booking Fee</span>
+                    <span style={{ fontWeight: '900', color: '#10b981' }}>
                       0.00 EGP (FREE)
                     </span>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total Fare</span>
-                    <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                      {legPrice * selectedSeats.length} EGP
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #f5b731', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff' }}>Total Leg Fare</span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: '900', color: '#f5b731' }}>
+                      {legSubTotalFare} EGP
                     </span>
                   </div>
                 </div>
@@ -1043,8 +1068,8 @@ export default function CheckoutPage() {
                   }
                 </button>
                 
-                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  <Lock size={12} /> Seats will be temporarily held for 10 minutes.
+                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: '#ffffff', fontWeight: 700 }}>
+                  <Lock size={12} style={{ color: '#f5b731' }} /> Seats will be temporarily held for 10 minutes.
                 </p>
               </div>
 
