@@ -269,10 +269,7 @@ export class BookingsService {
         const dropoffPrice = Number(
           dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
         );
-        const calcPrice = dropoffPrice - pickupPrice;
-        if (calcPrice > 0) {
-          segmentPrice = calcPrice;
-        }
+        segmentPrice = dropoffPrice - pickupPrice;
 
         pickupCheckpointData = {
           ...pickupCp,

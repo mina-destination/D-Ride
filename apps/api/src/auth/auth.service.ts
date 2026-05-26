@@ -46,19 +46,20 @@ export class AuthService {
     phone: string;
     password: string;
   }) {
+    const { name, email, phone, password } = data;
     const existing = await this.prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email },
     });
     if (existing) {
       throw new ConflictException('Email already registered');
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = await this.prisma.user.create({
       data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
+        name,
+        email,
+        phone,
         password: hashedPassword,
         role: Role.PASSENGER,
       },

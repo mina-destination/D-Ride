@@ -13,31 +13,31 @@ import 'leaflet/dist/leaflet.css';
 const blueIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [32, 52],
-  iconAnchor: [16, 52],
-  popupAnchor: [1, -44],
-  shadowSize: [52, 52],
-  className: 'p-3 touch-manipulation'
+  iconSize: [48, 78],
+  iconAnchor: [24, 78],
+  popupAnchor: [1, -70],
+  shadowSize: [78, 78],
+  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
 });
 
 const goldIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [32, 52],
-  iconAnchor: [16, 52],
-  popupAnchor: [1, -44],
-  shadowSize: [52, 52],
-  className: 'p-3 touch-manipulation'
+  iconSize: [48, 78],
+  iconAnchor: [24, 78],
+  popupAnchor: [1, -70],
+  shadowSize: [78, 78],
+  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
 });
 
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [32, 52],
-  iconAnchor: [16, 52],
-  popupAnchor: [1, -44],
-  shadowSize: [52, 52],
-  className: 'p-3 touch-manipulation'
+  iconSize: [48, 78],
+  iconAnchor: [24, 78],
+  popupAnchor: [1, -70],
+  shadowSize: [78, 78],
+  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
 });
 
 function MapFocusController({ coords }: { coords: [number, number] | null }) {
@@ -82,6 +82,7 @@ export default function CheckoutPage() {
   };
 
   const legPrice = getLegPrice();
+  const legSubTotalFare = legPrice * selectedSeats.length;
 
   const cairoTransitHubs = [
     { name: 'Ramses Station', nameAr: 'محطة رمسيس', lat: 30.0626, lng: 31.2468 },
@@ -282,7 +283,7 @@ export default function CheckoutPage() {
     const isSelected = selectedSeats.includes(num);
     const isLocked = trip?.lockedSeats?.includes(num);
     
-    let className = "bus-seat";
+    let className = "bus-seat min-w-[48px] min-h-[48px]";
     if (isOccupied) className += " occupied";
     if (isSelected) className += " selected";
     if (isLocked) className += " locked-luggage";
@@ -290,7 +291,7 @@ export default function CheckoutPage() {
     return (
       <div 
         key={num}
-        className="p-3 touch-manipulation"
+        className="p-3 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
         style={{ cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer' }}
         onClick={() => {
           if (!isLocked && !isOccupied) {
@@ -306,13 +307,15 @@ export default function CheckoutPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            minWidth: '48px',
+            minHeight: '48px'
           }}
           title={isLocked ? "Luggage Hold Area (Locked by Admin)" : isOccupied ? `Seat #${num} (Occupied)` : `Seat #${num}`}
         >
-          <div className="bus-seat-inner">
+          <div className="bus-seat-inner" style={{ minWidth: '40px', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isLocked ? (
-              <span style={{ display: 'flex', alignItems: 'center' }} title="Luggage Hold Area"><Briefcase size={14} /></span>
+              <span style={{ display: 'flex', alignItems: 'center', color: '#f5b731' }} title="Luggage Hold Area"><Briefcase size={16} /></span>
             ) : (
               <>
                 {/* Premium Cushion & Stitching */}
@@ -320,9 +323,9 @@ export default function CheckoutPage() {
                 <div className="bus-seat-stitching" />
                 <span style={{ 
                   zIndex: 2, 
-                  fontSize: '0.78rem', 
-                  fontWeight: 'bold', 
-                  color: isSelected ? 'black' : 'var(--text-secondary)'
+                  fontSize: '0.85rem', 
+                  fontWeight: '900', 
+                  color: isSelected ? '#111111' : '#ffffff'
                 }}>
                   {num}
                 </span>
