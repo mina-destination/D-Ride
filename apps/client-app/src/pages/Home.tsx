@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -6,7 +6,7 @@ import { routesAPI, partnersAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe } from 'lucide-react';
 
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cleanGoogleDriveLink } from '../utils/google-drive';
@@ -19,17 +19,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Autopan hook to fit the polyline path perfectly
-function RouteMapAutopan({ path }: { path: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (path.length > 0) {
-      const bounds = L.latLngBounds(path);
-      map.fitBounds(bounds, { padding: [30, 30] });
-    }
-  }, [path, map]);
-  return null;
-}
 
 function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
   useMapEvents({
@@ -43,9 +32,7 @@ function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
 function RouteSearchForm() {
   const { isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
-  const [fromCity, setFromCity] = useState<string>('');
   const [fromStation, setFromStation] = useState<any>(null);
-  const [toCity, setToCity] = useState<string>('');
   const [toStation, setToStation] = useState<any>(null);
   const [travelDate, setTravelDate] = useState<string>(() => {
     const today = new Date();
@@ -54,25 +41,17 @@ function RouteSearchForm() {
   const [passengers, setPassengers] = useState<number>(1);
   const navigate = useNavigate();
 
-  // Custom states for premium dropdown UX
-  const [openDropdown, setOpenDropdown] = useState<'fromCity' | 'fromStation' | 'toCity' | 'toStation' | null>(null);
+  // Swvl-style autocomplete states
+  const [fromQuery, setFromQuery] = useState('');
+  const [toQuery, setToQuery] = useState('');
+  const [fromFocused, setFromFocused] = useState(false);
+  const [toFocused, setToFocused] = useState(false);
   const [isSwapped, setIsSwapped] = useState(false);
   const [shakeFields, setShakeFields] = useState(false);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState<boolean>(false);
-
-  // Autocomplete Filter States
-  const [fromStationSearch, setFromStationSearch] = useState('');
-  const [toStationSearch, setToStationSearch] = useState('');
-
-  useEffect(() => {
-    if (openDropdown !== 'fromStation') {
-      setFromStationSearch('');
-    }
-    if (openDropdown !== 'toStation') {
-      setToStationSearch('');
-    }
-  }, [openDropdown]);
+  const fromRef = useRef<HTMLDivElement>(null);
+  const toRef = useRef<HTMLDivElement>(null);
 
   // Map modal states
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -125,19 +104,23 @@ function RouteSearchForm() {
   const handleConfirmMapSelection = () => {
     if (nearestStationFromMap) {
       const cp = nearestStationFromMap.checkpoint;
-      const routeName = nearestStationFromMap.route.name;
-      const parts = routeName.split(/\s+to\s+/i);
+      const route = nearestStationFromMap.route;
+      const parts = route.name.split(/\s+to\s+/i);
       const fromC = parts.length >= 1 ? parts[0].trim() : '';
-      const city = fromC.charAt(0).toUpperCase() + fromC.slice(1);
-      
-      setFromCity(city);
-      setFromStation({
+      const city = cp.city || fromC.charAt(0).toUpperCase() + fromC.slice(1);
+
+      const station = {
         name: cp.name,
         nameAr: cp.nameAr,
         lat: cp.location.coordinates[1],
         lng: cp.location.coordinates[0],
-        routeId: nearestStationFromMap.route.id
-      });
+        city: city,
+        routeId: route._id || route.id,
+        order: cp.order
+      };
+
+      setFromStation(station);
+      setFromQuery(isRtl ? (station.nameAr || station.name) : station.name);
       setIsMapModalOpen(false);
     }
   };
@@ -147,146 +130,126 @@ function RouteSearchForm() {
     routesAPI.getAll().then((data) => setRoutes(data)).catch(console.error);
   }, []);
 
-  // Click outside to close custom select dropdowns
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (openDropdown && !(e.target as HTMLElement).closest('.custom-select-container')) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [openDropdown]);
-
-  // Parse cities and stations from routes list
-  const parsedData = useMemo(() => {
-    const fromCitiesSet = new Set<string>();
-    const toCitiesSet = new Set<string>();
-    const fromStationsMap: Record<string, any[]> = {};
-    const toStationsMap: Record<string, any[]> = {};
-
+  // Parse all checkpoints for autocomplete index
+  const allCheckpoints = useMemo(() => {
+    const list: any[] = [];
     routes.forEach((route) => {
-      const parts = route.name.split(/\s+to\s+/i);
-      if (parts.length < 2) return;
-      const fromC = parts[0].trim();
-      const toC = parts[1].trim();
-
-      const fCity = fromC.charAt(0).toUpperCase() + fromC.slice(1);
-      const tCity = toC.charAt(0).toUpperCase() + toC.slice(1);
-
-      fromCitiesSet.add(fCity);
-      toCitiesSet.add(tCity);
-
-      if (!fromStationsMap[fCity]) fromStationsMap[fCity] = [];
-      if (!toStationsMap[tCity]) toStationsMap[tCity] = [];
-
       const checkpoints = route.checkpoints || [];
-      if (checkpoints.length >= 2) {
-        const mid = Math.ceil(checkpoints.length / 2);
-        checkpoints.forEach((cp: any, idx: number) => {
-          const coords = cp.location?.coordinates;
-          if (!coords) return;
-          const station = {
-            name: cp.name,
-            nameAr: cp.nameAr,
-            lat: coords[1],
-            lng: coords[0],
-            routeId: route._id || route.id,
-          };
-          if (idx < mid) {
-            if (!fromStationsMap[fCity].some((s) => s.name === station.name)) {
-              fromStationsMap[fCity].push(station);
-            }
-          } else {
-            if (!toStationsMap[tCity].some((s) => s.name === station.name)) {
-              toStationsMap[tCity].push(station);
-            }
-          }
+      const parts = route.name.split(/\s+to\s+/i);
+      const defaultFromCity = parts[0] ? parts[0].trim() : '';
+
+      checkpoints.forEach((cp: any) => {
+        const coords = cp.location?.coordinates;
+        if (!coords) return;
+
+        list.push({
+          name: cp.name,
+          nameAr: cp.nameAr || cp.name,
+          lat: coords[1],
+          lng: coords[0],
+          city: cp.city || defaultFromCity.charAt(0).toUpperCase() + defaultFromCity.slice(1),
+          routeId: route._id || route.id,
+          order: cp.order || 0,
         });
-      } else {
-        const coords = route.path?.coordinates || [];
-        if (coords.length >= 2) {
-          const startCoords = coords[0];
-          const endCoords = coords[coords.length - 1];
-
-          const startStation = {
-            name: `${fCity} Start Point`,
-            lat: startCoords[1],
-            lng: startCoords[0],
-            routeId: route._id || route.id,
-          };
-          const endStation = {
-            name: `${tCity} End Point`,
-            lat: endCoords[1],
-            lng: endCoords[0],
-            routeId: route._id || route.id,
-          };
-
-          if (!fromStationsMap[fCity].some((s) => s.name === startStation.name)) {
-            fromStationsMap[fCity].push(startStation);
-          }
-          if (!toStationsMap[tCity].some((s) => s.name === endStation.name)) {
-            toStationsMap[tCity].push(endStation);
-          }
-        }
-      }
+      });
     });
-
-    return {
-      fromCities: Array.from(fromCitiesSet),
-      toCities: Array.from(toCitiesSet),
-      fromStationsMap,
-      toStationsMap,
-    };
+    // Remove duplicate stops if they have same name and coordinates
+    const seen = new Set<string>();
+    return list.filter((item) => {
+      const key = `${item.name}-${item.lat}-${item.lng}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [routes]);
 
-  const availableFromStations = fromCity ? (parsedData.fromStationsMap[fromCity] || []) : [];
-  const availableToStations = toCity ? (parsedData.toStationsMap[toCity] || []) : [];
+  // Compute reachable stops once a boarding stop is chosen
+  const reachableDropoffStations = useMemo(() => {
+    if (!fromStation) return [];
 
-  const handleFromCityChange = (city: string) => {
-    setFromCity(city);
-    const stations = parsedData.fromStationsMap[city] || [];
-    if (stations.length > 0) {
-      setFromStation(stations[0]);
-    } else {
-      setFromStation(null);
-    }
-  };
+    // Find all route checkpoints that match the selected fromStation's name
+    const matches = allCheckpoints.filter(cp => cp.name === fromStation.name);
 
-  const handleToCityChange = (city: string) => {
-    setToCity(city);
-    const stations = parsedData.toStationsMap[city] || [];
-    if (stations.length > 0) {
-      setToStation(stations[0]);
-    } else {
-      setToStation(null);
-    }
-  };
+    // Get all checkpoints from the same routes that have an order > the matched pickup's order
+    const list: any[] = [];
+    matches.forEach(pickup => {
+      routes.forEach(route => {
+        const rId = route._id || route.id;
+        if (rId === pickup.routeId) {
+          const checkpoints = route.checkpoints || [];
+          const parts = route.name.split(/\s+to\s+/i);
+          const defaultFromCity = parts[0] ? parts[0].trim() : '';
 
-  const handleFromStationChange = (stationName: string) => {
-    const station = availableFromStations.find((s) => s.name === stationName);
-    setFromStation(station || null);
-  };
+          checkpoints.forEach((cp: any) => {
+            if (cp.order > pickup.order) {
+              const coords = cp.location?.coordinates;
+              if (coords) {
+                list.push({
+                  name: cp.name,
+                  nameAr: cp.nameAr || cp.name,
+                  lat: coords[1],
+                  lng: coords[0],
+                  city: cp.city || defaultFromCity.charAt(0).toUpperCase() + defaultFromCity.slice(1),
+                  routeId: rId,
+                  order: cp.order,
+                });
+              }
+            }
+          });
+        }
+      });
+    });
 
-  const handleToStationChange = (stationName: string) => {
-    const station = availableToStations.find((s) => s.name === stationName);
-    setToStation(station || null);
-  };
+    // Deduplicate by name and coordinates
+    const seen = new Set<string>();
+    return list.filter((item) => {
+      const key = `${item.name}-${item.lat}-${item.lng}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [fromStation, allCheckpoints, routes]);
+
+  // Filter boarding suggestions based on search query
+  const filteredFromSuggestions = useMemo(() => {
+    const query = fromQuery.toLowerCase().trim();
+    if (!query) return allCheckpoints;
+    return allCheckpoints.filter(
+      (cp) =>
+        cp.name.toLowerCase().includes(query) ||
+        cp.nameAr.toLowerCase().includes(query) ||
+        cp.city.toLowerCase().includes(query)
+    );
+  }, [fromQuery, allCheckpoints]);
+
+  // Filter destination suggestions based on search query
+  const filteredToSuggestions = useMemo(() => {
+    const query = toQuery.toLowerCase().trim();
+    const sourceList = fromStation ? reachableDropoffStations : allCheckpoints;
+    if (!query) return sourceList;
+    return sourceList.filter(
+      (cp) =>
+        cp.name.toLowerCase().includes(query) ||
+        cp.nameAr.toLowerCase().includes(query) ||
+        cp.city.toLowerCase().includes(query)
+    );
+  }, [toQuery, fromStation, reachableDropoffStations, allCheckpoints]);
 
   const handleSwap = () => {
     setIsSwapped(prev => !prev);
     setShakeFields(true);
     setTimeout(() => setShakeFields(false), 300);
 
-    const tempCity = fromCity;
     const tempStation = fromStation;
-    setFromCity(toCity);
+    const tempQuery = fromQuery;
+
     setFromStation(toStation);
-    setToCity(tempCity);
+    setFromQuery(toQuery);
     setToStation(tempStation);
+    setToQuery(tempQuery);
   };
 
-  const canSearch = fromCity && fromStation && toCity && toStation;
+  const canSearch = fromStation && toStation;
 
   const handleSearch = () => {
     if (canSearch) {
@@ -294,9 +257,11 @@ function RouteSearchForm() {
       const pickupLng = fromStation.lng;
       const dropoffLat = toStation.lat;
       const dropoffLng = toStation.lng;
-      
+      const pickupCity = fromStation.city;
+      const dropoffCity = toStation.city;
+
       navigate(
-        `/search?pickupLat=${pickupLat}&pickupLng=${pickupLng}&dropoffLat=${dropoffLat}&dropoffLng=${dropoffLng}&date=${travelDate}&passengers=${passengers}`
+        `/search?pickupLat=${pickupLat}&pickupLng=${pickupLng}&dropoffLat=${dropoffLat}&dropoffLng=${dropoffLng}&date=${travelDate}&passengers=${passengers}&pickupCity=${encodeURIComponent(pickupCity)}&dropoffCity=${encodeURIComponent(dropoffCity)}`
       );
     }
   };
@@ -305,11 +270,11 @@ function RouteSearchForm() {
     const R = 6371; // Earth radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
+    const a =
       Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
   };
 
@@ -325,16 +290,8 @@ function RouteSearchForm() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        
-        // Flatten all stations
-        const allFromStations: any[] = [];
-        Object.entries(parsedData.fromStationsMap).forEach(([city, stations]) => {
-          stations.forEach((station: any) => {
-            allFromStations.push({ ...station, city });
-          });
-        });
 
-        if (allFromStations.length === 0) {
+        if (allCheckpoints.length === 0) {
           setLocationNotice(isRtl ? "⚠️ لا توجد محطات معرفة حالياً" : "⚠️ No stations defined in the platform currently.");
           setLocationLoading(false);
           setTimeout(() => setLocationNotice(null), 5000);
@@ -342,25 +299,25 @@ function RouteSearchForm() {
         }
 
         // Find nearest
-        let nearestStation = allFromStations[0];
+        let nearestStation = allCheckpoints[0];
         let minDistance = getDistanceKm(latitude, longitude, nearestStation.lat, nearestStation.lng);
 
-        for (let i = 1; i < allFromStations.length; i++) {
-          const dist = getDistanceKm(latitude, longitude, allFromStations[i].lat, allFromStations[i].lng);
+        for (let i = 1; i < allCheckpoints.length; i++) {
+          const dist = getDistanceKm(latitude, longitude, allCheckpoints[i].lat, allCheckpoints[i].lng);
           if (dist < minDistance) {
             minDistance = dist;
-            nearestStation = allFromStations[i];
+            nearestStation = allCheckpoints[i];
           }
         }
 
         // Set state
-        setFromCity(nearestStation.city);
         setFromStation(nearestStation);
-        
+        setFromQuery(isRtl ? (nearestStation.nameAr || nearestStation.name) : nearestStation.name);
+
         const matchedMsg = isRtl
           ? `📍 تم العثور على أقرب محطة: ${nearestStation.nameAr || nearestStation.name} في ${nearestStation.city} (على بعد ${minDistance.toFixed(2)} كم)`
           : `📍 Matched nearest station: ${nearestStation.name} in ${nearestStation.city} (${minDistance.toFixed(2)} km away)`;
-        
+
         setLocationNotice(matchedMsg);
         setLocationLoading(false);
         setTimeout(() => setLocationNotice(null), 5000);
@@ -373,16 +330,49 @@ function RouteSearchForm() {
     );
   };
 
+  // Click outside listener for inputs
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (fromRef.current && !fromRef.current.contains(e.target as Node)) {
+        setFromFocused(false);
+      }
+      if (toRef.current && !toRef.current.contains(e.target as Node)) {
+        setToFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   const polylinePath: [number, number][] = [];
   if (fromStation) polylinePath.push([fromStation.lat, fromStation.lng]);
   if (toStation) polylinePath.push([toStation.lat, toStation.lng]);
 
+  const groupedFrom = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filteredFromSuggestions.forEach(cp => {
+      const city = cp.city || 'Other';
+      if (!groups[city]) groups[city] = [];
+      groups[city].push(cp);
+    });
+    return groups;
+  }, [filteredFromSuggestions]);
+
+  const groupedTo = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filteredToSuggestions.forEach(cp => {
+      const city = cp.city || 'Other';
+      if (!groups[city]) groups[city] = [];
+      groups[city].push(cp);
+    });
+    return groups;
+  }, [filteredToSuggestions]);
+
   return (
     <>
       <div className="from-to-container">
-        {/* DETECT LOCATION ACTION */}
+        {/* DETECT LOCATION & MAP ACTIONS */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: locationNotice ? '0.5rem' : '1rem' }}>
-          {/* DETECT LOCATION ACTION */}
           <button
             type="button"
             onClick={handleDetectLocation}
@@ -404,12 +394,6 @@ function RouteSearchForm() {
               transition: 'all 0.2s',
               opacity: locationLoading ? 0.7 : 1
             }}
-            onMouseEnter={(e) => {
-              if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.18)';
-            }}
-            onMouseLeave={(e) => {
-              if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
-            }}
           >
             {locationLoading ? (
               <div className="btn-loading-spinner" />
@@ -419,7 +403,6 @@ function RouteSearchForm() {
             {isRtl ? 'تحديد أقرب محطة' : 'Detect Station'}
           </button>
 
-          {/* SELECT ON MAP ACTION */}
           <button
             type="button"
             onClick={handleOpenMapPicker}
@@ -438,12 +421,6 @@ function RouteSearchForm() {
               fontWeight: 'bold',
               cursor: 'pointer',
               transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)';
             }}
           >
             <Map size={14} />
@@ -468,119 +445,95 @@ function RouteSearchForm() {
           </div>
         )}
 
-        {/* ROW 1: FROM */}
-        <div className="from-to-row">
-          <div className="from-to-field">
-            <label className="field-label">{isRtl ? 'من مدينة' : 'From City'}</label>
+        {/* BOARDING (FROM) AUTOCOMPLETE */}
+        <div className="from-to-row" style={{ position: 'relative', zIndex: 30 }} ref={fromRef}>
+          <div className="from-to-field full-width">
+            <label className="field-label">{isRtl ? 'من أين ستركب؟' : 'Where are you boarding?'}</label>
             <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" />
-              <div 
-                className="custom-select-trigger"
-                onClick={() => setOpenDropdown(openDropdown === 'fromCity' ? null : 'fromCity')}
-              >
-                <span>{fromCity || (isRtl ? 'اختر المدينة' : 'Select City')}</span>
-                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'fromCity' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-              </div>
-              {openDropdown === 'fromCity' && (
-                <div className="custom-dropdown-menu">
-                  <div 
-                    className="custom-dropdown-item"
-                    onClick={() => {
-                      handleFromCityChange('');
-                      setOpenDropdown(null);
-                    }}
-                  >
-                    {isRtl ? 'اختر المدينة' : 'Select City'}
-                  </div>
-                  {parsedData.fromCities.map((city) => (
-                    <div 
-                      key={city}
-                      className={`custom-dropdown-item ${fromCity === city ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleFromCityChange(city);
-                        setOpenDropdown(null);
-                      }}
-                    >
-                      {city}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="from-to-field">
-            <label className="field-label">{isRtl ? 'من محطة' : 'From Station'}</label>
-            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`} style={{ opacity: !fromCity ? 0.6 : 1 }}>
-              <Map size={16} className="field-icon-left" />
-              <div 
-                className="custom-select-trigger"
-                onClick={() => {
-                  if (fromCity) {
-                    setOpenDropdown(openDropdown === 'fromStation' ? null : 'fromStation');
+              <input
+                type="text"
+                className="field-input"
+                placeholder={isRtl ? 'ابحث عن محطة ركوب...' : 'Search boarding stop...'}
+                value={fromQuery}
+                onFocus={() => {
+                  setFromFocused(true);
+                  setToFocused(false);
+                }}
+                onChange={(e) => {
+                  setFromQuery(e.target.value);
+                  if (fromStation && e.target.value !== (isRtl ? (fromStation.nameAr || fromStation.name) : fromStation.name)) {
+                    setFromStation(null);
                   }
                 }}
-                style={{ cursor: !fromCity ? 'not-allowed' : 'pointer' }}
-              >
-                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
-                  {fromStation 
-                    ? (isRtl ? (fromStation.nameAr || fromStation.name) : fromStation.name)
-                    : (isRtl ? 'اختر المحطة' : 'Select Station')
-                  }
-                </span>
-                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'fromStation' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-              </div>
-              {openDropdown === 'fromStation' && fromCity && (
-                <div className="custom-dropdown-menu">
-                  <input
-                    type="text"
-                    placeholder={isRtl ? "ابحث عن محطة..." : "Search station..."}
-                    value={fromStationSearch}
-                    onChange={(e) => setFromStationSearch(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="dropdown-search-input"
-                    style={{
-                      width: 'calc(100% - 16px)',
-                      margin: '8px',
-                      padding: '8px 10px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '6px',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8rem',
-                      outline: 'none'
-                    }}
-                  />
-                  <div 
-                    className="custom-dropdown-item"
-                    onClick={() => {
-                      setFromStation(null);
-                      setOpenDropdown(null);
-                    }}
-                  >
-                    {isRtl ? 'اختر المحطة' : 'Select Station'}
-                  </div>
-                  {availableFromStations
-                    .filter(station => {
-                      const query = fromStationSearch.toLowerCase();
-                      return (
-                        station.name.toLowerCase().includes(query) ||
-                        (station.nameAr && station.nameAr.includes(query))
-                      );
-                    })
-                    .map((station) => (
-                      <div 
-                        key={station.name}
-                        className={`custom-dropdown-item ${fromStation?.name === station.name ? 'selected' : ''}`}
-                        onClick={() => {
-                          handleFromStationChange(station.name);
-                          setOpenDropdown(null);
-                        }}
-                      >
-                        {isRtl ? (station.nameAr || station.name) : station.name}
+                style={{ paddingLeft: '36px', paddingRight: '36px' }}
+              />
+              {fromQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromQuery('');
+                    setFromStation(null);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+
+              {fromFocused && (
+                <div className="custom-dropdown-menu" style={{ width: '100%' }}>
+                  {Object.keys(groupedFrom).length === 0 ? (
+                    <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
+                      {isRtl ? 'لا توجد محطات مطابقة' : 'No matching stations'}
+                    </div>
+                  ) : (
+                    Object.entries(groupedFrom).map(([city, items]) => (
+                      <div key={city}>
+                        <div style={{
+                          padding: '6px 12px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          color: 'var(--primary)',
+                          background: 'rgba(245, 183, 49, 0.05)',
+                          borderBottom: '1px solid var(--border)',
+                          letterSpacing: '0.05em'
+                        }}>
+                          🏙️ {city}
+                        </div>
+                        {items.map((cp: any) => (
+                          <div
+                            key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
+                            className={`custom-dropdown-item ${fromStation?.name === cp.name ? 'selected' : ''}`}
+                            onClick={() => {
+                              setFromStation(cp);
+                              setFromQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
+                              setFromFocused(false);
+                              // Trigger auto-focus / overlay on dropoff if empty
+                              if (!toStation) {
+                                setTimeout(() => setToFocused(true), 100);
+                              }
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))
-                  }
+                  )}
                 </div>
               )}
             </div>
@@ -594,119 +547,100 @@ function RouteSearchForm() {
           </button>
         </div>
 
-        {/* ROW 2: TO */}
-        <div className="from-to-row">
-          <div className="from-to-field">
-            <label className="field-label">{isRtl ? 'إلى مدينة' : 'To City'}</label>
+        {/* DESTINATION (TO) AUTOCOMPLETE */}
+        <div className="from-to-row" style={{ position: 'relative', zIndex: 20 }} ref={toRef}>
+          <div className="from-to-field full-width">
+            <label className="field-label">{isRtl ? 'إلى أين تريد الذهاب؟' : 'Where are you going?'}</label>
             <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
               <MapPin size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
-              <div 
-                className="custom-select-trigger"
-                onClick={() => setOpenDropdown(openDropdown === 'toCity' ? null : 'toCity')}
-              >
-                <span>{toCity || (isRtl ? 'اختر المدينة' : 'Select City')}</span>
-                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'toCity' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-              </div>
-              {openDropdown === 'toCity' && (
-                <div className="custom-dropdown-menu">
-                  <div 
-                    className="custom-dropdown-item"
-                    onClick={() => {
-                      handleToCityChange('');
-                      setOpenDropdown(null);
-                    }}
-                  >
-                    {isRtl ? 'اختر المدينة' : 'Select City'}
-                  </div>
-                  {parsedData.toCities.map((city) => (
-                    <div 
-                      key={city}
-                      className={`custom-dropdown-item ${toCity === city ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleToCityChange(city);
-                        setOpenDropdown(null);
-                      }}
-                    >
-                      {city}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="from-to-field">
-            <label className="field-label">{isRtl ? 'إلى محطة' : 'To Station'}</label>
-            <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`} style={{ opacity: !toCity ? 0.6 : 1 }}>
-              <Map size={16} className="field-icon-left" style={{ color: '#EF4444' }} />
-              <div 
-                className="custom-select-trigger"
-                onClick={() => {
-                  if (toCity) {
-                    setOpenDropdown(openDropdown === 'toStation' ? null : 'toStation');
+              <input
+                type="text"
+                className="field-input"
+                placeholder={
+                  !fromStation
+                    ? (isRtl ? 'اختر محطة الركوب أولاً' : 'Select boarding stop first')
+                    : (isRtl ? 'ابحث عن وجهتك...' : 'Search destination stop...')
+                }
+                value={toQuery}
+                onFocus={() => {
+                  setToFocused(true);
+                  setFromFocused(false);
+                }}
+                onChange={(e) => {
+                  setToQuery(e.target.value);
+                  if (toStation && e.target.value !== (isRtl ? (toStation.nameAr || toStation.name) : toStation.name)) {
+                    setToStation(null);
                   }
                 }}
-                style={{ cursor: !toCity ? 'not-allowed' : 'pointer' }}
-              >
-                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
-                  {toStation 
-                    ? (isRtl ? (toStation.nameAr || toStation.name) : toStation.name)
-                    : (isRtl ? 'اختر المحطة' : 'Select Station')
-                  }
-                </span>
-                <span style={{ fontSize: '8px', opacity: 0.6, transform: openDropdown === 'toStation' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-              </div>
-              {openDropdown === 'toStation' && toCity && (
-                <div className="custom-dropdown-menu">
-                  <input
-                    type="text"
-                    placeholder={isRtl ? "ابحث عن محطة..." : "Search station..."}
-                    value={toStationSearch}
-                    onChange={(e) => setToStationSearch(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="dropdown-search-input"
-                    style={{
-                      width: 'calc(100% - 16px)',
-                      margin: '8px',
-                      padding: '8px 10px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '6px',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8rem',
-                      outline: 'none'
-                    }}
-                  />
-                  <div 
-                    className="custom-dropdown-item"
-                    onClick={() => {
-                      setToStation(null);
-                      setOpenDropdown(null);
-                    }}
-                  >
-                    {isRtl ? 'اختر المحطة' : 'Select Station'}
-                  </div>
-                  {availableToStations
-                    .filter(station => {
-                      const query = toStationSearch.toLowerCase();
-                      return (
-                        station.name.toLowerCase().includes(query) ||
-                        (station.nameAr && station.nameAr.includes(query))
-                      );
-                    })
-                    .map((station) => (
-                      <div 
-                        key={station.name}
-                        className={`custom-dropdown-item ${toStation?.name === station.name ? 'selected' : ''}`}
-                        onClick={() => {
-                          handleToStationChange(station.name);
-                          setOpenDropdown(null);
-                        }}
-                      >
-                        {isRtl ? (station.nameAr || station.name) : station.name}
+                style={{ paddingLeft: '36px', paddingRight: '36px' }}
+              />
+              {toQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setToQuery('');
+                    setToStation(null);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+
+              {toFocused && (
+                <div className="custom-dropdown-menu" style={{ width: '100%' }}>
+                  {!fromStation && (
+                    <div className="custom-dropdown-item" style={{ color: 'var(--primary)', cursor: 'default', fontWeight: 600, fontSize: '0.8rem', textAlign: 'center', padding: '12px' }}>
+                      {isRtl ? '⚠️ الرجاء اختيار محطة الركوب أولاً لمعرفة الوجهات المتاحة' : '⚠️ Please select a boarding stop first to see reachable destinations'}
+                    </div>
+                  )}
+                  {fromStation && Object.keys(groupedTo).length === 0 ? (
+                    <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
+                      {isRtl ? 'لا توجد محطات تالية متاحة' : 'No reachable stops found'}
+                    </div>
+                  ) : (
+                    fromStation && Object.entries(groupedTo).map(([city, items]) => (
+                      <div key={city}>
+                        <div style={{
+                          padding: '6px 12px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          color: '#EF4444',
+                          background: 'rgba(239, 68, 68, 0.03)',
+                          borderBottom: '1px solid var(--border)',
+                          letterSpacing: '0.05em'
+                        }}>
+                          🏙️ {city}
+                        </div>
+                        {items.map((cp: any) => (
+                          <div
+                            key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
+                            className={`custom-dropdown-item ${toStation?.name === cp.name ? 'selected' : ''}`}
+                            onClick={() => {
+                              setToStation(cp);
+                              setToQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
+                              setToFocused(false);
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))
-                  }
+                  )}
                 </div>
               )}
             </div>
@@ -772,52 +706,7 @@ function RouteSearchForm() {
         </div>
       </div>
 
-      {/* Mini map preview when both pins are set */}
-      {fromStation && toStation && (
-        <div
-          style={{
-            height: '180px',
-            borderRadius: '12px',
-            overflow: 'hidden',
-            margin: '1rem 0',
-            border: '1px solid var(--border)',
-            zIndex: 1,
-          }}
-        >
-          <MapContainer
-            center={[(fromStation.lat + toStation.lat) / 2, (fromStation.lng + toStation.lng) / 2]}
-            zoom={11}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={[fromStation.lat, fromStation.lng]}>
-              <Popup>📍 Pickup: {fromStation.name}</Popup>
-            </Marker>
-            <Marker position={[toStation.lat, toStation.lng]}>
-              <Popup>🏁 Dropoff: {toStation.name}</Popup>
-            </Marker>
-            <Polyline
-              positions={[
-                [fromStation.lat, fromStation.lng],
-                [toStation.lat, toStation.lng],
-              ]}
-              color="var(--primary)"
-              weight={3}
-              dashArray="8 6"
-              opacity={0.6}
-            />
-            <RouteMapAutopan
-              path={[
-                [fromStation.lat, fromStation.lng],
-                [toStation.lat, toStation.lng],
-              ]}
-            />
-          </MapContainer>
-        </div>
-      )}
+
 
       <button
         className="search-btn"

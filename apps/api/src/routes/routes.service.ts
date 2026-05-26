@@ -156,91 +156,269 @@ export class RoutesService {
     return closest;
   }
 
+  private matchesCity(cp: any, city: string): boolean {
+    if (!city) return false;
+    const c = city.toLowerCase().trim();
+    const cpCity = cp.city ? String(cp.city).toLowerCase().trim() : '';
+    const cpName = cp.name ? String(cp.name).toLowerCase().trim() : '';
+    const cpNameAr = cp.nameAr ? String(cp.nameAr).trim() : '';
+    return (
+      cpCity.includes(c) ||
+      c.includes(cpCity) ||
+      cpName.includes(c) ||
+      c.includes(cpName) ||
+      cpNameAr.includes(city.trim())
+    );
+  }
+
+  private mapSearchTrip(trip: any) {
+    const t = { ...trip, _id: trip.id };
+    if (trip.route) {
+      t.routeId = { ...trip.route, _id: trip.route.id };
+      delete t.route;
+    }
+    if (trip.vehicle) {
+      let make = '';
+      let model = trip.vehicle.model;
+      if (trip.vehicle.model && trip.vehicle.model.includes('::')) {
+        const parts = trip.vehicle.model.split('::');
+        make = parts[0];
+        model = parts[1];
+      } else if (trip.vehicle.model) {
+        const spaceIdx = trip.vehicle.model.indexOf(' ');
+        if (spaceIdx !== -1) {
+          make = trip.vehicle.model.substring(0, spaceIdx);
+          model = trip.vehicle.model.substring(spaceIdx + 1);
+        } else {
+          make = 'D-Ride';
+          model = trip.vehicle.model;
+        }
+      }
+      t.vehicleId = {
+        ...trip.vehicle,
+        _id: trip.vehicle.id,
+        make,
+        model,
+        licensePlate: trip.vehicle.plateNumber,
+        status: trip.vehicle.isActive ? 'ACTIVE' : 'OUT_OF_SERVICE',
+      };
+      delete t.vehicle;
+    }
+    if (trip.driver) {
+      t.driverId = { ...trip.driver, _id: trip.driver.id };
+      delete t.driverId.password;
+      delete t.driver;
+    }
+    return t;
+  }
+
   async smartSearch(
     pickupLng: number,
     pickupLat: number,
     dropoffLng: number,
     dropoffLat: number,
     radiusMeters: number = 5000,
+    pickupCity?: string,
+    dropoffCity?: string,
   ): Promise<any[]> {
     this.logger.log(
-      `Smart search: pickup=[${pickupLat},${pickupLng}] dropoff=[${dropoffLat},${dropoffLng}] radius=${radiusMeters}m`,
+      `Smart search: pickup=[${pickupLat},${pickupLng}] (${pickupCity}) dropoff=[${dropoffLat},${dropoffLng}] (${dropoffCity}) radius=${radiusMeters}m`,
     );
 
-    const routes = await this.prisma.route.findMany();
+    const trips = await this.prisma.trip.findMany({
+      where: {
+        status: {
+          in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'],
+        },
+      },
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
+    });
+
     const results: any[] = [];
 
-    for (const route of routes) {
-      const checkpoints = route.checkpoints as any[];
-      if (!checkpoints || checkpoints.length < 2) continue;
+    for (const trip of trips) {
+      const checkpoints = (trip.route.checkpoints as any[]) || [];
+      if (checkpoints.length < 2) continue;
 
-      let bestPickupCp: any = null;
-      let bestPickupDistance = Infinity;
-      let bestPickupIdx = -1;
+      let pickupCp: any = null;
+      let dropoffCp: any = null;
+      let pickupIdx = -1;
+      let dropoffIdx = -1;
+      let pickupDistance = 0;
+      let dropoffDistance = 0;
 
-      let optimalPickupCp: any = null;
-      let optimalPickupIdx = -1;
-      let optimalPickupDistance = Infinity;
+      if (pickupCity && dropoffCity) {
+        // Try matching by city name first (search all matching, pick best directional pair)
+        const pickupMatches: number[] = [];
+        const dropoffMatches: number[] = [];
+        checkpoints.forEach((cp, idx) => {
+          if (this.matchesCity(cp, pickupCity)) pickupMatches.push(idx);
+          if (this.matchesCity(cp, dropoffCity)) dropoffMatches.push(idx);
+        });
 
-      let optimalDropoffCp: any = null;
-      let optimalDropoffIdx = -1;
-      let optimalDropoffDistance = Infinity;
+        // Find best directional pair (pickup before dropoff)
+        let foundCityMatch = false;
+        for (const pIdx of pickupMatches) {
+          for (const dIdx of dropoffMatches) {
+            if (pIdx < dIdx) {
+              pickupIdx = pIdx;
+              dropoffIdx = dIdx;
+              foundCityMatch = true;
+              break;
+            }
+          }
+          if (foundCityMatch) break;
+        }
 
-      let bestPairDistanceSum = Infinity;
+        if (foundCityMatch) {
+          pickupCp = checkpoints[pickupIdx];
+          dropoffCp = checkpoints[dropoffIdx];
 
-      // Single-pass O(N) dynamic programming sweep over checkpoints to find the optimal pair
-      for (let i = 0; i < checkpoints.length; i++) {
-        const cp = checkpoints[i];
-        if (!cp.location?.coordinates) continue;
-        const [cpLng, cpLat] = cp.location.coordinates;
+          if (pickupLng && pickupLat) {
+            pickupDistance = getDistance(
+              pickupLng,
+              pickupLat,
+              pickupCp.location.coordinates[0],
+              pickupCp.location.coordinates[1],
+            );
+          }
+          if (dropoffLng && dropoffLat) {
+            dropoffDistance = getDistance(
+              dropoffLng,
+              dropoffLat,
+              dropoffCp.location.coordinates[0],
+              dropoffCp.location.coordinates[1],
+            );
+          }
+        }
+        // If city match failed, fall through to coordinate matching below
+        if (
+          !foundCityMatch &&
+          pickupLng &&
+          pickupLat &&
+          dropoffLng &&
+          dropoffLat
+        ) {
+          // Fall through to coordinate-based matching
+        } else if (!foundCityMatch) {
+          continue;
+        }
+      }
 
-        const distToPickup = getDistance(pickupLng, pickupLat, cpLng, cpLat);
-        const distToDropoff = getDistance(dropoffLng, dropoffLat, cpLng, cpLat);
+      if (!pickupCp || !dropoffCp) {
+        // Coordinate proximity based matching
+        let bestPickupCp: any = null;
+        let bestPickupDistance = Infinity;
+        let bestPickupIdx = -1;
 
-        // Try to form a pair using the best pickup checkpoint seen so far and the current checkpoint as dropoff
-        if (bestPickupDistance <= radiusMeters && distToDropoff <= radiusMeters) {
-          const totalDist = bestPickupDistance + distToDropoff;
-          if (totalDist < bestPairDistanceSum) {
-            bestPairDistanceSum = totalDist;
-            optimalPickupCp = bestPickupCp;
-            optimalPickupIdx = bestPickupIdx;
-            optimalPickupDistance = bestPickupDistance;
-            optimalDropoffCp = cp;
-            optimalDropoffIdx = i;
-            optimalDropoffDistance = distToDropoff;
+        let optimalPickupCp: any = null;
+        let optimalPickupIdx = -1;
+        let optimalPickupDistance = Infinity;
+
+        let optimalDropoffCp: any = null;
+        let optimalDropoffIdx = -1;
+        let optimalDropoffDistance = Infinity;
+
+        let bestPairDistanceSum = Infinity;
+
+        for (let i = 0; i < checkpoints.length; i++) {
+          const cp = checkpoints[i];
+          if (!cp.location?.coordinates) continue;
+          const [cpLng, cpLat] = cp.location.coordinates;
+
+          const distToPickup = getDistance(pickupLng, pickupLat, cpLng, cpLat);
+          const distToDropoff = getDistance(
+            dropoffLng,
+            dropoffLat,
+            cpLng,
+            cpLat,
+          );
+
+          if (
+            bestPickupDistance <= radiusMeters &&
+            distToDropoff <= radiusMeters
+          ) {
+            const totalDist = bestPickupDistance + distToDropoff;
+            if (totalDist < bestPairDistanceSum) {
+              bestPairDistanceSum = totalDist;
+              optimalPickupCp = bestPickupCp;
+              optimalPickupIdx = bestPickupIdx;
+              optimalPickupDistance = bestPickupDistance;
+              optimalDropoffCp = cp;
+              optimalDropoffIdx = i;
+              optimalDropoffDistance = distToDropoff;
+            }
+          }
+
+          if (distToPickup < bestPickupDistance) {
+            bestPickupDistance = distToPickup;
+            bestPickupCp = cp;
+            bestPickupIdx = i;
           }
         }
 
-        // Update the best pickup candidate seen so far (its index is automatically < any subsequent index)
-        if (distToPickup < bestPickupDistance) {
-          bestPickupDistance = distToPickup;
-          bestPickupCp = cp;
-          bestPickupIdx = i;
+        if (bestPairDistanceSum === Infinity) {
+          continue;
         }
+
+        pickupCp = optimalPickupCp;
+        pickupIdx = optimalPickupIdx;
+        pickupDistance = optimalPickupDistance;
+        dropoffCp = optimalDropoffCp;
+        dropoffIdx = optimalDropoffIdx;
+        dropoffDistance = optimalDropoffDistance;
       }
 
-      // If we successfully paired checkpoints within the search radius
-      if (bestPairDistanceSum !== Infinity) {
-        results.push({
-          route: { ...route, _id: route.id },
-          pickupCheckpoint: {
-            ...optimalPickupCp,
-            distanceMeters: Math.round(optimalPickupDistance),
-            index: optimalPickupIdx,
-          },
-          dropoffCheckpoint: {
-            ...optimalDropoffCp,
-            distanceMeters: Math.round(optimalDropoffDistance),
-            index: optimalDropoffIdx,
-          },
-          totalWalkingDistance: Math.round(bestPairDistanceSum),
-        });
+      // Calculate timelines & leg dynamic segments
+      const baseDepartureTimeMs = new Date(trip.departureTime).getTime();
+      const pickupOffsetMs = (pickupCp.minutesFromStart || 0) * 60 * 1000;
+      const dropoffOffsetMs = (dropoffCp.minutesFromStart || 0) * 60 * 1000;
+
+      const localizedDepartureTime = new Date(
+        baseDepartureTimeMs + pickupOffsetMs,
+      ).toISOString();
+      const localizedArrivalTime = new Date(
+        baseDepartureTimeMs + dropoffOffsetMs,
+      ).toISOString();
+
+      const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+      const dropoffPrice = Number(
+        dropoffCp.priceFromStartEGP || trip.priceEGP || 0,
+      );
+      let amountEGP = dropoffPrice - pickupPrice;
+      if (amountEGP <= 0) {
+        amountEGP = Number(trip.priceEGP || 0);
       }
+
+      const mappedTrip = this.mapSearchTrip(trip);
+      mappedTrip.priceEGP = amountEGP; // override trip priceEGP to be dynamic leg-based pricing
+      mappedTrip.amountEGP = amountEGP;
+      mappedTrip.localizedPriceEGP = amountEGP;
+
+      results.push({
+        trip: mappedTrip,
+        pickupCheckpoint: {
+          ...pickupCp,
+          distanceMeters: Math.round(pickupDistance),
+          index: pickupIdx,
+          localizedDepartureTime,
+        },
+        dropoffCheckpoint: {
+          ...dropoffCp,
+          distanceMeters: Math.round(dropoffDistance),
+          index: dropoffIdx,
+          localizedArrivalTime,
+        },
+        amountEGP,
+        totalWalkingDistance: Math.round(pickupDistance + dropoffDistance),
+      });
     }
 
-    // Sort by total walking distance (closest combined pickup+dropoff first)
     results.sort((a, b) => a.totalWalkingDistance - b.totalWalkingDistance);
-
     return results;
   }
 

@@ -51,6 +51,13 @@ class StopDto {
 
   @IsOptional()
   minutesFromStart?: number;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsOptional()
+  priceFromStartEGP?: number;
 }
 
 class PathDto {

@@ -50,18 +50,18 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
   const origins = allowedOriginsEnv
     ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
-    : (isProduction
-        ? [
-            'https://passenger.dride.app',
-            'https://driver.dride.app',
-            'https://admin.dride.app',
-          ]
-        : [
-            'http://localhost:5173', // passenger client app
-            'http://localhost:5174', // driver portal
-            'http://localhost:5175', // admin dashboard
-            'http://localhost:3001',
-          ]);
+    : isProduction
+      ? [
+          'https://passenger.dride.app',
+          'https://driver.dride.app',
+          'https://admin.dride.app',
+        ]
+      : [
+          'http://localhost:5173', // passenger client app
+          'http://localhost:5174', // driver portal
+          'http://localhost:5175', // admin dashboard
+          'http://localhost:3001',
+        ];
 
   app.enableCors({
     origin: origins,

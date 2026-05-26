@@ -460,6 +460,28 @@ function MapPanController({ panTo }: { panTo: [number, number] | null }) {
   return null;
 }
 
+// Helper: reverse geocode to extract city name from coordinates
+async function reverseGeocodeCity(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
+    const data = await res.json();
+    if (data?.address) {
+      return data.address.city || data.address.town || data.address.state || data.address.county || '';
+    }
+  } catch { /* ignore */ }
+  return '';
+}
+
+// Helper: compute straight-line distance in meters between two [lng,lat] coordinate pairs
+function haversineDistance(lng1: number, lat1: number, lng2: number, lat2: number): number {
+  const R = 6371000;
+  const toRad = (deg: number) => deg * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function RoutesPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -491,6 +513,9 @@ export function RoutesPage() {
   const [cpQuery, setCpQuery] = useState('');
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
   const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
+
+  // Quick Fill pricing state
+  const [quickFillTotal, setQuickFillTotal] = useState<number>(0);
 
   const fetchRoutes = async () => {
     try {
@@ -625,7 +650,9 @@ export function RoutesPage() {
       type: 'START' as const,
       bufferTimeMinutes: 5,
       geofenceRadiusMeters: 100,
-      minutesFromStart: 0
+      minutesFromStart: 0,
+      city: '',
+      priceFromStartEGP: 0
     };
     setCheckpoints(prev => {
       const updated = [...prev];
@@ -639,6 +666,17 @@ export function RoutesPage() {
     });
     setStartQuery(name);
     setMapPanTo([lat, lng]);
+    // Auto-fill city from reverse geocoding
+    reverseGeocodeCity(lat, lng).then(city => {
+      if (city) {
+        setCheckpoints(prev => {
+          const updated = [...prev];
+          const si = updated.findIndex(c => c.type === 'START');
+          if (si !== -1 && !updated[si].city) updated[si] = { ...updated[si], city };
+          return updated;
+        });
+      }
+    });
   };
 
   const addEndTerminal = (name: string, lng: number, lat: number) => {
@@ -649,7 +687,9 @@ export function RoutesPage() {
       type: 'END' as const,
       bufferTimeMinutes: 0,
       geofenceRadiusMeters: 100,
-      minutesFromStart: 0
+      minutesFromStart: 0,
+      city: '',
+      priceFromStartEGP: 0
     };
     setCheckpoints(prev => {
       const updated = [...prev];
@@ -663,6 +703,17 @@ export function RoutesPage() {
     });
     setEndQuery(name);
     setMapPanTo([lat, lng]);
+    // Auto-fill city from reverse geocoding
+    reverseGeocodeCity(lat, lng).then(city => {
+      if (city) {
+        setCheckpoints(prev => {
+          const updated = [...prev];
+          const ei = updated.findIndex(c => c.type === 'END');
+          if (ei !== -1 && !updated[ei].city) updated[ei] = { ...updated[ei], city };
+          return updated;
+        });
+      }
+    });
   };
 
   const handleMapClick = (lat: number, lng: number) => {
@@ -685,7 +736,9 @@ export function RoutesPage() {
         type: 'CHECKPOINT' as const,
         bufferTimeMinutes: 2,
         geofenceRadiusMeters: 50,
-        minutesFromStart: 0
+        minutesFromStart: 0,
+        city: '',
+        priceFromStartEGP: 0
       };
       setCheckpoints(prev => {
         const updated = [...prev];
@@ -1103,7 +1156,7 @@ export function RoutesPage() {
                 <div style={{ padding: '12px', background: 'var(--surface-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <h4 style={{ margin: 0, fontSize: '13px' }}>Stops & Checkpoints Customization</h4>
                   <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    Plot checkpoints on the map, then rename, buffer, and configure geofences for each stop below.
+                    Plot checkpoints on the map, then configure city, pricing, and timing for each stop. Cities & times are auto-filled from geocoding.
                   </p>
                 </div>
 
@@ -1114,28 +1167,100 @@ export function RoutesPage() {
                     value={cpQuery}
                     onChange={setCpQuery}
                     onSelect={(name, lng, lat) => {
+                      // Auto-calculate minutesFromStart based on distance interpolation
+                      let autoMinutes = 0;
+                      const existingCps = [...checkpoints];
+                      const endIdx = existingCps.findIndex(c => c.type === 'END');
+                      const insertIdx = endIdx !== -1 ? endIdx : existingCps.length;
+                      if (insertIdx > 0) {
+                        const prevCp = existingCps[insertIdx - 1];
+                        const prevCoords = prevCp.location.coordinates;
+                        const distToPrev = haversineDistance(prevCoords[0], prevCoords[1], lng, lat);
+                        // Estimate ~2 minutes per km
+                        const estimatedMins = Math.round((distToPrev / 1000) * 2);
+                        autoMinutes = (prevCp.minutesFromStart || 0) + Math.max(1, estimatedMins);
+                      }
+
                       const newCp = {
                         name,
                         location: { type: 'Point', coordinates: [lng, lat] },
                         order: checkpoints.length + 1,
                         type: 'CHECKPOINT' as const,
                         bufferTimeMinutes: 2,
-                        geofenceRadiusMeters: 50
+                        geofenceRadiusMeters: 50,
+                        city: '',
+                        priceFromStartEGP: 0,
+                        minutesFromStart: autoMinutes
                       };
                       setCheckpoints(prev => {
                         const updated = [...prev];
-                        const endIdx = updated.findIndex(c => c.type === 'END');
-                        if (endIdx !== -1) updated.splice(endIdx, 0, newCp);
+                        const eIdx = updated.findIndex(c => c.type === 'END');
+                        if (eIdx !== -1) updated.splice(eIdx, 0, newCp);
                         else updated.push(newCp);
                         return syncCheckpointsList(updated);
                       });
                       setCpQuery('');
                       message.success('Checkpoint added!');
+                      // Auto-fill city
+                      reverseGeocodeCity(lat, lng).then(city => {
+                        if (city) {
+                          setCheckpoints(prev => {
+                            const updated = [...prev];
+                            const cpIdx = updated.findIndex(c => c.name === name && !c.city);
+                            if (cpIdx !== -1) updated[cpIdx] = { ...updated[cpIdx], city };
+                            return updated;
+                          });
+                        }
+                      });
                     }}
                   />
                 </div>
 
-                <div style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+                {/* QUICK FILL PRICING ASSISTANT */}
+                <div style={{ 
+                  padding: '10px 12px', 
+                  background: 'rgba(245, 183, 49, 0.06)', 
+                  border: '1px dashed rgba(245, 183, 49, 0.3)', 
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary-color)', whiteSpace: 'nowrap' }}>⚡ Quick Fill Pricing:</span>
+                  <Input
+                    type="number"
+                    placeholder="Total route fare (EGP)"
+                    value={quickFillTotal || ''}
+                    onChange={e => setQuickFillTotal(parseFloat(e.target.value) || 0)}
+                    size="small"
+                    style={{ width: '140px' }}
+                    min={0}
+                  />
+                  <Button
+                    size="small"
+                    type="primary"
+                    disabled={!quickFillTotal || checkpoints.length < 2}
+                    onClick={() => {
+                      const totalTime = checkpoints[checkpoints.length - 1]?.minutesFromStart || 1;
+                      setCheckpoints(prev => {
+                        return prev.map(cp => {
+                          const ratio = (cp.minutesFromStart || 0) / totalTime;
+                          return { ...cp, priceFromStartEGP: Math.round(quickFillTotal * ratio) };
+                        });
+                      });
+                      message.success(`Prices auto-distributed across ${checkpoints.length} stops!`);
+                    }}
+                    style={{ background: 'var(--primary-color)', border: 'none', color: '#000', fontWeight: 700, fontSize: '11px' }}
+                  >
+                    Auto-Fill Prices
+                  </Button>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    Distributes proportionally based on each stop's time from start
+                  </span>
+                </div>
+
+                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
                   {checkpoints.map((cp, idx) => {
                     const isStart = cp.type === 'START';
                     const isEnd = cp.type === 'END';
@@ -1176,6 +1301,11 @@ export function RoutesPage() {
                             <span style={{ color: isStart ? '#10B981' : isEnd ? '#EF4444' : 'var(--text-primary)' }}>
                               {isStart ? 'Start Terminal' : isEnd ? 'End Destination' : `Stop #${idx}`}
                             </span>
+                            {cp.city && (
+                              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--primary-color)', background: 'rgba(245,183,49,0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                                {cp.city}
+                              </span>
+                            )}
                           </span>
 
                           <Space size="small">
@@ -1204,85 +1334,170 @@ export function RoutesPage() {
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <Input 
-                            value={cp.name}
-                            onChange={e => {
-                              const updated = [...checkpoints];
-                              updated[idx].name = e.target.value;
-                              setCheckpoints(updated);
-                            }}
-                            placeholder="Stop Name (English)"
-                            size="small"
-                          />
+                          {/* Row 1: Names */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            <Input 
+                              value={cp.name}
+                              onChange={e => {
+                                const updated = [...checkpoints];
+                                updated[idx].name = e.target.value;
+                                setCheckpoints(updated);
+                              }}
+                              placeholder="Stop Name (English)"
+                              size="small"
+                            />
+                            <Input 
+                              value={cp.nameAr || ''}
+                              onChange={e => {
+                                const updated = [...checkpoints];
+                                updated[idx].nameAr = e.target.value;
+                                setCheckpoints(updated);
+                              }}
+                              placeholder="اسم المحطة (Arabic)"
+                              size="small"
+                              style={{ textAlign: 'right', direction: 'rtl' }}
+                            />
+                          </div>
 
-                          <Input 
-                            value={cp.nameAr || ''}
-                            onChange={e => {
-                              const updated = [...checkpoints];
-                              updated[idx].nameAr = e.target.value;
-                              setCheckpoints(updated);
-                            }}
-                            placeholder="Stop Name (Arabic) - optional"
-                            size="small"
-                            style={{ textAlign: 'right', direction: 'rtl' }}
-                          />
+                          {/* Row 2: CITY + PRICE (promoted first-class fields) */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#F5B731', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                🏙️ City Leg
+                              </span>
+                              <Input 
+                                placeholder="e.g. Cairo, Alexandria"
+                                value={cp.city || ''}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].city = e.target.value;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                style={{ borderColor: cp.city ? '#10B981' : undefined }}
+                              />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                💵 Cumulative Fare (EGP)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={cp.priceFromStartEGP ?? 0}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].priceFromStartEGP = parseFloat(e.target.value) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={0}
+                                style={{ borderColor: (cp.priceFromStartEGP > 0) ? '#10B981' : undefined }}
+                              />
+                            </div>
+                          </div>
 
-                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '2px' }}>
-                             <div>
-                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                 <Clock size={10} /> Buffer (mins)
-                               </span>
-                               <Input 
-                                 type="number"
-                                 value={cp.bufferTimeMinutes}
-                                 onChange={e => {
-                                   const updated = [...checkpoints];
-                                   updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
-                                   setCheckpoints(updated);
-                                 }}
-                                 size="small"
-                                 min={0}
-                               />
-                             </div>
-                             <div>
-                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                 <Clock size={10} /> From Start (m)
-                               </span>
-                               <Input 
-                                 type="number"
-                                 value={isStart ? 0 : (cp.minutesFromStart ?? 0)}
-                                 onChange={e => {
-                                   const updated = [...checkpoints];
-                                   updated[idx].minutesFromStart = parseInt(e.target.value, 10) || 0;
-                                   setCheckpoints(updated);
-                                 }}
-                                 size="small"
-                                 min={0}
-                                 disabled={isStart}
-                               />
-                             </div>
-                             <div>
-                               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                 <Radio size={10} /> Geofence (m)
-                               </span>
-                               <Input 
-                                 type="number"
-                                 value={cp.geofenceRadiusMeters}
-                                 onChange={e => {
-                                   const updated = [...checkpoints];
-                                   updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
-                                   setCheckpoints(updated);
-                                 }}
-                                 size="small"
-                                 min={10}
-                               />
-                             </div>
-                           </div>
+                          {/* Row 3: Timing + Geofence (secondary config) */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                            <div>
+                              <span style={{ fontSize: '9px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '2px' }}>
+                                <Clock size={9} /> From Start (min)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={isStart ? 0 : (cp.minutesFromStart ?? 0)}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].minutesFromStart = parseInt(e.target.value, 10) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={0}
+                                disabled={isStart}
+                              />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '9px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '2px' }}>
+                                <Clock size={9} /> Buffer (min)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={cp.bufferTimeMinutes}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].bufferTimeMinutes = parseInt(e.target.value, 10) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={0}
+                              />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '9px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '2px' }}>
+                                <Radio size={9} /> Geofence (m)
+                              </span>
+                              <Input 
+                                type="number"
+                                value={cp.geofenceRadiusMeters}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].geofenceRadiusMeters = parseInt(e.target.value, 10) || 0;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                min={10}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {/* FARE LADDER SUMMARY */}
+                {checkpoints.length >= 2 && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: 'rgba(16, 185, 129, 0.04)', 
+                    border: '1px solid rgba(16, 185, 129, 0.15)', 
+                    borderRadius: '8px' 
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', color: '#10B981' }}>
+                      📊 Fare Ladder Summary
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {checkpoints.map((cp, idx) => {
+                        const prevCp = idx > 0 ? checkpoints[idx - 1] : null;
+                        const segmentPrice = prevCp ? ((cp.priceFromStartEGP || 0) - (prevCp.priceFromStartEGP || 0)) : 0;
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+                            <span style={{ 
+                              width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                              background: cp.type === 'START' ? '#10B981' : cp.type === 'END' ? '#EF4444' : '#3B82F6',
+                              color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                            }}>
+                              {cp.type === 'START' ? 'S' : cp.type === 'END' ? 'E' : idx}
+                            </span>
+                            <span style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {cp.name} {cp.city ? `(${cp.city})` : ''}
+                            </span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              +{cp.minutesFromStart || 0}m
+                            </span>
+                            <span style={{ fontWeight: 800, color: '#10B981', whiteSpace: 'nowrap', minWidth: '55px', textAlign: 'right' }}>
+                              {cp.priceFromStartEGP || 0} EGP
+                            </span>
+                            {prevCp && segmentPrice > 0 && (
+                              <span style={{ fontSize: '9px', color: 'var(--primary-color)', background: 'rgba(245,183,49,0.1)', padding: '1px 5px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
+                                +{segmentPrice} leg
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

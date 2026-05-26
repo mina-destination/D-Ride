@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 
@@ -6,7 +11,11 @@ import { TripStatus } from '@prisma/client';
 export class TripsService {
   constructor(private prisma: PrismaService) {}
 
-  private mapTrip(trip: any, pickupCheckpointName?: string, dropoffCheckpointName?: string) {
+  private mapTrip(
+    trip: any,
+    pickupCheckpointName?: string,
+    dropoffCheckpointName?: string,
+  ) {
     if (!trip) return null;
 
     let routeCopy: any = null;
@@ -41,6 +50,20 @@ export class TripsService {
     const t = { ...trip, _id: trip.id };
     if (routeCopy) {
       t.routeId = { ...routeCopy, _id: routeCopy.id };
+    }
+
+    if (pickupCheckpoint && dropoffCheckpoint) {
+      const pickupPrice = Number(pickupCheckpoint.priceFromStartEGP || 0);
+      const dropoffPrice = Number(
+        dropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0,
+      );
+      let segmentPrice = dropoffPrice - pickupPrice;
+      if (segmentPrice <= 0) {
+        segmentPrice = Number(trip.priceEGP || 0);
+      }
+      t.priceEGP = segmentPrice;
+      t.amountEGP = segmentPrice;
+      t.localizedPriceEGP = segmentPrice;
     }
 
     if (pickupCheckpoint) {
@@ -82,10 +105,10 @@ export class TripsService {
       };
       delete t.vehicle;
     }
-    
+
     // Cleanup mapped properties
     delete t.route;
-    
+
     if (trip.driver) {
       t.driverId = { ...trip.driver, _id: trip.driver.id };
       delete t.driverId.password;
@@ -214,7 +237,9 @@ export class TripsService {
       orderBy: { departureTime: 'asc' },
     });
 
-    return updatedTrips.map((t) => this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName));
+    return updatedTrips.map((t) =>
+      this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName),
+    );
   }
 
   async create(data: any): Promise<any> {
@@ -311,7 +336,9 @@ export class TripsService {
     if (!trip) throw new NotFoundException('Trip not found');
 
     if (trip.driverId && trip.driverId !== driverId) {
-      throw new ForbiddenException('You are not authorized to update this trip status');
+      throw new ForbiddenException(
+        'You are not authorized to update this trip status',
+      );
     }
 
     const validStatuses = [

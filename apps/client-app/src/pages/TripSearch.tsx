@@ -75,6 +75,8 @@ export default function TripSearchPage() {
   const pickupLng = searchParams.get('pickupLng');
   const dropoffLat = searchParams.get('dropoffLat');
   const dropoffLng = searchParams.get('dropoffLng');
+  const pickupCity = searchParams.get('pickupCity') || undefined;
+  const dropoffCity = searchParams.get('dropoffCity') || undefined;
   const date = searchParams.get('date') || undefined;
   const passengers = searchParams.get('passengers') ? parseInt(searchParams.get('passengers')!, 10) : 1;
 
@@ -203,37 +205,25 @@ export default function TripSearchPage() {
         parseFloat(pickupLat!),
         parseFloat(pickupLng!),
         parseFloat(dropoffLat!),
-        parseFloat(dropoffLng!)
+        parseFloat(dropoffLng!),
+        undefined,
+        pickupCity,
+        dropoffCity
       )
-        .then(async (smartRoutes: any[]) => {
-          // smartRoutes is list of { route, pickupCheckpoint, dropoffCheckpoint, totalWalkingDistance }
-          const tripPromises = smartRoutes.map((sr) =>
-            tripsAPI.search(
-              sr.route._id || sr.route.id,
-              date,
-              sr.pickupCheckpoint.name,
-              sr.dropoffCheckpoint.name
-            )
-              .then((tripsData) =>
-                tripsData.map((trip: any) => ({
-                  ...trip,
-                  route: sr.route,
-                  pickupCheckpoint: {
-                    ...sr.pickupCheckpoint,
-                    ...trip.pickupCheckpoint,
-                  },
-                  dropoffCheckpoint: {
-                    ...sr.dropoffCheckpoint,
-                    ...trip.dropoffCheckpoint,
-                  },
-                  totalWalkingDistance: sr.totalWalkingDistance,
-                }))
-              )
-              .catch(() => [])
-          );
-
-          const nestedTrips = await Promise.all(tripPromises);
-          let allTrips = nestedTrips.flat();
+        .then((smartRoutes: any[]) => {
+          let allTrips = smartRoutes.map((sr: any) => ({
+            ...sr.trip,
+            route: sr.trip.routeId || sr.trip.route,
+            pickupCheckpoint: {
+              ...sr.pickupCheckpoint,
+              ...sr.trip?.pickupCheckpoint,
+            },
+            dropoffCheckpoint: {
+              ...sr.dropoffCheckpoint,
+              ...sr.trip?.dropoffCheckpoint,
+            },
+            totalWalkingDistance: sr.totalWalkingDistance,
+          }));
 
           // Filter by passengers count if needed
           if (passengers > 1) {
@@ -519,12 +509,12 @@ export default function TripSearchPage() {
                           const dropoffCp = routeCps.find((cp: any) => cp.name === selectedDropoffCpName) || trip.dropoffCheckpoint;
 
                           // Resolve estimated departure time (boarding time)
-                          const pickupEstimatedDepTime = pickupCp?.estimatedDepartureTime || (pickupCp?.minutesFromStart !== undefined
+                          const pickupEstimatedDepTime = pickupCp?.localizedDepartureTime || pickupCp?.estimatedDepartureTime || (pickupCp?.minutesFromStart !== undefined
                             ? new Date(baseTripDepTime + pickupCp.minutesFromStart * 60 * 1000).toISOString()
                             : undefined);
 
                           // Resolve estimated arrival time (destination arrival time)
-                          const dropoffEstimatedArrTime = dropoffCp?.estimatedArrivalTime || (dropoffCp?.minutesFromStart !== undefined
+                          const dropoffEstimatedArrTime = dropoffCp?.localizedArrivalTime || dropoffCp?.estimatedArrivalTime || (dropoffCp?.minutesFromStart !== undefined
                             ? new Date(baseTripDepTime + dropoffCp.minutesFromStart * 60 * 1000).toISOString()
                             : undefined);
 
@@ -663,7 +653,9 @@ export default function TripSearchPage() {
                                   <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
                                     <div className="trip-time-block">
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{depTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Boarding Stop</span>
+                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {pickupCp?.name || 'Boarding Stop'}
+                                      </span>
                                     </div>
                                     
                                     <div className="trip-timeline" style={{ margin: '0 0.75rem' }}>
@@ -675,7 +667,9 @@ export default function TripSearchPage() {
                                     
                                     <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Dropoff Stop</span>
+                                      <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {dropoffCp?.name || 'Dropoff Stop'}
+                                      </span>
                                     </div>
                                   </div>
 
@@ -704,7 +698,9 @@ export default function TripSearchPage() {
 
                                 {/* Right Column: Pricing & Booking */}
                                 <div className="trip-card-right" style={{ padding: '1.5rem 1.25rem', minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                                  <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 800 }}>{trip.priceEGP} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>EGP</span></div>
+                                  <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+                                    {trip.amountEGP ?? trip.localizedPriceEGP ?? trip.priceEGP} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>EGP</span>
+                                  </div>
                                   <div className="trip-seats" style={{ fontSize: '0.8rem', color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)' }}>
                                     <span className="seat-icon">💺</span> {seatsLeft} seats left
                                   </div>
@@ -870,6 +866,32 @@ export default function TripSearchPage() {
                                         dotBg = 'rgba(245, 183, 49, 0.2)';
                                         dotBorder = '3px solid var(--primary)';
                                       }
+
+                                      // Calculate segment price delta relative to currently selected pickup & dropoff
+                                      const currentPickupPrice = pickupIdx >= 0 ? (currentRoute.checkpoints[pickupIdx].priceFromStartEGP || 0) : 0;
+                                      const currentDropoffPrice = dropoffIdx >= 0 ? (currentRoute.checkpoints[dropoffIdx].priceFromStartEGP || 0) : 0;
+                                      const currentPrice = currentDropoffPrice - currentPickupPrice;
+
+                                      let priceDeltaLabel = '';
+                                      if (cpIdx !== pickupIdx && cpIdx !== dropoffIdx) {
+                                        if (cpIdx < dropoffIdx) {
+                                          // If selected as pickup
+                                          const nextPickupPrice = cp.priceFromStartEGP || 0;
+                                          const nextPrice = currentDropoffPrice - nextPickupPrice;
+                                          const delta = nextPrice - currentPrice;
+                                          if (delta !== 0) {
+                                            priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
+                                          }
+                                        } else if (cpIdx > pickupIdx) {
+                                          // If selected as dropoff
+                                          const nextDropoffPrice = cp.priceFromStartEGP || 0;
+                                          const nextPrice = nextDropoffPrice - currentPickupPrice;
+                                          const delta = nextPrice - currentPrice;
+                                          if (delta !== 0) {
+                                            priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
+                                          }
+                                        }
+                                      }
                                       
                                       return (
                                         <div 
@@ -901,6 +923,25 @@ export default function TripSearchPage() {
                                           }}
                                           className="checkpoint-step"
                                         >
+                                          {/* City Legend Badge */}
+                                          {cp.city && (
+                                            <span style={{
+                                              position: 'absolute',
+                                              top: '-16px',
+                                              fontSize: '0.6rem',
+                                              fontWeight: 800,
+                                              background: 'rgba(245, 183, 49, 0.1)',
+                                              color: 'var(--primary)',
+                                              padding: '1px 5px',
+                                              borderRadius: '4px',
+                                              whiteSpace: 'nowrap',
+                                              zIndex: 2,
+                                              pointerEvents: 'none'
+                                            }}>
+                                              🏙️ {cp.city}
+                                            </span>
+                                          )}
+
                                           <div style={{
                                             width: '24px',
                                             height: '24px',
@@ -941,6 +982,21 @@ export default function TripSearchPage() {
                                               transition: 'all 0.2s'
                                             }}>
                                               {cp.nameAr}
+                                            </span>
+                                          )}
+
+                                          {priceDeltaLabel && (
+                                            <span style={{
+                                              fontSize: '0.65rem',
+                                              fontWeight: 'bold',
+                                              color: priceDeltaLabel.startsWith('+') ? 'var(--danger)' : 'var(--success)',
+                                              background: priceDeltaLabel.startsWith('+') ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                                              padding: '1px 4px',
+                                              borderRadius: '3px',
+                                              marginTop: '2px',
+                                              whiteSpace: 'nowrap'
+                                            }}>
+                                              {priceDeltaLabel}
                                             </span>
                                           )}
                                         </div>

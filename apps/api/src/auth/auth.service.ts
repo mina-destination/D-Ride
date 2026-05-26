@@ -141,7 +141,9 @@ export class AuthService {
 
     if (!user) {
       // Create user since they don't exist
-      const randomPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const randomPassword =
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
       user = await this.prisma.user.create({
         data: {
