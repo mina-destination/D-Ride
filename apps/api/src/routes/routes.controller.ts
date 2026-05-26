@@ -60,18 +60,22 @@ export class RoutesController {
 
   @Get('smart-search')
   async smartSearch(
-    @Query('pickupLat') pickupLat: string,
-    @Query('pickupLng') pickupLng: string,
-    @Query('dropoffLat') dropoffLat: string,
-    @Query('dropoffLng') dropoffLng: string,
+    @Query('pickupLat') pickupLat?: string,
+    @Query('pickupLng') pickupLng?: string,
+    @Query('dropoffLat') dropoffLat?: string,
+    @Query('dropoffLng') dropoffLng?: string,
     @Query('radius') radius?: string,
+    @Query('pickupCity') pickupCity?: string,
+    @Query('dropoffCity') dropoffCity?: string,
   ) {
     const results = await this.routesService.smartSearch(
-      parseFloat(pickupLng),
-      parseFloat(pickupLat),
-      parseFloat(dropoffLng),
-      parseFloat(dropoffLat),
+      pickupLng ? parseFloat(pickupLng) : 0,
+      pickupLat ? parseFloat(pickupLat) : 0,
+      dropoffLng ? parseFloat(dropoffLng) : 0,
+      dropoffLat ? parseFloat(dropoffLat) : 0,
       radius ? parseInt(radius, 10) : 5000,
+      pickupCity,
+      dropoffCity,
     );
     return {
       success: true,

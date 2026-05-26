@@ -130,22 +130,76 @@ export class BookingsService {
           },
         ],
       },
-      select: { seatNumbers: true },
+      select: {
+        seatNumbers: true,
+        pickupStopId: true,
+        dropoffStopId: true,
+      },
     });
 
-    let activeBookedCount = 0;
-    activeBookings.forEach((b: any) => {
-      if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-        activeBookedCount += b.seatNumbers.length;
-      }
+    const trip = await prismaClient.trip.findUnique({
+      where: { id: tripId },
+      include: { route: true },
     });
+
+    let peakBookedCount = 0;
+
+    if (
+      trip &&
+      trip.route?.checkpoints &&
+      Array.isArray(trip.route.checkpoints) &&
+      trip.route.checkpoints.length >= 2
+    ) {
+      const routeCheckpoints = trip.route.checkpoints as any[];
+      const segmentsCount = routeCheckpoints.length - 1;
+      const bookedOnSegment = new Array(segmentsCount).fill(0);
+
+      activeBookings.forEach((b: any) => {
+        const seatsCount =
+          b.seatNumbers && Array.isArray(b.seatNumbers)
+            ? b.seatNumbers.length
+            : 0;
+        if (seatsCount === 0) return;
+
+        const pCp = routeCheckpoints.find(
+          (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+        );
+        const dCp = routeCheckpoints.find(
+          (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+        );
+
+        let startIdx = 0;
+        let endIdx = routeCheckpoints.length - 1;
+
+        if (pCp && dCp) {
+          const pIdx = routeCheckpoints.indexOf(pCp);
+          const dIdx = routeCheckpoints.indexOf(dCp);
+          if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+            startIdx = pIdx;
+            endIdx = dIdx;
+          }
+        }
+
+        for (let i = startIdx; i < endIdx; i++) {
+          bookedOnSegment[i] += seatsCount;
+        }
+      });
+
+      peakBookedCount = Math.max(...bookedOnSegment, 0);
+    } else {
+      activeBookings.forEach((b: any) => {
+        if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+          peakBookedCount += b.seatNumbers.length;
+        }
+      });
+    }
 
     await prismaClient.trip.update({
       where: { id: tripId },
-      data: { bookedSeats: activeBookedCount },
+      data: { bookedSeats: peakBookedCount },
     });
 
-    return activeBookedCount;
+    return peakBookedCount;
   }
 
   async create(data: any): Promise<any> {
@@ -164,18 +218,154 @@ export class BookingsService {
       // 2. Retrieve the trip and acquire a database lock via findUnique
       const currentTrip = await tx.trip.findUnique({
         where: { id: tripIdStr },
+        include: {
+          route: true,
+        },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
 
-      // 3. Enforce seat limit/bounds checks
-      if (
-        activeBookedSeatsCount + requestedSeats >
-        currentTrip.availableSeats
-      ) {
-        throw new BadRequestException('Not enough available seats');
+      // Check if checkpoint-relative pricing and segment calculations apply
+      const routeCheckpoints = (currentTrip.route?.checkpoints as any[]) || [];
+      const pickupCp = routeCheckpoints.find(
+        (cp) =>
+          cp.id === data.pickupCheckpointId ||
+          cp.name === data.pickupCheckpointId ||
+          cp.name === data.pickupStopId,
+      );
+      const dropoffCp = routeCheckpoints.find(
+        (cp) =>
+          cp.id === data.dropoffCheckpointId ||
+          cp.name === data.dropoffCheckpointId ||
+          cp.name === data.dropoffStopId,
+      );
+
+      let segmentPrice = currentTrip.priceEGP || 0;
+      let pickupCheckpointData = data.pickupCheckpoint || null;
+      let dropoffCheckpointData = data.dropoffCheckpoint || null;
+
+      if (pickupCp && dropoffCp) {
+        const pickupIdx = routeCheckpoints.indexOf(pickupCp);
+        const dropoffIdx = routeCheckpoints.indexOf(dropoffCp);
+        if (pickupIdx >= dropoffIdx) {
+          throw new BadRequestException(
+            'Dropoff checkpoint must be after pickup checkpoint',
+          );
+        }
+
+        const baseDepartureTimeMs = new Date(
+          currentTrip.departureTime,
+        ).getTime();
+        const pickupOffsetMs = (pickupCp.minutesFromStart || 0) * 60 * 1000;
+        const dropoffOffsetMs = (dropoffCp.minutesFromStart || 0) * 60 * 1000;
+
+        const localizedDepartureTime = new Date(
+          baseDepartureTimeMs + pickupOffsetMs,
+        ).toISOString();
+        const localizedArrivalTime = new Date(
+          baseDepartureTimeMs + dropoffOffsetMs,
+        ).toISOString();
+
+        const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+        const dropoffPrice = Number(
+          dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
+        );
+        const calcPrice = dropoffPrice - pickupPrice;
+        if (calcPrice > 0) {
+          segmentPrice = calcPrice;
+        }
+
+        pickupCheckpointData = {
+          ...pickupCp,
+          localizedDepartureTime,
+        };
+        dropoffCheckpointData = {
+          ...dropoffCp,
+          localizedArrivalTime,
+        };
       }
 
-      // 4. Pull all active non-cancelled/non-refunded bookings to build the occupied seat indexes
+      // Determine requested start and end indices on the route checkpoints
+      let startReq = 0;
+      let endReq = routeCheckpoints.length - 1;
+      if (pickupCp && dropoffCp) {
+        const pIdx = routeCheckpoints.indexOf(pickupCp);
+        const dIdx = routeCheckpoints.indexOf(dropoffCp);
+        if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+          startReq = pIdx;
+          endReq = dIdx;
+        }
+      }
+
+      // 3. Enforce segment-based seat limit/bounds checks
+      const activeBookingsForCounts = await tx.booking.findMany({
+        where: {
+          tripId: tripIdStr,
+          status: {
+            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+          },
+        },
+        select: {
+          seatNumbers: true,
+          pickupStopId: true,
+          dropoffStopId: true,
+        },
+      });
+
+      if (routeCheckpoints.length >= 2) {
+        const segmentsCount = routeCheckpoints.length - 1;
+        const segmentOccupancy = new Array(segmentsCount).fill(0);
+
+        activeBookingsForCounts.forEach((b: any) => {
+          const seatsCount =
+            b.seatNumbers && Array.isArray(b.seatNumbers)
+              ? b.seatNumbers.length
+              : 0;
+          if (seatsCount === 0) return;
+
+          const pCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+          );
+          const dCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+          );
+
+          let startB = 0;
+          let endB = routeCheckpoints.length - 1;
+
+          if (pCpB && dCpB) {
+            const pIdx = routeCheckpoints.indexOf(pCpB);
+            const dIdx = routeCheckpoints.indexOf(dCpB);
+            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+              startB = pIdx;
+              endB = dIdx;
+            }
+          }
+
+          for (let i = startB; i < endB; i++) {
+            segmentOccupancy[i] += seatsCount;
+          }
+        });
+
+        for (let i = startReq; i < endReq; i++) {
+          if (
+            segmentOccupancy[i] + requestedSeats >
+            currentTrip.availableSeats
+          ) {
+            throw new BadRequestException(
+              'Not enough available seats on this segment',
+            );
+          }
+        }
+      } else {
+        if (
+          activeBookedSeatsCount + requestedSeats >
+          currentTrip.availableSeats
+        ) {
+          throw new BadRequestException('Not enough available seats');
+        }
+      }
+
+      // 4. Pull all active non-cancelled/non-refunded bookings to build the occupied seat indexes for this segment
       const activeBookings = await tx.booking.findMany({
         where: {
           tripId: tripIdStr,
@@ -183,7 +373,11 @@ export class BookingsService {
             notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
           },
         },
-        select: { seatNumbers: true },
+        select: {
+          seatNumbers: true,
+          pickupStopId: true,
+          dropoffStopId: true,
+        },
       });
 
       // Parse the seatNumbers JSON arrays along with the trip's administrative lockedSeats array into a flat memory Set of occupied seat indexes.
@@ -196,7 +390,29 @@ export class BookingsService {
 
       activeBookings.forEach((b) => {
         if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-          b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
+          const pCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+          );
+          const dCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+          );
+
+          let startB = 0;
+          let endB = routeCheckpoints.length - 1;
+
+          if (pCpB && dCpB) {
+            const pIdx = routeCheckpoints.indexOf(pCpB);
+            const dIdx = routeCheckpoints.indexOf(dCpB);
+            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+              startB = pIdx;
+              endB = dIdx;
+            }
+          }
+
+          const overlap = routeCheckpoints.length < 2 || (startReq < endB && startB < endReq);
+          if (overlap) {
+            b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
+          }
         }
       });
 
@@ -206,11 +422,11 @@ export class BookingsService {
       );
       if (hasCollision) {
         throw new BadRequestException(
-          'One or more selected seats are already booked or locked',
+          'One or more selected seats are already booked or locked on this segment',
         );
       }
 
-      const amountEGP = (currentTrip.priceEGP || 0) * requestedSeats;
+      const amountEGP = segmentPrice * requestedSeats;
       let bookingStatus: BookingStatus = BookingStatus.PENDING_PAYMENT;
       let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
 
@@ -240,32 +456,25 @@ export class BookingsService {
         paymentStatus = PaymentStatus.SUCCESS;
       }
 
-      // 5. Update the trip's bookedSeats to include the newly requested seats
-      await tx.trip.update({
-        where: { id: tripIdStr },
-        data: {
-          bookedSeats: activeBookedSeatsCount + requestedSeats,
-        },
-      });
-
       // Write the final booking entry ledger
       const newBooking = await tx.booking.create({
         data: {
           userId: data.userId.toString(),
           tripId: tripIdStr,
           seatNumbers: data.seatNumbers || [1],
-          pickupStopId: data.pickupStopId ? data.pickupStopId.toString() : null,
-          dropoffStopId: data.dropoffStopId
-            ? data.dropoffStopId.toString()
-            : null,
-          pickupCheckpoint: data.pickupCheckpoint || null,
-          dropoffCheckpoint: data.dropoffCheckpoint || null,
+          pickupStopId: data.pickupCheckpointId || data.pickupStopId || null,
+          dropoffStopId: data.dropoffCheckpointId || data.dropoffStopId || null,
+          pickupCheckpoint: pickupCheckpointData || null,
+          dropoffCheckpoint: dropoffCheckpointData || null,
           status: bookingStatus,
           paymentStatus: paymentStatus,
           amountEGP,
           qrVerificationToken,
         },
       });
+
+      // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
+      await this.cleanupExpiredBookings(tripIdStr, tx);
 
       // Create a successful matching record in the Transaction table instantly inside the transaction boundary if WALLET payment
       if (isWallet) {
@@ -396,7 +605,11 @@ export class BookingsService {
     return this.mapBooking(updated);
   }
 
-  async findOccupiedSeats(tripId: string): Promise<number[]> {
+  async findOccupiedSeats(
+    tripId: string,
+    pickupCheckpointName?: string,
+    dropoffCheckpointName?: string,
+  ): Promise<number[]> {
     await this.cleanupExpiredBookings(tripId);
 
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -421,13 +634,79 @@ export class BookingsService {
       },
       select: {
         seatNumbers: true,
+        pickupStopId: true,
+        dropoffStopId: true,
       },
     });
+
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { route: true },
+    });
+
+    const routeCheckpoints = (trip?.route?.checkpoints as any[]) || [];
+    let startReq = 0;
+    let endReq = routeCheckpoints.length - 1;
+
+    if (
+      pickupCheckpointName &&
+      dropoffCheckpointName &&
+      routeCheckpoints.length >= 2
+    ) {
+      const pCp = routeCheckpoints.find(
+        (cp) =>
+          cp.name === pickupCheckpointName || cp.id === pickupCheckpointName,
+      );
+      const dCp = routeCheckpoints.find(
+        (cp) =>
+          cp.name === dropoffCheckpointName || cp.id === dropoffCheckpointName,
+      );
+      if (pCp && dCp) {
+        const pIdx = routeCheckpoints.indexOf(pCp);
+        const dIdx = routeCheckpoints.indexOf(dCp);
+        if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+          startReq = pIdx;
+          endReq = dIdx;
+        }
+      }
+    }
 
     const occupied: number[] = [];
     bookings.forEach((b) => {
       if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-        occupied.push(...(b.seatNumbers as number[]));
+        let shouldInclude = true;
+
+        if (
+          pickupCheckpointName &&
+          dropoffCheckpointName &&
+          routeCheckpoints.length >= 2
+        ) {
+          const pCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+          );
+          const dCpB = routeCheckpoints.find(
+            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+          );
+
+          let startB = 0;
+          let endB = routeCheckpoints.length - 1;
+
+          if (pCpB && dCpB) {
+            const pIdx = routeCheckpoints.indexOf(pCpB);
+            const dIdx = routeCheckpoints.indexOf(dCpB);
+            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+              startB = pIdx;
+              endB = dIdx;
+            }
+          }
+
+          const overlap = startReq < endB && startB < endReq;
+          shouldInclude = overlap;
+        }
+
+        if (shouldInclude) {
+          occupied.push(...(b.seatNumbers as number[]));
+        }
       }
     });
     return occupied;

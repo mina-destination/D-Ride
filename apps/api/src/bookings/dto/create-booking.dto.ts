@@ -27,6 +27,14 @@ export class CreateBookingDto {
   dropoffStopId?: string;
 
   @IsOptional()
+  @IsString()
+  pickupCheckpointId?: string;
+
+  @IsOptional()
+  @IsString()
+  dropoffCheckpointId?: string;
+
+  @IsOptional()
   @IsObject()
   pickupCheckpoint?: Record<string, any>;
 

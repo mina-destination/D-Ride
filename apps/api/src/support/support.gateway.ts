@@ -86,11 +86,7 @@ export class SupportGateway
     const handshakeRole = client.handshake.query?.role;
     const role = (handshakeRole || user?.role || '').toUpperCase();
 
-    if (
-      role === 'ADMIN' ||
-      role === 'SUPER_ADMIN' ||
-      role === 'OPERATION'
-    ) {
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION') {
       client.join('support_operators');
       this.logger.log(
         `Support client ${client.id} (User: ${user?.id || 'unknown'}, Handshake Role: ${handshakeRole || 'none'}, Token Role: ${user?.role || 'none'}) joined support_operators room`,

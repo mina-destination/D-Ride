@@ -5,6 +5,7 @@ import {
   Put,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -70,8 +71,16 @@ export class BookingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('occupied/:tripId')
-  async getOccupiedSeats(@Param('tripId') tripId: string) {
-    const seats = await this.bookingsService.findOccupiedSeats(tripId);
+  async getOccupiedSeats(
+    @Param('tripId') tripId: string,
+    @Query('pickupCheckpointName') pickupCheckpointName?: string,
+    @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
+  ) {
+    const seats = await this.bookingsService.findOccupiedSeats(
+      tripId,
+      pickupCheckpointName,
+      dropoffCheckpointName,
+    );
     return { success: true, data: seats, timestamp: new Date().toISOString() };
   }
 

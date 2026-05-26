@@ -171,6 +171,34 @@ export const themeColors = {
 export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string, string> {
   const palette = mode === 'light' ? lightPalette : darkPalette;
 
+  const focusRing = mode === 'light' 
+    ? '0 0 0 3px rgba(245, 183, 49, 0.35)' 
+    : '0 0 0 3px rgba(245, 183, 49, 0.25)';
+
+  const navBg = mode === 'light'
+    ? 'rgba(255, 255, 255, 0.75)'
+    : 'rgba(6, 6, 14, 0.8)';
+
+  const glassBg = mode === 'light'
+    ? 'rgba(255, 255, 255, 0.6)'
+    : 'rgba(14, 14, 27, 0.65)';
+
+  const glassBorder = mode === 'light'
+    ? 'rgba(229, 231, 235, 0.5)'
+    : 'rgba(245, 183, 49, 0.08)';
+
+  const glowAmber = mode === 'light'
+    ? 'rgba(245, 183, 49, 0.35)'
+    : 'rgba(245, 183, 49, 0.2)';
+
+  const glowBlue = mode === 'light'
+    ? 'rgba(59, 130, 246, 0.2)'
+    : 'rgba(59, 130, 246, 0.12)';
+
+  const glowPurple = mode === 'light'
+    ? 'rgba(168, 85, 247, 0.15)'
+    : 'rgba(168, 85, 247, 0.1)';
+
   return {
     '--primary': palette.primary.DEFAULT,
     '--primary-hover': palette.primary.hover,
@@ -203,8 +231,16 @@ export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string
     '--transition-spring': 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
     '--shadow-glow': designTokens.shadows.glow,
     '--shadow-glow-strong': designTokens.shadows.glowStrong,
+    '--focus-ring': focusRing,
+    '--nav-bg': navBg,
+    '--glass-bg': glassBg,
+    '--glass-border': glassBorder,
+    '--glow-amber': glowAmber,
+    '--glow-blue': glowBlue,
+    '--glow-purple': glowPurple,
   };
 }
+
 
 // ── Ant Design ConfigProvider Theme ─────────────────────────
 // Use: <ConfigProvider theme={antThemeConfig}>

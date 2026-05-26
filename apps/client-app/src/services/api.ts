@@ -76,8 +76,8 @@ export const routesAPI = {
     api.get(`/routes/${routeId}/nearest-checkpoint`, { params: { lat, lng } }),
   getNearestStation: (lat: number, lng: number, limit?: number): Promise<any> =>
     api.get('/routes/nearest', { params: { lat, lng, limit } }),
-  smartSearch: (pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number, radius?: number): Promise<any> =>
-    api.get('/routes/smart-search', { params: { pickupLat, pickupLng, dropoffLat, dropoffLng, radius } }),
+  smartSearch: (pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number, radius?: number, pickupCity?: string, dropoffCity?: string): Promise<any> =>
+    api.get('/routes/smart-search', { params: { pickupLat, pickupLng, dropoffLat, dropoffLng, radius, pickupCity, dropoffCity } }),
 };
 
 export const tripsAPI = {
@@ -106,7 +106,8 @@ export const paymobAPI = {
 export const bookingsAPI = {
   getMyBookings: (): Promise<any> => api.get('/bookings/my-bookings'),
   getById: (id: string): Promise<any> => api.get(`/bookings/${id}`),
-  getOccupiedSeats: (tripId: string): Promise<any> => api.get(`/bookings/occupied/${tripId}`),
+  getOccupiedSeats: (tripId: string, pickupCheckpointName?: string, dropoffCheckpointName?: string): Promise<any> =>
+    api.get(`/bookings/occupied/${tripId}`, { params: { pickupCheckpointName, dropoffCheckpointName } }),
   create: (data: any): Promise<any> => api.post('/bookings', data),
   cancel: (id: string): Promise<any> => api.put(`/bookings/${id}/cancel`),
 };

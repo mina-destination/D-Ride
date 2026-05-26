@@ -68,6 +68,19 @@ export default function CheckoutPage() {
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
   const [mapLoadFailed, setMapLoadFailed] = useState(false);
 
+  const getLegPrice = () => {
+    if (!trip) return 0;
+    if (selectedPickupCheckpoint && selectedDropoffCheckpoint) {
+      const pickupPrice = Number(selectedPickupCheckpoint.priceFromStartEGP || 0);
+      const dropoffPrice = Number(selectedDropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0);
+      const legPrice = dropoffPrice - pickupPrice;
+      if (legPrice > 0) return legPrice;
+    }
+    return Number(trip.priceEGP || 0);
+  };
+
+  const legPrice = getLegPrice();
+
   const cairoTransitHubs = [
     { name: 'Ramses Station', nameAr: 'محطة رمسيس', lat: 30.0626, lng: 31.2468 },
     { name: 'Tahrir Square', nameAr: 'ميدان التحرير', lat: 30.0444, lng: 31.2357 },
@@ -114,12 +127,21 @@ export default function CheckoutPage() {
       .then(data => setTrip(data))
       .catch(console.error)
       .finally(() => setLoading(false));
-
-    bookingsAPI.getOccupiedSeats(tripId)
-      .then(seats => setOccupiedSeats(seats))
-      .catch(console.error);
-
   }, [tripId, searchParams]);
+
+  useEffect(() => {
+    if (!tripId) return;
+
+    const pickupName = selectedPickupCheckpoint?.name;
+    const dropoffName = selectedDropoffCheckpoint?.name;
+
+    bookingsAPI.getOccupiedSeats(tripId, pickupName, dropoffName)
+      .then(seats => {
+        setOccupiedSeats(seats);
+        setSelectedSeats(prev => prev.filter(s => !seats.includes(s)));
+      })
+      .catch(console.error);
+  }, [tripId, selectedPickupCheckpoint, selectedDropoffCheckpoint]);
 
 
   useEffect(() => {
@@ -210,6 +232,8 @@ export default function CheckoutPage() {
         seatNumbers: selectedSeats,
         pickupStopId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id, 
         dropoffStopId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id, 
+        pickupCheckpointId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id || selectedPickupCheckpoint?.name,
+        dropoffCheckpointId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id || selectedDropoffCheckpoint?.name,
         pickupCheckpoint: selectedPickupCheckpoint || undefined,
         dropoffCheckpoint: selectedDropoffCheckpoint || undefined,
       });
@@ -966,14 +990,14 @@ export default function CheckoutPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Base Fare</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                      {Math.round(legPrice * selectedSeats.length * 0.86)} EGP
                     </span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>VAT (14% Included)</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {trip.priceEGP * selectedSeats.length - Math.round(trip.priceEGP * selectedSeats.length * 0.86)} EGP
+                      {legPrice * selectedSeats.length - Math.round(legPrice * selectedSeats.length * 0.86)} EGP
                     </span>
                   </div>
                   
@@ -987,7 +1011,7 @@ export default function CheckoutPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
                     <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total Fare</span>
                     <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                      {trip.priceEGP * selectedSeats.length} EGP
+                      {legPrice * selectedSeats.length} EGP
                     </span>
                   </div>
                 </div>

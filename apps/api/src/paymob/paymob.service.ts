@@ -98,7 +98,8 @@ export class PaymobService {
             paymobOrderId: orderId,
             amountEGP: amountCents / 100,
             status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-            paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+            paymentMethod:
+              (payload.obj as any).payment_key_claims?.pm || 'CARD',
             paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
             userId: userId,
             bookingId: null,
@@ -178,9 +179,14 @@ export class PaymobService {
     if (success && bookingId) {
       try {
         await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
-        this.logger.log(`Booking ${bookingId} confirmed & notification triggered.`);
+        this.logger.log(
+          `Booking ${bookingId} confirmed & notification triggered.`,
+        );
       } catch (err: any) {
-        this.logger.error(`Error in bookingsService.updateStatus: ${err.message}`, err.stack);
+        this.logger.error(
+          `Error in bookingsService.updateStatus: ${err.message}`,
+          err.stack,
+        );
       }
     }
   }
@@ -307,7 +313,8 @@ export class PaymobService {
     }
 
     const isProduction =
-      this.configService.get<string>('nodeEnv') === 'production' || process.env.NODE_ENV === 'production';
+      this.configService.get<string>('nodeEnv') === 'production' ||
+      process.env.NODE_ENV === 'production';
 
     if (!this.apiKey) {
       if (isProduction) {
