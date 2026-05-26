@@ -104,73 +104,17 @@ export default function PartnersPage() {
                 {partners.map((partner) => (
                   <div
                     key={partner._id || partner.id}
-                    className="glass"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '2.5rem 2rem',
-                      borderRadius: 'var(--radius-xl)',
-                      border: '1px solid var(--border)',
-                      boxShadow: 'var(--shadow-sm)',
-                      background: 'var(--surface-elevated)',
-                      transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--primary)';
-                      e.currentTarget.style.transform = 'translateY(-6px)';
-                      e.currentTarget.style.boxShadow = '0 12px 30px rgba(245, 183, 49, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                    }}
+                    className="partner-grid-card"
                   >
                     {/* Glowing highlight border effect on hover */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '4px',
-                      height: '100%',
-                      background: 'linear-gradient(to bottom, var(--primary), transparent)',
-                      opacity: 0.7
-                    }} />
+                    <div className="partner-grid-card-accent" />
 
                     {/* Logo wrapper */}
-                    <div style={{
-                      height: '100px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '1.5rem',
-                      width: '100%',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '1rem'
-                    }}>
+                    <div className="partner-grid-logo-wrapper">
                       <img
                         src={cleanGoogleDriveLink(partner.logoUrl)}
                         alt={partner.name}
-                        style={{
-                          maxWidth: '120px',
-                          maxHeight: '70px',
-                          objectFit: 'contain',
-                          filter: 'grayscale(15%) brightness(95%)',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.filter = 'grayscale(0%) brightness(100%)';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.filter = 'grayscale(15%) brightness(95%)';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
+                        className="partner-grid-logo"
                       />
                     </div>
 
