@@ -6,13 +6,55 @@ import { TripStatus } from '@prisma/client';
 export class TripsService {
   constructor(private prisma: PrismaService) {}
 
-  private mapTrip(trip: any) {
+  private mapTrip(trip: any, pickupCheckpointName?: string, dropoffCheckpointName?: string) {
     if (!trip) return null;
-    const t = { ...trip, _id: trip.id };
+
+    let routeCopy: any = null;
+    let pickupCheckpoint: any = null;
+    let dropoffCheckpoint: any = null;
+
     if (trip.route) {
-      t.routeId = { ...trip.route, _id: trip.route.id };
-      delete t.route;
+      routeCopy = { ...trip.route };
+      if (routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
+        const depTime = new Date(trip.departureTime).getTime();
+        routeCopy.checkpoints = routeCopy.checkpoints.map((cp: any) => {
+          const minutes = cp.minutesFromStart || 0;
+          const offsetMs = minutes * 60 * 1000;
+          const cpWithTimes = {
+            ...cp,
+            estimatedDepartureTime: new Date(depTime + offsetMs).toISOString(),
+            estimatedArrivalTime: new Date(depTime + offsetMs).toISOString(),
+          };
+
+          if (pickupCheckpointName && cp.name === pickupCheckpointName) {
+            pickupCheckpoint = cpWithTimes;
+          }
+          if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
+            dropoffCheckpoint = cpWithTimes;
+          }
+
+          return cpWithTimes;
+        });
+      }
     }
+
+    const t = { ...trip, _id: trip.id };
+    if (routeCopy) {
+      t.routeId = { ...routeCopy, _id: routeCopy.id };
+    }
+
+    if (pickupCheckpoint) {
+      t.pickupCheckpoint = pickupCheckpoint;
+    } else if (pickupCheckpointName) {
+      t.pickupCheckpoint = { name: pickupCheckpointName };
+    }
+
+    if (dropoffCheckpoint) {
+      t.dropoffCheckpoint = dropoffCheckpoint;
+    } else if (dropoffCheckpointName) {
+      t.dropoffCheckpoint = { name: dropoffCheckpointName };
+    }
+
     if (trip.vehicle) {
       let make = '';
       let model = trip.vehicle.model;
@@ -40,6 +82,10 @@ export class TripsService {
       };
       delete t.vehicle;
     }
+    
+    // Cleanup mapped properties
+    delete t.route;
+    
     if (trip.driver) {
       t.driverId = { ...trip.driver, _id: trip.driver.id };
       delete t.driverId.password;
@@ -111,7 +157,11 @@ export class TripsService {
     return trips.map((t) => this.mapTrip(t));
   }
 
-  async findById(id: string): Promise<any> {
+  async findById(
+    id: string,
+    pickupCheckpointName?: string,
+    dropoffCheckpointName?: string,
+  ): Promise<any> {
     await this.cleanupExpiredBookings(id);
     const trip = await this.prisma.trip.findUnique({
       where: { id },
@@ -122,10 +172,15 @@ export class TripsService {
       },
     });
     if (!trip) throw new NotFoundException('Trip not found');
-    return this.mapTrip(trip);
+    return this.mapTrip(trip, pickupCheckpointName, dropoffCheckpointName);
   }
 
-  async searchTrips(routeId?: string, date?: string): Promise<any[]> {
+  async searchTrips(
+    routeId?: string,
+    date?: string,
+    pickupCheckpointName?: string,
+    dropoffCheckpointName?: string,
+  ): Promise<any[]> {
     const where: any = { status: TripStatus.SCHEDULED };
     if (routeId) {
       where.routeId = routeId;
@@ -159,7 +214,7 @@ export class TripsService {
       orderBy: { departureTime: 'asc' },
     });
 
-    return updatedTrips.map((t) => this.mapTrip(t));
+    return updatedTrips.map((t) => this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName));
   }
 
   async create(data: any): Promise<any> {

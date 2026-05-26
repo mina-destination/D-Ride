@@ -208,13 +208,24 @@ export default function TripSearchPage() {
         .then(async (smartRoutes: any[]) => {
           // smartRoutes is list of { route, pickupCheckpoint, dropoffCheckpoint, totalWalkingDistance }
           const tripPromises = smartRoutes.map((sr) =>
-            tripsAPI.search(sr.route._id || sr.route.id)
+            tripsAPI.search(
+              sr.route._id || sr.route.id,
+              date,
+              sr.pickupCheckpoint.name,
+              sr.dropoffCheckpoint.name
+            )
               .then((tripsData) =>
                 tripsData.map((trip: any) => ({
                   ...trip,
                   route: sr.route,
-                  pickupCheckpoint: sr.pickupCheckpoint,
-                  dropoffCheckpoint: sr.dropoffCheckpoint,
+                  pickupCheckpoint: {
+                    ...sr.pickupCheckpoint,
+                    ...trip.pickupCheckpoint,
+                  },
+                  dropoffCheckpoint: {
+                    ...sr.dropoffCheckpoint,
+                    ...trip.dropoffCheckpoint,
+                  },
                   totalWalkingDistance: sr.totalWalkingDistance,
                 }))
               )
@@ -253,9 +264,10 @@ export default function TripSearchPage() {
         .catch(console.error)
         .finally(() => setLoading(false));
     } else if (routeId) {
+      const initialCpName = searchParams.get('checkpointName') || undefined;
       Promise.all([
         routesAPI.getAll().then(res => res.find((r: any) => r._id === routeId)),
-        tripsAPI.search(routeId)
+        tripsAPI.search(routeId, date, initialCpName)
       ])
       .then(([routeData, tripsData]) => {
         setRoute(routeData);
@@ -290,7 +302,7 @@ export default function TripSearchPage() {
     } else {
       setLoading(false);
     }
-  }, [routeId, pickupLat, pickupLng, dropoffLat, dropoffLng, passengers, isSmartMode, searchParams]);
+  }, [routeId, pickupLat, pickupLng, dropoffLat, dropoffLng, passengers, isSmartMode, searchParams, date]);
 
   if (!routeId && !isSmartMode) {
     return (
@@ -496,11 +508,38 @@ export default function TripSearchPage() {
                       {/* Grouped Cards */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {group.trips.map((trip, idx) => {
-                          const depTime = new Date(trip.departureTime);
-                          // Mock arrival time (e.g., 45 minutes later)
-                          const arrTime = new Date(depTime.getTime() + 45 * 60000);
-                          const seatsLeft = trip.availableSeats - trip.bookedSeats;
+                          const baseTripDepTime = new Date(trip.departureTime).getTime();
                           const currentRoute = isSmartMode ? trip.route : route;
+
+                          const selectedPickupCpName = selectedCheckpoints[trip._id];
+                          const selectedDropoffCpName = selectedDropoffCheckpoints[trip._id];
+
+                          const routeCps = currentRoute?.checkpoints || [];
+                          const pickupCp = routeCps.find((cp: any) => cp.name === selectedPickupCpName) || trip.pickupCheckpoint;
+                          const dropoffCp = routeCps.find((cp: any) => cp.name === selectedDropoffCpName) || trip.dropoffCheckpoint;
+
+                          // Resolve estimated departure time (boarding time)
+                          const pickupEstimatedDepTime = pickupCp?.estimatedDepartureTime || (pickupCp?.minutesFromStart !== undefined
+                            ? new Date(baseTripDepTime + pickupCp.minutesFromStart * 60 * 1000).toISOString()
+                            : undefined);
+
+                          // Resolve estimated arrival time (destination arrival time)
+                          const dropoffEstimatedArrTime = dropoffCp?.estimatedArrivalTime || (dropoffCp?.minutesFromStart !== undefined
+                            ? new Date(baseTripDepTime + dropoffCp.minutesFromStart * 60 * 1000).toISOString()
+                            : undefined);
+
+                          const depTime = pickupEstimatedDepTime ? new Date(pickupEstimatedDepTime) : new Date(trip.departureTime);
+                          const arrTime = dropoffEstimatedArrTime ? new Date(dropoffEstimatedArrTime) : new Date(depTime.getTime() + 45 * 60000);
+                          
+                          let durationMinutes = 45;
+                          if (pickupEstimatedDepTime && dropoffEstimatedArrTime) {
+                            const diffMs = new Date(dropoffEstimatedArrTime).getTime() - new Date(pickupEstimatedDepTime).getTime();
+                            durationMinutes = Math.max(1, Math.round(diffMs / 60000));
+                          } else if (currentRoute?.estimatedDurationMinutes) {
+                            durationMinutes = currentRoute.estimatedDurationMinutes;
+                          }
+
+                          const seatsLeft = trip.availableSeats - trip.bookedSeats;
 
                           const isTargetDate = !date || (() => {
                             const y = depTime.getFullYear();
@@ -624,11 +663,11 @@ export default function TripSearchPage() {
                                   <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
                                     <div className="trip-time-block">
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{depTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Departure</span>
+                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Boarding Stop</span>
                                     </div>
                                     
                                     <div className="trip-timeline" style={{ margin: '0 0.75rem' }}>
-                                      <span className="trip-duration">45 min</span>
+                                      <span className="trip-duration">{durationMinutes} min</span>
                                       <div className="timeline-dot"></div>
                                       <div className="timeline-line"></div>
                                       <div className="timeline-dot"></div>
@@ -636,7 +675,7 @@ export default function TripSearchPage() {
                                     
                                     <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Arrival</span>
+                                      <span className="trip-location" style={{ fontSize: '0.75rem' }}>Dropoff Stop</span>
                                     </div>
                                   </div>
 
