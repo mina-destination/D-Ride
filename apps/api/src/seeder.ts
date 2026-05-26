@@ -5,6 +5,14 @@ import { PrismaService } from './prisma/prisma.service';
 import { Role, TripStatus, BookingStatus, PaymentStatus } from '@prisma/client';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '============================================================');
+    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '🚨 CRITICAL SAFETY ALERT: DATABASE SEEDING IS FORBIDDEN IN PRODUCTION!');
+    console.error('\x1b[41m\x1b[37m%s\x1b[0m', 'Abort: Attempt to run seeder would wipe operational tables!');
+    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '============================================================');
+    throw new Error('Database seeding transaction blocked in production environment.');
+  }
+
   const app = await NestFactory.createApplicationContext(AppModule);
   const prisma = app.get(PrismaService);
 
