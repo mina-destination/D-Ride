@@ -19,6 +19,7 @@ export class PaymobService {
   private readonly logger = new Logger(PaymobService.name);
   private readonly hmacSecret: string;
   private readonly apiKey: string;
+  private readonly publicKey: string;
   private readonly iframeId: string;
   private readonly integrationId: string;
   private readonly walletIntegrationId: string;
@@ -32,6 +33,7 @@ export class PaymobService {
   ) {
     this.hmacSecret = this.configService.get<string>('paymob.hmacSecret', '');
     this.apiKey = this.configService.get<string>('paymob.apiKey', '');
+    this.publicKey = this.configService.get<string>('paymob.publicKey', '');
     this.iframeId = this.configService.get<string>('paymob.iframeId', '');
     this.integrationId = this.configService.get<string>(
       'paymob.integrationId',
@@ -80,7 +82,9 @@ export class PaymobService {
     const orderId = payload.obj.order.id;
     const amountCents = payload.obj.amount_cents;
     const success = payload.obj.success;
-    const bookingId = (payload.obj.order as any).merchant_order_id; // we passed bookingId here
+    const bookingId =
+      (payload.obj.order as any)?.merchant_order_id ||
+      (payload.obj as any).special_reference;
 
     // Intercept Wallet Topup Webhook
     if (bookingId && bookingId.startsWith('wallet_')) {
@@ -368,43 +372,26 @@ export class PaymobService {
 
     // Actual Paymob Flow
     try {
-      // 1. Authenticate
-      const authRes = await axios.post(
-        `${this.apiBaseUrl}/api/auth/tokens`,
-        {
-          api_key: this.apiKey,
-        },
-      );
-      const token = authRes.data.token;
-
-      // 2. Register Order
-      const orderRes = await axios.post(
-        `${this.apiBaseUrl}/api/ecommerce/orders`,
-        {
-          auth_token: token,
-          delivery_needed: 'false',
-          amount_cents: data.amountCents,
-          currency: 'EGP',
-          merchant_order_id: data.bookingId,
-          items: [],
-        },
-      );
-      const orderId = orderRes.data.id;
-
       // Select proper integration ID based on method
       const integrationId =
         paymentMethod === 'WALLET'
           ? this.walletIntegrationId || this.integrationId
           : this.integrationId;
 
-      // 3. Request Payment Key
-      const keyRes = await axios.post(
-        `${this.apiBaseUrl}/api/acceptance/payment_keys`,
+      // 1. Create Payment Intention
+      const clientUrl = this.configService.get<string>(
+        'clientUrl',
+        'http://localhost:5173',
+      );
+      const redirectionUrl = `${clientUrl}/payment/callback`;
+
+      const intentionRes = await axios.post(
+        `${this.apiBaseUrl}/v1/intention/`,
         {
-          auth_token: token,
-          amount_cents: data.amountCents,
-          expiration: 3600,
-          order_id: orderId,
+          amount: data.amountCents,
+          currency: 'EGP',
+          payment_methods: [parseInt(integrationId, 10)],
+          special_reference: data.bookingId,
           billing_data: data.billingData || {
             apartment: 'NA',
             email: 'passenger@dride.com',
@@ -420,13 +407,19 @@ export class PaymobService {
             last_name: 'Doe',
             state: 'NA',
           },
-          currency: 'EGP',
-          integration_id: integrationId,
-          lock_order_when_paid: 'false',
+          redirection_url: redirectionUrl,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${this.apiKey}`,
+          },
         },
       );
 
-      const paymentKey = keyRes.data.token;
+      const clientSecret = intentionRes.data.client_secret;
+      const orderId = intentionRes.data.intention_order_id;
+      const paymentKey = intentionRes.data.payment_keys?.[0]?.key || '';
 
       if (paymentMethod === 'WALLET') {
         // For wallets, request payment page redirect link
@@ -452,11 +445,14 @@ export class PaymobService {
         };
       }
 
-      // Standard Credit Card IFrame
+      // Standard Credit Card: redirect to Unified Checkout hosted page
+      const hostedCheckoutUrl = `${this.apiBaseUrl}/unifiedcheckout/?publicKey=${this.publicKey}&clientSecret=${clientSecret}`;
+
       return {
-        paymentKey,
-        iframeUrl: `${this.apiBaseUrl}/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
+        paymentKey: clientSecret,
+        iframeUrl: hostedCheckoutUrl,
         orderId,
+        redirectUrl: hostedCheckoutUrl,
       };
     } catch (error: any) {
       const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
@@ -608,41 +604,26 @@ export class PaymobService {
     }
 
     try {
-      // 1. Authenticate
-      const authRes = await axios.post(
-        `${this.apiBaseUrl}/api/auth/tokens`,
-        { api_key: this.apiKey },
-      );
-      const token = authRes.data.token;
-
-      // 2. Register Order
-      const orderRes = await axios.post(
-        `${this.apiBaseUrl}/api/ecommerce/orders`,
-        {
-          auth_token: token,
-          delivery_needed: 'false',
-          amount_cents: amountCents,
-          currency: 'EGP',
-          merchant_order_id: merchantOrderId,
-          items: [],
-        },
-      );
-      const orderId = orderRes.data.id;
-
       // Select proper integration ID based on method
       const integrationId =
         paymentMethod === 'WALLET'
           ? this.walletIntegrationId || this.integrationId
           : this.integrationId;
 
-      // 3. Request Payment Key
-      const keyRes = await axios.post(
-        `${this.apiBaseUrl}/api/acceptance/payment_keys`,
+      // 1. Create Payment Intention
+      const clientUrl = this.configService.get<string>(
+        'clientUrl',
+        'http://localhost:5173',
+      );
+      const redirectionUrl = `${clientUrl}/payment/callback`;
+
+      const intentionRes = await axios.post(
+        `${this.apiBaseUrl}/v1/intention/`,
         {
-          auth_token: token,
-          amount_cents: amountCents,
-          expiration: 3600,
-          order_id: orderId,
+          amount: amountCents,
+          currency: 'EGP',
+          payment_methods: [parseInt(integrationId, 10)],
+          special_reference: merchantOrderId,
           billing_data: {
             apartment: 'NA',
             email: 'passenger@dride.com',
@@ -658,13 +639,19 @@ export class PaymobService {
             last_name: 'User',
             state: 'NA',
           },
-          currency: 'EGP',
-          integration_id: integrationId,
-          lock_order_when_paid: 'false',
+          redirection_url: redirectionUrl,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${this.apiKey}`,
+          },
         },
       );
 
-      const paymentKey = keyRes.data.token;
+      const clientSecret = intentionRes.data.client_secret;
+      const orderId = intentionRes.data.intention_order_id;
+      const paymentKey = intentionRes.data.payment_keys?.[0]?.key || '';
 
       if (paymentMethod === 'WALLET') {
         const walletPayRes = await axios.post(
@@ -689,10 +676,14 @@ export class PaymobService {
         };
       }
 
+      // Standard Credit Card: redirect to Unified Checkout hosted page
+      const hostedCheckoutUrl = `${this.apiBaseUrl}/unifiedcheckout/?publicKey=${this.publicKey}&clientSecret=${clientSecret}`;
+
       return {
-        paymentKey,
-        iframeUrl: `${this.apiBaseUrl}/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
+        paymentKey: clientSecret,
+        iframeUrl: hostedCheckoutUrl,
         orderId,
+        redirectUrl: hostedCheckoutUrl,
       };
     } catch (error: any) {
       const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
