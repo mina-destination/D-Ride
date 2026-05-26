@@ -30,6 +30,7 @@ export default () => {
 
     paymob: {
       apiKey: process.env.PAYMOB_API_KEY || '',
+      publicKey: process.env.PAYMOB_PUBLIC_KEY || '',
       hmacSecret: process.env.PAYMOB_HMAC_SECRET || '',
       iframeId: process.env.PAYMOB_IFRAME_ID || '',
       integrationId: process.env.PAYMOB_INTEGRATION_ID || '',
