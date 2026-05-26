@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 function getDistance(
@@ -33,6 +33,7 @@ export class RoutesService {
   async findAll(): Promise<any[]> {
     this.logger.log('Fetching all routes');
     const routes = await this.prisma.route.findMany({
+      where: { isActive: true },
       orderBy: { createdAt: 'desc' },
     });
     return routes.map((r) => ({ ...r, _id: r.id }));
@@ -82,7 +83,40 @@ export class RoutesService {
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prisma.route.delete({ where: { id } });
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Find all active trips on this route
+        const activeTrips = await tx.trip.findMany({
+          where: {
+            routeId: id,
+            status: {
+              in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'],
+            },
+          },
+          select: { id: true },
+        });
+
+        const activeTripIds = activeTrips.map((t) => t.id);
+
+        if (activeTripIds.length > 0) {
+          // 2. Soft-delete/cancel all active trips on this route
+          await tx.trip.updateMany({
+            where: { id: { in: activeTripIds } },
+            data: { status: 'CANCELLED' },
+          });
+
+          // 3. Cancel all bookings associated with these trips
+          await tx.booking.updateMany({
+            where: { tripId: { in: activeTripIds } },
+            data: { status: 'CANCELLED' },
+          });
+        }
+
+        // 4. Soft-delete the route
+        await tx.route.update({
+          where: { id },
+          data: { isActive: false },
+        });
+      });
     } catch (err) {
       throw new NotFoundException(`Route with ID ${id} not found`);
     }

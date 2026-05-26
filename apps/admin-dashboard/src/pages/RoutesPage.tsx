@@ -896,8 +896,9 @@ export function RoutesPage() {
       await routesAPI.delete(id);
       message.success('Route deleted successfully');
       fetchRoutes();
-    } catch (error) {
-      message.error('Failed to delete route');
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Failed to delete route';
+      message.error(Array.isArray(errMsg) ? errMsg[0] : errMsg);
     }
   };
 
