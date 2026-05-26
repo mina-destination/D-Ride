@@ -53,20 +53,18 @@ test.describe('Home Page', () => {
     const searchBtn = page.locator('#search-trips-btn');
     await expect(searchBtn).toBeDisabled();
 
-    // Select From City "Maadi"
-    await page.locator('.from-to-field:has-text("From City") .custom-select-trigger').click();
-    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Maadi")').click();
+    // Search and select boarding stop "Ring Road"
+    const fromInput = page.locator('input[placeholder="Search boarding stop..."]');
+    await fromInput.fill('Ring Road');
+    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Ring Road")').click();
 
-    // Select To City "Smart Village"
-    await page.locator('.from-to-field:has-text("To City") .custom-select-trigger').click();
-    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Smart Village")').click();
+    // Search and select destination stop "Smart Village Gate"
+    const toInput = page.locator('input[placeholder="Search destination stop..."]');
+    await toInput.fill('Smart Village Gate');
+    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Smart Village Gate")').click();
 
     // Search button is now enabled
     await expect(searchBtn).toBeEnabled();
-
-    // Select From Station "Ring Road"
-    await page.locator('.from-to-field:has-text("From Station") .custom-select-trigger').click();
-    await page.locator('.custom-dropdown-menu .custom-dropdown-item:has-text("Ring Road")').click();
 
     // Click search
     await searchBtn.click();

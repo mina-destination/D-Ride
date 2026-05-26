@@ -553,9 +553,19 @@ export class PaymobService {
     );
 
     const isProduction =
-      this.configService.get<string>('nodeEnv') === 'production';
+      this.configService.get<string>('nodeEnv') === 'production' ||
+      process.env.NODE_ENV === 'production';
 
     if (!this.apiKey) {
+      if (isProduction) {
+        this.logger.error(
+          'PAYMOB_API_KEY is not configured in production environment for wallet topup!',
+        );
+        throw new BadRequestException(
+          'Wallet topup payment initialization failed: Payment gateway misconfigured.',
+        );
+      }
+
       // Sandbox / Mock Mode
       this.logger.warn(
         `No Paymob API Key found. Using Mock ${paymentMethod} Wallet Topup Flow.`,

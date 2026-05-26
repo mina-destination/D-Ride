@@ -1041,7 +1041,7 @@ export default function CheckoutPage() {
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #f5b731', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff' }}>Total Leg Fare</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff' }}>Total Fare</span>
                     <span style={{ fontSize: '1.3rem', fontWeight: '900', color: '#f5b731' }}>
                       {legSubTotalFare} EGP
                     </span>

@@ -48,9 +48,17 @@ async function bootstrap() {
   // Enable CORS using environment-driven origin lookups (whitelisting passenger app, driver portal, and admin dashboard)
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   const isProduction = process.env.NODE_ENV === 'production';
-  const origins = allowedOriginsEnv
-    ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
-    : isProduction
+  let origins: string[] = [];
+
+  if (allowedOriginsEnv) {
+    origins = allowedOriginsEnv.split(',').map((origin) => origin.trim());
+    if (isProduction) {
+      origins = origins.filter(
+        (o) => !o.includes('localhost') && !o.includes('127.0.0.1'),
+      );
+    }
+  } else {
+    origins = isProduction
       ? [
           'https://passenger.dride.app',
           'https://driver.dride.app',
@@ -62,6 +70,7 @@ async function bootstrap() {
           'http://localhost:5175', // admin dashboard
           'http://localhost:3001',
         ];
+  }
 
   app.enableCors({
     origin: origins,

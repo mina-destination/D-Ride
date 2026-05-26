@@ -5,7 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { routesAPI, partnersAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -28,6 +28,23 @@ function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
     },
   });
   return null;
+}
+
+function PartnerImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !src) {
+    return <Building size={36} style={{ opacity: 0.5, color: '#f5b731' }} />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="partner-logo"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 function RouteSearchForm() {
@@ -1034,10 +1051,9 @@ export default function HomePage() {
                 >
                   <Globe size={14} className="partner-link-indicator" />
                   <div className="partner-logo-wrapper">
-                    <img
+                    <PartnerImage
                       src={cleanGoogleDriveLink(partner.logoUrl)}
                       alt={partner.name}
-                      className="partner-logo"
                     />
                   </div>
                   <span className="partner-name">{partner.name}</span>
@@ -1048,10 +1064,9 @@ export default function HomePage() {
                   className="partner-card"
                 >
                   <div className="partner-logo-wrapper">
-                    <img
+                    <PartnerImage
                       src={cleanGoogleDriveLink(partner.logoUrl)}
                       alt={partner.name}
-                      className="partner-logo"
                     />
                   </div>
                   <span className="partner-name">{partner.name}</span>

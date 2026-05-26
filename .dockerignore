@@ -11,7 +11,6 @@ node_modules/
 .turbo/
 **/.turbo/
 .cache/
-.parcel-cache/
 *.tsbuildinfo
 
 # Workspace outputs
@@ -25,9 +24,8 @@ out/
 **/.next/
 coverage/
 **/coverage/
-.nyc_output/
 
-# Testing framework boundaries
+# Testing framework boundaries & local test reports
 playwright-report/
 **/playwright-report/
 test-results/
@@ -36,7 +34,7 @@ playwright.config.ts
 e2e/
 **/e2e/
 
-# Frontend applications & shared assets
+# Frontend applications
 apps/client-app/
 apps/admin-dashboard/
 apps/driver-portal/
