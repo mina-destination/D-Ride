@@ -424,8 +424,21 @@ export default function TripDetailPage() {
                 <div key={booking._id} className="glass-card" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h5 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                      <h5 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {passengerName}
+                        {booking.boardingNumber && (
+                          <span style={{
+                            background: 'rgba(245, 183, 49, 0.15)',
+                            color: 'var(--primary)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(245, 183, 49, 0.3)',
+                            fontSize: '10px',
+                            fontWeight: 'bold'
+                          }}>
+                            #{booking.boardingNumber}
+                          </span>
+                        )}
                       </h5>
                       <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
                         {t('phoneLabel')} <code>{passengerPhone}</code>

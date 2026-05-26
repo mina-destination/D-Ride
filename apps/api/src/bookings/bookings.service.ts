@@ -456,6 +456,38 @@ export class BookingsService {
         paymentStatus = PaymentStatus.SUCCESS;
       }
 
+      // Generate a unique random boarding number from 1 to 99 for this trip
+      const activeTripBookings = await tx.booking.findMany({
+        where: {
+          tripId: tripIdStr,
+          status: {
+            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+          },
+          boardingNumber: { not: null },
+        },
+        select: {
+          boardingNumber: true,
+        },
+      });
+
+      const usedBoardingNumbers = new Set(
+        activeTripBookings.map((b) => b.boardingNumber),
+      );
+
+      const availableBoardingNumbers: number[] = [];
+      for (let i = 1; i <= 99; i++) {
+        if (!usedBoardingNumbers.has(i)) {
+          availableBoardingNumbers.push(i);
+        }
+      }
+
+      const boardingNumber =
+        availableBoardingNumbers.length > 0
+          ? availableBoardingNumbers[
+              Math.floor(Math.random() * availableBoardingNumbers.length)
+            ]
+          : null;
+
       // Write the final booking entry ledger
       const newBooking = await tx.booking.create({
         data: {
@@ -470,6 +502,7 @@ export class BookingsService {
           paymentStatus: paymentStatus,
           amountEGP,
           qrVerificationToken,
+          boardingNumber,
         },
       });
 

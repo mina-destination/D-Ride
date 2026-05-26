@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { routesAPI, partnersAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe } from 'lucide-react';
@@ -30,6 +31,12 @@ function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
 }
 
 function RouteSearchForm() {
+  const { theme } = useTheme();
+  const mapTileUrl = theme === 'dark'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
   const { isRtl } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
   const [fromStation, setFromStation] = useState<any>(null);
@@ -757,8 +764,8 @@ function RouteSearchForm() {
                 style={{ height: '100%', width: '100%' }}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution={mapTileAttribution}
+                  url={mapTileUrl}
                 />
                 
                 <Marker 

@@ -5,8 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity, Flame } from 'lucide-react';
 import { bookingsAPI, tripsAPI, vehiclesAPI } from '../services/api';
 import { io } from 'socket.io-client';
-
-
+import { useTheme } from '../context/ThemeContext';
 
 function MapPanController({ panTo }: { panTo: [number, number] | null }) {
   const map = useMap();
@@ -50,6 +49,12 @@ interface ActiveBus {
 }
 
 export default function DashboardPage() {
+  const { theme } = useTheme();
+  const mapTileUrl = theme === 'dark'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
   const [fleet, setFleet] = useState<ActiveBus[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
@@ -437,8 +442,8 @@ export default function DashboardPage() {
 
             <MapContainer center={[30.0444, 31.2357]} zoom={12} style={{ height: '100%', width: '100%' }}>
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution={mapTileAttribution}
+                url={mapTileUrl}
               />
 
               {/* FLEET VIEW */}

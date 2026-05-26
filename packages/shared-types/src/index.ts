@@ -213,6 +213,7 @@ export interface Booking {
   paymobOrderId?: number;
   amountEGP: number;
   bookedAt: Date;
+  boardingNumber?: number;
   createdAt: Date;
   updatedAt: Date;
 }
