@@ -60,8 +60,18 @@ function RouteSearchForm() {
   const [toStation, setToStation] = useState<any>(null);
   const [travelDate, setTravelDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
+  const todayLocalStr = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
   const [passengers, setPassengers] = useState<number>(1);
   const navigate = useNavigate();
 
@@ -681,7 +691,7 @@ function RouteSearchForm() {
               <input
                 type="date"
                 value={travelDate}
-                min={new Date().toISOString().split('T')[0]}
+                min={todayLocalStr}
                 onChange={(e) => setTravelDate(e.target.value)}
                 className="field-input"
               />

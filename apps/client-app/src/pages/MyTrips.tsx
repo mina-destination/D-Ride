@@ -229,18 +229,18 @@ export default function MyTripsPage() {
                           </span>
                           <span style={{ 
                             fontSize: '0.8rem', 
-                            color: booking.status === 'CANCELLED' ? 'var(--danger)' : 'var(--success)', 
+                            color: (booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'var(--danger)' : 'var(--success)', 
                             fontWeight: 'bold',
                             background: 'var(--surface-hover)',
                             padding: '3px 8px',
                             borderRadius: '4px',
                             border: '1px solid var(--border)'
                           }}>
-                            {booking.status}
+                            {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
                           </span>
                         </div>
 
-                        <div className="pass-body" style={{ flexWrap: 'wrap', gap: '1.5rem 1rem', justifyContent: 'flex-start' }}>
+                        <div className="pass-body" style={{ flexWrap: 'wrap', gap: '1.5rem 1rem', justifyContent: 'flex-start', marginBottom: '0.75rem' }}>
                           <div className="pass-info-block" style={{ minWidth: '80px' }}>
                             <span className="pass-label">{t('dateLabel')}</span>
                             <span className="pass-value">{formattedDate}</span>
@@ -257,13 +257,29 @@ export default function MyTripsPage() {
                             <span className="pass-label">{t('fareLabelShort')}</span>
                             <span className="pass-value">{booking.amountEGP} EGP</span>
                           </div>
-                          {booking.pickupCheckpoint && (
-                            <div className="pass-info-block" style={{ minWidth: '150px' }}>
-                              <span className="pass-label">{t('boardingCPShort')}</span>
-                              <span className="pass-value" style={{ color: 'var(--primary)' }}>📍 {booking.pickupCheckpoint.name}</span>
-                            </div>
-                          )}
                         </div>
+
+                        {booking.pickupCheckpoint && (
+                          <div className="pass-boarding-footer" style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            background: 'rgba(245, 183, 49, 0.05)', 
+                            border: '1px dashed rgba(245, 183, 49, 0.2)', 
+                            borderRadius: '8px', 
+                            padding: '8px 12px',
+                            marginTop: 'auto',
+                            alignSelf: 'stretch'
+                          }}>
+                            <MapPin size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+                              {t('boardingCPShort')}:
+                            </span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {booking.pickupCheckpoint.name}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="pass-divider">
@@ -363,7 +379,7 @@ export default function MyTripsPage() {
 
                       <div className="pass-sidebar" style={{ background: 'var(--surface-elevated)' }}>
                         <div className="pass-actions" style={{ flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
-                          {booking.status === 'CONFIRMED' && (
+                          {booking.status === 'CONFIRMED' && booking.tripId?.status !== 'CANCELLED' && (
                             <>
                               <Link 
                                 to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`}
@@ -414,7 +430,7 @@ export default function MyTripsPage() {
                               </button>
                             </>
                           )}
-                          {booking.status === 'PENDING_PAYMENT' && (
+                          {booking.status === 'PENDING_PAYMENT' && booking.tripId?.status !== 'CANCELLED' && (
                             <Link
                               to={`/checkout?tripId=${booking.tripId?._id}`}
                               className="auth-button"
@@ -437,7 +453,7 @@ export default function MyTripsPage() {
                               {t('payNow')} <CreditCard size={14} />
                             </Link>
                           )}
-                          {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && (
+                          {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && booking.tripId?.status !== 'CANCELLED' && (
                             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                               <button 
                                 onClick={() => shareTicketPdf(booking, user)}
@@ -523,7 +539,7 @@ export default function MyTripsPage() {
                               )}
                             </div>
                           )}
-                          {booking.status === 'CANCELLED' && (
+                          {(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') && (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>No Actions</span>
                           )}
 

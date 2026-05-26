@@ -270,6 +270,38 @@ export class TripsService {
   }
 
   async create(data: any): Promise<any> {
+    let finalPrice = Number(data.priceEGP);
+    if (data.priceEGP === undefined || data.priceEGP === null || isNaN(finalPrice)) {
+      const route = await this.prisma.route.findUnique({
+        where: { id: data.routeId },
+      });
+      let calculatedPrice = 0;
+      if (route && route.checkpoints && Array.isArray(route.checkpoints)) {
+        const checkpoints = route.checkpoints as any[];
+        const prices = checkpoints
+          .map((cp) => Number(cp.priceFromStartEGP || 0))
+          .filter((p) => !isNaN(p));
+        if (prices.length > 0) {
+          calculatedPrice = Math.max(...prices);
+        }
+      }
+      finalPrice = calculatedPrice;
+    }
+
+    let finalSeats = Number(data.availableSeats);
+    if (data.availableSeats === undefined || data.availableSeats === null || isNaN(finalSeats)) {
+      let seats = 14;
+      if (data.vehicleId) {
+        const vehicle = await this.prisma.vehicle.findUnique({
+          where: { id: data.vehicleId },
+        });
+        if (vehicle && vehicle.capacity) {
+          seats = vehicle.capacity;
+        }
+      }
+      finalSeats = seats;
+    }
+
     const trip = await this.prisma.trip.create({
       data: {
         routeId: data.routeId,
@@ -278,8 +310,8 @@ export class TripsService {
         departureTime: new Date(data.departureTime),
         arrivalTime: data.arrivalTime ? new Date(data.arrivalTime) : null,
         status: (data.status || 'SCHEDULED').toUpperCase() as TripStatus,
-        priceEGP: Number(data.priceEGP),
-        availableSeats: Number(data.availableSeats),
+        priceEGP: finalPrice,
+        availableSeats: finalSeats,
         bookedSeats: Number(data.bookedSeats || 0),
         lockedSeats: data.lockedSeats || [14],
       },
@@ -316,7 +348,19 @@ export class TripsService {
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prisma.trip.delete({ where: { id } });
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Soft-delete by setting trip status to CANCELLED
+        await tx.trip.update({
+          where: { id },
+          data: { status: 'CANCELLED' },
+        });
+
+        // 2. Set all bookings of this trip to CANCELLED so they display as cancelled to the passengers
+        await tx.booking.updateMany({
+          where: { tripId: id },
+          data: { status: 'CANCELLED' },
+        });
+      });
     } catch (err) {
       throw new NotFoundException('Trip not found');
     }

@@ -44,11 +44,13 @@ export class CreateTripDto {
 
   @IsNumber()
   @Min(0)
-  priceEGP: number;
+  @IsOptional()
+  priceEGP?: number;
 
   @IsNumber()
   @Min(0)
-  availableSeats: number;
+  @IsOptional()
+  availableSeats?: number;
 
   @IsNumber()
   @Min(0)

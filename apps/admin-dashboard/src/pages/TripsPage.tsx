@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, InputNumber, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input } from 'antd';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 import dayjs from 'dayjs';
 import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download } from 'lucide-react';
@@ -78,8 +78,6 @@ export function TripsPage() {
         driverId: trip.driverId?._id || trip.driverId,
         departureTime: dayjs(trip.departureTime),
         status: trip.status,
-        priceEGP: trip.priceEGP,
-        availableSeats: trip.availableSeats,
         lockSeat14: trip.lockedSeats?.includes(14) ?? true,
       });
     } else {
@@ -87,8 +85,6 @@ export function TripsPage() {
       form.resetFields();
       form.setFieldsValue({
         status: 'SCHEDULED',
-        availableSeats: 14,
-        priceEGP: 150,
         lockSeat14: true,
       });
     }
@@ -179,8 +175,9 @@ export function TripsPage() {
       await tripsAPI.delete(id);
       message.success('Trip cancelled and removed');
       fetchData();
-    } catch (error) {
-      message.error('Failed to delete trip');
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Failed to delete trip';
+      message.error(Array.isArray(errMsg) ? errMsg[0] : errMsg);
     }
   };
 
@@ -387,7 +384,9 @@ export function TripsPage() {
       t._id?.toLowerCase().includes(term);
 
     const matchesStatus =
-      statusFilter === 'ALL' || t.status === statusFilter;
+      statusFilter === 'ALL'
+        ? t.status !== 'CANCELLED'
+        : t.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -747,23 +746,7 @@ export function TripsPage() {
               </Checkbox>
             </Form.Item>
 
-            <Space style={{ display: 'flex' }}>
-              <Form.Item 
-                name="priceEGP" 
-                label="Price (EGP)" 
-                rules={[{ required: true }]}
-              >
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-              
-              <Form.Item 
-                name="availableSeats" 
-                label="Available Seats" 
-                rules={[{ required: true }]}
-              >
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Space>
+
           </Form>
       </Modal>
     </div>

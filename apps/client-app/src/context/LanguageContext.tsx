@@ -75,6 +75,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // My Trips Page
     yourCommuteBadge: 'Your Commute',
+    tripCancelled: 'Trip Cancelled',
     myBookingsTitle: 'My Bookings & Boarding Passes',
     myBookingsSub: 'Scan mock tickets or track your driver live on Egypt\'s premier mass-transit network.',
     noTickets: 'No Tickets Found',
@@ -520,6 +521,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // My Trips Page
     yourCommuteBadge: 'رحلاتك اليومية',
+    tripCancelled: 'تم إلغاء الرحلة',
     myBookingsTitle: 'حجوزاتي وتذاكر الركوب',
     myBookingsSub: 'امسح التذاكر التجريبية أو تتبع السائق مباشرة على شبكة النقل الرائدة في مصر.',
     noTickets: 'لا توجد تذاكر حالياً',
