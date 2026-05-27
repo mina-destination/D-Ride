@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -18,7 +19,7 @@ export class ReviewsController {
   @Post()
   async createReview(
     @Req() req: any,
-    @Body() data: { bookingId: string; rating: number; comment?: string },
+    @Body() data: CreateReviewDto,
   ) {
     const userId = req.user.sub || req.user.userId || req.user.id;
     const review = await this.reviewsService.createReview(userId, data);
