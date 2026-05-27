@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -12,20 +12,6 @@ export class SupportService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
-    }
-
-    // Limit open support tickets to prevent spam / DoS
-    const openTicketsCount = await this.prisma.supportTicket.count({
-      where: {
-        userId,
-        status: 'OPEN',
-      },
-    });
-
-    if (openTicketsCount >= 5) {
-      throw new BadRequestException(
-        'You have too many open support tickets. Please wait for your existing tickets to be resolved before submitting a new one.',
-      );
     }
 
     const ticket = await this.prisma.supportTicket.create({
@@ -95,7 +81,25 @@ export class SupportService {
     return { ...updated, _id: updated.id, user: updated.userId };
   }
 
-  async getTicketMessages(ticketId: string): Promise<any[]> {
+  async getTicketMessages(ticketId: string, userId: string): Promise<any[]> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    if (!isAdmin) {
+      const ticket = await this.prisma.supportTicket.findUnique({
+        where: { id: ticketId },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Ticket not found');
+      }
+      if (ticket.userId !== userId) {
+        throw new ForbiddenException('You do not own this ticket');
+      }
+    }
+
     return this.prisma.chatMessage.findMany({
       where: { ticketId },
       orderBy: { createdAt: 'asc' },

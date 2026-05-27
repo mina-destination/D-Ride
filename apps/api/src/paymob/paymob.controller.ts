@@ -78,6 +78,34 @@ export class PaymobController {
       }
     }
     if (body.success && body.bookingId) {
+      // 1. If already confirmed in our DB, return success immediately (happy path)
+      if (!body.bookingId.startsWith('wallet_')) {
+        const booking = await this.prisma.booking.findUnique({ where: { id: body.bookingId } });
+        if (booking && booking.status === 'CONFIRMED') {
+          return { success: true };
+        }
+      } else {
+        const parts = body.bookingId.split('_');
+        const userId = parts[1];
+        const existingTx = await this.prisma.transaction.findFirst({
+          where: {
+            userId,
+            paymentMethod: 'CARD',
+            bookingId: body.bookingId,
+            status: 'SUCCESS',
+          },
+        });
+        if (existingTx) {
+          return { success: true };
+        }
+      }
+
+      // 2. Perform server-side validation against Paymob API to prevent spoofing
+      const isValid = await this.paymobService.verifyTransactionOnPaymob(body.bookingId);
+      if (!isValid) {
+        throw new ForbiddenException('Payment verification failed on Paymob');
+      }
+
       await this.paymobService.confirmPaymentDirect(body.bookingId, body.amount);
     }
     return { success: true };

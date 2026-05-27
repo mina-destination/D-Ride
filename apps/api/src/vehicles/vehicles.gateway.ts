@@ -90,9 +90,7 @@ export class VehiclesGateway
         const cleanToken = token.startsWith('Bearer ')
           ? token.split(' ')[1]
           : token;
-        const secret =
-          this.configService.get<string>('jwt.secret') ||
-          'dev_jwt_secret_do_not_use_in_production';
+        const secret = this.configService.getOrThrow<string>('jwt.secret');
         const payload = this.jwtService.verify(cleanToken, { secret });
 
         socket.user = {
