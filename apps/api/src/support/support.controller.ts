@@ -46,8 +46,8 @@ export class SupportController {
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
   @Get('tickets/:id/messages')
-  async getMessages(@Param('id') id: string) {
-    return this.supportService.getTicketMessages(id);
+  async getMessages(@Request() req: any, @Param('id') id: string) {
+    return this.supportService.getTicketMessages(id, req.user.sub);
   }
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')

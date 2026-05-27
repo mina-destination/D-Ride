@@ -81,13 +81,12 @@ export class SupportGateway
 
   handleConnection(client: any) {
     const user = client.user;
-    const handshakeRole = client.handshake.query?.role;
-    const role = (handshakeRole || user?.role || '').toUpperCase();
+    const role = (user?.role || '').toUpperCase();
 
     if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION') {
       client.join('support_operators');
       this.logger.log(
-        `Support client ${client.id} (User: ${user?.id || 'unknown'}, Handshake Role: ${handshakeRole || 'none'}, Token Role: ${user?.role || 'none'}) joined support_operators room`,
+        `Support client ${client.id} (User: ${user?.id || 'unknown'}, Role: ${user?.role || 'none'}) joined support_operators room`,
       );
     }
     this.logger.log(`Support client connected: ${client.id}`);
@@ -98,12 +97,33 @@ export class SupportGateway
   }
 
   @SubscribeMessage('joinTicket')
-  handleJoinTicket(
+  async handleJoinTicket(
     @ConnectedSocket() client: Socket,
     @MessageBody() ticketId: string,
   ) {
+    const user = (client as any).user;
+    if (!user) {
+      this.logger.error('WebSocket joinTicket attempt from unauthenticated client');
+      client.disconnect(true);
+      return { event: 'error', message: 'Unauthorized' };
+    }
+
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    if (!isAdmin) {
+      // Verify that the ticket is owned by the authenticated user
+      const ticket = await this.prisma.supportTicket.findUnique({
+        where: { id: ticketId },
+      });
+      if (!ticket || ticket.userId !== user.id) {
+        this.logger.warn(
+          `Access Denied: User ${user.id} with role ${user.role} attempted to join support ticket room ${ticketId} without ownership`,
+        );
+        return { event: 'error', message: 'Access Denied' };
+      }
+    }
+
     this.logger.log(
-      `Support Client ${client.id} joined ticket room: ${ticketId}`,
+      `Support Client ${client.id} (User: ${user.id}) joined ticket room: ${ticketId}`,
     );
     client.join(`ticket_${ticketId}`);
     return { event: 'joined', data: ticketId };

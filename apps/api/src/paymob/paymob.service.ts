@@ -844,4 +844,36 @@ export class PaymobService {
       this.logger.log(`Confirmed booking ${bookingId} via client redirect.`);
     }
   }
+
+  public async verifyTransactionOnPaymob(merchantOrderId: string): Promise<boolean> {
+    if (!this.apiKey) {
+      return true;
+    }
+    try {
+      // 1. Get authentication token
+      const authRes = await axios.post(`${this.apiBaseUrl}/api/auth/tokens`, {
+        api_key: this.apiKey,
+      });
+      const token = authRes.data.token;
+
+      // 2. Query transactions list by merchant_order_id
+      const res = await axios.get(
+        `${this.apiBaseUrl}/api/acceptance/transactions?merchant_order_id=${merchantOrderId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const transactions = res.data.results || [];
+      // Look for a successful transaction matching our merchant_order_id
+      const successTx = transactions.find(
+        (tx: any) => tx.success === true && tx.pending === false,
+      );
+      return !!successTx;
+    } catch (err: any) {
+      this.logger.error(`Failed to verify transaction on Paymob: ${err.message}`);
+      return false;
+    }
+  }
 }
