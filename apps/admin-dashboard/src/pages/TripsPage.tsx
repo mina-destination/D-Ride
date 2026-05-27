@@ -182,13 +182,7 @@ export function TripsPage() {
   };
 
   // --- Real-time Simulator Core Logic ---
-  const startSimulation = (trip: any) => {
-    const coordinates = trip.routeId?.path?.coordinates;
-    if (!coordinates || coordinates.length === 0) {
-      message.error('This route has no coordinate path defined! Plot coordinates first.');
-      return;
-    }
-
+  const startSimulation = async (trip: any) => {
     const vId = trip.vehicleId?._id || trip.vehicleId;
     const dId = trip.driverId?._id || trip.driverId;
 
@@ -202,46 +196,61 @@ export function TripsPage() {
       return;
     }
 
-    message.success(`Starting live location feed for Trip ${trip._id.slice(-6)}...`);
-
-    let currentIndex = 0;
-    const intervalId = setInterval(async () => {
-      if (currentIndex >= coordinates.length) {
-        clearInterval(intervalId);
-        setActiveSims(prev => {
-          const next = { ...prev };
-          delete next[trip._id];
-          return next;
-        });
-        message.success(`Trip ${trip._id.slice(-6)} has arrived at destination!`);
+    try {
+      setLoading(true);
+      const fullTrip = await tripsAPI.getById(trip._id);
+      const coordinates = fullTrip.routeId?.path?.coordinates;
+      if (!coordinates || coordinates.length === 0) {
+        message.error('This route has no coordinate path defined! Plot coordinates first.');
         return;
       }
 
-      const [lng, lat] = coordinates[currentIndex];
-      try {
-        await vehiclesAPI.updateLocation(vId, dId, lat, lng);
-        setActiveSims(prev => ({
-          ...prev,
-          [trip._id]: {
-            ...prev[trip._id],
-            currentIndex,
-          }
-        }));
-      } catch (e) {
-        console.error('Failed to update live coordinates', e);
-      }
-      currentIndex++;
-    }, 2000);
+      message.success(`Starting live location feed for Trip ${trip._id.slice(-6)}...`);
 
-    setActiveSims(prev => ({
-      ...prev,
-      [trip._id]: {
-        tripId: trip._id,
-        intervalId,
-        currentIndex: 0,
-        totalCoordinates: coordinates.length,
-      }
-    }));
+      let currentIndex = 0;
+      const intervalId = setInterval(async () => {
+        if (currentIndex >= coordinates.length) {
+          clearInterval(intervalId);
+          setActiveSims(prev => {
+            const next = { ...prev };
+            delete next[trip._id];
+            return next;
+          });
+          message.success(`Trip ${trip._id.slice(-6)} has arrived at destination!`);
+          return;
+        }
+
+        const [lng, lat] = coordinates[currentIndex];
+        try {
+          await vehiclesAPI.updateLocation(vId, dId, lat, lng);
+          setActiveSims(prev => ({
+            ...prev,
+            [trip._id]: {
+              ...prev[trip._id],
+              currentIndex,
+            }
+          }));
+        } catch (e) {
+          console.error('Failed to update live coordinates', e);
+        }
+        currentIndex++;
+      }, 2000);
+
+      setActiveSims(prev => ({
+        ...prev,
+        [trip._id]: {
+          tripId: trip._id,
+          intervalId,
+          currentIndex: 0,
+          totalCoordinates: coordinates.length,
+        }
+      }));
+    } catch (error) {
+      message.error('Failed to retrieve route path coordinates for simulation');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stopSimulation = (tripId: string) => {
