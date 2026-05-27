@@ -109,17 +109,21 @@ body {
 
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: 1rem;
+  left: 1rem;
+  bottom: 1rem;
   z-index: 50;
   transition: width 0.3s ease;
   overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 .sidebar-header {
@@ -127,7 +131,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-bottom: 1px solid var(--sidebar-border);
+  border-bottom: 1px solid var(--glass-border);
   min-height: 72px;
 }
 
@@ -186,31 +190,20 @@ body {
   text-decoration: none;
   position: relative;
   white-space: nowrap;
+  border: 1px solid transparent;
 }
 
 .sidebar-item:hover {
-  background: var(--sidebar-item-hover);
+  background: rgba(245, 183, 49, 0.05);
   color: var(--primary);
-  transform: translateX(3px);
+  transform: translateX(4px);
 }
 
 .sidebar-item.active {
-  background: rgba(245, 183, 49, 0.12);
+  background: rgba(245, 183, 49, 0.12) !important;
   color: var(--sidebar-text-active);
-  box-shadow: 0 0 20px rgba(245, 183, 49, 0.06);
-}
-
-.sidebar-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
-  border-radius: 0 3px 3px 0;
-  background: var(--primary);
-  box-shadow: 0 0 10px rgba(245, 183, 49, 0.4);
+  border: 1px solid rgba(245, 183, 49, 0.22);
+  box-shadow: 0 4px 15px rgba(245, 183, 49, 0.08);
 }
 
 .sidebar-item-icon {
@@ -233,7 +226,7 @@ body {
 
 .main-content {
   flex: 1;
-  margin-left: var(--sidebar-width);
+  margin-left: calc(var(--sidebar-width) + 1.5rem);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -303,7 +296,7 @@ body {
 }
 
 .dashboard-layout.sidebar-collapsed .main-content {
-  margin-left: var(--sidebar-collapsed-width);
+  margin-left: calc(var(--sidebar-collapsed-width) + 1.5rem);
 }
 
 
@@ -311,15 +304,20 @@ body {
 
 .topbar {
   height: var(--topbar-height);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
   position: sticky;
-  top: 0;
+  top: 1rem;
   z-index: 40;
+  margin: 1rem 1.5rem 0 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
 .topbar-left {
@@ -743,18 +741,38 @@ body {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: var(--sidebar-collapsed-width);
+    width: var(--sidebar-width) !important;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    bottom: 1rem;
+    transform: translateX(-110%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1000;
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    background: rgba(14, 14, 27, 0.95);
+  }
+
+  .dashboard-layout:not(.sidebar-collapsed) .sidebar {
+    transform: translateX(0);
   }
 
   .sidebar-brand-text,
   .sidebar-item span:not(.sidebar-item-icon),
   .sidebar-section-label,
   .sidebar-footer-text {
-    display: none;
+    display: block !important;
   }
 
   .main-content {
-    margin-left: var(--sidebar-collapsed-width);
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
+  
+  .topbar {
+    margin: 0.5rem 0 1.5rem 0 !important;
+    width: 100% !important;
   }
 
   .kpi-grid {
@@ -922,10 +940,10 @@ a.sidebar-item {
   top: calc(100% + 12px);
   right: 0;
   width: 250px;
-  background: var(--surface);
+  background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   padding: 1.25rem;
   flex-direction: column;
   z-index: 1000;
@@ -938,11 +956,9 @@ a.sidebar-item {
 }
 
 [data-theme="dark"] .profile-dropdown {
-  background: rgba(14, 14, 27, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  background: var(--surface-elevated);
+  border-color: var(--border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
 @keyframes dropdown-fade-in {
@@ -1047,5 +1063,68 @@ a.sidebar-item {
 .profile-menu-item.logout-btn:hover {
   color: var(--danger);
   background: rgba(239, 68, 68, 0.08);
+}
+
+/* ── Ant Design Overrides & Unified Theme Polish ────────────── */
+.ant-select-dropdown {
+  background-color: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 4px !important;
+}
+
+.ant-select-dropdown .ant-select-item {
+  border-radius: var(--radius-sm) !important;
+  transition: var(--transition-base) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-active {
+  background-color: rgba(245, 183, 49, 0.08) !important;
+  color: var(--primary) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected {
+  background-color: rgba(245, 183, 49, 0.15) !important;
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+}
+
+.ant-popover-inner {
+  background-color: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
+  border-radius: var(--radius-lg) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-popover-arrow::after {
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Sidebar Backdrop on Mobile Viewports */
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(6, 6, 14, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 999;
+    animation: fade-in-backdrop 0.3s ease;
+  }
+
+  @keyframes fade-in-backdrop {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 

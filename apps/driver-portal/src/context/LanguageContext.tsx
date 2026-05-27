@@ -30,6 +30,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Bottom Nav
     myShifts: 'My Shifts',
     activeMap: 'Active Map',
+    profile: 'Profile',
     
     // My Trips (Shifts)
     helloDriver: 'Hello, {name}',
@@ -44,6 +45,14 @@ const translations: Record<Language, Record<string, string>> = {
     bookedCount: '{booked} / {available} booked',
     view: 'View',
     assignedRoute: 'Assigned Route',
+    profileTitle: 'Driver Profile',
+    licenseClass: 'License Class',
+    assignedVehicle: 'Assigned Minibus',
+    fleetRegion: 'Fleet Operations Region',
+    languageSetting: 'Language Preferred',
+    statsCapital: 'Shift Stats Summary',
+    completedTripsCount: 'Completed Shifts',
+    verifiedDriverStatus: 'Verified Captain',
     
     // Trip Detail
     tripDetails: 'Trip Details',
@@ -112,6 +121,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Bottom Nav
     myShifts: 'وردياتي',
     activeMap: 'الخريطة النشطة',
+    profile: 'الملف الشخصي',
     
     // My Trips (Shifts)
     helloDriver: 'مرحباً، {name}',
@@ -126,6 +136,14 @@ const translations: Record<Language, Record<string, string>> = {
     bookedCount: 'تم حجز {booked} من أصل {available}',
     view: 'عرض',
     assignedRoute: 'المسار المعين',
+    profileTitle: 'ملف السائق',
+    licenseClass: 'رخصة القيادة',
+    assignedVehicle: 'الحافلة المعينة',
+    fleetRegion: 'منطقة عمليات الأسطول',
+    languageSetting: 'اللغة المفضلة',
+    statsCapital: 'إحصائيات الورديات',
+    completedTripsCount: 'الرحلات المكتملة',
+    verifiedDriverStatus: 'كابتن معتمد',
     
     // Trip Detail
     tripDetails: 'تفاصيل الرحلة',

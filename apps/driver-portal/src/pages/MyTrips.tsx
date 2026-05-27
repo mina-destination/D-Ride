@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI } from '../services/api';
 import { Calendar, Clock, MapPin, Users, ChevronRight, LogOut, RefreshCw, Globe } from 'lucide-react';
+import logo from '../assets/d-ride-logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -38,24 +39,32 @@ export default function MyTripsPage() {
   return (
     <div className="app-container">
       {/* Top Header */}
-      <div style={{
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
-        padding: '16px',
+      <div className="floating-header" style={{
+        background: 'rgba(14, 14, 27, 0.45)',
+        backdropFilter: 'blur(20px) saturate(1.6)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '100px',
+        padding: '12px 24px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         position: 'sticky',
-        top: 0,
-        zIndex: 10
+        top: '1rem',
+        zIndex: 10,
+        margin: '1rem 1rem 0 1rem',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
       }}>
-        <div>
-          <h2 className="title-outfit" style={{ fontSize: '18px', margin: 0 }}>
-            {t('helloDriver', { name: user?.name?.split(' ')[0] || 'Driver' })}
-          </h2>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {t('cairoRegionFleet')}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src={logo} alt="Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px', objectFit: 'contain', boxShadow: '0 0 10px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
+          <div>
+            <h2 className="title-outfit" style={{ fontSize: '14px', margin: 0, color: 'var(--text-primary)' }}>
+              {t('helloDriver', { name: user?.name?.split(' ')[0] || 'Driver' })}
+            </h2>
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              {t('cairoRegionFleet')}
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <button
@@ -63,21 +72,21 @@ export default function MyTripsPage() {
             style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
             title={language === 'en' ? 'العربية' : 'English'}
           >
-            <Globe size={20} />
+            <Globe size={18} />
           </button>
           <button
             onClick={fetchTrips}
             style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
             title={t('refreshTrips')}
           >
-            <RefreshCw size={20} className={loading ? 'spin-anim' : ''} />
+            <RefreshCw size={18} className={loading ? 'spin-anim' : ''} />
           </button>
           <button
             onClick={logout}
             style={{ color: 'var(--danger)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
             title={t('signOut')}
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
           </button>
         </div>
       </div>
