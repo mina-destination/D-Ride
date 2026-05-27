@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
-import logo from '../assets/d-ride-logo.jpeg';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -323,9 +322,6 @@ export default function CheckoutPage() {
         
         {/* Header Section */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <Link to="/">
-            <img src={logo} alt="D-Ride" className="auth-logo" />
-          </Link>
           <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {t('seatSelectionTitle')}
           </h1>
