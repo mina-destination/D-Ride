@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3 } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
+import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
 import { Popover, List, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
@@ -320,8 +321,8 @@ export default function DashboardLayout() {
           }}
         >
           {isSidebarCollapsed ? (
-            <div className="sidebar-logo-collapsed" title="D-Ride Admin Center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 5px' }}>
-              <img src={logo} alt="Logo" style={{ height: '24px', width: 'auto', borderRadius: '4px', objectFit: 'contain' }} />
+            <div className="sidebar-logo-collapsed" title="D-Ride Admin Center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src={favicon} alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
