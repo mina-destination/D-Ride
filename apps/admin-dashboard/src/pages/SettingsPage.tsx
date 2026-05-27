@@ -104,10 +104,8 @@ export function SettingsPage() {
       supportEmail: 'support@dride.com',
       supportPhone: '+20 100 123 4567',
       currency: 'EGP',
-      paymobApiKey: 'ZXlKaGJHY2lPaUpJVXpVMU1pSjkuLi4=',
       paymobIntegrationId: '123456',
       paymobFrameId: '78901',
-      paymobHmac: 'a1b2c3d4e5f6',
       isSandbox: true,
       maxSeats: 4,
       bookingWindow: 14,
@@ -175,24 +173,6 @@ export function SettingsPage() {
             </Text>
           </div>
           <Row gutter={24}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="paymobApiKey"
-                label="Paymob API Key (Secret)"
-                rules={[{ required: true }]}
-              >
-                <Input.Password placeholder="Enter Paymob Secret Key" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="paymobHmac"
-                label="HMAC Webhook Secret"
-                rules={[{ required: true }]}
-              >
-                <Input.Password placeholder="Used to validate callbacks" />
-              </Form.Item>
-            </Col>
             <Col xs={24} md={8}>
               <Form.Item
                 name="paymobIntegrationId"

@@ -248,15 +248,8 @@ export class TripsService {
     pickupCheckpointName?: string,
     dropoffCheckpointName?: string,
   ): Promise<any[]> {
-    // 1. Run a single query to cancel all expired pending bookings database-wide
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    await this.prisma.booking.updateMany({
-      where: {
-        status: 'PENDING_PAYMENT',
-        createdAt: { lt: tenMinutesAgo },
-      },
-      data: { status: 'CANCELLED' },
-    });
+    // Note: Expired booking cleanup is handled lazily per-trip, not globally on every search.
+    // This avoids a heavy global updateMany that becomes a bottleneck under load.
 
     const where: any = { status: TripStatus.SCHEDULED };
     if (routeId) {

@@ -64,9 +64,7 @@ export class SupportGateway
         const cleanToken = token.startsWith('Bearer ')
           ? token.split(' ')[1]
           : token;
-        const secret =
-          this.configService.get<string>('jwt.secret') ||
-          'dev_jwt_secret_do_not_use_in_production';
+        const secret = this.configService.getOrThrow<string>('jwt.secret');
         const payload = this.jwtService.verify(cleanToken, { secret });
 
         socket.user = {
@@ -116,8 +114,14 @@ export class SupportGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() data: SendMessagePayload,
   ) {
+    // Use authenticated user data instead of trusting client-supplied identity
+    const authenticatedUser = (client as any).user;
+    const senderId = authenticatedUser?.id || data.senderId;
+    const senderRole = authenticatedUser?.role || data.senderRole;
+    const senderName = data.senderName; // Name can come from client (display name)
+
     this.logger.log(
-      `Support Message received for ticket ${data.ticketId} from ${data.senderName} (${data.senderRole}): ${data.message}`,
+      `Support Message received for ticket ${data.ticketId} from ${senderName} (${senderRole}): ${data.message}`,
     );
 
     try {
@@ -125,9 +129,9 @@ export class SupportGateway
       const savedMsg = await this.prisma.chatMessage.create({
         data: {
           ticketId: data.ticketId,
-          senderId: data.senderId,
-          senderRole: data.senderRole,
-          senderName: data.senderName,
+          senderId: senderId,
+          senderRole: senderRole,
+          senderName: senderName,
           message: data.message,
         },
       });
@@ -139,8 +143,8 @@ export class SupportGateway
       this.server.to('support_operators').emit('ticketActivity', {
         ticketId: data.ticketId,
         lastMessage: data.message,
-        senderName: data.senderName,
-        senderRole: data.senderRole,
+        senderName: senderName,
+        senderRole: senderRole,
         createdAt: savedMsg.createdAt,
       });
 

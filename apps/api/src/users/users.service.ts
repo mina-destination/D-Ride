@@ -162,10 +162,18 @@ export class UsersService implements OnModuleInit {
   }
 
   async updateUser(id: string, data: any): Promise<any> {
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 12);
+    // Allowlist only safe fields to prevent mass assignment of walletBalance, crmNotes, etc.
+    const allowedFields = ['name', 'email', 'phone', 'password', 'role', 'avatarUrl', 'isActive', 'status'];
+    const updateData: any = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        updateData[key] = data[key];
+      }
     }
-    const updateData = { ...data };
+
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+    }
     if (updateData.role) {
       updateData.role = updateData.role.toUpperCase() as Role;
     }
