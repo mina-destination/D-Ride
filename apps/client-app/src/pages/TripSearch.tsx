@@ -209,7 +209,8 @@ export default function TripSearchPage() {
         parseFloat(dropoffLng!),
         undefined,
         pickupCity,
-        dropoffCity
+        dropoffCity,
+        date || undefined
       )
         .then((smartRoutes: any[]) => {
           let allTrips = smartRoutes.map((sr: any) => ({
@@ -569,7 +570,6 @@ export default function TripSearchPage() {
                               key={trip._id} 
                               className={`trip-card glass animate-fade-in-up ${activeTripId === trip._id ? 'connector-glow' : ''} ${!isTargetDate ? 'alternative-trip-card' : ''}`}
                               onClick={() => setActiveTripId(trip._id)}
-                              onMouseEnter={() => setActiveTripId(trip._id)}
                               style={{ 
                                 animationDelay: `${idx * 0.1}s`, 
                                 display: 'flex', 

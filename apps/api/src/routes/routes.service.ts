@@ -254,17 +254,36 @@ export class RoutesService {
     radiusMeters: number = 5000,
     pickupCity?: string,
     dropoffCity?: string,
+    date?: string,
   ): Promise<any[]> {
     this.logger.log(
-      `Smart search: pickup=[${pickupLat},${pickupLng}] (${pickupCity}) dropoff=[${dropoffLat},${dropoffLng}] (${dropoffCity}) radius=${radiusMeters}m`,
+      `Smart search: pickup=[${pickupLat},${pickupLng}] (${pickupCity}) dropoff=[${dropoffLat},${dropoffLng}] (${dropoffCity}) radius=${radiusMeters}m date=${date}`,
     );
 
-    const trips = await this.prisma.trip.findMany({
-      where: {
-        status: {
-          in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'],
-        },
+    const where: any = {
+      status: {
+        in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'],
       },
+    };
+
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+
+      const fromDate = new Date(startDate);
+      fromDate.setDate(fromDate.getDate() - 1);
+
+      const toDate = new Date(startDate);
+      toDate.setDate(toDate.getDate() + 3);
+
+      where.departureTime = {
+        gte: fromDate,
+        lte: toDate,
+      };
+    }
+
+    const trips = await this.prisma.trip.findMany({
+      where,
       include: {
         route: true,
         vehicle: true,
