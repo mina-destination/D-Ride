@@ -236,6 +236,16 @@ export class TripsService {
     pickupCheckpointName?: string,
     dropoffCheckpointName?: string,
   ): Promise<any[]> {
+    // 1. Run a single query to cancel all expired pending bookings database-wide
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    await this.prisma.booking.updateMany({
+      where: {
+        status: 'PENDING_PAYMENT',
+        createdAt: { lt: tenMinutesAgo },
+      },
+      data: { status: 'CANCELLED' },
+    });
+
     const where: any = { status: TripStatus.SCHEDULED };
     if (routeId) {
       where.routeId = routeId;
@@ -247,19 +257,9 @@ export class TripsService {
       endDate.setHours(23, 59, 59, 999);
       where.departureTime = { gte: startDate, lte: endDate };
     }
+
+    // 2. Fetch the trips directly with their vehicle and driver details populated
     const trips = await this.prisma.trip.findMany({
-      where,
-      include: {
-        route: true,
-      },
-      orderBy: { departureTime: 'asc' },
-    });
-
-    // Clean up expired bookings for all found scheduled trips in parallel to correct their bookedSeats counts
-    await Promise.all(trips.map((t) => this.cleanupExpiredBookings(t.id)));
-
-    // Re-fetch trips to get the updated database states
-    const updatedTrips = await this.prisma.trip.findMany({
       where,
       include: {
         route: true,
@@ -269,8 +269,42 @@ export class TripsService {
       orderBy: { departureTime: 'asc' },
     });
 
-    return updatedTrips
-      .map((t) => this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName))
+    if (trips.length === 0) {
+      return [];
+    }
+
+    const tripIds = trips.map((t) => t.id);
+
+    // 3. Batch query all active bookings for these trips in one single database roundtrip
+    const activeBookings = await this.prisma.booking.findMany({
+      where: {
+        tripId: { in: tripIds },
+        status: {
+          in: ['CONFIRMED', 'BOARDED', 'COMPLETED', 'PENDING_PAYMENT'],
+        },
+      },
+      select: {
+        tripId: true,
+        seatNumbers: true,
+      },
+    });
+
+    // 4. Calculate the bookedSeats count dynamically in memory
+    const bookedSeatsMap: Record<string, number> = {};
+    activeBookings.forEach((b: any) => {
+      const seatsCount =
+        b.seatNumbers && Array.isArray(b.seatNumbers)
+          ? b.seatNumbers.length
+          : 0;
+      bookedSeatsMap[b.tripId] = (bookedSeatsMap[b.tripId] || 0) + seatsCount;
+    });
+
+    // 5. Update the trips' bookedSeats in-memory to dynamically reflect active bookings
+    return trips
+      .map((t) => {
+        t.bookedSeats = bookedSeatsMap[t.id] || 0;
+        return this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName);
+      })
       .filter((t) => t !== null);
   }
 

@@ -67,6 +67,7 @@ export class RoutesController {
     @Query('radius') radius?: string,
     @Query('pickupCity') pickupCity?: string,
     @Query('dropoffCity') dropoffCity?: string,
+    @Query('date') date?: string,
   ) {
     const results = await this.routesService.smartSearch(
       pickupLng ? parseFloat(pickupLng) : 0,
@@ -76,6 +77,7 @@ export class RoutesController {
       radius ? parseInt(radius, 10) : 5000,
       pickupCity,
       dropoffCity,
+      date,
     );
     return {
       success: true,
