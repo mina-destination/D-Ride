@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VehiclesGateway } from './vehicles.gateway';
 import { getDistance } from '../utils/geo';
@@ -116,12 +116,27 @@ export class VehiclesService {
 
   // --- Live Location Tracking ---
 
-  async upsertLocation(data: {
-    vehicleId: string;
-    driverId: string;
-    longitude: number;
-    latitude: number;
-  }): Promise<any> {
+  async upsertLocation(
+    data: {
+      vehicleId: string;
+      driverId: string;
+      longitude: number;
+      latitude: number;
+    },
+    caller?: { sub: string; role: string },
+  ): Promise<any> {
+    if (caller && caller.role === 'DRIVER') {
+      if (data.driverId !== caller.sub) {
+        throw new ForbiddenException('You cannot update location for another driver');
+      }
+      const vehicle = await this.prisma.vehicle.findUnique({
+        where: { id: data.vehicleId },
+      });
+      if (!vehicle || vehicle.driverId !== caller.sub) {
+        throw new ForbiddenException('You are not assigned to this vehicle');
+      }
+    }
+
     this.logger.log(`Updating location for vehicle ${data.vehicleId}`);
 
     const existing = await this.prisma.liveVehicleLocation.findFirst({

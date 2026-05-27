@@ -470,10 +470,17 @@ export class TripsService {
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
-    if (trip.driverId && trip.driverId !== driverId) {
-      throw new ForbiddenException(
-        'You are not authorized to update this trip status',
-      );
+    const caller = await this.prisma.user.findUnique({ where: { id: driverId } });
+    if (!caller) throw new NotFoundException('User not found');
+
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(caller.role);
+
+    if (!isAdmin) {
+      if (!trip.driverId || trip.driverId !== driverId) {
+        throw new ForbiddenException(
+          'You are not authorized to update this trip status',
+        );
+      }
     }
 
     const validStatuses = [

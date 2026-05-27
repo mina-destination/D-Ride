@@ -20,7 +20,7 @@ export class ReviewsController {
     @Req() req: any,
     @Body() data: { bookingId: string; rating: number; comment?: string },
   ) {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.sub || req.user.userId || req.user.id;
     const review = await this.reviewsService.createReview(userId, data);
     return {
       success: true,

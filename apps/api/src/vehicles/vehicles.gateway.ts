@@ -242,6 +242,20 @@ export class VehiclesGateway
     const driverId = user.id;
     const vehicleId = data.vehicleId;
 
+    // Verify driver is assigned to this vehicle
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+    if (!vehicle || vehicle.driverId !== driverId) {
+      this.logger.error(
+        `Driver ${driverId} attempted to push location for unauthorized vehicle ${vehicleId}`,
+      );
+      return {
+        event: 'locationAck',
+        data: { success: false, error: 'Access Denied: Not your assigned vehicle' },
+      };
+    }
+
     try {
       const key = `d-ride:active-driver:${client.id}`;
       await this.redisClient.set(
