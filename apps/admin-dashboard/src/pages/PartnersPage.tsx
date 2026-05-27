@@ -115,6 +115,10 @@ export function PartnersPage() {
           <img
             src={cleanGoogleDriveLink(record.logoUrl)}
             alt={record.name}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://placehold.co/100x36/26272b/fff?text=${encodeURIComponent(record.name)}`;
+            }}
             style={{
               height: '36px',
               maxWidth: '100px',
@@ -216,7 +220,7 @@ export function PartnersPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ isActive: true }}>
           <Form.Item

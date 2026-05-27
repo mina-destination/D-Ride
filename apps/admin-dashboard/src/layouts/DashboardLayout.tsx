@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/d-ride-logo.jpeg';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Modal, Popover, List, Tag, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
@@ -25,6 +25,7 @@ const navItems = [
   { label: 'Finance & Sales', type: 'section' as const },
   { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
+  { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   
   { label: 'Administration', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
@@ -40,6 +41,7 @@ const pageTitles: Record<string, string> = {
   '/drivers': 'Drivers',
   '/bookings': 'Bookings',
   '/payments': 'Payments',
+  '/analytics': 'Analytics & Profits',
   '/passengers': 'Passengers',
   '/crm': 'CRM',
   '/support-tickets': 'Support Tickets',
@@ -56,6 +58,7 @@ const pathPermissionMap: Record<string, string> = {
   '/drivers': 'drivers',
   '/bookings': 'bookings',
   '/payments': 'payments',
+  '/analytics': 'dashboard',
   '/passengers': 'passengers',
   '/crm': 'crm',
   '/support-tickets': 'crm',
@@ -291,7 +294,7 @@ export default function DashboardLayout() {
     <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '0.75rem' }}>
+        <NavLink to="/" className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '0.75rem', textDecoration: 'none' }}>
           {isSidebarCollapsed ? (
             <div className="sidebar-logo-collapsed" title="D-Ride Admin Center">
               <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
@@ -304,12 +307,9 @@ export default function DashboardLayout() {
               </svg>
             </div>
           ) : (
-            <>
-              <img src={logo} alt="D-Ride" className="sidebar-logo" />
-              <span className="sidebar-brand-text">D-Ride</span>
-            </>
+            <img src={logo} alt="D-Ride" className="sidebar-logo" />
           )}
-        </div>
+        </NavLink>
 
         <nav className="sidebar-nav">
           {finalNavItems.map((item, i) =>
@@ -599,7 +599,7 @@ export default function DashboardLayout() {
             Close Profile
           </Button>
         ]}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', margin: '1rem 0 2rem 0', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
           <div style={{

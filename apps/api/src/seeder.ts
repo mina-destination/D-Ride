@@ -338,21 +338,21 @@ async function bootstrap() {
       {
         name: 'Paymob Egypt',
         logoUrl:
-          'https://cdn.brandfetch.net/idS-N-v48N/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-eRNgT9P_H0',
+          'https://placehold.co/400x400/26272b/fff?text=Paymob',
         websiteUrl: 'https://paymob.com',
         isActive: true,
       },
       {
         name: 'Orange Egypt',
         logoUrl:
-          'https://cdn.brandfetch.net/idB24t81j1/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-qG3H_m6754',
+          'https://placehold.co/400x400/26272b/fff?text=Orange',
         websiteUrl: 'https://orange.eg',
         isActive: true,
       },
       {
         name: 'Vodafone Cash',
         logoUrl:
-          'https://cdn.brandfetch.net/idJ05z95O2/w/400/h/400/theme/dark/icon.png?bf=true&id=collection-yRzZ748u3o',
+          'https://placehold.co/400x400/26272b/fff?text=Vodafone',
         websiteUrl: 'https://vodafone.com.eg',
         isActive: true,
       },

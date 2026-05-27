@@ -21,6 +21,7 @@ import { CrmPage } from './pages/CrmPage';
 import { SupportTicketsPage } from './pages/SupportTicketsPage';
 import { AdministratorsPage } from './pages/AdministratorsPage';
 import { PartnersPage } from './pages/PartnersPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import './App.css';
 
 import { Result, Button, Space } from 'antd';
@@ -219,6 +220,7 @@ function AppRoutes() {
         <Route path="drivers" element={<ProtectedRoute permission="drivers"><DriversPage /></ProtectedRoute>} />
         <Route path="bookings" element={<ProtectedRoute permission="bookings"><BookingsPage /></ProtectedRoute>} />
         <Route path="payments" element={<ProtectedRoute permission="payments"><PaymentsPage /></ProtectedRoute>} />
+        <Route path="analytics" element={<ProtectedRoute permission="dashboard"><AnalyticsPage /></ProtectedRoute>} />
         <Route path="passengers" element={<ProtectedRoute permission="passengers"><PassengersPage /></ProtectedRoute>} />
         <Route path="crm" element={<ProtectedRoute permission="crm"><CrmPage /></ProtectedRoute>} />
         <Route path="support-tickets" element={<ProtectedRoute permission="crm"><SupportTicketsPage /></ProtectedRoute>} />

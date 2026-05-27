@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, Popconfirm } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, Popconfirm, Card } from 'antd';
 import { usersAPI } from '../services/api';
-import { Users, Zap, Ban, TrendingUp, Edit, Plus, Download } from 'lucide-react';
+import { Users, Zap, Ban, TrendingUp, Edit, Plus, Download, Trash2 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 export function PassengersPage() {
@@ -13,6 +13,11 @@ export function PassengersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Row selection & bulk states
+  const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   
   const location = useLocation();
   useEffect(() => {
@@ -110,6 +115,7 @@ export function PassengersPage() {
       title: 'Passenger Info',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a: any, b: any) => (a.name || '').localeCompare(b.name || ''),
       render: (text: string, record: any) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
@@ -138,18 +144,21 @@ export function PassengersPage() {
       title: 'Email Address',
       dataIndex: 'email',
       key: 'email',
+      sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
       render: (text: string) => <span style={{ color: 'var(--text-secondary)' }}>{text}</span>,
     },
     {
       title: 'Phone Number',
       dataIndex: 'phone',
       key: 'phone',
+      sorter: (a: any, b: any) => (a.phone || '').localeCompare(b.phone || ''),
       render: (text: string) => <code style={{ letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>{text}</code>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      sorter: (a: any, b: any) => (a.status || 'ACTIVE').localeCompare(b.status || 'ACTIVE'),
       render: (status: string) => {
         const currentStatus = status || 'ACTIVE';
         const isCurrentActive = currentStatus === 'ACTIVE';
@@ -197,7 +206,35 @@ export function PassengersPage() {
     },
   ];
 
-  const handleExport = () => {
+  const handleBulkStatusUpdate = async (status: string) => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedRowKeys.map(id => usersAPI.update(id, { status })));
+      message.success(`Successfully updated status for ${selectedRowKeys.length} passengers`);
+      setSelectedRowKeys([]);
+      fetchPassengers();
+    } catch (error) {
+      message.error('Failed to update status for some selected passengers');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedRowKeys.map(id => usersAPI.delete(id)));
+      message.success(`Successfully deleted ${selectedRowKeys.length} passengers`);
+      setSelectedRowKeys([]);
+      fetchPassengers();
+    } catch (error) {
+      message.error('Failed to delete some selected passengers');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportData = (dataToExport: any[]) => {
     const headers = [
       { key: '_id', label: 'Passenger ID', transform: (val: string) => val.toUpperCase() },
       { key: 'name', label: 'Passenger Name' },
@@ -205,7 +242,16 @@ export function PassengersPage() {
       { key: 'phone', label: 'Phone Number' },
       { key: 'status', label: 'Account Status', transform: (val: string) => val || 'ACTIVE' },
     ];
-    exportToCSV(filteredPassengers, headers, 'passengers_report');
+    exportToCSV(dataToExport, headers, 'passengers_report');
+  };
+
+  const handleExport = () => {
+    handleExportData(filteredPassengers);
+  };
+
+  const handleExportSelected = () => {
+    const selectedData = passengers.filter(p => selectedRowKeys.includes(p._id));
+    handleExportData(selectedData);
   };
 
   return (
@@ -235,6 +281,17 @@ export function PassengersPage() {
             <Select.Option value="SUSPENDED">Suspended</Select.Option>
           </Select>
           <Button 
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              setSelectedRowKeys([]);
+            }}
+            type={isSelectionMode ? "primary" : "default"}
+            ghost={isSelectionMode}
+            style={{ fontWeight: 'bold', height: '40px' }}
+          >
+            {isSelectionMode ? "Exit Selection" : "Select Passengers"}
+          </Button>
+          <Button 
             onClick={handleExport} 
             icon={<Download size={16} />}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
@@ -245,7 +302,7 @@ export function PassengersPage() {
             type="primary" 
             size="large"
             onClick={() => handleOpenModal()}
-            style={{ background: 'var(--primary-color)', fontWeight: 600 }}
+            style={{ background: 'var(--primary-color)', fontWeight: 600, height: '40px' }}
           >
             + Add Passenger
           </Button>
@@ -291,9 +348,77 @@ export function PassengersPage() {
         </div>
       </div>
 
+      {selectedRowKeys.length > 0 && (
+        <Card 
+          style={{ 
+            marginBottom: '1rem', 
+            background: 'var(--surface-hover)', 
+            border: '1px solid var(--border)',
+            borderRadius: '12px' 
+          }}
+          size="small"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+              Selected {selectedRowKeys.length} passenger{selectedRowKeys.length > 1 ? 's' : ''}
+            </span>
+            <Space>
+              <Button 
+                onClick={() => handleBulkStatusUpdate('ACTIVE')} 
+                size="small"
+              >
+                Bulk Activate
+              </Button>
+              <Button 
+                onClick={() => handleBulkStatusUpdate('SUSPENDED')} 
+                size="small"
+              >
+                Bulk Suspend
+              </Button>
+              <Button 
+                onClick={handleExportSelected} 
+                icon={<Download size={14} />}
+                size="small"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Export Selected CSV
+              </Button>
+              <Popconfirm
+                title={`Are you sure you want to delete the ${selectedRowKeys.length} selected passengers?`}
+                onConfirm={handleBulkDelete}
+                okText="Yes, Delete"
+                cancelText="No"
+              >
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  icon={<Trash2 size={14} />}
+                  loading={bulkLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  Delete Selected
+                </Button>
+              </Popconfirm>
+              <Button 
+                type="text" 
+                size="small" 
+                onClick={() => setSelectedRowKeys([])}
+              >
+                Deselect All
+              </Button>
+            </Space>
+          </div>
+        </Card>
+      )}
+
       {/* Table Section */}
       <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <Table
+          rowSelection={isSelectionMode ? {
+            selectedRowKeys,
+            onChange: (keys: any[]) => setSelectedRowKeys(keys)
+          } : undefined}
           dataSource={filteredPassengers}
           columns={columns}
           rowKey="_id"

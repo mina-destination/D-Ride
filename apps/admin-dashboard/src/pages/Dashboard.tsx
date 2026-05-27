@@ -48,6 +48,33 @@ interface ActiveBus {
   status: string;
 }
 
+// Helper functions to draw smooth bezier curves through exact points
+const getLinePath = (points: { x: number; y: number }[]) => {
+  if (points.length === 0) return '';
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x},${p2.y}`;
+  }
+  return d;
+};
+
+const getAreaPath = (points: { x: number; y: number }[]) => {
+  if (points.length === 0) return '';
+  const line = getLinePath(points);
+  return `${line} L ${points[points.length - 1].x},130 L ${points[0].x},130 Z`;
+};
+
 export default function DashboardPage() {
   const { theme } = useTheme();
   const mapTileUrl = theme === 'dark'
@@ -56,7 +83,6 @@ export default function DashboardPage() {
   const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
   const [fleet, setFleet] = useState<ActiveBus[]>([]);
-  const [trips, setTrips] = useState<any[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
 
@@ -72,47 +98,53 @@ export default function DashboardPage() {
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [hoveredDonutSector, setHoveredDonutSector] = useState<string | null>(null);
 
+  const dailyPoints = [
+    { label: '08:00', x: 10, y: 130, count: 120 },
+    { label: '10:00', x: 95, y: 80, count: 240 },
+    { label: '12:00', x: 200, y: 110, count: 180 },
+    { label: '14:00', x: 290, y: 50, count: 320 },
+    { label: '16:00', x: 370, y: 90, count: 210 },
+    { label: '18:00', x: 430, y: 40, count: 350 },
+    { label: '20:00', x: 490, y: 15, count: 420 }
+  ];
+
+  const weeklyPoints = [
+    { label: 'Mon', x: 10, y: 120, count: 140 },
+    { label: 'Tue', x: 95, y: 78, count: 260 },
+    { label: 'Wed', x: 200, y: 85, count: 240 },
+    { label: 'Thu', x: 290, y: 45, count: 340 },
+    { label: 'Fri', x: 370, y: 55, count: 310 },
+    { label: 'Sat', x: 430, y: 60, count: 290 },
+    { label: 'Sun', x: 490, y: 20, count: 450 }
+  ];
+
+  const monthlyPoints = [
+    { label: 'Jan', x: 10, y: 110, count: 1200 },
+    { label: 'Feb', x: 95, y: 90, count: 1800 },
+    { label: 'Mar', x: 200, y: 65, count: 2500 },
+    { label: 'Apr', x: 290, y: 55, count: 2800 },
+    { label: 'May', x: 370, y: 35, count: 3400 },
+    { label: 'Jun', x: 430, y: 25, count: 3800 },
+    { label: 'Jul', x: 490, y: 10, count: 4200 }
+  ];
+
   const bookingsDataMap = {
     daily: {
-      points: [
-        { label: '08:00', x: 10, y: 130, count: 120 },
-        { label: '10:00', x: 95, y: 80, count: 240 },
-        { label: '12:00', x: 200, y: 110, count: 180 },
-        { label: '14:00', x: 290, y: 50, count: 320 },
-        { label: '16:00', x: 370, y: 90, count: 210 },
-        { label: '18:00', x: 430, y: 40, count: 350 },
-        { label: '20:00', x: 490, y: 15, count: 420 }
-      ],
-      areaPath: "M 10,130 L 10,130 Q 80,80 150,105 T 290,50 T 430,40 T 490,15 L 490,130 Z",
-      linePath: "M 10,130 Q 80,80 150,105 T 290,50 T 430,40 T 490,15",
+      points: dailyPoints,
+      areaPath: getAreaPath(dailyPoints),
+      linePath: getLinePath(dailyPoints),
       growth: "+18.4% today"
     },
     weekly: {
-      points: [
-        { label: 'Mon', x: 10, y: 120, count: 140 },
-        { label: 'Tue', x: 95, y: 78, count: 260 },
-        { label: 'Wed', x: 200, y: 85, count: 240 },
-        { label: 'Thu', x: 290, y: 45, count: 340 },
-        { label: 'Fri', x: 370, y: 55, count: 310 },
-        { label: 'Sat', x: 430, y: 60, count: 290 },
-        { label: 'Sun', x: 490, y: 20, count: 450 }
-      ],
-      areaPath: "M 10,130 L 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20 L 490,130 Z",
-      linePath: "M 10,120 Q 80,70 150,95 T 290,45 T 430,60 T 490,20",
+      points: weeklyPoints,
+      areaPath: getAreaPath(weeklyPoints),
+      linePath: getLinePath(weeklyPoints),
       growth: "+14.2% weekly growth"
     },
     monthly: {
-      points: [
-        { label: 'Jan', x: 10, y: 110, count: 1200 },
-        { label: 'Feb', x: 95, y: 90, count: 1800 },
-        { label: 'Mar', x: 200, y: 65, count: 2500 },
-        { label: 'Apr', x: 290, y: 55, count: 2800 },
-        { label: 'May', x: 370, y: 35, count: 3400 },
-        { label: 'Jun', x: 430, y: 25, count: 3800 },
-        { label: 'Jul', x: 490, y: 10, count: 4200 }
-      ],
-      areaPath: "M 10,130 L 10,110 Q 80,90 150,75 T 290,55 T 430,25 T 490,10 L 490,130 Z",
-      linePath: "M 10,110 Q 80,90 150,75 T 290,55 T 430,25 T 490,10",
+      points: monthlyPoints,
+      areaPath: getAreaPath(monthlyPoints),
+      linePath: getLinePath(monthlyPoints),
       growth: "+22.5% monthly growth"
     }
   };
@@ -185,7 +217,6 @@ export default function DashboardPage() {
           tripsAPI.getAll(),
           vehiclesAPI.getAll()
         ]);
-        setTrips(tripsData);
         const builtFleet = buildFleet(tripsData, vehiclesData);
         setFleet(builtFleet);
       } catch (err) {
@@ -245,18 +276,24 @@ export default function DashboardPage() {
       setSelectedRoutePath([]);
       return;
     }
-    const matchedTrip = trips.find(t => t._id === selectedBusId);
-    const points = matchedTrip?.routeId?.path?.coordinates?.map(
-      (c: number[]) => [c[1], c[0]] as [number, number]
-    ) || [];
-
-    if (!points || points.length < 2) return;
 
     const fetchRoute = async () => {
-      const coordsString = points
-        .map((p: [number, number]) => `${p[1]},${p[0]}`) // Lng, Lat
-        .join(';');
       try {
+        // Fetch full trip details on-demand since coordinates are excluded in the list payload
+        const fullTrip = await tripsAPI.getById(selectedBusId);
+        const points = fullTrip?.routeId?.path?.coordinates?.map(
+          (c: number[]) => [c[1], c[0]] as [number, number]
+        ) || [];
+
+        if (!points || points.length < 2) {
+          setSelectedRoutePath([]);
+          return;
+        }
+
+        const coordsString = points
+          .map((p: [number, number]) => `${p[1]},${p[0]}`) // Lng, Lat
+          .join(';');
+        
         const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
         const response = await fetch(url);
         const data = await response.json();
@@ -267,12 +304,12 @@ export default function DashboardPage() {
           setSelectedRoutePath(points);
         }
       } catch (err) {
-        console.warn("OSRM routing failed on dashboard, falling back to static points:", err);
-        setSelectedRoutePath(points);
+        console.warn("OSRM routing failed on dashboard, falling back:", err);
+        setSelectedRoutePath([]);
       }
     };
     fetchRoute();
-  }, [selectedBusId, trips]);
+  }, [selectedBusId]);
 
   return (
     <>

@@ -21,6 +21,13 @@ export function CrmPage() {
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
 
+  // Selection and Bulk Actions States
+  const [selectedUserKeys, setSelectedUserKeys] = useState<any[]>([]);
+  const [selectedTicketKeys, setSelectedTicketKeys] = useState<any[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isUserSelectionMode, setIsUserSelectionMode] = useState(false);
+  const [isTicketSelectionMode, setIsTicketSelectionMode] = useState(false);
+
   // WebSocket support chat states
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const socketRef = useRef<Socket | null>(null);
@@ -37,13 +44,11 @@ export function CrmPage() {
   // User Drawer States
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [noteForm] = Form.useForm();
   const [isAddingNote, setIsAddingNote] = useState(false);
 
   // Ticket Drawer States
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState(false);
-  const [replyForm] = Form.useForm();
   const [isReplying, setIsReplying] = useState(false);
 
   // Fetch users and bookings
@@ -127,7 +132,7 @@ export function CrmPage() {
   });
 
   // CSV export for Users tab
-  const handleExportUsers = () => {
+  const handleExportUsersData = (dataToExport: any[]) => {
     const headers = [
       { key: '_id', label: 'User ID', transform: (val: string) => val.toUpperCase() },
       { key: 'name', label: 'Name' },
@@ -137,11 +142,20 @@ export function CrmPage() {
       { key: 'isActive', label: 'Status', transform: (val: any) => val !== false ? 'ACTIVE' : 'SUSPENDED' },
       { key: 'createdAt', label: 'Registered On', transform: (val: string) => val ? new Date(val).toLocaleDateString() : '' },
     ];
-    exportToCSV(filteredUsers, headers, 'crm_users_report');
+    exportToCSV(dataToExport, headers, 'crm_users_report');
+  };
+
+  const handleExportUsers = () => {
+    handleExportUsersData(filteredUsers);
+  };
+
+  const handleExportSelectedUsers = () => {
+    const selectedData = users.filter(u => selectedUserKeys.includes(u._id));
+    handleExportUsersData(selectedData);
   };
 
   // CSV export for Tickets tab
-  const handleExportTickets = () => {
+  const handleExportTicketsData = (dataToExport: any[]) => {
     const headers = [
       { key: '_id', label: 'Ticket ID', transform: (val: string) => val.toUpperCase() },
       { key: 'subject', label: 'Subject' },
@@ -153,7 +167,79 @@ export function CrmPage() {
       { key: 'replies', label: 'Replies Count', transform: (val: any) => val?.length?.toString() || '0' },
       { key: 'createdAt', label: 'Submitted On', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
     ];
-    exportToCSV(filteredCrmTickets, headers, 'crm_tickets_report');
+    exportToCSV(dataToExport, headers, 'crm_tickets_report');
+  };
+
+  const handleExportTickets = () => {
+    handleExportTicketsData(filteredCrmTickets);
+  };
+
+  const handleExportSelectedTickets = () => {
+    const selectedData = tickets.filter(t => selectedTicketKeys.includes(t._id));
+    handleExportTicketsData(selectedData);
+  };
+
+  // Bulk CRUD actions for Users
+  const handleBulkUserStatusChange = async (isActive: boolean) => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedUserKeys.map(id => usersAPI.update(id, { isActive })));
+      message.success(`Successfully updated status for ${selectedUserKeys.length} users`);
+      setSelectedUserKeys([]);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to update status for some selected users');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkUserRoleChange = async (role: string) => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedUserKeys.map(id => usersAPI.update(id, { role })));
+      message.success(`Successfully updated role for ${selectedUserKeys.length} users to ${role}`);
+      setSelectedUserKeys([]);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to update role for some selected users');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkUserDelete = async () => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedUserKeys.map(id => usersAPI.delete(id)));
+      message.success(`Successfully deleted ${selectedUserKeys.length} users`);
+      setSelectedUserKeys([]);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to delete some selected users');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Bulk actions for Support Tickets
+  const handleBulkResolveTickets = async () => {
+    try {
+      setBulkLoading(true);
+      const toResolve = tickets.filter(t => selectedTicketKeys.includes(t._id) && t.status !== 'RESOLVED');
+      if (toResolve.length === 0) {
+        message.warning('All selected tickets are already resolved');
+        return;
+      }
+      await Promise.all(toResolve.map(t => supportAPI.resolveTicket(t._id)));
+      message.success(`Successfully resolved ${toResolve.length} tickets`);
+      setSelectedTicketKeys([]);
+      fetchTickets();
+    } catch (error) {
+      message.error('Failed to resolve some selected tickets');
+    } finally {
+      setBulkLoading(false);
+    }
   };
 
   // Calculate live statistics
@@ -178,21 +264,19 @@ export function CrmPage() {
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setSelectedUser(null);
-    noteForm.resetFields();
   };
 
-  const handleAddNote = async (values: { text: string }) => {
+  const handleAddNote = async (text: string) => {
     if (!selectedUser) return;
     try {
       setIsAddingNote(true);
       const adminName = currentAdmin?.name || 'Administrator';
-      const updatedUser = await usersAPI.addNote(selectedUser._id, values.text, adminName);
+      const updatedUser = await usersAPI.addNote(selectedUser._id, text, adminName);
       
       setUsers((prev: any[]) => prev.map(u => u._id === selectedUser._id ? { ...u, crmNotes: updatedUser.crmNotes } : u));
       setSelectedUser((prev: any) => prev ? { ...prev, crmNotes: updatedUser.crmNotes } : null);
       
       message.success('CRM support note logged successfully');
-      noteForm.resetFields();
     } catch (error) {
       message.error('Failed to add CRM note');
     } finally {
@@ -282,14 +366,13 @@ export function CrmPage() {
     setIsTicketDrawerOpen(false);
     setSelectedTicket(null);
     setChatMessages([]);
-    replyForm.resetFields();
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
   };
 
-  const handleReplyToTicket = async (values: { text: string }) => {
+  const handleReplyToTicket = async (text: string) => {
     if (!selectedTicket || !socketRef.current) return;
     try {
       setIsReplying(true);
@@ -301,7 +384,7 @@ export function CrmPage() {
         senderId: adminId,
         senderRole: 'ADMIN',
         senderName: adminName,
-        message: values.text
+        message: text
       });
 
       // Update local ticket status in UI
@@ -309,7 +392,6 @@ export function CrmPage() {
         prev.map((t) => (t._id === selectedTicket._id ? { ...t, status: 'OPEN' } : t))
       );
       
-      replyForm.resetFields();
       message.success('Reply broadcasted in real-time');
     } catch (error) {
       message.error('Failed to send reply');
@@ -349,6 +431,7 @@ export function CrmPage() {
       title: 'User Profile',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a: any, b: any) => (a.name || '').localeCompare(b.name || ''),
       render: (text: string, record: any) => {
         const initials = text ? text.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
         let roleColor = 'var(--text-muted)';
@@ -401,6 +484,7 @@ export function CrmPage() {
       title: 'Role',
       dataIndex: 'role',
       key: 'role',
+      sorter: (a: any, b: any) => (a.role || '').localeCompare(b.role || ''),
       render: (role: string, record: any) => (
         <Select
           value={role}
@@ -424,6 +508,7 @@ export function CrmPage() {
     {
       title: 'Spent (EGP)',
       key: 'spend',
+      sorter: (a: any, b: any) => getUserTotalSpend(a._id) - getUserTotalSpend(b._id),
       render: (_: any, record: any) => {
         if (record.role !== 'PASSENGER') return <span style={{ color: 'var(--text-muted)' }}>—</span>;
         const totalSpend = getUserTotalSpend(record._id);
@@ -434,6 +519,7 @@ export function CrmPage() {
       title: 'Status',
       dataIndex: 'isActive',
       key: 'isActive',
+      sorter: (a: any, b: any) => (a.isActive === false ? 0 : 1) - (b.isActive === false ? 0 : 1),
       render: (isActive: boolean, record: any) => {
         const active = isActive !== false;
         return (
@@ -464,6 +550,7 @@ export function CrmPage() {
       title: 'Registered On',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
       render: (date: string) => {
         if (!date) return 'N/A';
         return (
@@ -507,6 +594,7 @@ export function CrmPage() {
     {
       title: 'Ticket Subject',
       key: 'subject',
+      sorter: (a: any, b: any) => (a.subject || '').localeCompare(b.subject || ''),
       render: (_: any, record: any) => (
         <div>
           <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{record.subject}</strong>
@@ -519,6 +607,7 @@ export function CrmPage() {
     {
       title: 'Passenger Info',
       key: 'passenger',
+      sorter: (a: any, b: any) => (a.name || '').localeCompare(b.name || ''),
       render: (_: any, record: any) => (
         <div>
           <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{record.name}</div>
@@ -537,6 +626,7 @@ export function CrmPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || ''),
       render: (status: string) => {
         const isOpen = status === 'OPEN';
         return (
@@ -549,6 +639,7 @@ export function CrmPage() {
     {
       title: 'Replies',
       key: 'replies',
+      sorter: (a: any, b: any) => (a.replies?.length || 0) - (b.replies?.length || 0),
       render: (_: any, record: any) => (
         <Tag color="purple" style={{ fontWeight: '600' }}>
           {record.replies?.length || 0} Replies
@@ -559,6 +650,7 @@ export function CrmPage() {
       title: 'Submitted On',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
       render: (date: string) => (
         <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           {new Date(date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -738,6 +830,17 @@ export function CrmPage() {
                     <Select.Option value="SUSPENDED">Suspended Only</Select.Option>
                   </Select>
                   <Button 
+                    onClick={() => {
+                      setIsUserSelectionMode(!isUserSelectionMode);
+                      setSelectedUserKeys([]);
+                    }}
+                    type={isUserSelectionMode ? "primary" : "default"}
+                    ghost={isUserSelectionMode}
+                    style={{ fontWeight: 'bold' }}
+                  >
+                    {isUserSelectionMode ? "Exit Selection" : "Select Users"}
+                  </Button>
+                  <Button 
                     onClick={handleExportUsers} 
                     icon={<Download size={16} />}
                     style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -746,8 +849,86 @@ export function CrmPage() {
                   </Button>
                 </div>
 
+                {selectedUserKeys.length > 0 && (
+                  <Card 
+                    style={{ 
+                      marginBottom: '1rem', 
+                      background: 'var(--surface-hover)', 
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px' 
+                    }}
+                    size="small"
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+                        Selected {selectedUserKeys.length} user{selectedUserKeys.length > 1 ? 's' : ''}
+                      </span>
+                      <Space>
+                        <Select 
+                          placeholder="Bulk Assign Role" 
+                          style={{ width: 160 }}
+                          onChange={handleBulkUserRoleChange}
+                          value={undefined}
+                        >
+                          <Select.Option value="PASSENGER">Passenger</Select.Option>
+                          <Select.Option value="DRIVER">Driver</Select.Option>
+                          <Select.Option value="ADMIN">Admin</Select.Option>
+                        </Select>
+                        <Button 
+                          onClick={() => handleBulkUserStatusChange(true)} 
+                          size="small"
+                        >
+                          Bulk Activate
+                        </Button>
+                        <Button 
+                          onClick={() => handleBulkUserStatusChange(false)} 
+                          size="small"
+                        >
+                          Bulk Suspend
+                        </Button>
+                        <Button 
+                          onClick={handleExportSelectedUsers} 
+                          icon={<Download size={14} />}
+                          size="small"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          Export Selected
+                        </Button>
+                        <Popconfirm
+                          title={`Are you sure you want to delete the ${selectedUserKeys.length} selected users?`}
+                          onConfirm={handleBulkUserDelete}
+                          okText="Yes, Delete"
+                          cancelText="No"
+                        >
+                          <Button 
+                            type="primary" 
+                            danger 
+                            size="small" 
+                            icon={<Trash2 size={14} />}
+                            loading={bulkLoading}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            Delete Selected
+                          </Button>
+                        </Popconfirm>
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          onClick={() => setSelectedUserKeys([])}
+                        >
+                          Deselect All
+                        </Button>
+                      </Space>
+                    </div>
+                  </Card>
+                )}
+
                 <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <Table
+                    rowSelection={isUserSelectionMode ? {
+                      selectedRowKeys: selectedUserKeys,
+                      onChange: (keys: any[]) => setSelectedUserKeys(keys)
+                    } : undefined}
                     dataSource={filteredUsers}
                     columns={columns}
                     rowKey="_id"
@@ -787,6 +968,17 @@ export function CrmPage() {
                     <Select.Option value="RESOLVED">Resolved Only</Select.Option>
                   </Select>
                   <Button 
+                    onClick={() => {
+                      setIsTicketSelectionMode(!isTicketSelectionMode);
+                      setSelectedTicketKeys([]);
+                    }}
+                    type={isTicketSelectionMode ? "primary" : "default"}
+                    ghost={isTicketSelectionMode}
+                    style={{ fontWeight: 'bold' }}
+                  >
+                    {isTicketSelectionMode ? "Exit Selection" : "Select Tickets"}
+                  </Button>
+                  <Button 
                     onClick={handleExportTickets} 
                     icon={<Download size={16} />}
                     style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -794,8 +986,64 @@ export function CrmPage() {
                     Export CSV
                   </Button>
                 </div>
+
+                {selectedTicketKeys.length > 0 && (
+                  <Card 
+                    style={{ 
+                      marginBottom: '1rem', 
+                      background: 'var(--surface-hover)', 
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px' 
+                    }}
+                    size="small"
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+                        Selected {selectedTicketKeys.length} ticket{selectedTicketKeys.length > 1 ? 's' : ''}
+                      </span>
+                      <Space>
+                        <Button 
+                          onClick={handleExportSelectedTickets} 
+                          icon={<Download size={14} />}
+                          size="small"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          Export Selected
+                        </Button>
+                        <Popconfirm
+                          title={`Are you sure you want to resolve the ${selectedTicketKeys.length} selected tickets?`}
+                          onConfirm={handleBulkResolveTickets}
+                          okText="Yes, Resolve"
+                          cancelText="No"
+                        >
+                          <Button 
+                            type="primary" 
+                            size="small" 
+                            icon={<CheckCircle2 size={14} />}
+                            loading={bulkLoading}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#10b981', borderColor: '#10b981' }}
+                          >
+                            Resolve Selected
+                          </Button>
+                        </Popconfirm>
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          onClick={() => setSelectedTicketKeys([])}
+                        >
+                          Deselect All
+                        </Button>
+                      </Space>
+                    </div>
+                  </Card>
+                )}
+
                 <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <Table
+                    rowSelection={isTicketSelectionMode ? {
+                      selectedRowKeys: selectedTicketKeys,
+                      onChange: (keys: any[]) => setSelectedTicketKeys(keys)
+                    } : undefined}
                     dataSource={filteredCrmTickets}
                     columns={ticketColumns}
                     rowKey="_id"
@@ -937,30 +1185,7 @@ export function CrmPage() {
 
               {/* Add Note Form */}
               <div style={{ marginBottom: '24px', background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px', borderRadius: '8px' }}>
-                <Form form={noteForm} onFinish={handleAddNote} layout="vertical">
-                  <Form.Item 
-                    name="text" 
-                    label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Log new support communication or account audit notes:</span>}
-                    rules={[{ required: true, message: 'Please write a note before submitting.' }]}
-                    style={{ marginBottom: '12px' }}
-                  >
-                    <Input.TextArea 
-                      rows={2} 
-                      placeholder="Enter customer support activity, refund details, verification remarks..." 
-                      style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
-                  </Form.Item>
-                  <Form.Item style={{ margin: 0, textAlign: 'right' }}>
-                    <Button 
-                      type="primary" 
-                      htmlType="submit" 
-                      loading={isAddingNote}
-                      style={{ background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' }}
-                    >
-                      Log CRM Activity Note
-                    </Button>
-                  </Form.Item>
-                </Form>
+                <CRMAddNoteForm onAddNote={handleAddNote} isAddingNote={isAddingNote} />
               </div>
 
               {/* Notes Timeline */}
@@ -1097,30 +1322,7 @@ export function CrmPage() {
 
               {/* Add Reply Form */}
               <div style={{ marginBottom: '24px', background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px', borderRadius: '8px' }}>
-                <Form form={replyForm} onFinish={handleReplyToTicket} layout="vertical">
-                  <Form.Item 
-                    name="text" 
-                    label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Send a reply to passenger:</span>}
-                    rules={[{ required: true, message: 'Please write a reply before sending.' }]}
-                    style={{ marginBottom: '12px' }}
-                  >
-                    <Input.TextArea 
-                      rows={3} 
-                      placeholder="Write your support response here..." 
-                      style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
-                  </Form.Item>
-                  <Form.Item style={{ margin: 0, textAlign: 'right' }}>
-                    <Button 
-                      type="primary" 
-                      htmlType="submit" 
-                      loading={isReplying}
-                      style={{ background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' }}
-                    >
-                      Send Reply
-                    </Button>
-                  </Form.Item>
-                </Form>
+                <CRMReplyForm onReply={handleReplyToTicket} isReplying={isReplying} />
               </div>
 
               {/* Reply Timeline */}
@@ -1194,5 +1396,89 @@ export function CrmPage() {
         )}
       </Drawer>
     </div>
+  );
+}
+
+// ── Sub-components for conditional form mounting to resolve useForm warning ──
+
+interface CRMAddNoteFormProps {
+  onAddNote: (text: string) => Promise<void>;
+  isAddingNote: boolean;
+}
+
+function CRMAddNoteForm({ onAddNote, isAddingNote }: CRMAddNoteFormProps) {
+  const [noteForm] = Form.useForm();
+
+  const handleFinish = async (values: { text: string }) => {
+    await onAddNote(values.text);
+    noteForm.resetFields();
+  };
+
+  return (
+    <Form form={noteForm} onFinish={handleFinish} layout="vertical">
+      <Form.Item 
+        name="text" 
+        label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Log new support communication or account audit notes:</span>}
+        rules={[{ required: true, message: 'Please write a note before submitting.' }]}
+        style={{ marginBottom: '12px' }}
+      >
+        <Input.TextArea 
+          rows={2} 
+          placeholder="Enter customer support activity, refund details, verification remarks..." 
+          style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+        />
+      </Form.Item>
+      <Form.Item style={{ margin: 0, textAlign: 'right' }}>
+        <Button 
+          type="primary" 
+          htmlType="submit" 
+          loading={isAddingNote}
+          style={{ background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' }}
+        >
+          Log CRM Activity Note
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+}
+
+interface CRMReplyFormProps {
+  onReply: (text: string) => Promise<void>;
+  isReplying: boolean;
+}
+
+function CRMReplyForm({ onReply, isReplying }: CRMReplyFormProps) {
+  const [replyForm] = Form.useForm();
+
+  const handleFinish = async (values: { text: string }) => {
+    await onReply(values.text);
+    replyForm.resetFields();
+  };
+
+  return (
+    <Form form={replyForm} onFinish={handleFinish} layout="vertical">
+      <Form.Item 
+        name="text" 
+        label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Send a reply to passenger:</span>}
+        rules={[{ required: true, message: 'Please write a reply before sending.' }]}
+        style={{ marginBottom: '12px' }}
+      >
+        <Input.TextArea 
+          rows={3} 
+          placeholder="Write your support response here..." 
+          style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+        />
+      </Form.Item>
+      <Form.Item style={{ margin: 0, textAlign: 'right' }}>
+        <Button 
+          type="primary" 
+          htmlType="submit" 
+          loading={isReplying}
+          style={{ background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' }}
+        >
+          Send Reply
+        </Button>
+      </Form.Item>
+    </Form>
   );
 }

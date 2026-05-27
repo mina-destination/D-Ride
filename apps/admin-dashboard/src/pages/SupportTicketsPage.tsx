@@ -22,7 +22,6 @@ export function SupportTicketsPage() {
   // Drawer States
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [replyForm] = Form.useForm();
   const [isReplying, setIsReplying] = useState(false);
 
   // Fetch support tickets
@@ -82,21 +81,19 @@ export function SupportTicketsPage() {
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setSelectedTicket(null);
-    replyForm.resetFields();
   };
 
-  const handleReplyToTicket = async (values: { text: string }) => {
+  const handleReplyToTicket = async (text: string) => {
     if (!selectedTicket) return;
     try {
       setIsReplying(true);
       const adminName = currentAdmin?.name || 'Administrator';
-      const updatedTicket = await supportAPI.replyToTicket(selectedTicket._id, values.text, adminName);
+      const updatedTicket = await supportAPI.replyToTicket(selectedTicket._id, text, adminName);
       
       setTickets((prev: any[]) => prev.map(t => t._id === selectedTicket._id ? updatedTicket : t));
       setSelectedTicket(updatedTicket);
       
       message.success('Reply submitted successfully');
-      replyForm.resetFields();
     } catch (error) {
       message.error('Failed to send reply');
     } finally {
@@ -385,36 +382,11 @@ export function SupportTicketsPage() {
             {/* Resolve / Reply actions */}
             {selectedTicket.status === 'OPEN' ? (
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '20px', borderRadius: '8px' }}>
-                <Form form={replyForm} onFinish={handleReplyToTicket} layout="vertical">
-                  <Form.Item
-                    name="text"
-                    label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Compose Reply Message:</span>}
-                    rules={[{ required: true, message: 'Please write a reply.' }]}
-                    style={{ marginBottom: '16px' }}
-                  >
-                    <Input.TextArea 
-                      rows={3} 
-                      placeholder="Type your response to the customer..."
-                      style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
-                  </Form.Item>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Popconfirm
-                      title="Are you sure you want to resolve this ticket?"
-                      onConfirm={() => handleResolveTicket(selectedTicket._id)}
-                      okText="Resolve"
-                      cancelText="Cancel"
-                    >
-                      <Button danger type="dashed">
-                        Resolve Ticket
-                      </Button>
-                    </Popconfirm>
-                    <Button type="primary" htmlType="submit" loading={isReplying} style={{ background: 'var(--primary-color)' }}>
-                      Send Reply
-                    </Button>
-                  </div>
-                </Form>
+                <TicketReplyForm 
+                  onReply={handleReplyToTicket} 
+                  isReplying={isReplying} 
+                  onResolve={() => handleResolveTicket(selectedTicket._id)} 
+                />
               </div>
             ) : (
               <div style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
@@ -428,5 +400,55 @@ export function SupportTicketsPage() {
         )}
       </Drawer>
     </div>
+  );
+}
+
+// ── Sub-component for conditional form mounting to resolve useForm warning ──
+
+interface TicketReplyFormProps {
+  onReply: (text: string) => Promise<void>;
+  isReplying: boolean;
+  onResolve: () => void;
+}
+
+function TicketReplyForm({ onReply, isReplying, onResolve }: TicketReplyFormProps) {
+  const [replyForm] = Form.useForm();
+
+  const handleFinish = async (values: { text: string }) => {
+    await onReply(values.text);
+    replyForm.resetFields();
+  };
+
+  return (
+    <Form form={replyForm} onFinish={handleFinish} layout="vertical">
+      <Form.Item
+        name="text"
+        label={<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Compose Reply Message:</span>}
+        rules={[{ required: true, message: 'Please write a reply.' }]}
+        style={{ marginBottom: '16px' }}
+      >
+        <Input.TextArea 
+          rows={3} 
+          placeholder="Type your response to the customer..."
+          style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+        />
+      </Form.Item>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Popconfirm
+          title="Are you sure you want to resolve this ticket?"
+          onConfirm={onResolve}
+          okText="Resolve"
+          cancelText="Cancel"
+        >
+          <Button danger type="dashed">
+            Resolve Ticket
+          </Button>
+        </Popconfirm>
+        <Button type="primary" htmlType="submit" loading={isReplying} style={{ background: 'var(--primary-color)' }}>
+          Send Reply
+        </Button>
+      </div>
+    </Form>
   );
 }
