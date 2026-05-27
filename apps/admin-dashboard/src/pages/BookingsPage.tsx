@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Space, message, Tag, Typography, Tooltip, Input, Select } from 'antd';
+import { Table, Button, Space, message, Tag, Typography, Tooltip, Input, Select, Card, Popconfirm } from 'antd';
 import { bookingsAPI } from '../services/api';
-import { Ticket, Download } from 'lucide-react';
+import { Ticket, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 const { Title, Paragraph } = Typography;
@@ -12,6 +12,11 @@ export function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('ALL');
+  
+  // Row selection & bulk states
+  const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const fetchBookings = async () => {
     try {
@@ -39,7 +44,26 @@ export function BookingsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleBulkCancel = async () => {
+    try {
+      setBulkLoading(true);
+      const toCancel = bookings.filter(b => selectedRowKeys.includes(b._id) && b.status !== 'CANCELLED');
+      if (toCancel.length === 0) {
+        message.warning('All selected bookings are already cancelled');
+        return;
+      }
+      await Promise.all(toCancel.map(b => bookingsAPI.cancel(b._id)));
+      message.success(`Successfully cancelled ${toCancel.length} bookings`);
+      setSelectedRowKeys([]);
+      fetchBookings();
+    } catch (error) {
+      message.error('Some bookings failed to cancel');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportData = (dataToExport: any[]) => {
     const headers = [
       { key: '_id', label: 'Booking ID', transform: (val: string) => val.toUpperCase() },
       { key: 'userId.name', label: 'Passenger Name' },
@@ -54,7 +78,16 @@ export function BookingsPage() {
       { key: 'status', label: 'Booking Status' },
       { key: 'paymentStatus', label: 'Payment Status' },
     ];
-    exportToCSV(filteredBookings, headers, 'bookings_report');
+    exportToCSV(dataToExport, headers, 'bookings_report');
+  };
+
+  const handleExport = () => {
+    handleExportData(filteredBookings);
+  };
+
+  const handleExportSelected = () => {
+    const selectedData = bookings.filter(b => selectedRowKeys.includes(b._id));
+    handleExportData(selectedData);
   };
 
   const filteredBookings = bookings.filter(b => {
@@ -81,11 +114,13 @@ export function BookingsPage() {
       title: 'Booking ID',
       dataIndex: '_id',
       key: 'id',
+      sorter: (a: any, b: any) => a._id.localeCompare(b._id),
       render: (id: string) => <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{id.slice(-6).toUpperCase()}</span>,
     },
     {
       title: 'Passenger',
       key: 'passenger',
+      sorter: (a: any, b: any) => (a.userId?.name || '').localeCompare(b.userId?.name || ''),
       render: (_: any, record: any) => (
         <div>
           <strong style={{ display: 'block' }}>{record.userId?.name || 'Unknown User'}</strong>
@@ -96,6 +131,7 @@ export function BookingsPage() {
     {
       title: 'Route',
       key: 'route',
+      sorter: (a: any, b: any) => (a.tripId?.routeId?.name || '').localeCompare(b.tripId?.routeId?.name || ''),
       render: (_: any, record: any) => (
         <strong>{record.tripId?.routeId?.name || 'N/A'}</strong>
       ),
@@ -103,6 +139,7 @@ export function BookingsPage() {
     {
       title: 'Departure Time',
       key: 'departureTime',
+      sorter: (a: any, b: any) => new Date(a.tripId?.departureTime || 0).getTime() - new Date(b.tripId?.departureTime || 0).getTime(),
       render: (_: any, record: any) => {
         if (!record.tripId?.departureTime) return 'N/A';
         return new Date(record.tripId.departureTime).toLocaleString();
@@ -129,12 +166,14 @@ export function BookingsPage() {
       title: 'Fare',
       dataIndex: 'amountEGP',
       key: 'amountEGP',
+      sorter: (a: any, b: any) => (a.amountEGP || 0) - (b.amountEGP || 0),
       render: (amount: number) => <strong>{amount} EGP</strong>,
     },
     {
       title: 'Booking Status',
       dataIndex: 'status',
       key: 'status',
+      sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || ''),
       render: (status: string) => {
         let color = 'gold';
         const s = status || 'PENDING';
@@ -147,6 +186,7 @@ export function BookingsPage() {
       title: 'Payment Status',
       dataIndex: 'paymentStatus',
       key: 'paymentStatus',
+      sorter: (a: any, b: any) => (a.paymentStatus || '').localeCompare(b.paymentStatus || ''),
       render: (status: string) => {
         let color = 'gold';
         const s = status || 'PENDING';
@@ -213,6 +253,17 @@ export function BookingsPage() {
             <Select.Option value="FAILED">Failed</Select.Option>
           </Select>
           <Button 
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              setSelectedRowKeys([]);
+            }}
+            type={isSelectionMode ? "primary" : "default"}
+            ghost={isSelectionMode}
+            style={{ fontWeight: 'bold' }}
+          >
+            {isSelectionMode ? "Exit Selection" : "Select Bookings"}
+          </Button>
+          <Button 
             onClick={handleExport} 
             icon={<Download size={16} />}
             style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -222,13 +273,69 @@ export function BookingsPage() {
         </Space>
       </div>
 
+      {selectedRowKeys.length > 0 && (
+        <Card 
+          style={{ 
+            marginBottom: '1rem', 
+            background: 'var(--surface-hover)', 
+            border: '1px solid var(--border)',
+            borderRadius: '12px' 
+          }}
+          size="small"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+              Selected {selectedRowKeys.length} booking{selectedRowKeys.length > 1 ? 's' : ''}
+            </span>
+            <Space>
+              <Button 
+                onClick={handleExportSelected} 
+                icon={<Download size={14} />}
+                size="small"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Export Selected CSV
+              </Button>
+              <Popconfirm
+                title={`Are you sure you want to cancel the ${selectedRowKeys.length} selected bookings?`}
+                onConfirm={handleBulkCancel}
+                okText="Yes, Cancel"
+                cancelText="No"
+              >
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  icon={<XCircle size={14} />}
+                  loading={bulkLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  Cancel Selected
+                </Button>
+              </Popconfirm>
+              <Button 
+                type="text" 
+                size="small" 
+                onClick={() => setSelectedRowKeys([])}
+              >
+                Deselect All
+              </Button>
+            </Space>
+          </div>
+        </Card>
+      )}
+
       <Table 
+        rowSelection={isSelectionMode ? {
+          selectedRowKeys,
+          onChange: (keys: any[]) => setSelectedRowKeys(keys)
+        } : undefined}
         dataSource={filteredBookings} 
         columns={columns} 
         rowKey="_id" 
         loading={loading}
         pagination={{ pageSize: 10 }}
-        style={{ marginTop: '2rem' }}
+        style={{ marginTop: '1rem' }}
       />
     </div>
   );

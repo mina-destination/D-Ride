@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button } from 'antd';
+import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button, Popconfirm, message } from 'antd';
 import { bookingsAPI } from '../services/api';
-import { CreditCard, TrendingUp, Target, Download } from 'lucide-react';
+import { CreditCard, TrendingUp, Target, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 const { Title, Paragraph } = Typography;
@@ -12,6 +12,11 @@ export function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL');
+
+  // Row selection & bulk states
+  const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const fetchPayments = async () => {
     try {
@@ -69,11 +74,13 @@ export function PaymentsPage() {
       title: 'Paymob Order ID',
       dataIndex: 'paymobOrderId',
       key: 'paymobOrderId',
+      sorter: (a: any, b: any) => (a.paymobOrderId || 0) - (b.paymobOrderId || 0),
       render: (val: number) => val ? <strong style={{ color: 'var(--primary-color)' }}>#{val}</strong> : <span style={{ color: 'var(--text-muted)' }}>Cash/Pending</span>,
     },
     {
       title: 'Passenger',
       key: 'passenger',
+      sorter: (a: any, b: any) => (a.userId?.name || '').localeCompare(b.userId?.name || ''),
       render: (_: any, record: any) => (
         <div>
           <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{record.userId?.name || 'Unknown User'}</strong>
@@ -85,12 +92,14 @@ export function PaymentsPage() {
       title: 'Amount',
       dataIndex: 'amountEGP',
       key: 'amountEGP',
+      sorter: (a: any, b: any) => (a.amountEGP || 0) - (b.amountEGP || 0),
       render: (val: number) => <strong style={{ color: 'var(--primary-color)', fontSize: '15px' }}>{val} EGP</strong>,
     },
     {
       title: 'Payment Status',
       dataIndex: 'paymentStatus',
       key: 'paymentStatus',
+      sorter: (a: any, b: any) => (a.paymentStatus || '').localeCompare(b.paymentStatus || ''),
       render: (status: string) => {
         let color = 'gold';
         const s = status || 'PENDING';
@@ -103,6 +112,7 @@ export function PaymentsPage() {
       title: 'Transaction Date',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
       render: (text: string) => new Date(text).toLocaleString(),
     },
   ];
@@ -145,7 +155,26 @@ export function PaymentsPage() {
 
   const closedPoints = `30,${svgHeight - 20} ${points} ${svgWidth - 30},${svgHeight - 20}`;
 
-  const handleExport = () => {
+  const handleBulkCancel = async () => {
+    try {
+      setBulkLoading(true);
+      const toCancel = payments.filter(p => selectedRowKeys.includes(p._id) && p.status !== 'CANCELLED');
+      if (toCancel.length === 0) {
+        message.warning('All selected transactions are already cancelled');
+        return;
+      }
+      await Promise.all(toCancel.map(p => bookingsAPI.cancel(p._id)));
+      message.success(`Successfully cancelled/refunded ${toCancel.length} transactions`);
+      setSelectedRowKeys([]);
+      fetchPayments();
+    } catch (error) {
+      message.error('Some refunds/cancellations failed');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportData = (dataToExport: any[]) => {
     const headers = [
       { key: 'paymobOrderId', label: 'Paymob Order ID', transform: (val: number) => val ? `#${val}` : 'Cash/Pending' },
       { key: 'userId.name', label: 'Passenger Name' },
@@ -154,7 +183,16 @@ export function PaymentsPage() {
       { key: 'paymentStatus', label: 'Payment Status' },
       { key: 'createdAt', label: 'Transaction Date', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
     ];
-    exportToCSV(filteredPayments, headers, 'payments_report');
+    exportToCSV(dataToExport, headers, 'payments_report');
+  };
+
+  const handleExport = () => {
+    handleExportData(filteredPayments);
+  };
+
+  const handleExportSelected = () => {
+    const selectedData = payments.filter(p => selectedRowKeys.includes(p._id));
+    handleExportData(selectedData);
   };
 
   return (
@@ -195,6 +233,17 @@ export function PaymentsPage() {
             <Select.Option value="7DAYS">Last 7 Days</Select.Option>
             <Select.Option value="30DAYS">Last 30 Days</Select.Option>
           </Select>
+          <Button 
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              setSelectedRowKeys([]);
+            }}
+            type={isSelectionMode ? "primary" : "default"}
+            ghost={isSelectionMode}
+            style={{ fontWeight: 'bold' }}
+          >
+            {isSelectionMode ? "Exit Selection" : "Select Payments"}
+          </Button>
           <Button 
             onClick={handleExport} 
             icon={<Download size={16} />}
@@ -331,13 +380,69 @@ export function PaymentsPage() {
         </Col>
       </Row>
 
+      {selectedRowKeys.length > 0 && (
+        <Card 
+          style={{ 
+            marginBottom: '1rem', 
+            background: 'var(--surface-hover)', 
+            border: '1px solid var(--border)',
+            borderRadius: '12px' 
+          }}
+          size="small"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+              Selected {selectedRowKeys.length} transaction{selectedRowKeys.length > 1 ? 's' : ''}
+            </span>
+            <Space>
+              <Button 
+                onClick={handleExportSelected} 
+                icon={<Download size={14} />}
+                size="small"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Export Selected CSV
+              </Button>
+              <Popconfirm
+                title={`Are you sure you want to refund/cancel the ${selectedRowKeys.length} selected transactions?`}
+                onConfirm={handleBulkCancel}
+                okText="Yes, Cancel/Refund"
+                cancelText="No"
+              >
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  icon={<XCircle size={14} />}
+                  loading={bulkLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  Cancel/Refund Selected
+                </Button>
+              </Popconfirm>
+              <Button 
+                type="text" 
+                size="small" 
+                onClick={() => setSelectedRowKeys([])}
+              >
+                Deselect All
+              </Button>
+            </Space>
+          </div>
+        </Card>
+      )}
+
       <Table 
+        rowSelection={isSelectionMode ? {
+          selectedRowKeys,
+          onChange: (keys: any[]) => setSelectedRowKeys(keys)
+        } : undefined}
         dataSource={filteredPayments} 
         columns={columns} 
         rowKey="_id" 
         loading={loading}
         pagination={{ pageSize: 10 }}
-        style={{ marginTop: '2rem' }}
+        style={{ marginTop: '1rem' }}
       />
     </div>
   );

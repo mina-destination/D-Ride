@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input, Card, Popconfirm } from 'antd';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 import dayjs from 'dayjs';
-import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download } from 'lucide-react';
+import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download, Trash2 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 interface ActiveSimulation {
@@ -22,6 +22,11 @@ export function TripsPage() {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<string | null>(null);
   
+  // Row selection & bulk states
+  const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   // Real-time trip simulation state
   const [activeSims, setActiveSims] = useState<Record<string, ActiveSimulation>>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -271,6 +276,7 @@ export function TripsPage() {
       title: 'Route',
       dataIndex: 'routeId',
       key: 'routeId',
+      sorter: (a: any, b: any) => (a.routeId?.name || '').localeCompare(b.routeId?.name || ''),
       render: (route: any) => <strong>{route?.name || 'Unassigned Route'}</strong>,
     },
     {
@@ -287,12 +293,14 @@ export function TripsPage() {
       title: 'Departure Time',
       dataIndex: 'departureTime',
       key: 'departureTime',
+      sorter: (a: any, b: any) => new Date(a.departureTime || 0).getTime() - new Date(b.departureTime || 0).getTime(),
       render: (text: string) => new Date(text).toLocaleString(),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || ''),
       render: (status: string) => {
         let color: "success" | "processing" | "default" | "error" | "warning" = 'default';
         if (status === 'SCHEDULED') color = 'default';
@@ -330,6 +338,7 @@ export function TripsPage() {
     {
       title: 'Price & Seats',
       key: 'priceSeats',
+      sorter: (a: any, b: any) => (a.priceEGP || 0) - (b.priceEGP || 0),
       render: (_: any, record: any) => (
         <div>
           <div><strong>{record.priceEGP} EGP</strong></div>
@@ -400,7 +409,35 @@ export function TripsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleExport = () => {
+  const handleBulkDelete = async () => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedRowKeys.map(id => tripsAPI.delete(id)));
+      message.success(`Successfully deleted/cancelled ${selectedRowKeys.length} trips`);
+      setSelectedRowKeys([]);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to delete/cancel some selected trips');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkStatusChange = async (status: string) => {
+    try {
+      setBulkLoading(true);
+      await Promise.all(selectedRowKeys.map(id => tripsAPI.update(id, { status })));
+      message.success(`Successfully updated ${selectedRowKeys.length} trips to ${status}`);
+      setSelectedRowKeys([]);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to update status for some selected trips');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportData = (dataToExport: any[]) => {
     const headers = [
       { key: '_id', label: 'Trip ID', transform: (val: string) => val.toUpperCase() },
       { key: 'routeId.name', label: 'Route Name' },
@@ -413,7 +450,16 @@ export function TripsPage() {
       { key: 'bookedSeats', label: 'Booked Seats' },
       { key: 'availableSeats', label: 'Available Seats' },
     ];
-    exportToCSV(filteredTrips, headers, 'trips_report');
+    exportToCSV(dataToExport, headers, 'trips_report');
+  };
+
+  const handleExport = () => {
+    handleExportData(filteredTrips);
+  };
+
+  const handleExportSelected = () => {
+    const selectedData = trips.filter(t => selectedRowKeys.includes(t._id));
+    handleExportData(selectedData);
   };
 
   // Compute Conflicts
@@ -485,24 +531,104 @@ export function TripsPage() {
             <Select.Option value="CANCELLED">Cancelled</Select.Option>
           </Select>
           <Button 
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              setSelectedRowKeys([]);
+            }}
+            type={isSelectionMode ? "primary" : "default"}
+            ghost={isSelectionMode}
+            style={{ fontWeight: 'bold', height: '40px' }}
+          >
+            {isSelectionMode ? "Exit Selection" : "Select Trips"}
+          </Button>
+          <Button 
             onClick={handleExport} 
             icon={<Download size={16} />}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}
           >
             Export CSV
           </Button>
-          <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)' }}>
+          <Button type="primary" size="large" onClick={() => handleOpenModal()} style={{ background: 'var(--primary-color)', height: '40px' }}>
             + Add Trip
           </Button>
         </Space>
       </div>
       
+      {selectedRowKeys.length > 0 && (
+        <Card 
+          style={{ 
+            marginTop: '2rem',
+            marginBottom: '1rem', 
+            background: 'var(--surface-hover)', 
+            border: '1px solid var(--border)',
+            borderRadius: '12px' 
+          }}
+          size="small"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
+              Selected {selectedRowKeys.length} trip{selectedRowKeys.length > 1 ? 's' : ''}
+            </span>
+            <Space>
+              <Select 
+                placeholder="Bulk Change Status" 
+                style={{ width: 180 }}
+                onChange={handleBulkStatusChange}
+                value={undefined}
+              >
+                <Select.Option value="SCHEDULED">Scheduled</Select.Option>
+                <Select.Option value="BOARDING">Boarding</Select.Option>
+                <Select.Option value="IN_TRANSIT">In Transit</Select.Option>
+                <Select.Option value="COMPLETED">Completed</Select.Option>
+                <Select.Option value="CANCELLED">Cancelled</Select.Option>
+              </Select>
+              <Button 
+                onClick={handleExportSelected} 
+                icon={<Download size={14} />}
+                size="small"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Export Selected CSV
+              </Button>
+              <Popconfirm
+                title={`Are you sure you want to cancel/delete the ${selectedRowKeys.length} selected trips?`}
+                onConfirm={handleBulkDelete}
+                okText="Yes, Delete"
+                cancelText="No"
+              >
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  icon={<Trash2 size={14} />}
+                  loading={bulkLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  Delete Selected
+                </Button>
+              </Popconfirm>
+              <Button 
+                type="text" 
+                size="small" 
+                onClick={() => setSelectedRowKeys([])}
+              >
+                Deselect All
+              </Button>
+            </Space>
+          </div>
+        </Card>
+      )}
+
       <Table 
+        rowSelection={isSelectionMode ? {
+          selectedRowKeys,
+          onChange: (keys: any[]) => setSelectedRowKeys(keys)
+        } : undefined}
         dataSource={filteredTrips} 
         columns={columns} 
         rowKey="_id" 
         loading={loading}
-        style={{ marginTop: '2rem' }}
+        style={{ marginTop: selectedRowKeys.length > 0 ? '1rem' : '2rem' }}
       />
 
       <Modal
