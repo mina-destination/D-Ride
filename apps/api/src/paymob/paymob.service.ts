@@ -184,16 +184,39 @@ export class PaymobService {
       }
     });
 
-    // Step 5: Trigger side-effects outside transaction boundary (like notifications)
+    // Step 5: Trigger notification side-effects outside transaction boundary
+    // Note: Booking status already set to CONFIRMED inside the transaction above.
+    // We only trigger notifications here, not another status update (avoids double-write).
     if (success && bookingId) {
       try {
-        await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
-        this.logger.log(
-          `Booking ${bookingId} confirmed & notification triggered.`,
-        );
+        const populated = await this.prisma.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            trip: { include: { route: true } },
+            user: true,
+          },
+        });
+        if (populated && populated.user && populated.trip) {
+          const u = populated.user;
+          const t = populated.trip;
+          const r = t?.route;
+          const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
+          // Fire-and-forget notification
+          this.bookingsService['notificationsService']?.sendBookingConfirmation(
+            u.phone || '',
+            u.name || 'Valued Passenger',
+            {
+              routeName: r?.name || 'D-Ride Minibus Trip',
+              departureTime: t.departureTime?.toISOString() || new Date().toISOString(),
+              seatNumber: seatsStr,
+              price: populated.amountEGP || 0,
+            },
+          ).catch((err: any) => this.logger.error('Notification dispatch failed:', err));
+        }
+        this.logger.log(`Booking ${bookingId} confirmed & notification triggered.`);
       } catch (err: any) {
         this.logger.error(
-          `Error in bookingsService.updateStatus: ${err.message}`,
+          `Error triggering post-webhook notification: ${err.message}`,
           err.stack,
         );
       }
@@ -258,7 +281,7 @@ export class PaymobService {
 
         await tx.transaction.create({
           data: {
-            paymobOrderId: Math.floor(Math.random() * 1000000),
+            paymobOrderId: crypto.randomInt(100000000, 999999999),
             amountEGP: amountEGP,
             status: PaymentStatus.SUCCESS,
             paymentMethod: 'WALLET_BALANCE',
@@ -305,7 +328,7 @@ export class PaymobService {
       // Save direct mock success transaction
       await this.prisma.transaction.create({
         data: {
-          paymobOrderId: Math.floor(Math.random() * 1000000),
+          paymobOrderId: crypto.randomInt(100000000, 999999999),
           amountEGP: data.amountCents / 100,
           status: PaymentStatus.SUCCESS,
           paymentMethod: 'CASH',
@@ -764,7 +787,7 @@ export class PaymobService {
       await this.prisma.$transaction(async (tx) => {
         await tx.transaction.create({
           data: {
-            paymobOrderId: Math.floor(Math.random() * 1000000),
+            paymobOrderId: crypto.randomInt(100000000, 999999999),
             amountEGP: amountEGP || 0,
             status: PaymentStatus.SUCCESS,
             paymentMethod: 'CARD',
@@ -803,7 +826,7 @@ export class PaymobService {
 
         await tx.transaction.create({
           data: {
-            paymobOrderId: Math.floor(Math.random() * 1000000),
+            paymobOrderId: crypto.randomInt(100000000, 999999999),
             amountEGP: booking.amountEGP,
             status: PaymentStatus.SUCCESS,
             paymentMethod: 'CARD',

@@ -621,22 +621,92 @@ export class BookingsService {
   }
 
   async cancel(id: string, userId: string): Promise<any> {
-    const booking = await this.prisma.booking.findFirst({
-      where: { id, userId },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status === BookingStatus.CANCELLED)
-      throw new BadRequestException('Booking already cancelled');
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findFirst({
+        where: { id, userId },
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+      if (booking.status === BookingStatus.CANCELLED)
+        throw new BadRequestException('Booking already cancelled');
 
-    const updated = await this.prisma.booking.update({
-      where: { id },
-      data: { status: BookingStatus.CANCELLED },
+      const result = await tx.booking.update({
+        where: { id },
+        data: { status: BookingStatus.CANCELLED },
+      });
+
+      return result;
     });
 
     // Update bookedSeats of the trip dynamically (self-healing)
-    await this.cleanupExpiredBookings(booking.tripId.toString());
+    await this.cleanupExpiredBookings(updated.tripId.toString());
 
     return this.mapBooking(updated);
+  }
+
+  /**
+   * Admin-only: Refund a cancelled wallet-paid booking.
+   * Credits the wallet balance back to the user and marks booking as REFUNDED.
+   */
+  async refundBooking(bookingId: string): Promise<any> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+
+      if (booking.status !== BookingStatus.CANCELLED) {
+        throw new BadRequestException(
+          'Only cancelled bookings can be refunded',
+        );
+      }
+
+      // Check if already refunded
+      if (booking.paymentStatus === 'REFUNDED') {
+        throw new BadRequestException('Booking has already been refunded');
+      }
+
+      // Find the original successful transaction
+      const originalTx = await tx.transaction.findFirst({
+        where: {
+          bookingId: bookingId,
+          status: 'SUCCESS',
+        },
+      });
+
+      // Credit wallet balance if it was a wallet payment
+      if (
+        originalTx &&
+        ['WALLET', 'WALLET_BALANCE'].includes(originalTx.paymentMethod)
+      ) {
+        await tx.user.update({
+          where: { id: booking.userId },
+          data: { walletBalance: { increment: booking.amountEGP } },
+        });
+      }
+
+      // Mark booking as refunded
+      const updated = await tx.booking.update({
+        where: { id: bookingId },
+        data: { paymentStatus: 'REFUNDED' },
+      });
+
+      // Create a refund transaction record
+      const crypto = await import('crypto');
+      await tx.transaction.create({
+        data: {
+          bookingId: bookingId,
+          userId: booking.userId,
+          paymobOrderId: crypto.randomInt(100000000, 999999999),
+          amountEGP: -booking.amountEGP,
+          status: 'REFUNDED',
+          paymentMethod: originalTx?.paymentMethod || 'WALLET',
+        },
+      });
+
+      return updated;
+    });
+
+    return this.mapBooking(result);
   }
 
   async findOccupiedSeats(
@@ -765,13 +835,16 @@ export class BookingsService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (
-      booking.status !== BookingStatus.CONFIRMED &&
-      booking.status !== BookingStatus.PENDING
-    ) {
+    if (booking.status !== BookingStatus.CONFIRMED) {
       if (booking.status === BookingStatus.CANCELLED) {
         throw new BadRequestException('Booking has been cancelled');
       }
+      if (booking.status === BookingStatus.BOARDED) {
+        throw new BadRequestException('Passenger already boarded');
+      }
+      throw new BadRequestException(
+        `Cannot check in: booking status is ${booking.status}, expected CONFIRMED`,
+      );
     }
 
     const updated = await this.prisma.booking.update({

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -23,6 +24,12 @@ import configuration from './config/configuration';
       isGlobal: true,
       load: [configuration],
     }),
+
+    // Rate limiting module (applied per-controller on auth endpoints)
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 10,
+    }]),
 
     // Global Prisma Module for PostgreSQL connection
     PrismaModule,

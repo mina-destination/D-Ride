@@ -136,8 +136,39 @@ export class AuthService {
   }
 
   async googleLogin(data: { email: string; name: string; googleId: string }) {
+    // Verify the Google ID token server-side to prevent impersonation
+    const { OAuth2Client } = await import('google-auth-library');
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+
+    let verifiedEmail = data.email;
+    let verifiedName = data.name;
+
+    if (googleClientId) {
+      try {
+        const client = new OAuth2Client(googleClientId);
+        const ticket = await client.verifyIdToken({
+          idToken: data.googleId,
+          audience: googleClientId,
+        });
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+          throw new UnauthorizedException('Invalid Google token: no email in payload');
+        }
+        verifiedEmail = payload.email;
+        verifiedName = payload.name || data.name;
+        this.logger.log(`Google token verified for: ${verifiedEmail}`);
+      } catch (err: any) {
+        this.logger.error(`Google token verification failed: ${err.message}`);
+        throw new UnauthorizedException('Google authentication failed: invalid token');
+      }
+    } else {
+      this.logger.warn(
+        'GOOGLE_CLIENT_ID not configured. Skipping token verification (development mode only).',
+      );
+    }
+
     let user = await this.prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email: verifiedEmail },
     });
 
     if (!user) {
@@ -148,8 +179,8 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
       user = await this.prisma.user.create({
         data: {
-          name: data.name,
-          email: data.email,
+          name: verifiedName,
+          email: verifiedEmail,
           phone: '',
           password: hashedPassword,
           role: Role.PASSENGER,

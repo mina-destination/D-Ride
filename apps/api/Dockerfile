@@ -11,5 +11,11 @@ RUN npx turbo run build --filter=api
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-COPY --from=builder /app/ .
+# Only copy the necessary artifacts to the production image
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/package.json ./package.json
 CMD ["npm", "run", "start:prod", "--workspace=apps/api"]

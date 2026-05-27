@@ -120,6 +120,18 @@ export class BookingsController {
     };
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Put(':id/refund')
+  async refundBooking(@Param('id') id: string) {
+    const booking = await this.bookingsService.refundBooking(id);
+    return {
+      success: true,
+      data: booking,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findById(@Request() req: any, @Param('id') id: string) {

@@ -2,12 +2,9 @@ export default () => {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const jwtSecret = process.env.JWT_SECRET;
 
-  if (
-    nodeEnv === 'production' &&
-    (!jwtSecret || jwtSecret === 'dev_jwt_secret_do_not_use_in_production')
-  ) {
+  if (!jwtSecret) {
     throw new Error(
-      'FATAL: A secure JWT_SECRET environment variable is strictly required in production mode!',
+      'FATAL: JWT_SECRET environment variable is required. Add it to your .env file.',
     );
   }
 
@@ -24,7 +21,7 @@ export default () => {
     },
 
     jwt: {
-      secret: jwtSecret || 'dev_jwt_secret_do_not_use_in_production',
+      secret: jwtSecret || (() => { throw new Error('JWT_SECRET environment variable must be set. Add it to your .env file.'); })(),
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     },
 

@@ -1,28 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-function getDistance(
-  lng1: number,
-  lat1: number,
-  lng2: number,
-  lat2: number,
-): number {
-  const R = 6371e3; // metres
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(deltaLambda / 2) *
-      Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c; // in metres
-}
+import { getDistance } from '../utils/geo';
 
 @Injectable()
 export class RoutesService {
@@ -139,7 +117,9 @@ export class RoutesService {
     const minLng = lng - deltaLng;
     const maxLng = lng + deltaLng;
 
-    const routes = await this.prisma.route.findMany();
+    const routes = await this.prisma.route.findMany({
+      where: { isActive: true },
+    });
     return routes
       .filter((route: any) => {
         if (!route.path || !route.path.coordinates) return false;
@@ -488,7 +468,9 @@ export class RoutesService {
     limit: number = 5,
   ): Promise<any[]> {
     this.logger.log(`Finding nearest checkpoints to [${lng}, ${lat}]`);
-    const routes = await this.prisma.route.findMany();
+    const routes = await this.prisma.route.findMany({
+      where: { isActive: true },
+    });
     const candidates: any[] = [];
 
     for (const route of routes) {
