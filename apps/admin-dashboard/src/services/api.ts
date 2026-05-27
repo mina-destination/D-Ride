@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { message } from 'antd';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -41,6 +42,26 @@ function addIdMapping(data: any): any {
 api.interceptors.response.use(
   (response) => {
     const data = response.data?.data ?? response.data;
+    
+    // Check if mutating method to trigger success message
+    const method = response.config.method?.toUpperCase();
+    if (method && ['POST', 'PUT', 'DELETE'].includes(method)) {
+      const url = response.config.url;
+      const isAuth = url?.includes('/auth/');
+      const isLocation = url?.includes('/location');
+      const isSearch = url?.includes('/search') || url?.includes('/nearby');
+      
+      if (!isAuth && !isLocation && !isSearch) {
+        let msg = 'Action completed successfully';
+        if (response.data && typeof response.data === 'object' && response.data.message) {
+          msg = response.data.message;
+        } else if (response.data && typeof response.data === 'string') {
+          msg = response.data;
+        }
+        message.success(msg);
+      }
+    }
+    
     return addIdMapping(data);
   },
   (error) => {
@@ -49,6 +70,25 @@ api.interceptors.response.use(
       localStorage.removeItem('dride_user');
       window.location.href = '/login';
     }
+    
+    const errorData = error.response?.data;
+    let errorMsg = 'Something went wrong';
+    if (errorData) {
+      if (typeof errorData === 'string') {
+        errorMsg = errorData;
+      } else if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          errorMsg = errorData.message.join(', ');
+        } else {
+          errorMsg = errorData.message;
+        }
+      }
+    } else if (error.message) {
+      errorMsg = error.message;
+    }
+    
+    message.error(errorMsg);
+    
     return Promise.reject(error.response?.data || error);
   },
 );
