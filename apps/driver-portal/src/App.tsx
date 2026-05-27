@@ -7,6 +7,7 @@ import MyTripsPage from './pages/MyTrips';
 import TripDetailPage from './pages/TripDetail';
 import LiveDrivePage from './pages/LiveDrive';
 import BottomNav from './components/BottomNav';
+import ProfilePage from './pages/ProfilePage';
 
 // Protected Route Guard
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -104,6 +105,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <LiveDrivePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
                   </ProtectedRoute>
                 }
               />

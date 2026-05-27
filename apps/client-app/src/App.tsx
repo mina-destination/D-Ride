@@ -19,6 +19,7 @@ import PartnersPage from './pages/PartnersPage';
 import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import ProfilePage from './pages/ProfilePage';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import './App.css';
@@ -186,6 +187,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <PaymentCallbackPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

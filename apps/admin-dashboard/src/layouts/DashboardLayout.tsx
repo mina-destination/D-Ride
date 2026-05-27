@@ -1,10 +1,10 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import logo from '../assets/d-ride-logo.jpeg';
 import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3 } from 'lucide-react';
+import logo from '../assets/d-ride-logo.jpeg';
 import { useState, useEffect, useRef } from 'react';
-import { Modal, Popover, List, Tag, Button } from 'antd';
+import { Popover, List, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 
 const navItems = [
@@ -48,6 +48,7 @@ const pageTitles: Record<string, string> = {
   '/administrators': 'Administrators',
   '/settings': 'Settings',
   '/partners': 'Partners',
+  '/profile': 'My Profile',
 };
 
 const pathPermissionMap: Record<string, string> = {
@@ -78,8 +79,14 @@ export default function DashboardLayout() {
     syncProfile();
   }, [location.pathname]);
 
+  // Auto-collapse sidebar on mobile viewport sizes
+  useEffect(() => {
+    if (window.innerWidth <= 768) {
+      setIsSidebarCollapsed(true);
+    }
+  }, []);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'New Booking Confirmed', description: 'Passenger Hassan Ali booked Cairo to Alexandria (Seat #3)', time: '2 mins ago', read: false },
     { id: 2, title: 'New Support Chat', description: 'Real-time ticket chat received from Hassan Ali', time: '10 mins ago', read: false },
@@ -292,22 +299,34 @@ export default function DashboardLayout() {
 
   return (
     <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Mobile Sidebar Backdrop */}
+      {!isSidebarCollapsed && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setIsSidebarCollapsed(true)}
+        />
+      )}
+
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <NavLink to="/" className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '0.75rem', textDecoration: 'none' }}>
+        <NavLink 
+          to="/" 
+          className="sidebar-header" 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '0.75rem', textDecoration: 'none' }}
+          onClick={() => {
+            if (window.innerWidth <= 768) {
+              setIsSidebarCollapsed(true);
+            }
+          }}
+        >
           {isSidebarCollapsed ? (
-            <div className="sidebar-logo-collapsed" title="D-Ride Admin Center">
-              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-                <rect width="100" height="100" rx="24" fill="#F5B731" />
-                <g transform="translate(10, 8) scale(0.8)">
-                  <path d="M18 20 H52 C72 20 82 32 78 50 C74 68 58 76 38 76 H10 L18 20 Z" fill="black" />
-                  <path d="M30 32 H46 C56 32 62 38 60 47 C58 56 50 64 38 64 H24 L30 32 Z" fill="#F5B731" />
-                  <path d="M10 84 Q 50 82 85 70" stroke="black" strokeWidth="6" strokeLinecap="round" fill="none" />
-                </g>
-              </svg>
+            <div className="sidebar-logo-collapsed" title="D-Ride Admin Center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 5px' }}>
+              <img src={logo} alt="Logo" style={{ height: '24px', width: 'auto', borderRadius: '4px', objectFit: 'contain' }} />
             </div>
           ) : (
-            <img src={logo} alt="D-Ride" className="sidebar-logo" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <img src={logo} alt="Logo" style={{ height: '38px', width: 'auto', borderRadius: '6px', objectFit: 'contain', boxShadow: '0 0 15px rgba(245, 183, 49, 0.4)', flexShrink: 0 }} />
+            </div>
           )}
         </NavLink>
 
@@ -324,6 +343,11 @@ export default function DashboardLayout() {
                 className={({ isActive }) =>
                   `sidebar-item${isActive ? ' active' : ''}`
                 }
+                onClick={() => {
+                  if (window.innerWidth <= 768) {
+                    setIsSidebarCollapsed(true);
+                  }
+                }}
               >
                 <span className="sidebar-item-icon">{item.icon}</span>
                 <span>{item.label}</span>
@@ -531,28 +555,22 @@ export default function DashboardLayout() {
                 <hr className="profile-divider" />
                  <ul className="profile-dropdown-menu">
                   <li>
-                    <button 
-                      onClick={() => {
-                        setIsDropdownOpen(false);
-                        setIsProfileOpen(true);
-                      }}
+                    <NavLink 
+                      to="/profile" 
+                      onClick={() => setIsDropdownOpen(false)}
                       className="profile-menu-item"
                       style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        width: '100%', 
-                        textAlign: 'left', 
-                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
                         padding: '10px 16px',
                         color: 'var(--text-primary)',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        textDecoration: 'none'
                       }}
                     >
                       <User size={16} style={{ color: 'var(--text-secondary)' }} /> My Profile
-                    </button>
+                    </NavLink>
                   </li>
                   <li>
                     <NavLink 
@@ -586,66 +604,7 @@ export default function DashboardLayout() {
         </main>
       </div>
 
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 'bold' }}>
-            <User size={20} style={{ color: 'var(--primary-color)' }} /> Administrator Profile
-          </div>
-        }
-        open={isProfileOpen}
-        onCancel={() => setIsProfileOpen(false)}
-        footer={[
-          <Button key="close" type="primary" onClick={() => setIsProfileOpen(false)} style={{ background: 'var(--primary-color)' }}>
-            Close Profile
-          </Button>
-        ]}
-        destroyOnHidden
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', margin: '1rem 0 2rem 0', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'var(--primary-color)',
-            color: 'black',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            fontWeight: 'bold',
-            boxShadow: '0 0 15px rgba(245, 183, 49, 0.3)'
-          }}>
-            {initials}
-          </div>
-          <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-primary)', fontWeight: 800 }}>
-            {user?.name || 'Admin'}
-          </h2>
-          <Tag color="gold" style={{ fontWeight: 'bold', fontSize: '12px', padding: '2px 10px', borderRadius: '100px' }}>
-            {user?.role || 'ADMIN'}
-          </Tag>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Email Address</div>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.email || 'admin@d-ride.com'}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Account Permissions</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-              {user?.role === 'OWNER' ? (
-                <Tag color="purple" style={{ fontWeight: 600 }}>All (Full System Bypass)</Tag>
-              ) : user?.permissions && user.permissions.length > 0 ? (
-                user.permissions.map((perm: string) => (
-                  <Tag key={perm} color="blue" style={{ fontWeight: 600 }}>{perm}</Tag>
-                ))
-              ) : (
-                <Tag color="default">None Assigned</Tag>
-              )}
-            </div>
-          </div>
-        </div>
-      </Modal>
+      {/* Administrator profile modal removed in favor of standalone /profile page */}
     </div>
   );
 }

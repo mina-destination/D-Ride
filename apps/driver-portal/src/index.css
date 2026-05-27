@@ -415,3 +415,19 @@ button, input, select {
   }
 }
 
+/* ── Floating Header ───────────────────────────────────────── */
+.floating-header {
+  animation: slide-down-header 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-down-header {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
