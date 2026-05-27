@@ -15,6 +15,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaymobService } from './paymob.service';
 import { InitializeCheckoutDto } from './dto/initialize-checkout.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { WalletTopupDto } from './dto/wallet-topup.dto';
+import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 
 @Controller('paymob')
 export class PaymobController {
@@ -61,7 +63,7 @@ export class PaymobController {
   @Post('confirm')
   async confirmPayment(
     @Request() req: any,
-    @Body() body: { bookingId: string; success: boolean; amount?: number }
+    @Body() body: ConfirmPaymentDto
   ) {
     this.logger.log(`Direct confirmation request for: ${body.bookingId}, success: ${body.success}`);
     // Verify ownership: for booking confirmations, check user owns the booking
@@ -133,12 +135,7 @@ export class PaymobController {
   @Post('wallet/topup')
   async initializeWalletTopup(
     @Request() req: any,
-    @Body()
-    body: {
-      amountEGP: number;
-      paymentMethod?: 'CARD' | 'WALLET';
-      walletNumber?: string;
-    },
+    @Body() body: WalletTopupDto,
   ) {
     this.logger.log(
       `User ${req.user.sub} initiating wallet topup of EGP ${body.amountEGP}`,

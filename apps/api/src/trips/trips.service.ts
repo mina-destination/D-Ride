@@ -366,13 +366,31 @@ export class TripsService {
       finalSeats = seats;
     }
 
+    const depTime = new Date(data.departureTime);
+    if (isNaN(depTime.getTime())) {
+      throw new BadRequestException('Invalid departure time');
+    }
+    if (depTime < new Date()) {
+      throw new BadRequestException('Departure time must be in the future');
+    }
+    let arrTime: Date | null = null;
+    if (data.arrivalTime) {
+      arrTime = new Date(data.arrivalTime);
+      if (isNaN(arrTime.getTime())) {
+        throw new BadRequestException('Invalid arrival time');
+      }
+      if (arrTime <= depTime) {
+        throw new BadRequestException('Arrival time must be after departure time');
+      }
+    }
+
     const trip = await this.prisma.trip.create({
       data: {
         routeId: data.routeId,
         vehicleId: data.vehicleId,
         driverId: data.driverId,
-        departureTime: new Date(data.departureTime),
-        arrivalTime: data.arrivalTime ? new Date(data.arrivalTime) : null,
+        departureTime: depTime,
+        arrivalTime: arrTime,
         status: (data.status || 'SCHEDULED').toUpperCase() as TripStatus,
         priceEGP: finalPrice,
         availableSeats: finalSeats,
@@ -384,16 +402,44 @@ export class TripsService {
   }
 
   async update(id: string, data: any): Promise<any> {
+    const existing = await this.prisma.trip.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Trip not found');
+
     const updateData = { ...data };
+    let depTime = existing.departureTime;
+    let arrTime = existing.arrivalTime;
+
     if (updateData.departureTime) {
-      updateData.departureTime = new Date(updateData.departureTime);
+      depTime = new Date(updateData.departureTime);
+      if (isNaN(depTime.getTime())) {
+        throw new BadRequestException('Invalid departure time');
+      }
+      if (depTime < new Date()) {
+        throw new BadRequestException('Departure time must be in the future');
+      }
+      updateData.departureTime = depTime;
     }
-    if (updateData.arrivalTime) {
-      updateData.arrivalTime = new Date(updateData.arrivalTime);
+
+    if (updateData.arrivalTime !== undefined) {
+      if (updateData.arrivalTime === null) {
+        arrTime = null;
+      } else {
+        arrTime = new Date(updateData.arrivalTime);
+        if (isNaN(arrTime.getTime())) {
+          throw new BadRequestException('Invalid arrival time');
+        }
+        updateData.arrivalTime = arrTime;
+      }
     }
+
+    if (arrTime && arrTime <= depTime) {
+      throw new BadRequestException('Arrival time must be after departure time');
+    }
+
     if (updateData.status) {
       updateData.status = updateData.status.toUpperCase() as TripStatus;
     }
+
     try {
       const trip = await this.prisma.trip.update({
         where: { id },

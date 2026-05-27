@@ -17,6 +17,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { UpdateTripStatusDto } from './dto/update-trip-status.dto';
 
 @Controller('trips')
 export class TripsController {
@@ -99,12 +100,9 @@ export class TripsController {
   @Put(':id/status')
   async updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: string },
+    @Body() body: UpdateTripStatusDto,
     @Request() req: any,
   ) {
-    if (!body || !body.status) {
-      throw new BadRequestException('Status is required');
-    }
     try {
       const trip = await this.tripsService.updateTripStatus(
         id,

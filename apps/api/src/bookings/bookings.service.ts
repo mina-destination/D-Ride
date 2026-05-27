@@ -220,9 +220,20 @@ export class BookingsService {
         where: { id: tripIdStr },
         include: {
           route: true,
+          vehicle: true,
         },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
+
+      // Enforce bounds checks on requested seat numbers
+      const capacity = currentTrip.vehicle?.capacity || 14;
+      for (const seat of requestedSeatsList) {
+        if (!Number.isInteger(seat) || seat < 1 || seat > capacity) {
+          throw new BadRequestException(
+            `Invalid seat number: ${seat}. Seat numbers must be integers between 1 and ${capacity}.`,
+          );
+        }
+      }
 
       // Check if checkpoint-relative pricing and segment calculations apply
       const routeCheckpoints = (currentTrip.route?.checkpoints as any[]) || [];
