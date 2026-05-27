@@ -796,6 +796,48 @@ export function RoutesPage() {
     message.warning('Stop removed');
   };
 
+  const handleLegFareChange = (idx: number, newLegFare: number) => {
+    const val = Math.max(0, newLegFare);
+    setCheckpoints(prev => {
+      const updated = prev.map(c => ({ ...c }));
+      const legFares = updated.map((c, i) => {
+        if (i === 0) return 0;
+        if (i === idx) return val;
+        return (c.priceFromStartEGP || 0) - (updated[i - 1].priceFromStartEGP || 0);
+      });
+
+      let cumulative = 0;
+      for (let i = 0; i < updated.length; i++) {
+        if (i === 0) {
+          updated[i].priceFromStartEGP = 0;
+        } else {
+          cumulative += legFares[i];
+          updated[i].priceFromStartEGP = cumulative;
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleCustomSegmentPriceChange = (pickupIdx: number, dropoffName: string, valueStr: string) => {
+    const val = parseFloat(valueStr);
+    setCheckpoints(prev => {
+      return prev.map((cp, idx) => {
+        if (idx === pickupIdx) {
+          const prices = { ...(cp.prices || {}) };
+          if (valueStr === '' || isNaN(val)) {
+            delete prices[dropoffName];
+          } else {
+            prices[dropoffName] = Math.max(0, val);
+          }
+          return { ...cp, prices };
+        }
+        return cp;
+      });
+    });
+  };
+
+
   // OSRM snapped roadway router
   const generateSnappedRoute = async (stops: any[]) => {
     if (stops.length < 2) return;
@@ -1343,20 +1385,26 @@ export function RoutesPage() {
                             </div>
                             <div>
                               <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                💵 Cumulative Fare (EGP)
+                                💵 Fare from Prev Stop (EGP)
                               </span>
                               <Input 
                                 type="number"
-                                value={cp.priceFromStartEGP ?? 0}
+                                value={isStart ? 0 : ((cp.priceFromStartEGP || 0) - (checkpoints[idx - 1]?.priceFromStartEGP || 0))}
                                 onChange={e => {
-                                  const updated = [...checkpoints];
-                                  updated[idx].priceFromStartEGP = parseFloat(e.target.value) || 0;
-                                  setCheckpoints(updated);
+                                  const val = parseFloat(e.target.value) || 0;
+                                  handleLegFareChange(idx, val);
                                 }}
                                 size="small"
                                 min={0}
-                                style={{ borderColor: (cp.priceFromStartEGP > 0) ? '#10B981' : undefined }}
+                                disabled={isStart}
+                                placeholder={isStart ? "Start (0)" : "Segment price"}
+                                style={{ borderColor: (!isStart && ((cp.priceFromStartEGP || 0) - (checkpoints[idx - 1]?.priceFromStartEGP || 0)) > 0) ? '#10B981' : undefined }}
                               />
+                              {!isStart && (
+                                <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  📈 Cumulative: <strong style={{ color: 'var(--primary-color)' }}>{cp.priceFromStartEGP || 0} EGP</strong>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1458,6 +1506,83 @@ export function RoutesPage() {
                             )}
                           </div>
                         );
+                      })}
+                    </div>
+                    {checkpoints.some(cp => cp.prices && Object.keys(cp.prices).length > 0) && (
+                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', marginBottom: '4px' }}>
+                          ⚡ Active Custom Price Overrides:
+                        </div>
+                        {checkpoints.map((pickupCp, pIdx) => {
+                          if (!pickupCp.prices) return null;
+                          return Object.entries(pickupCp.prices).map(([dropoffName, price]) => (
+                            <div key={`${pIdx}-${dropoffName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-primary)' }}>
+                              <span>✨ {pickupCp.name} ➔ {dropoffName}</span>
+                              <strong style={{ color: '#10B981' }}>{price as number} EGP</strong>
+                            </div>
+                          ));
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* POINT-TO-POINT CUSTOM FARES EDITOR */}
+                {checkpoints.length >= 2 && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: 'var(--surface-elevated)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: '8px',
+                    marginTop: '12px'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)' }}>
+                      🔗 Customize Point-to-Point Fares (Optional)
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                      Configure custom direct segment fares (e.g. Alex to Dahab). Empty fields default to the cumulative calculation based on leg sums.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {checkpoints.slice(0, -1).map((pickupCp, pIdx) => {
+                        return checkpoints.slice(pIdx + 1).map((dropoffCp) => {
+                          const dropoffName = dropoffCp.name;
+                          const defaultPrice = Math.max(0, (dropoffCp.priceFromStartEGP || 0) - (pickupCp.priceFromStartEGP || 0));
+                          const customPrice = pickupCp.prices?.[dropoffName];
+                          
+                          return (
+                            <div key={`${pIdx}-${dropoffName}`} style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              gap: '10px',
+                              padding: '8px',
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '6px'
+                            }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                <span style={{ fontSize: '11px', fontWeight: 600 }}>
+                                  {pickupCp.name} ➔ {dropoffName}
+                                </span>
+                                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+                                  Default: {defaultPrice} EGP
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Input 
+                                  type="number"
+                                  placeholder={`${defaultPrice}`}
+                                  value={customPrice !== undefined ? customPrice : ''}
+                                  onChange={e => handleCustomSegmentPriceChange(pIdx, dropoffName, e.target.value)}
+                                  size="small"
+                                  style={{ width: '80px', textAlign: 'center', borderColor: customPrice !== undefined ? 'var(--primary-color)' : undefined }}
+                                  min={0}
+                                />
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                              </div>
+                            </div>
+                          );
+                        });
                       })}
                     </div>
                   </div>

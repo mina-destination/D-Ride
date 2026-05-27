@@ -79,11 +79,16 @@ export class TripsService {
     }
 
     if (pickupCheckpoint && dropoffCheckpoint) {
-      const pickupPrice = Number(pickupCheckpoint.priceFromStartEGP || 0);
-      const dropoffPrice = Number(
-        dropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0,
-      );
-      const segmentPrice = dropoffPrice - pickupPrice;
+      let segmentPrice = 0;
+      if (pickupCheckpoint.prices && pickupCheckpoint.prices[dropoffCheckpoint.name] !== undefined) {
+        segmentPrice = Number(pickupCheckpoint.prices[dropoffCheckpoint.name]);
+      } else {
+        const pickupPrice = Number(pickupCheckpoint.priceFromStartEGP || 0);
+        const dropoffPrice = Number(
+          dropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0,
+        );
+        segmentPrice = dropoffPrice - pickupPrice;
+      }
       t.priceEGP = segmentPrice;
       t.amountEGP = segmentPrice;
       t.localizedPriceEGP = segmentPrice;
@@ -278,11 +283,19 @@ export class TripsService {
       let calculatedPrice = 0;
       if (route && route.checkpoints && Array.isArray(route.checkpoints)) {
         const checkpoints = route.checkpoints as any[];
-        const prices = checkpoints
-          .map((cp) => Number(cp.priceFromStartEGP || 0))
-          .filter((p) => !isNaN(p));
-        if (prices.length > 0) {
-          calculatedPrice = Math.max(...prices);
+        if (checkpoints.length >= 2) {
+          const startCp = checkpoints[0];
+          const endCp = checkpoints[checkpoints.length - 1];
+          if (startCp.prices && startCp.prices[endCp.name] !== undefined) {
+            calculatedPrice = Number(startCp.prices[endCp.name]);
+          } else {
+            const prices = checkpoints
+              .map((cp) => Number(cp.priceFromStartEGP || 0))
+              .filter((p) => !isNaN(p));
+            if (prices.length > 0) {
+              calculatedPrice = Math.max(...prices);
+            }
+          }
         }
       }
       finalPrice = calculatedPrice;

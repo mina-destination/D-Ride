@@ -63,6 +63,10 @@ class StopDto {
   @IsNumber()
   @IsOptional()
   priceFromStartEGP?: number;
+
+  @IsObject()
+  @IsOptional()
+  prices?: Record<string, number>;
 }
 
 class PathDto {

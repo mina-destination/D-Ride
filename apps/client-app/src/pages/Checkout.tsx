@@ -70,11 +70,13 @@ export default function CheckoutPage() {
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
-  const [mapLoadFailed, setMapLoadFailed] = useState(false);
 
   const getLegPrice = () => {
     if (!trip) return 0;
     if (selectedPickupCheckpoint && selectedDropoffCheckpoint) {
+      if (selectedPickupCheckpoint.prices && selectedPickupCheckpoint.prices[selectedDropoffCheckpoint.name] !== undefined) {
+        return Number(selectedPickupCheckpoint.prices[selectedDropoffCheckpoint.name]);
+      }
       const pickupPrice = Number(selectedPickupCheckpoint.priceFromStartEGP || 0);
       const dropoffPrice = Number(selectedDropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0);
       const legPrice = dropoffPrice - pickupPrice;
@@ -86,37 +88,7 @@ export default function CheckoutPage() {
   const legPrice = getLegPrice();
   const legSubTotalFare = legPrice * selectedSeats.length;
 
-  const cairoTransitHubs = [
-    { name: 'Ramses Station', nameAr: 'محطة رمسيس', lat: 30.0626, lng: 31.2468 },
-    { name: 'Tahrir Square', nameAr: 'ميدان التحرير', lat: 30.0444, lng: 31.2357 },
-    { name: 'Heliopolis', nameAr: 'مصر الجديدة', lat: 30.0984, lng: 31.3301 },
-    { name: 'Giza Square', nameAr: 'ميدان الجيزة', lat: 30.0131, lng: 31.2089 },
-    { name: 'Maadi', nameAr: 'المعادي', lat: 29.9602, lng: 31.2569 },
-    { name: 'New Cairo / 5th Settlement', nameAr: 'التجمع الخامس', lat: 30.0074, lng: 31.4913 },
-  ];
 
-  const handleTransitHubSelect = (hub: typeof cairoTransitHubs[0], type: 'pickup' | 'dropoff') => {
-    const checkpoints = trip?.routeId?.checkpoints || [];
-    let closestCp = checkpoints[0];
-    let minDistance = Infinity;
-    
-    checkpoints.forEach((cp: any) => {
-      const cpCoords = cp.location.coordinates;
-      const dist = Math.sqrt(
-        Math.pow(cpCoords[1] - hub.lat, 2) + Math.pow(cpCoords[0] - hub.lng, 2)
-      );
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestCp = cp;
-      }
-    });
-
-    if (type === 'pickup') {
-      setSelectedPickupCheckpoint(closestCp || hub);
-    } else {
-      setSelectedDropoffCheckpoint(closestCp || hub);
-    }
-  };
 
   useEffect(() => {
     if (!tripId) return;
@@ -484,75 +456,15 @@ export default function CheckoutPage() {
                     <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
                       {t('verifyStopsHelper')}
                     </p>
-                    <button 
-                      type="button" 
-                      onClick={() => setMapLoadFailed(prev => !prev)}
-                      style={{ fontSize: '11px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', flexShrink: 0 }}
-                    >
-                      {mapLoadFailed ? t('showMapBtn') : t('selectManuallyBtn')}
-                    </button>
                   </div>
 
-                  {mapLoadFailed && (
-                    <div style={{
-                      background: '#1c1c1e',
-                      border: '1px solid var(--primary)',
-                      padding: '1.25rem',
-                      borderRadius: '12px',
-                      marginBottom: '1.5rem',
-                      fontSize: '0.88rem',
-                      color: 'var(--text-primary)'
-                    }}>
-                      💡 <strong>{t('manualSelectionFallback')}</strong>: {t('manualSelectionFallbackDesc')}
-                      
-                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>{t('manualPickupHubLabel')}</label>
-                          <select 
-                            onChange={(e) => {
-                              const hub = cairoTransitHubs.find(h => h.name === e.target.value);
-                              if (hub) handleTransitHubSelect(hub, 'pickup');
-                            }}
-                            style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
-                          >
-                            <option value="">{t('selectPickupOption')}</option>
-                            {cairoTransitHubs.map(h => (
-                              <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>{t('manualDropoffHubLabel')}</label>
-                          <select 
-                            onChange={(e) => {
-                              const hub = cairoTransitHubs.find(h => h.name === e.target.value);
-                              if (hub) handleTransitHubSelect(hub, 'dropoff');
-                            }}
-                            style={{ width: '100%', padding: '10px', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.85rem' }}
-                          >
-                            <option value="">{t('selectDropoffOption')}</option>
-                            {cairoTransitHubs.map(h => (
-                              <option key={h.name} value={h.name}>{h.name} ({h.nameAr})</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem', display: mapLoadFailed ? 'none' : 'block' }}>
+                  <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem' }}>
                     <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
                       <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                         url={theme === 'dark'
                           ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
                           : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'}
-                        eventHandlers={{
-                          tileerror: () => {
-                            setMapLoadFailed(true);
-                          }
-                        }}
                       />
                       <MapFocusController coords={mapFocusCoords} />
                       {polylinePath.length > 0 && (
@@ -615,19 +527,49 @@ export default function CheckoutPage() {
                     position: 'relative', 
                     margin: '1.5rem 0 1rem 0',
                     overflowX: 'auto',
-                    paddingBottom: '0.75rem',
+                    paddingBottom: '1rem',
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    zIndex: 2
+                    zIndex: 2,
+                    background: 'rgba(255, 255, 255, 0.01)',
+                    padding: '1.25rem 0.5rem 1rem 0.5rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.03)'
                   }} className="checkpoint-scrollbar">
-                    {/* Connecting Line */}
+                    <style>{`
+                      @keyframes pulse-pickup {
+                        0% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0.4); }
+                        70% { box-shadow: 0 0 0 10px rgba(245, 183, 49, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0); }
+                      }
+                      @keyframes pulse-dropoff {
+                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                      }
+                      .checkpoint-scrollbar::-webkit-scrollbar {
+                        display: none;
+                      }
+                      .checkpoint-item {
+                        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                      }
+                      .checkpoint-item:hover {
+                        transform: translateY(-2px);
+                      }
+                      .checkpoint-item:hover .checkpoint-dot-pulse {
+                        transform: scale(1.15);
+                      }
+                    `}</style>
+
+                    {/* Connecting Line (Inactive Background) */}
                     <div style={{ 
                       position: 'absolute', 
-                      top: '12px', 
+                      top: '26px', 
                       left: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
                       right: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
-                      height: '4px', 
-                      background: 'var(--border)', 
+                      height: '5px', 
+                      background: 'rgba(255,255,255,0.08)', 
+                      borderRadius: '4px',
                       zIndex: 0 
                     }} />
                     
@@ -651,13 +593,15 @@ export default function CheckoutPage() {
                         return (
                           <div style={{ 
                             position: 'absolute', 
-                            top: '12px', 
+                            top: '26px', 
                             left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
                             width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
-                            height: '4px', 
-                            background: 'var(--primary)', 
+                            height: '5px', 
+                            background: 'linear-gradient(90deg, var(--primary) 0%, #EF4444 100%)', 
+                            borderRadius: '4px',
+                            boxShadow: '0 0 10px rgba(245, 183, 49, 0.25)',
                             zIndex: 0,
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                           }} />
                         );
                       }
@@ -679,20 +623,40 @@ export default function CheckoutPage() {
                       const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
                       
                       let dotBg = 'var(--surface-hover)';
-                      let dotBorder = '3px solid var(--border)';
+                      let dotBorder = '3px solid rgba(255,255,255,0.15)';
                       let dotShadow = 'none';
+                      let dotSize = '20px';
+                      let dotInnerSize = '6px';
+                      let dotInnerBg = 'transparent';
+                      let animName = 'none';
                       
                       if (isPickup) {
                         dotBg = 'var(--primary)';
-                        dotBorder = '4px solid var(--surface)';
-                        dotShadow = 'none';
+                        dotBorder = '4px solid #1a1a1a';
+                        dotSize = '28px';
+                        dotInnerSize = '8px';
+                        dotInnerBg = '#000';
+                        animName = 'pulse-pickup 1.8s infinite';
+                        dotShadow = '0 0 15px rgba(245, 183, 49, 0.4)';
                       } else if (isDropoff) {
                         dotBg = '#EF4444';
-                        dotBorder = '4px solid var(--surface)';
-                        dotShadow = 'none';
+                        dotBorder = '4px solid #1a1a1a';
+                        dotSize = '28px';
+                        dotInnerSize = '8px';
+                        dotInnerBg = '#fff';
+                        animName = 'pulse-dropoff 1.8s infinite';
+                        dotShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
                       } else if (isActiveRoute) {
-                        dotBg = '#2b2b2b';
+                        dotBg = '#1c1c1e';
                         dotBorder = '3px solid var(--primary)';
+                        dotSize = '20px';
+                        dotInnerSize = '6px';
+                        dotInnerBg = 'var(--primary)';
+                      } else {
+                        dotBg = '#141416';
+                        dotBorder = '2px solid rgba(255,255,255,0.08)';
+                        dotSize = '16px';
+                        dotInnerSize = '4px';
                       }
                       
                       return (
@@ -716,51 +680,66 @@ export default function CheckoutPage() {
                             flexDirection: 'column', 
                             alignItems: 'center', 
                             flex: 1, 
-                            minWidth: '100px',
+                            minWidth: '110px',
                             zIndex: 1, 
                             position: 'relative', 
                             cursor: 'pointer',
-                            transition: 'transform 0.2s'
                           }}
-                          className="p-3 touch-manipulation min-w-[48px] min-h-[48px]"
+                          className="p-3 touch-manipulation min-w-[48px] min-h-[48px] checkpoint-item"
                         >
                           <div style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            background: dotBg,
-                            border: dotBorder,
-                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: dotShadow,
+                            height: '32px',
+                            width: '32px'
                           }}>
-                            {(isPickup || isDropoff) && (
-                              <div style={{
-                                width: '6px',
-                                height: '6px',
+                            <div 
+                              className="checkpoint-dot-pulse"
+                              style={{
+                                width: dotSize,
+                                height: dotSize,
                                 borderRadius: '50%',
-                                background: 'var(--text-on-primary)'
-                              }} />
-                            )}
+                                background: dotBg,
+                                border: dotBorder,
+                                animation: animName,
+                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: dotShadow,
+                              }}
+                            >
+                              {dotInnerBg !== 'transparent' && (
+                                <div style={{
+                                  width: dotInnerSize,
+                                  height: dotInnerSize,
+                                  borderRadius: '50%',
+                                  background: dotInnerBg
+                                }} />
+                              )}
+                            </div>
                           </div>
                           
                           <span style={{ 
-                            fontSize: '0.75rem', 
-                            fontWeight: (isPickup || isDropoff) ? 800 : 500, 
-                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : 'var(--text-primary)'), 
-                            marginTop: '6px', 
+                            fontSize: '0.78rem', 
+                            fontWeight: (isPickup || isDropoff) ? 800 : 600, 
+                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : (isActiveRoute ? 'var(--text-primary)' : 'var(--text-muted)')), 
+                            marginTop: '8px', 
                             textAlign: 'center',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            letterSpacing: '-0.01em'
                           }}>
                             {cp.name}
                           </span>
                           {cp.nameAr && (
                             <span style={{ 
-                              fontSize: '0.65rem', 
+                              fontSize: '0.68rem', 
+                              fontWeight: (isPickup || isDropoff) ? 700 : 500,
                               color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
                               textAlign: 'center',
+                              marginTop: '2px',
+                              opacity: isActiveRoute ? 0.9 : 0.6,
                               transition: 'all 0.2s'
                             }}>
                               {cp.nameAr}

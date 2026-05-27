@@ -265,11 +265,15 @@ export class BookingsService {
           baseDepartureTimeMs + dropoffOffsetMs,
         ).toISOString();
 
-        const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
-        const dropoffPrice = Number(
-          dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
-        );
-        segmentPrice = dropoffPrice - pickupPrice;
+        if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
+          segmentPrice = Number(pickupCp.prices[dropoffCp.name]);
+        } else {
+          const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+          const dropoffPrice = Number(
+            dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
+          );
+          segmentPrice = dropoffPrice - pickupPrice;
+        }
 
         pickupCheckpointData = {
           ...pickupCp,

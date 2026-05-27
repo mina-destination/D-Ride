@@ -535,6 +535,9 @@ export default function TripSearchPage() {
                           // Dynamic leg sub-total fare calculation
                           const getTripLegPrice = () => {
                             if (pickupCp && dropoffCp) {
+                              if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
+                                return Number(pickupCp.prices[dropoffCp.name]);
+                              }
                               const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
                               const dropoffPrice = Number(dropoffCp.priceFromStartEGP || trip.priceEGP || 0);
                               const legPrice = dropoffPrice - pickupPrice;
@@ -542,7 +545,7 @@ export default function TripSearchPage() {
                             }
                             return Number(trip.priceEGP || 0);
                           };
-                          const dynamicLegPrice = trip.amountEGP ?? trip.localizedPriceEGP ?? getTripLegPrice();
+                          const dynamicLegPrice = getTripLegPrice();
                           
                           let durationMinutes = 45;
                           if (pickupEstimatedDepTime && dropoffEstimatedArrTime) {
@@ -888,25 +891,31 @@ export default function TripSearchPage() {
                                         dotBorder = '3px solid var(--primary)';
                                       }
 
+                                      const getPriceBetween = (pIdx: number, dIdx: number) => {
+                                        if (pIdx < 0 || dIdx < 0 || pIdx >= dIdx) return 0;
+                                        const pCp = currentRoute.checkpoints[pIdx];
+                                        const dCp = currentRoute.checkpoints[dIdx];
+                                        if (pCp.prices && pCp.prices[dCp.name] !== undefined) {
+                                          return Number(pCp.prices[dCp.name]);
+                                        }
+                                        return (dCp.priceFromStartEGP || 0) - (pCp.priceFromStartEGP || 0);
+                                      };
+
                                       // Calculate segment price delta relative to currently selected pickup & dropoff
-                                      const currentPickupPrice = pickupIdx >= 0 ? (currentRoute.checkpoints[pickupIdx].priceFromStartEGP || 0) : 0;
-                                      const currentDropoffPrice = dropoffIdx >= 0 ? (currentRoute.checkpoints[dropoffIdx].priceFromStartEGP || 0) : 0;
-                                      const currentPrice = currentDropoffPrice - currentPickupPrice;
+                                      const currentPrice = getPriceBetween(pickupIdx, dropoffIdx);
 
                                       let priceDeltaLabel = '';
                                       if (cpIdx !== pickupIdx && cpIdx !== dropoffIdx) {
                                         if (cpIdx < dropoffIdx) {
                                           // If selected as pickup
-                                          const nextPickupPrice = cp.priceFromStartEGP || 0;
-                                          const nextPrice = currentDropoffPrice - nextPickupPrice;
+                                          const nextPrice = getPriceBetween(cpIdx, dropoffIdx);
                                           const delta = nextPrice - currentPrice;
                                           if (delta !== 0) {
                                             priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
                                           }
                                         } else if (cpIdx > pickupIdx) {
                                           // If selected as dropoff
-                                          const nextDropoffPrice = cp.priceFromStartEGP || 0;
-                                          const nextPrice = nextDropoffPrice - currentPickupPrice;
+                                          const nextPrice = getPriceBetween(pickupIdx, cpIdx);
                                           const delta = nextPrice - currentPrice;
                                           if (delta !== 0) {
                                             priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
