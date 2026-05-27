@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -56,8 +57,8 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Post('location')
-  async updateLocation(@Body() data: UpdateLocationDto) {
-    const location = await this.vehiclesService.upsertLocation(data);
+  async updateLocation(@Request() req: any, @Body() data: UpdateLocationDto) {
+    const location = await this.vehiclesService.upsertLocation(data, req.user);
     return {
       success: true,
       data: location,
