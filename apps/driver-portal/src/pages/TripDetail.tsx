@@ -153,7 +153,7 @@ export default function TripDetailPage() {
       await driverAPI.updateTripStatus(id, newStatus);
       await fetchTripDetails();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update status');
+      console.error(error);
     } finally {
       setActionLoading(false);
     }
@@ -167,7 +167,7 @@ export default function TripDetailPage() {
       await fetchTripDetails();
     } catch (error) {
       playChime(false);
-      alert(error instanceof Error ? error.message : 'Failed to check in passenger');
+      console.error(error);
     } finally {
       setActionLoading(false);
     }

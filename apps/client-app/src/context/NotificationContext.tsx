@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { registerApiToastCallback } from '../services/api';
 
 export interface AppNotification {
   id: string;
@@ -29,6 +30,12 @@ const NotificationContext = createContext<NotificationContextType | null>(null);
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  // Register global Axios toast callback
+  useEffect(() => {
+    registerApiToastCallback(showToast);
+    return () => registerApiToastCallback(null);
+  }, []);
 
   // Load from local storage on mount
   useEffect(() => {

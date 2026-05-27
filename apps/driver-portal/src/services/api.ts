@@ -21,11 +21,62 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+let apiToastCallback: ((title: string, description: string, type: 'success' | 'error' | 'warning' | 'info') => void) | null = null;
+
+export const registerApiToastCallback = (cb: typeof apiToastCallback) => {
+  apiToastCallback = cb;
+};
+
 // Response helper for cleaning payload
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // Check if mutating method to trigger success toast
+    const method = response.config.method?.toUpperCase();
+    if (method && ['POST', 'PUT', 'DELETE'].includes(method)) {
+      const url = response.config.url;
+      const isAuth = url?.includes('/auth/');
+      const isLocation = url?.includes('/location');
+      
+      if (!isAuth && !isLocation) {
+        let msg = 'Action completed successfully';
+        if (response.data && typeof response.data === 'object' && response.data.message) {
+          msg = response.data.message;
+        } else if (response.data && typeof response.data === 'string') {
+          msg = response.data;
+        }
+        if (apiToastCallback) {
+          apiToastCallback('Success', msg, 'success');
+        }
+      }
+    }
+    return response.data;
+  },
   (error) => {
-    const message = error.response?.data?.message || 'API request failed';
+    const errorData = error.response?.data;
+    let title = 'Error';
+    let message = 'API request failed';
+    
+    if (errorData) {
+      if (typeof errorData === 'string') {
+        message = errorData;
+      } else if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          message = errorData.message.join(', ');
+        } else {
+          message = errorData.message;
+        }
+      }
+      if (errorData.error) {
+        title = errorData.error;
+      }
+    } else if (error.message) {
+      message = error.message;
+    }
+    
+    if (apiToastCallback) {
+      apiToastCallback(title, message, 'error');
+    }
+    
     return Promise.reject(new Error(message));
   }
 );

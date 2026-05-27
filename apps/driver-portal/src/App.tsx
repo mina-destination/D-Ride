@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
+import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/Login';
 import MyTripsPage from './pages/MyTrips';
 import TripDetailPage from './pages/TripDetail';
@@ -75,44 +76,46 @@ export default function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <Router>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<AnonymousRoute><LoginPage /></AnonymousRoute>} />
+        <NotificationProvider>
+          <Router>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<AnonymousRoute><LoginPage /></AnonymousRoute>} />
 
-            {/* Protected routes */}
-            <Route
-              path="/trips"
-              element={
-                <ProtectedRoute>
-                  <MyTripsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/trips/:id"
-              element={
-                <ProtectedRoute>
-                  <TripDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/drive/:id"
-              element={
-                <ProtectedRoute>
-                  <LiveDrivePage />
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected routes */}
+              <Route
+                path="/trips"
+                element={
+                  <ProtectedRoute>
+                    <MyTripsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/trips/:id"
+                element={
+                  <ProtectedRoute>
+                    <TripDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/drive/:id"
+                element={
+                  <ProtectedRoute>
+                    <LiveDrivePage />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Catch all */}
-            <Route path="*" element={<Navigate to="/trips" replace />} />
-          </Routes>
-          
-          {/* Bottom tab navigation */}
-          <BottomNav />
-        </Router>
+              {/* Catch all */}
+              <Route path="*" element={<Navigate to="/trips" replace />} />
+            </Routes>
+            
+            {/* Bottom tab navigation */}
+            <BottomNav />
+          </Router>
+        </NotificationProvider>
       </LanguageProvider>
     </AuthProvider>
   );
