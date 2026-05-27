@@ -199,7 +199,19 @@ export class TripsService {
   async findAll(): Promise<any[]> {
     const trips = await this.prisma.trip.findMany({
       include: {
-        route: true,
+        route: {
+          select: {
+            id: true,
+            name: true,
+            coverImage: true,
+            checkpoints: true,
+            distanceKm: true,
+            estimatedDurationMinutes: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         vehicle: true,
         driver: true,
       },
@@ -262,7 +274,19 @@ export class TripsService {
     const trips = await this.prisma.trip.findMany({
       where,
       include: {
-        route: true,
+        route: {
+          select: {
+            id: true,
+            name: true,
+            coverImage: true,
+            checkpoints: true,
+            distanceKm: true,
+            estimatedDurationMinutes: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         vehicle: true,
         driver: true,
       },

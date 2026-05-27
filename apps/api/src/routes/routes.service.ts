@@ -285,7 +285,19 @@ export class RoutesService {
     const trips = await this.prisma.trip.findMany({
       where,
       include: {
-        route: true,
+        route: {
+          select: {
+            id: true,
+            name: true,
+            coverImage: true,
+            checkpoints: true,
+            distanceKm: true,
+            estimatedDurationMinutes: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         vehicle: true,
         driver: true,
       },
