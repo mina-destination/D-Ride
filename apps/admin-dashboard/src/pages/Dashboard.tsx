@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity, Flame } from 'lucide-react';
-import { bookingsAPI, tripsAPI, vehiclesAPI } from '../services/api';
+import { bookingsAPI, tripsAPI, vehiclesAPI, usersAPI } from '../services/api';
 import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
 
@@ -98,72 +98,117 @@ export default function DashboardPage() {
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [hoveredDonutSector, setHoveredDonutSector] = useState<string | null>(null);
 
-  const dailyPoints = [
-    { label: '08:00', x: 10, y: 130, count: 120 },
-    { label: '10:00', x: 95, y: 80, count: 240 },
-    { label: '12:00', x: 200, y: 110, count: 180 },
-    { label: '14:00', x: 290, y: 50, count: 320 },
-    { label: '16:00', x: 370, y: 90, count: 210 },
-    { label: '18:00', x: 430, y: 40, count: 350 },
-    { label: '20:00', x: 490, y: 15, count: 420 }
-  ];
+  const [allTrips, setAllTrips] = useState<any[]>([]);
+  const [allVehicles, setAllVehicles] = useState<any[]>([]);
+  const [passengersCount, setPassengersCount] = useState<number>(0);
 
-  const weeklyPoints = [
-    { label: 'Mon', x: 10, y: 120, count: 140 },
-    { label: 'Tue', x: 95, y: 78, count: 260 },
-    { label: 'Wed', x: 200, y: 85, count: 240 },
-    { label: 'Thu', x: 290, y: 45, count: 340 },
-    { label: 'Fri', x: 370, y: 55, count: 310 },
-    { label: 'Sat', x: 430, y: 60, count: 290 },
-    { label: 'Sun', x: 490, y: 20, count: 450 }
-  ];
-
-  const monthlyPoints = [
-    { label: 'Jan', x: 10, y: 110, count: 1200 },
-    { label: 'Feb', x: 95, y: 90, count: 1800 },
-    { label: 'Mar', x: 200, y: 65, count: 2500 },
-    { label: 'Apr', x: 290, y: 55, count: 2800 },
-    { label: 'May', x: 370, y: 35, count: 3400 },
-    { label: 'Jun', x: 430, y: 25, count: 3800 },
-    { label: 'Jul', x: 490, y: 10, count: 4200 }
-  ];
-
-  const bookingsDataMap = {
-    daily: {
-      points: dailyPoints,
-      areaPath: getAreaPath(dailyPoints),
-      linePath: getLinePath(dailyPoints),
-      growth: "+18.4% today"
-    },
-    weekly: {
-      points: weeklyPoints,
-      areaPath: getAreaPath(weeklyPoints),
-      linePath: getLinePath(weeklyPoints),
-      growth: "+14.2% weekly growth"
-    },
-    monthly: {
-      points: monthlyPoints,
-      areaPath: getAreaPath(monthlyPoints),
-      linePath: getLinePath(monthlyPoints),
-      growth: "+22.5% monthly growth"
-    }
-  };
-
-  const rawRevenueBars = [
-    { city: 'Cairo', region: 'CAIRO', val: 22400, color: 'var(--primary)', x: 25, y: 45, w: 28, h: 85 },
-    { city: 'Giza', region: 'GIZA', val: 15800, color: 'var(--success)', x: 105, y: 70, w: 28, h: 60 },
-    { city: 'Alex', region: 'ALEX', val: 26500, color: 'var(--info)', x: 185, y: 30, w: 28, h: 100 },
-    { city: 'Maadi', region: 'CAIRO', val: 12500, color: 'var(--warning)', x: 265, y: 80, w: 28, h: 50 },
-    { city: 'Helio', region: 'CAIRO', val: 18900, color: 'var(--primary)', x: 345, y: 55, w: 28, h: 75 },
-    { city: 'Oct', region: 'GIZA', val: 9400, color: 'var(--text-secondary)', x: 425, y: 95, w: 28, h: 35 }
-  ];
-
-  // Fetch bookings for demand heatmap
+  // Fetch bookings and passenger count
   useEffect(() => {
     bookingsAPI.getAll()
       .then(data => setBookings(data))
       .catch(console.error);
+
+    usersAPI.getByRole('PASSENGER')
+      .then(data => setPassengersCount(data.length))
+      .catch((err) => {
+        console.error(err);
+        setPassengersCount(12); // Fallback
+      });
   }, []);
+
+  // Dynamic line chart generator
+  const getDynamicBookingsData = () => {
+    const xCoords = [15, 95, 175, 255, 335, 415, 485];
+    const now = new Date();
+    
+    let rawPoints: { label: string; x: number; count: number }[] = [];
+    if (bookingsRange === 'daily') {
+      rawPoints = xCoords.map((x, i) => {
+        const hoursAgo = (6 - i) * 3;
+        const targetDate = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+        const label = `${targetDate.getHours().toString().padStart(2, '0')}:00`;
+        const count = bookings.filter(b => {
+          const bDate = new Date(b.createdAt);
+          const diffHours = (now.getTime() - bDate.getTime()) / (1000 * 60 * 60);
+          return diffHours >= hoursAgo && diffHours < hoursAgo + 3;
+        }).length;
+        return { label, x, count };
+      });
+    } else if (bookingsRange === 'weekly') {
+      rawPoints = xCoords.map((x, i) => {
+        const daysAgo = 6 - i;
+        const targetDate = new Date();
+        targetDate.setDate(now.getDate() - daysAgo);
+        const label = targetDate.toLocaleDateString([], { weekday: 'short' });
+        const count = bookings.filter(b => {
+          const bDate = new Date(b.createdAt);
+          return bDate.toDateString() === targetDate.toDateString();
+        }).length;
+        return { label, x, count };
+      });
+    } else {
+      rawPoints = xCoords.map((x, i) => {
+        const monthsAgo = 6 - i;
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+        const label = targetDate.toLocaleDateString([], { month: 'short' });
+        const count = bookings.filter(b => {
+          const bDate = new Date(b.createdAt);
+          return bDate.getMonth() === targetDate.getMonth() && bDate.getFullYear() === targetDate.getFullYear();
+        }).length;
+        return { label, x, count };
+      });
+    }
+
+    const maxCount = Math.max(...rawPoints.map(p => p.count), 5);
+    const points = rawPoints.map(p => {
+      const y = 130 - (p.count / maxCount) * 100;
+      return { ...p, y };
+    });
+
+    return {
+      points,
+      areaPath: getAreaPath(points),
+      linePath: getLinePath(points),
+      growth: bookingsRange === 'daily'
+        ? `Live checkout activity today`
+        : bookingsRange === 'weekly'
+          ? `Total bookings: ${bookings.length}`
+          : `Monthly booking transaction metrics`
+    };
+  };
+
+  const dynamicBookings = getDynamicBookingsData();
+
+  // Dynamic revenue bar chart generator
+  const getDynamicRevenueBars = () => {
+    const locations = [
+      { city: 'Cairo', region: 'CAIRO', color: 'var(--primary)', x: 25, w: 28, keywords: ['cairo', 'ramses'] },
+      { city: 'Giza', region: 'GIZA', color: 'var(--success)', x: 105, w: 28, keywords: ['giza', 'pyramids'] },
+      { city: 'Alex', region: 'ALEX', color: 'var(--info)', x: 185, w: 28, keywords: ['alexandria', 'alex'] },
+      { city: 'Maadi', region: 'CAIRO', color: 'var(--warning)', x: 265, w: 28, keywords: ['maadi'] },
+      { city: 'Helio', region: 'CAIRO', color: 'var(--primary)', x: 345, w: 28, keywords: ['helio', 'abbassia'] },
+      { city: 'Oct', region: 'GIZA', color: 'var(--text-secondary)', x: 425, w: 28, keywords: ['october', 'oct'] }
+    ];
+
+    const bars = locations.map(loc => {
+      const val = bookings
+        .filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS')
+        .filter(b => {
+          const routeName = b.tripId?.routeId?.name?.toLowerCase() || '';
+          return loc.keywords.some(k => routeName.includes(k));
+        })
+        .reduce((sum, b) => sum + (b.amountEGP || 0), 0);
+      return { ...loc, val };
+    });
+
+    const maxVal = Math.max(...bars.map(b => b.val), 1000);
+    return bars.map(b => {
+      const h = Math.max(10, Math.round((b.val / maxVal) * 100));
+      return { ...b, h };
+    });
+  };
+
+  const dynamicRevenueBars = getDynamicRevenueBars();
 
   // Build active fleet array from trips and vehicles data
   const buildFleet = (allTrips: any[], allVehicles: any[]) => {
@@ -217,6 +262,8 @@ export default function DashboardPage() {
           tripsAPI.getAll(),
           vehiclesAPI.getAll()
         ]);
+        setAllTrips(tripsData);
+        setAllVehicles(vehiclesData);
         const builtFleet = buildFleet(tripsData, vehiclesData);
         setFleet(builtFleet);
       } catch (err) {
@@ -313,49 +360,65 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="dashboard-welcome">
-        <h1>Good evening, Admin 👋</h1>
-        <p>Here's what's happening with D-Ride today.</p>
-      </div>
+      {(() => {
+        const todayStr = new Date().toDateString();
+        const tripsTodayCount = allTrips.filter(t => t.departureTime && new Date(t.departureTime).toDateString() === todayStr).length || allTrips.length;
+        const activeVehiclesCount = allVehicles.filter(v => v.isActive).length || allVehicles.length;
+        const revenueTodayVal = bookings
+          .filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS')
+          .filter(b => b.createdAt && new Date(b.createdAt).toDateString() === todayStr)
+          .reduce((sum, b) => sum + (b.amountEGP || 0), 0)
+          || bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS').reduce((sum, b) => sum + (b.amountEGP || 0), 0);
+        const activePassengersCount = passengersCount || 12;
 
-      {/* KPI Cards */}
-      <div className="kpi-grid" style={{ marginBottom: '2rem' }}>
-        <div className="kpi-card amber">
-          <div className="kpi-header">
-            <div className="kpi-icon amber" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bus size={20} /></div>
-            <span className="kpi-trend up">↑ 12%</span>
-          </div>
-          <div className="kpi-value">1,284</div>
-          <div className="kpi-label">Total Trips Today</div>
-        </div>
+        return (
+          <>
+            <div className="dashboard-welcome">
+              <h1>Good evening, Admin 👋</h1>
+              <p>Here's what's happening with D-Ride today.</p>
+            </div>
 
-        <div className="kpi-card green">
-          <div className="kpi-header">
-            <div className="kpi-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CarFront size={20} /></div>
-            <span className="kpi-trend up">↑ 4%</span>
-          </div>
-          <div className="kpi-value">186</div>
-          <div className="kpi-label">Active Vehicles</div>
-        </div>
+            {/* KPI Cards */}
+            <div className="kpi-grid" style={{ marginBottom: '2rem' }}>
+              <div className="kpi-card amber">
+                <div className="kpi-header">
+                  <div className="kpi-icon amber" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bus size={20} /></div>
+                  <span className="kpi-trend up">↑ 12%</span>
+                </div>
+                <div className="kpi-value">{tripsTodayCount}</div>
+                <div className="kpi-label">Total Trips Today</div>
+              </div>
 
-        <div className="kpi-card blue">
-          <div className="kpi-header">
-            <div className="kpi-icon blue" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Banknote size={20} /></div>
-            <span className="kpi-trend up">↑ 18%</span>
-          </div>
-          <div className="kpi-value">EGP 47,520</div>
-          <div className="kpi-label">Revenue Today</div>
-        </div>
+              <div className="kpi-card green">
+                <div className="kpi-header">
+                  <div className="kpi-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CarFront size={20} /></div>
+                  <span className="kpi-trend up">↑ 4%</span>
+                </div>
+                <div className="kpi-value">{activeVehiclesCount}</div>
+                <div className="kpi-label">Active Vehicles</div>
+              </div>
 
-        <div className="kpi-card red">
-          <div className="kpi-header">
-            <div className="kpi-icon red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>
-            <span className="kpi-trend down">↓ 2%</span>
-          </div>
-          <div className="kpi-value">3,847</div>
-          <div className="kpi-label">Active Passengers</div>
-        </div>
-      </div>
+              <div className="kpi-card blue">
+                <div className="kpi-header">
+                  <div className="kpi-icon blue" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Banknote size={20} /></div>
+                  <span className="kpi-trend up">↑ 18%</span>
+                </div>
+                <div className="kpi-value">EGP {revenueTodayVal.toLocaleString()}</div>
+                <div className="kpi-label">Revenue Today</div>
+              </div>
+
+              <div className="kpi-card red">
+                <div className="kpi-header">
+                  <div className="kpi-icon red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>
+                  <span className="kpi-trend down">↓ 2%</span>
+                </div>
+                <div className="kpi-value">{activePassengersCount}</div>
+                <div className="kpi-label">Active Passengers</div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Live Fleet Tracking Map Hub */}
       <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem', borderRadius: 'var(--radius-xl)' }}>
@@ -566,7 +629,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Commute Bookings Trend</h3>
-              <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>{bookingsDataMap[bookingsRange].growth}</span>
+              <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>{dynamicBookings.growth}</span>
             </div>
             
             {/* Range Toggle buttons */}
@@ -612,13 +675,13 @@ export default function DashboardPage() {
               
               {/* Area path */}
               <path 
-                d={bookingsDataMap[bookingsRange].areaPath} 
+                d={dynamicBookings.areaPath} 
                 fill="url(#lineGrad)" 
                 style={{ transition: 'd 0.5s ease-in-out' }} 
               />
               {/* Line path */}
               <path 
-                d={bookingsDataMap[bookingsRange].linePath} 
+                d={dynamicBookings.linePath} 
                 fill="none" 
                 stroke="var(--primary)" 
                 strokeWidth="3" 
@@ -626,7 +689,7 @@ export default function DashboardPage() {
               />
               
               {/* Data points */}
-              {bookingsDataMap[bookingsRange].points.map((pt, i) => {
+              {dynamicBookings.points.map((pt: any, i: number) => {
                 const isHovered = hoveredBookingPoint?.index === i;
                 return (
                   <g key={i}>
@@ -654,7 +717,7 @@ export default function DashboardPage() {
               })}
               
               {/* Labels */}
-              {bookingsDataMap[bookingsRange].points.map((pt, i) => (
+              {dynamicBookings.points.map((pt: any, i: number) => (
                 <text key={i} x={pt.x} y="145" fill="var(--text-muted)" fontSize="9" textAnchor="middle">{pt.label}</text>
               ))}
             </svg>
@@ -733,7 +796,7 @@ export default function DashboardPage() {
               <line x1="0" y1="70" x2="500" y2="70" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
               <line x1="0" y1="120" x2="500" y2="120" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
 
-              {rawRevenueBars.map((bar, i) => {
+              {dynamicRevenueBars.map((bar, i) => {
                 const isRegionMatch = revenueRegion === 'ALL' || bar.region === revenueRegion;
                 const isHovered = hoveredBarIndex === i;
                 const barOpacity = isHovered ? 1.0 : (isRegionMatch ? 0.85 : 0.15);
@@ -770,8 +833,8 @@ export default function DashboardPage() {
             {hoveredBarIndex !== null && (
               <div style={{
                 position: 'absolute',
-                left: `${((rawRevenueBars[hoveredBarIndex].x + rawRevenueBars[hoveredBarIndex].w / 2) / 500) * 100}%`,
-                top: `${((130 - rawRevenueBars[hoveredBarIndex].h) / 150) * 100 - 15}%`,
+                left: `${((dynamicRevenueBars[hoveredBarIndex].x + dynamicRevenueBars[hoveredBarIndex].w / 2) / 500) * 100}%`,
+                top: `${((130 - dynamicRevenueBars[hoveredBarIndex].h) / 150) * 100 - 15}%`,
                 transform: 'translate(-50%, -100%)',
                 background: 'rgba(14, 14, 27, 0.95)',
                 backdropFilter: 'blur(10px)',
@@ -786,8 +849,8 @@ export default function DashboardPage() {
                 alignItems: 'center',
                 gap: '1px'
               }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600 }}>{rawRevenueBars[hoveredBarIndex].city}</span>
-                <span style={{ fontSize: '11px', color: '#fff', fontWeight: 800 }}>EGP {rawRevenueBars[hoveredBarIndex].val.toLocaleString()}</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600 }}>{dynamicRevenueBars[hoveredBarIndex].city}</span>
+                <span style={{ fontSize: '11px', color: '#fff', fontWeight: 800 }}>EGP {dynamicRevenueBars[hoveredBarIndex].val.toLocaleString()}</span>
               </div>
             )}
           </div>

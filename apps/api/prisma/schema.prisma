@@ -17,16 +17,16 @@ model User {
   avatarUrl     String?
   isActive      Boolean         @default(true)
   crmNotes      Json            @default("[]")
-  walletBalance Float           @default(0)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  walletBalance Float           @default(0)
   bookings      Booking[]
+  chatMessages  ChatMessage[]   @relation("UserChatMessages")
+  reviews       Review[]
   tickets       SupportTicket[]
   transactions  Transaction[]
   trips         Trip[]          @relation("DriverTrips")
   vehicles      Vehicle[]
-  reviews       Review[]
-  chatMessages  ChatMessage[]   @relation("UserChatMessages")
 
   @@map("users")
 }
@@ -66,9 +66,9 @@ model Route {
   checkpoints              Json     @default("[]")
   distanceKm               Float    @default(0)
   estimatedDurationMinutes Int      @default(0)
-  isActive                 Boolean  @default(true)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+  isActive                 Boolean  @default(true)
   trips                    Trip[]
 
   @@map("routes")
@@ -89,10 +89,10 @@ model Trip {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   bookings       Booking[]
-  driver         User?      @relation("DriverTrips", fields: [driverId], references: [id])
-  route          Route      @relation(fields: [routeId], references: [id], onDelete: Restrict)
-  vehicle        Vehicle?   @relation(fields: [vehicleId], references: [id])
   reviews        Review[]
+  driver         User?      @relation("DriverTrips", fields: [driverId], references: [id])
+  route          Route      @relation(fields: [routeId], references: [id])
+  vehicle        Vehicle?   @relation(fields: [vehicleId], references: [id])
 
   @@index([routeId, status, departureTime])
   @@map("trips")
@@ -106,20 +106,20 @@ model Booking {
   pickupStopId        String?
   dropoffStopId       String?
   pickupCheckpoint    Json?
-  dropoffCheckpoint   Json?
   status              BookingStatus @default(PENDING)
   paymentStatus       PaymentStatus @default(PENDING)
   paymobOrderId       Int?          @unique
   amountEGP           Float
   bookedAt            DateTime      @default(now())
   qrVerificationToken String?
-  boardingNumber      Int?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
-  trip                Trip          @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  dropoffCheckpoint   Json?
+  boardingNumber      Int?
+  trip                Trip          @relation(fields: [tripId], references: [id])
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions        Transaction[]
   review              Review?
+  transactions        Transaction[]
 
   @@index([tripId, status])
   @@index([userId])
@@ -142,19 +142,19 @@ model LiveVehicleLocation {
 }
 
 model SupportTicket {
-  id        String   @id @default(uuid())
-  userId    String
-  name      String
-  email     String
-  phone     String
-  subject   String
-  message   String
-  status    String   @default("OPEN")
-  replies   Json     @default("[]")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  userId       String
+  name         String
+  email        String
+  phone        String
+  subject      String
+  message      String
+  status       String        @default("OPEN")
+  replies      Json          @default("[]")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   chatMessages ChatMessage[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("support_tickets")
 }
@@ -176,6 +176,47 @@ model Transaction {
 
   @@index([userId, status])
   @@map("transactions")
+}
+
+model ChatMessage {
+  id         String        @id @default(uuid())
+  ticketId   String
+  senderId   String
+  senderRole String
+  senderName String
+  message    String
+  createdAt  DateTime      @default(now())
+  sender     User          @relation("UserChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  userId    String
+  tripId    String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model Partner {
+  id         String   @id @default(uuid())
+  name       String
+  logoUrl    String
+  websiteUrl String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("partners")
 }
 
 enum Role {
@@ -217,48 +258,3 @@ enum StopType {
   CHECKPOINT
   END
 }
-
-model ChatMessage {
-  id         String   @id @default(uuid())
-  ticketId   String
-  senderId   String
-  senderRole String
-  senderName String
-  message    String
-  createdAt  DateTime @default(now())
-
-  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  sender     User          @relation("UserChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@map("chat_messages")
-}
-
-model Review {
-  id        String   @id @default(uuid())
-  bookingId String   @unique
-  userId    String
-  tripId    String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@map("reviews")
-}
-
-model Partner {
-  id         String   @id @default(uuid())
-  name       String
-  logoUrl    String
-  websiteUrl String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("partners")
-}
-
-
