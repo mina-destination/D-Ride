@@ -412,11 +412,16 @@ export class RoutesService {
         baseDepartureTimeMs + dropoffOffsetMs,
       ).toISOString();
 
-      const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
-      const dropoffPrice = Number(
-        dropoffCp.priceFromStartEGP || trip.priceEGP || 0,
-      );
-      const amountEGP = dropoffPrice - pickupPrice;
+      let amountEGP = 0;
+      if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
+        amountEGP = Number(pickupCp.prices[dropoffCp.name]);
+      } else {
+        const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+        const dropoffPrice = Number(
+          dropoffCp.priceFromStartEGP || trip.priceEGP || 0,
+        );
+        amountEGP = dropoffPrice - pickupPrice;
+      }
 
       const mappedTrip = this.mapSearchTrip(trip);
       mappedTrip.priceEGP = amountEGP; // override trip priceEGP to be dynamic leg-based pricing
