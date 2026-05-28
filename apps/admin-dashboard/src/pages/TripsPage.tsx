@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Select, Space, message, DatePicker, Progress, Badge, Checkbox, Input, Card, Popconfirm } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, Popconfirm } from 'antd';
+import { message } from '../utils/antdGlobal';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 import dayjs from 'dayjs';
 import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download, Trash2 } from 'lucide-react';
@@ -796,12 +797,12 @@ export function TripsPage() {
               rules={[{ required: true, message: 'Please select departure time' }]}
             >
               <DatePicker showTime style={{ width: '100%' }} />
-              {selectedDepartureTime && selectedRoute?.estimatedDurationMinutes && (
-                <div style={{ marginTop: '6px', fontSize: '12px', fontWeight: 'bold', color: '#10B981' }}>
-                  🟢 Est. Arrival Time: {dayjs(selectedDepartureTime).add(selectedRoute.estimatedDurationMinutes, 'minute').format('YYYY-MM-DD hh:mm A')} (duration: {selectedRoute.estimatedDurationMinutes} mins)
-                </div>
-              )}
             </Form.Item>
+            {selectedDepartureTime && selectedRoute?.estimatedDurationMinutes && (
+              <div style={{ marginTop: '-12px', marginBottom: '15px', fontSize: '12px', fontWeight: 'bold', color: '#10B981' }}>
+                🟢 Est. Arrival Time: {dayjs(selectedDepartureTime).add(selectedRoute.estimatedDurationMinutes, 'minute').format('YYYY-MM-DD hh:mm A')} (duration: {selectedRoute.estimatedDurationMinutes} mins)
+              </div>
+            )}
 
             {!editingId && (
               <>
