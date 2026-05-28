@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
 import { antThemeConfig, antThemeConfigDark } from '@transport/shared-theme';
 import { useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { setGlobalAntd } from './utils/antdGlobal';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
@@ -27,30 +27,16 @@ import './App.css';
 
 import { Result, Button, Space } from 'antd';
 
+function AntdGlobalHelper() {
+  const { message, notification, modal } = AntdApp.useApp();
+  setGlobalAntd({ message, notification, modal });
+  return null;
+}
+
 function ProtectedRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
-  const { isAuthenticated, isLoading, user, logout, syncProfile } = useAuth();
-  const [syncing, setSyncing] = useState(true);
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
 
-  useEffect(() => {
-    let active = true;
-    const sync = async () => {
-      if (isAuthenticated) {
-        await syncProfile();
-      }
-      if (active) {
-        setSyncing(false);
-      }
-    };
-
-    setSyncing(true);
-    sync();
-
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, syncProfile]);
-
-  if (isLoading || syncing) {
+  if (isLoading) {
     return (
       <div style={{
         display: 'flex',
@@ -247,6 +233,7 @@ function App() {
   return (
     <ConfigProvider theme={currentTheme}>
       <AntdApp>
+        <AntdGlobalHelper />
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />

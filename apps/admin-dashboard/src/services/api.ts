@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { message } from 'antd';
+import { message } from '../utils/antdGlobal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
