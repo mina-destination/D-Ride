@@ -92,19 +92,41 @@ export class UsersService implements OnModuleInit {
     return updated;
   }
 
-  async findAllByRole(role: string): Promise<any[]> {
+  async findAllByRole(role: string, limit = 100): Promise<any[]> {
     const users = await this.prisma.user.findMany({
       where: { role: role.toUpperCase() as Role },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     return users.map((user) => this.mapUser(user));
   }
 
-  async findAll(): Promise<any[]> {
+  async findAll(limit = 100): Promise<any[]> {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     return users.map((user) => this.mapUser(user));
+  }
+
+  async findPaginated(role?: string, skip = 0, take = 20): Promise<any> {
+    const where = role ? { role: role.toUpperCase() as Role } : {};
+    const [total, users] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    return {
+      users: users.map((user) => this.mapUser(user)),
+      total,
+      page: Math.floor(skip / take) + 1,
+      limit: take,
+    };
   }
 
   async addCrmNote(id: string, text: string, adminName: string): Promise<any> {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, Popconfirm } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 import dayjs from 'dayjs';
@@ -14,6 +16,7 @@ interface ActiveSimulation {
 }
 
 export function TripsPage() {
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -278,7 +281,15 @@ export function TripsPage() {
       dataIndex: 'routeId',
       key: 'routeId',
       sorter: (a: any, b: any) => (a.routeId?.name || '').localeCompare(b.routeId?.name || ''),
-      render: (route: any) => <strong>{route?.name || 'Unassigned Route'}</strong>,
+      render: (route: any, record: any) => (
+        <Button 
+          type="link" 
+          onClick={() => navigate(`/trips/${record._id}`)} 
+          style={{ padding: 0, height: 'auto', fontWeight: 'bold', fontSize: '14px', textAlign: 'left' }}
+        >
+          {route?.name || 'Unassigned Route'}
+        </Button>
+      ),
     },
     {
       title: 'Vehicle & Driver',
@@ -344,7 +355,7 @@ export function TripsPage() {
         <div>
           <div><strong>{record.priceEGP} EGP</strong></div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Seats: {record.bookedSeats} / {record.availableSeats}
+            Seats: {record.bookedSeats} / {record.availableSeats - (record.lockedSeats?.includes(14) ? 1 : 0)}
           </div>
         </div>
       ),
@@ -386,8 +397,17 @@ export function TripsPage() {
       key: 'actions',
       render: (_: any, record: any) => (
         <Space>
+          <Button type="link" onClick={() => navigate(`/trips/${record._id}`)} style={{ fontWeight: 'bold' }}>View Manifest</Button>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
+          <Popconfirm
+            title="Delete trip?"
+            description="Are you sure you want to delete this trip?"
+            onConfirm={() => handleDelete(record._id)}
+            okText="Yes, Delete"
+            cancelText="No"
+          >
+            <Button type="link" danger>Delete</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -637,7 +657,7 @@ export function TripsPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnHidden
+        forceRender={true}
       >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             {conflictMessage && (

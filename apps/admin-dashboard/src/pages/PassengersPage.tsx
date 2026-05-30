@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, Popconfirm, Card } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, Select, Tag, Card } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { usersAPI } from '../services/api';
 import { Users, Zap, Ban, TrendingUp, Edit, Plus, Download, Trash2 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
@@ -439,7 +441,7 @@ export function PassengersPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnHidden
+        forceRender={true}
         okText={editingId ? "Save Changes" : "Create Account"}
         okButtonProps={{ style: { background: 'var(--primary-color)', color: 'black', fontWeight: 'bold' } }}
       >

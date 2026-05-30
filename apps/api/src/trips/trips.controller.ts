@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { TripsService } from './trips.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -55,7 +56,7 @@ export class TripsController {
 
   @Get(':id')
   async findById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Query('pickupCheckpointName') pickupCheckpointName?: string,
     @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
   ) {
@@ -78,7 +79,7 @@ export class TripsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() data: UpdateTripDto) {
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateTripDto) {
     const trip = await this.tripsService.update(id, data as any);
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }
@@ -86,7 +87,7 @@ export class TripsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.tripsService.delete(id);
     return {
       success: true,
@@ -99,7 +100,7 @@ export class TripsController {
   @Roles('DRIVER', 'ADMIN')
   @Put(':id/status')
   async updateStatus(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateTripStatusDto,
     @Request() req: any,
   ) {

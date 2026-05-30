@@ -210,7 +210,6 @@ export function AnalyticsPage() {
   const getPaymentBreakdown = () => {
     let cardCount = 0;
     let walletCount = 0;
-    let cashCount = 0;
 
     filteredBookings.forEach(b => {
       const isCard = b.paymobOrderId != null;
@@ -218,14 +217,12 @@ export function AnalyticsPage() {
       const isWallet = !isCard && b.userId?.phone && b.userId.phone.startsWith('+201');
       if (isCard) cardCount += b.amountEGP || 0;
       else if (isWallet) walletCount += b.amountEGP || 0;
-      else cashCount += b.amountEGP || 0;
     });
 
-    const total = cardCount + walletCount + cashCount || 1;
+    const total = cardCount + walletCount || 1;
     return [
       { name: 'Credit Card (Paymob)', value: cardCount, percentage: Math.round((cardCount / total) * 100), color: '#3b82f6' },
-      { name: 'Mobile Wallet', value: walletCount, percentage: Math.round((walletCount / total) * 100), color: '#10b981' },
-      { name: 'Cash On-Board', value: cashCount, percentage: Math.round((cashCount / total) * 100), color: '#f59e0b' }
+      { name: 'Mobile Wallet', value: walletCount, percentage: Math.round((walletCount / total) * 100), color: '#10b981' }
     ];
   };
 

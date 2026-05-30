@@ -143,6 +143,9 @@ export const bookingsAPI = {
   getById: (id: string): Promise<any> => api.get(`/bookings/${id}`),
   create: (data: any): Promise<any> => api.post('/bookings', data),
   cancel: (id: string): Promise<any> => api.put(`/bookings/${id}/cancel`),
+  refund: (id: string, action?: string): Promise<any> => api.put(`/bookings/${id}/refund`, { action }),
+  getTripManifest: (tripId: string): Promise<any> => api.get(`/bookings/trip/${tripId}/manifest`),
+  checkIn: (id: string): Promise<any> => api.put(`/bookings/${id}/check-in`),
 };
 
 // ── Users API ─────────────────────────────────────────────

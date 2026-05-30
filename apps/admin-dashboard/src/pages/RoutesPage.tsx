@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Input, Space, message, Steps, Spin, Select } from 'antd';
+import { Table, Button, Modal, Input, Space, Steps, Spin, Select } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useTheme } from '../context/ThemeContext';
@@ -796,28 +798,6 @@ export function RoutesPage() {
     message.warning('Stop removed');
   };
 
-  const handleLegFareChange = (idx: number, newLegFare: number) => {
-    const val = Math.max(0, newLegFare);
-    setCheckpoints(prev => {
-      const updated = prev.map(c => ({ ...c }));
-      const legFares = updated.map((c, i) => {
-        if (i === 0) return 0;
-        if (i === idx) return val;
-        return (c.priceFromStartEGP || 0) - (updated[i - 1].priceFromStartEGP || 0);
-      });
-
-      let cumulative = 0;
-      for (let i = 0; i < updated.length; i++) {
-        if (i === 0) {
-          updated[i].priceFromStartEGP = 0;
-        } else {
-          cumulative += legFares[i];
-          updated[i].priceFromStartEGP = cumulative;
-        }
-      }
-      return updated;
-    });
-  };
 
   const handleCustomSegmentPriceChange = (pickupIdx: number, dropoffName: string, valueStr: string) => {
     const val = parseFloat(valueStr);
@@ -907,6 +887,11 @@ export function RoutesPage() {
       }
       const geoJsonCoordinates = points.map(p => [p[1], p[0]]);
       
+      const lastCheckpoint = checkpoints[checkpoints.length - 1];
+      const finalDuration = (lastCheckpoint && lastCheckpoint.minutesFromStart > 0)
+        ? lastCheckpoint.minutesFromStart
+        : durationMinutes;
+
       const payload = {
         name: routeName,
         coverImage: coverImage,
@@ -916,7 +901,7 @@ export function RoutesPage() {
         },
         checkpoints: checkpoints,
         distanceKm: distanceKm,
-        estimatedDurationMinutes: durationMinutes
+        estimatedDurationMinutes: finalDuration
       };
 
       if (editingId) {
@@ -1004,10 +989,25 @@ export function RoutesPage() {
       render: (val: number) => <span style={{ color: 'var(--text-secondary)' }}>{val ? `${val} mins` : '—'}</span>
     },
     {
-      title: 'Checkpoints count',
+      title: 'Stops',
       dataIndex: 'checkpoints',
       key: 'checkpoints',
-      render: (list: any[]) => <span>{list ? list.length : 0} stops</span>
+      render: (list: any[]) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '300px' }}>
+          {list ? list.map((cp, i) => (
+            <span key={i} style={{ 
+              fontSize: '11px', 
+              background: cp.type === 'START' ? 'rgba(16,185,129,0.1)' : cp.type === 'END' ? 'rgba(239,68,68,0.1)' : 'var(--surface-hover)', 
+              color: cp.type === 'START' ? '#10B981' : cp.type === 'END' ? '#EF4444' : 'var(--text-secondary)', 
+              padding: '2px 6px', 
+              borderRadius: '4px',
+              border: '1px solid var(--border)'
+            }}>
+              {cp.name}
+            </span>
+          )) : '—'}
+        </div>
+      )
     },
     {
       title: 'Actions',
@@ -1016,7 +1016,15 @@ export function RoutesPage() {
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit Wizard</Button>
           <Button type="link" style={{ color: '#10B981' }} onClick={() => handleReverseRoute(record)}>Reverse Route</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
+          <Popconfirm
+            title="Delete route?"
+            description="Are you sure you want to delete this route? This will cancel all trips and bookings on this route."
+            onConfirm={() => handleDelete(record._id)}
+            okText="Yes, Delete"
+            cancelText="No"
+          >
+            <Button type="link" danger>Delete</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -1365,47 +1373,22 @@ export function RoutesPage() {
                             />
                           </div>
 
-                          {/* Row 2: CITY + PRICE (promoted first-class fields) */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                            <div>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#F5B731', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                🏙️ City Leg
-                              </span>
-                              <Input 
-                                placeholder="e.g. Cairo, Alexandria"
-                                value={cp.city || ''}
-                                onChange={e => {
-                                  const updated = [...checkpoints];
-                                  updated[idx].city = e.target.value;
-                                  setCheckpoints(updated);
-                                }}
-                                size="small"
-                                style={{ borderColor: cp.city ? '#10B981' : undefined }}
-                              />
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                                💵 Fare from Prev Stop (EGP)
-                              </span>
-                              <Input 
-                                type="number"
-                                value={isStart ? 0 : ((cp.priceFromStartEGP || 0) - (checkpoints[idx - 1]?.priceFromStartEGP || 0))}
-                                onChange={e => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  handleLegFareChange(idx, val);
-                                }}
-                                size="small"
-                                min={0}
-                                disabled={isStart}
-                                placeholder={isStart ? "Start (0)" : "Segment price"}
-                                style={{ borderColor: (!isStart && ((cp.priceFromStartEGP || 0) - (checkpoints[idx - 1]?.priceFromStartEGP || 0)) > 0) ? '#10B981' : undefined }}
-                              />
-                              {!isStart && (
-                                <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  📈 Cumulative: <strong style={{ color: 'var(--primary-color)' }}>{cp.priceFromStartEGP || 0} EGP</strong>
-                                </div>
-                              )}
-                            </div>
+                          {/* Row 2: CITY (promoted first-class fields) */}
+                          <div>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#F5B731', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                              🏙️ City Leg
+                            </span>
+                            <Input 
+                              placeholder="e.g. Cairo, Alexandria"
+                              value={cp.city || ''}
+                              onChange={e => {
+                                const updated = [...checkpoints];
+                                updated[idx].city = e.target.value;
+                                setCheckpoints(updated);
+                              }}
+                              size="small"
+                              style={{ borderColor: cp.city ? '#10B981' : undefined }}
+                            />
                           </div>
 
                           {/* Row 3: Timing + Geofence (secondary config) */}
@@ -1479,8 +1462,6 @@ export function RoutesPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {checkpoints.map((cp, idx) => {
-                        const prevCp = idx > 0 ? checkpoints[idx - 1] : null;
-                        const segmentPrice = prevCp ? ((cp.priceFromStartEGP || 0) - (prevCp.priceFromStartEGP || 0)) : 0;
                         return (
                           <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
                             <span style={{ 
@@ -1496,14 +1477,6 @@ export function RoutesPage() {
                             <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                               +{cp.minutesFromStart || 0}m
                             </span>
-                            <span style={{ fontWeight: 800, color: '#10B981', whiteSpace: 'nowrap', minWidth: '55px', textAlign: 'right' }}>
-                              {cp.priceFromStartEGP || 0} EGP
-                            </span>
-                            {prevCp && segmentPrice > 0 && (
-                              <span style={{ fontSize: '9px', color: 'var(--primary-color)', background: 'rgba(245,183,49,0.1)', padding: '1px 5px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
-                                +{segmentPrice} leg
-                              </span>
-                            )}
                           </div>
                         );
                       })}
@@ -1540,13 +1513,12 @@ export function RoutesPage() {
                       🔗 Customize Point-to-Point Fares (Optional)
                     </div>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                      Configure custom direct segment fares (e.g. Alex to Dahab). Empty fields default to the cumulative calculation based on leg sums.
+                      Configure custom direct segment fares (e.g. Alex to Dahab).
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
                       {checkpoints.slice(0, -1).map((pickupCp, pIdx) => {
                         return checkpoints.slice(pIdx + 1).map((dropoffCp) => {
                           const dropoffName = dropoffCp.name;
-                          const defaultPrice = Math.max(0, (dropoffCp.priceFromStartEGP || 0) - (pickupCp.priceFromStartEGP || 0));
                           const customPrice = pickupCp.prices?.[dropoffName];
                           
                           return (
@@ -1564,14 +1536,11 @@ export function RoutesPage() {
                                 <span style={{ fontSize: '11px', fontWeight: 600 }}>
                                   {pickupCp.name} ➔ {dropoffName}
                                 </span>
-                                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
-                                  Default: {defaultPrice} EGP
-                                </span>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <Input 
                                   type="number"
-                                  placeholder={`${defaultPrice}`}
+                                  placeholder="0"
                                   value={customPrice !== undefined ? customPrice : ''}
                                   onChange={e => handleCustomSegmentPriceChange(pIdx, dropoffName, e.target.value)}
                                   size="small"
@@ -1608,7 +1577,9 @@ export function RoutesPage() {
                   </div>
                   <div style={{ padding: '12px', background: 'var(--surface-elevated)', borderRadius: '8px', border: '1px solid var(--border)', textAlign: 'center' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Est. Duration</span>
-                    <h3 style={{ margin: '4px 0 0', fontSize: '1.25rem', fontWeight: 800 }}>{durationMinutes} mins</h3>
+                    <h3 style={{ margin: '4px 0 0', fontSize: '1.25rem', fontWeight: 800 }}>
+                      {(checkpoints[checkpoints.length - 1]?.minutesFromStart > 0) ? checkpoints[checkpoints.length - 1].minutesFromStart : durationMinutes} mins
+                    </h3>
                   </div>
                 </div>
 

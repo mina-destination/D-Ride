@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Table, Button, Drawer, Space, Tag, Input, Select, message,
-  Popconfirm, Form, Card, Avatar, Divider, Modal, Row, Col,
+  Table, Button, Drawer, Space, Tag, Input, Select,
+  Form, Card, Avatar, Divider, Modal, Row, Col,
   Typography,
 } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { useAuth } from '../context/AuthContext';
 import { usersAPI } from '../services/api';
 import {
@@ -678,7 +680,7 @@ export function AdministratorsPage() {
         onCancel={handleModalClose}
         footer={null}
         width={560}
-        destroyOnHidden
+        forceRender={true}
       >
         <Divider style={{ margin: '16px 0' }} />
         <Form
@@ -812,7 +814,6 @@ export function AdministratorsPage() {
               <Form.Item
                 name="isActive"
                 label="Account Status"
-                initialValue={true}
               >
                 <Select>
                   <Select.Option value={true}>

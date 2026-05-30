@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Space, message, Tag, Switch } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, Tag, Switch } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { partnersAPI } from '../services/api';
 import { Handshake } from 'lucide-react';
 import { cleanGoogleDriveLink } from '../utils/google-drive';
@@ -178,7 +180,15 @@ export function PartnersPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id || record.id)}>Delete</Button>
+          <Popconfirm
+            title="Delete partner?"
+            description="Are you sure you want to delete this partner?"
+            onConfirm={() => handleDelete(record._id || record.id)}
+            okText="Yes, Delete"
+            cancelText="No"
+          >
+            <Button type="link" danger>Delete</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -220,7 +230,7 @@ export function PartnersPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnHidden
+        forceRender={true}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ isActive: true }}>
           <Form.Item

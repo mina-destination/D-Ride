@@ -65,7 +65,7 @@ test.describe('Checkout & Seat Selection Page', () => {
     await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
   });
 
-  test('should toggle payment methods and handle cash checkout', async ({ page }) => {
+  test('should handle card checkout', async ({ page }) => {
     await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}`);
 
     // Select seat 1 to enable checkout button
@@ -80,12 +80,9 @@ test.describe('Checkout & Seat Selection Page', () => {
     // Verify Card payment is active by default
     await expect(page.locator('.payment-card-option:has-text("Credit Card")')).toHaveClass(/active/);
 
-    // Select Cash payment
-    await page.locator('.payment-card-option:has-text("Cash on Board")').click();
-    await expect(page.locator('.payment-card-option:has-text("Cash on Board")')).toHaveClass(/active/);
-
-    // Click Confirm Cash booking -> should redirect to my-trips page
-    await page.click('button:has-text("Confirm Booking (Cash)")');
+    // Click Confirm Card booking -> should redirect to my-trips page
+    await page.click('button:has-text("Pay 65 EGP via Paymob")');
+    await page.click('button:has-text("View My Trips")');
     await expect(page).toHaveURL('/my-trips');
   });
 });

@@ -12,4 +12,8 @@ export class ConfirmPaymentDto {
   @IsNumber()
   @IsOptional()
   amount?: number;
+
+  @IsString()
+  @IsOptional()
+  transactionId?: string;
 }

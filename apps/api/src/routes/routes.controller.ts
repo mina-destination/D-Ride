@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { RoutesService } from './routes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,6 +17,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('routes')
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
@@ -87,14 +89,14 @@ export class RoutesController {
   }
 
   @Get(':id')
-  async findById(@Param('id') id: string) {
+  async findById(@Param('id', ParseUUIDPipe) id: string) {
     const route = await this.routesService.findById(id);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
   @Get(':id/nearest-checkpoint')
   async findNearestCheckpoint(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Query('lat') lat: string,
     @Query('lng') lng: string,
   ) {
@@ -110,7 +112,7 @@ export class RoutesController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Post()
   async create(@Body() data: CreateRouteDto) {
@@ -118,18 +120,18 @@ export class RoutesController {
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() data: UpdateRouteDto) {
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateRouteDto) {
     const route = await this.routesService.update(id, data as any);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.routesService.delete(id);
     return {
       success: true,

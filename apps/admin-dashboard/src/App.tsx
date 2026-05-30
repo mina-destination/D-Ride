@@ -23,6 +23,10 @@ import { AdministratorsPage } from './pages/AdministratorsPage';
 import { PartnersPage } from './pages/PartnersPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { RefundsPage } from './pages/RefundsPage';
+import { TripDetailsPage } from './pages/TripDetailsPage';
+import { RouteFinancePage } from './pages/RouteFinancePage';
+import { ConfirmProvider } from './context/ConfirmContext';
 import './App.css';
 
 import { Result, Button, Space } from 'antd';
@@ -203,11 +207,14 @@ function AppRoutes() {
         <Route index element={<DashboardIndexRoute />} />
         <Route path="routes" element={<ProtectedRoute permission="routes"><RoutesPage /></ProtectedRoute>} />
         <Route path="trips" element={<ProtectedRoute permission="trips"><TripsPage /></ProtectedRoute>} />
+        <Route path="trips/:id" element={<ProtectedRoute permission="trips"><TripDetailsPage /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute permission="vehicles"><VehiclesPage /></ProtectedRoute>} />
         <Route path="drivers" element={<ProtectedRoute permission="drivers"><DriversPage /></ProtectedRoute>} />
         <Route path="bookings" element={<ProtectedRoute permission="bookings"><BookingsPage /></ProtectedRoute>} />
+        <Route path="refunds" element={<ProtectedRoute permission="bookings"><RefundsPage /></ProtectedRoute>} />
         <Route path="payments" element={<ProtectedRoute permission="payments"><PaymentsPage /></ProtectedRoute>} />
         <Route path="analytics" element={<ProtectedRoute permission="dashboard"><AnalyticsPage /></ProtectedRoute>} />
+        <Route path="finance-calculator" element={<ProtectedRoute permission="dashboard"><RouteFinancePage /></ProtectedRoute>} />
         <Route path="passengers" element={<ProtectedRoute permission="passengers"><PassengersPage /></ProtectedRoute>} />
         <Route path="crm" element={<ProtectedRoute permission="crm"><CrmPage /></ProtectedRoute>} />
         <Route path="support-tickets" element={<ProtectedRoute permission="crm"><SupportTicketsPage /></ProtectedRoute>} />
@@ -236,7 +243,9 @@ function App() {
         <AntdGlobalHelper />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
+            <ConfirmProvider>
+              <AppRoutes />
+            </ConfirmProvider>
           </AuthProvider>
         </BrowserRouter>
       </AntdApp>

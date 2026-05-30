@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -60,8 +61,8 @@ export class BookingsController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id/cancel')
-  async cancel(@Request() req: any, @Param('id') id: string) {
-    const booking = await this.bookingsService.cancel(id, req.user.sub);
+  async cancel(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const booking = await this.bookingsService.cancel(id, req.user.sub, req.user.role);
     return {
       success: true,
       data: booking,
@@ -72,7 +73,7 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   @Get('occupied/:tripId')
   async getOccupiedSeats(
-    @Param('tripId') tripId: string,
+    @Param('tripId', ParseUUIDPipe) tripId: string,
     @Query('pickupCheckpointName') pickupCheckpointName?: string,
     @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
   ) {
@@ -87,7 +88,7 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Get('trip/:tripId/manifest')
-  async getTripManifest(@Param('tripId') tripId: string) {
+  async getTripManifest(@Param('tripId', ParseUUIDPipe) tripId: string) {
     const manifest = await this.bookingsService.findTripManifest(tripId);
     return {
       success: true,
@@ -99,7 +100,7 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Put(':id/check-in')
-  async checkIn(@Param('id') id: string) {
+  async checkIn(@Param('id', ParseUUIDPipe) id: string) {
     const booking = await this.bookingsService.checkInPassenger(id);
     return {
       success: true,
@@ -111,7 +112,7 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Put(':id/verify-ticket')
-  async verifyTicket(@Param('id') id: string, @Body('token') token: string) {
+  async verifyTicket(@Param('id', ParseUUIDPipe) id: string, @Body('token') token: string) {
     const booking = await this.bookingsService.verifyTicket(id, token);
     return {
       success: true,
@@ -123,8 +124,8 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id/refund')
-  async refundBooking(@Param('id') id: string) {
-    const booking = await this.bookingsService.refundBooking(id);
+  async refundBooking(@Param('id', ParseUUIDPipe) id: string, @Body('action') action?: 'FULL' | 'HALF' | 'REJECT') {
+    const booking = await this.bookingsService.refundBooking(id, action);
     return {
       success: true,
       data: booking,
@@ -134,7 +135,7 @@ export class BookingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findById(@Request() req: any, @Param('id') id: string) {
+  async findById(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const booking = await this.bookingsService.findOne(id, req.user.sub);
     return {
       success: true,

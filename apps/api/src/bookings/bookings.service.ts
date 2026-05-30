@@ -55,6 +55,14 @@ export class BookingsService {
       delete b.userId.password;
       delete b.user;
     }
+    if (booking.transactions) {
+      const successTx = booking.transactions.find(
+        (t: any) => t.status === 'SUCCESS' && t.paymobPaymentId,
+      );
+      if (successTx) {
+        b.paymobPaymentId = successTx.paymobPaymentId;
+      }
+    }
     return b;
   }
 
@@ -67,6 +75,7 @@ export class BookingsService {
           },
         },
         user: true,
+        transactions: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -631,10 +640,11 @@ export class BookingsService {
     return this.mapBooking(saved);
   }
 
-  async cancel(id: string, userId: string): Promise<any> {
+  async cancel(id: string, userId: string, userRole?: string): Promise<any> {
     const updated = await this.prisma.$transaction(async (tx) => {
+      const isAdmin = userRole && ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole);
       const booking = await tx.booking.findFirst({
-        where: { id, userId },
+        where: isAdmin ? { id } : { id, userId },
       });
       if (!booking) throw new NotFoundException('Booking not found');
       if (booking.status === BookingStatus.CANCELLED)
@@ -658,25 +668,83 @@ export class BookingsService {
    * Admin-only: Refund a cancelled wallet-paid booking.
    * Credits the wallet balance back to the user and marks booking as REFUNDED.
    */
-  async refundBooking(bookingId: string): Promise<any> {
+  /**
+   * Admin-only: Process a refund request for a cancelled booking.
+   * Credits the wallet balance back to the user based on refund policies/actions
+   * and marks the booking as REFUNDED or FAILED (rejected).
+   */
+  async refundBooking(bookingId: string, action?: 'FULL' | 'HALF' | 'REJECT'): Promise<any> {
+    // 1. Fetch booking with trip, route, and user details first to compute policy
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        trip: {
+          include: {
+            route: true,
+          },
+        },
+        user: true,
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    if (booking.status !== BookingStatus.CANCELLED) {
+      throw new BadRequestException('Only cancelled bookings can be refunded');
+    }
+
+    if (booking.paymentStatus === 'REFUNDED' || booking.paymentStatus === 'FAILED') {
+      throw new BadRequestException('Refund request has already been processed');
+    }
+
+    // 2. Calculate policy recommendation based on time difference between cancellation (updatedAt) and trip departure
+    const cancellationTime = new Date(booking.updatedAt);
+    const departureTime = booking.trip ? new Date(booking.trip.departureTime) : null;
+    
+    let calculatedAction: 'FULL' | 'HALF' | 'REJECT' = 'REJECT';
+    let calculatedReason = 'Cancelled less than 24 hours before departure (rejected)';
+    let calculatedPercentage = 0;
+
+    if (departureTime) {
+      const diffMs = departureTime.getTime() - cancellationTime.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      if (diffHours >= 48) {
+        calculatedAction = 'FULL';
+        calculatedReason = 'Cancelled 48+ hours before departure (100% refund)';
+        calculatedPercentage = 100;
+      } else if (diffHours >= 24) {
+        calculatedAction = 'HALF';
+        calculatedReason = 'Cancelled 24-48 hours before departure (50% refund)';
+        calculatedPercentage = 50;
+      } else {
+        calculatedAction = 'REJECT';
+        calculatedReason = 'Cancelled less than 24 hours before departure (no refund)';
+        calculatedPercentage = 0;
+      }
+    }
+
+    // Use explicit admin override action or fallback to the calculated policy action
+    const finalAction = action || calculatedAction;
+    let refundPercentage = calculatedPercentage;
+    let reason = calculatedReason;
+
+    if (action) {
+      if (action === 'FULL') {
+        refundPercentage = 100;
+        reason = 'Approved for 100% full refund (admin override)';
+      } else if (action === 'HALF') {
+        refundPercentage = 50;
+        reason = 'Approved for 50% partial refund (admin override)';
+      } else {
+        refundPercentage = 0;
+        reason = 'Refund request rejected (admin override)';
+      }
+    }
+
+    const refundAmount = (booking.amountEGP * refundPercentage) / 100;
+
     const result = await this.prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.findUnique({
-        where: { id: bookingId },
-      });
-      if (!booking) throw new NotFoundException('Booking not found');
-
-      if (booking.status !== BookingStatus.CANCELLED) {
-        throw new BadRequestException(
-          'Only cancelled bookings can be refunded',
-        );
-      }
-
-      // Check if already refunded
-      if (booking.paymentStatus === 'REFUNDED') {
-        throw new BadRequestException('Booking has already been refunded');
-      }
-
-      // Find the original successful transaction
+      // Find the original successful transaction to log correct payment method
       const originalTx = await tx.transaction.findFirst({
         where: {
           bookingId: bookingId,
@@ -684,38 +752,53 @@ export class BookingsService {
         },
       });
 
-      // Credit wallet balance if it was a wallet payment
-      if (
-        originalTx &&
-        ['WALLET', 'WALLET_BALANCE'].includes(originalTx.paymentMethod)
-      ) {
-        await tx.user.update({
-          where: { id: booking.userId },
-          data: { walletBalance: { increment: booking.amountEGP } },
-        });
-      }
-
-      // Mark booking as refunded
+      // Update booking status
       const updated = await tx.booking.update({
         where: { id: bookingId },
-        data: { paymentStatus: 'REFUNDED' },
+        data: {
+          status: finalAction === 'REJECT' ? BookingStatus.CANCELLED : BookingStatus.REFUNDED,
+          paymentStatus: finalAction === 'REJECT' ? 'FAILED' : 'REFUNDED',
+        },
       });
 
-      // Create a refund transaction record
+      // Create a refund/reject transaction record
       const crypto = await import('crypto');
       await tx.transaction.create({
         data: {
           bookingId: bookingId,
           userId: booking.userId,
           paymobOrderId: crypto.randomInt(100000000, 999999999),
-          amountEGP: -booking.amountEGP,
-          status: 'REFUNDED',
+          amountEGP: -refundAmount,
+          status: finalAction === 'REJECT' ? 'FAILED' : 'REFUNDED',
           paymentMethod: originalTx?.paymentMethod || 'WALLET',
         },
       });
 
       return updated;
     });
+
+    // 3. Dispatch notifications to the passenger asynchronously after transaction commits successfully
+    try {
+      const u = booking.user;
+      const t = booking.trip;
+      const r = t?.route;
+      if (u) {
+        await this.notificationsService.sendRefundNotification(
+          u.phone || '',
+          u.name || 'Valued Passenger',
+          {
+            routeName: r?.name || 'D-Ride Trip',
+            departureTime: t?.departureTime ? t.departureTime.toISOString() : new Date().toISOString(),
+            originalAmount: booking.amountEGP,
+            refundAmount: refundAmount,
+            percentage: refundPercentage,
+            reason: reason,
+          },
+        );
+      }
+    } catch (err) {
+      console.error('Failed to send refund notification:', err);
+    }
 
     return this.mapBooking(result);
   }
@@ -831,10 +914,10 @@ export class BookingsService {
     const bookings = await this.prisma.booking.findMany({
       where: {
         tripId,
-        status: { not: BookingStatus.CANCELLED },
       },
       include: {
         user: true,
+        transactions: true,
       },
     });
     return bookings.map((b) => this.mapBooking(b));

@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -25,11 +26,24 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Get()
-  async getUsersByRole(@Query('role') role?: string) {
-    if (!role) {
-      return this.usersService.findAll();
+  async getUsersByRole(
+    @Query('role') role?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? Math.max(1, parseInt(page, 10)) : undefined;
+    const limitNum = limit ? Math.min(100, Math.max(1, parseInt(limit, 10))) : undefined;
+
+    if (pageNum !== undefined && limitNum !== undefined) {
+      const skip = (pageNum - 1) * limitNum;
+      return this.usersService.findPaginated(role, skip, limitNum);
     }
-    return this.usersService.findAllByRole(role.toUpperCase());
+
+    const safeLimit = 100;
+    if (!role) {
+      return this.usersService.findAll(safeLimit);
+    }
+    return this.usersService.findAllByRole(role.toUpperCase(), safeLimit);
   }
 
   @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN')
@@ -46,13 +60,13 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Post(':id/notes')
-  async addCrmNote(@Param('id') id: string, @Body() data: AddCrmNoteDto) {
+  async addCrmNote(@Param('id', ParseUUIDPipe) id: string, @Body() data: AddCrmNoteDto) {
     return this.usersService.addCrmNote(id, data.text, data.adminName);
   }
 
   @Roles('ADMIN')
   @Get(':id')
-  async getUser(@Param('id') id: string) {
+  async getUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
@@ -64,13 +78,13 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Put(':id')
-  async updateUser(@Param('id') id: string, @Body() data: UpdateUserDto) {
+  async updateUser(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateUserDto) {
     return this.usersService.updateUser(id, data);
   }
 
   @Roles('ADMIN')
   @Delete(':id')
-  async deleteUser(@Param('id') id: string) {
+  async deleteUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.deleteUser(id);
   }
 }

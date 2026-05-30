@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { PartnersService } from './partners.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
@@ -56,7 +57,7 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() data: UpdatePartnerDto) {
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdatePartnerDto) {
     const partner = await this.partnersService.update(id, data);
     return {
       success: true,
@@ -68,7 +69,7 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER')
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.partnersService.delete(id);
     return {
       success: true,

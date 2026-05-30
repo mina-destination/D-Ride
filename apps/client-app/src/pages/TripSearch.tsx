@@ -369,10 +369,15 @@ export default function TripSearchPage() {
           const defaultCp = hasMatch ? initialCpName : routeData.checkpoints[0].name;
           
           const initialSelections: Record<string, string> = {};
+          const initialDropoffSelections: Record<string, string> = {};
+          const defaultDropoffCp = routeData.checkpoints[routeData.checkpoints.length - 1].name;
+          
           tripsData.forEach((trip: any) => {
             initialSelections[trip._id] = defaultCp;
+            initialDropoffSelections[trip._id] = defaultDropoffCp;
           });
           setSelectedCheckpoints(initialSelections);
+          setSelectedDropoffCheckpoints(initialDropoffSelections);
         }
       })
       .catch(console.error)
@@ -590,8 +595,8 @@ export default function TripSearchPage() {
                           const selectedDropoffCpName = selectedDropoffCheckpoints[trip._id];
 
                           const routeCps = currentRoute?.checkpoints || [];
-                          const pickupCp = routeCps.find((cp: any) => cp.name === selectedPickupCpName) || trip.pickupCheckpoint;
-                          const dropoffCp = routeCps.find((cp: any) => cp.name === selectedDropoffCpName) || trip.dropoffCheckpoint;
+                          const pickupCp = routeCps.find((cp: any) => cp.name === selectedPickupCpName) || trip.pickupCheckpoint || routeCps[0];
+                          const dropoffCp = routeCps.find((cp: any) => cp.name === selectedDropoffCpName) || trip.dropoffCheckpoint || routeCps[routeCps.length - 1];
 
                           // Resolve estimated departure time (boarding time) via localizedDepartureTime or fallback
                           const pickupEstimatedDepTime = pickupCp?.localizedDepartureTime || pickupCp?.estimatedDepartureTime || (pickupCp?.minutesFromStart !== undefined

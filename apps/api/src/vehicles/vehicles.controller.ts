@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -41,14 +42,14 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async updateVehicle(@Param('id') id: string, @Body() data: UpdateVehicleDto) {
+  async updateVehicle(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateVehicleDto) {
     return this.vehiclesService.updateVehicle(id, data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
-  async deleteVehicle(@Param('id') id: string) {
+  async deleteVehicle(@Param('id', ParseUUIDPipe) id: string) {
     return this.vehiclesService.deleteVehicle(id);
   }
 
@@ -67,7 +68,7 @@ export class VehiclesController {
   }
 
   @Get('location/:vehicleId')
-  async getLocation(@Param('vehicleId') vehicleId: string) {
+  async getLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
     const location = await this.vehiclesService.getLocation(vehicleId);
     return {
       success: true,

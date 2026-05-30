@@ -20,11 +20,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, isActive: true },
     });
     if (!user) {
       throw new UnauthorizedException('Session invalid or user deleted');
     }
-    return { sub: payload.sub, email: payload.email, role: payload.role };
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account has been deactivated');
+    }
+    return { sub: user.id, email: user.email, role: user.role };
   }
 }

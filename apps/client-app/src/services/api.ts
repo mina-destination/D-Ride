@@ -143,7 +143,7 @@ export const paymobAPI = {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE';
+    paymentMethod?: 'CARD' | 'WALLET' | 'WALLET_BALANCE';
     walletNumber?: string;
   }): Promise<any> =>
     api.post('/paymob/checkout', data),
