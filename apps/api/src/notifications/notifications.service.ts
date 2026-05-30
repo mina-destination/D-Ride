@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Twilio } from 'twilio';
+import { MailService } from './mail.service';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -10,7 +11,10 @@ export class NotificationsService implements OnModuleInit {
   private twilioWhatsApp = '';
   private isTwilioConfigured = false;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
+  ) {}
 
   onModuleInit() {
     const accountSid = this.configService.get<string>('twilio.accountSid');
@@ -130,6 +134,7 @@ export class NotificationsService implements OnModuleInit {
       seatNumber: string;
       price: number;
     },
+    email?: string,
   ): Promise<void> {
     const formattedDate = new Date(tripDetails.departureTime).toLocaleString(
       'en-US',
@@ -161,9 +166,46 @@ export class NotificationsService implements OnModuleInit {
       `Please present your boarding pass QR code to the driver upon boarding.\n` +
       `*Thank you for riding with D-Ride!* 🚌`;
 
-    // Send both for maximum visibility
+    // Send SMS and WhatsApp for maximum visibility
     await this.sendSMS(to, smsMessage);
     await this.sendWhatsApp(to, whatsappMessage);
+
+    // Dispatch email if provided
+    if (email) {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #0e0e1b; color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #f5b731; margin: 0;">D-Ride Ticket Confirmation 🎫</h2>
+          </div>
+          <p>Dear ${passengerName},</p>
+          <p>Your booking has been successfully confirmed. Here are your trip details:</p>
+          <div style="margin: 24px 0; padding: 16px; background-color: #14142b; border-left: 4px solid #f5b731; border-radius: 4px;">
+            <p style="margin: 4px 0;">📍 <strong>Route:</strong> ${tripDetails.routeName}</p>
+            <p style="margin: 4px 0;">⏰ <strong>Departure:</strong> ${formattedDate}</p>
+            <p style="margin: 4px 0;">💺 <strong>Seat Number:</strong> ${tripDetails.seatNumber}</p>
+            <p style="margin: 4px 0;">💵 <strong>Fare Paid:</strong> EGP ${tripDetails.price.toFixed(2)}</p>
+          </div>
+          <p style="font-size: 13px; color: #a3a3a3;">Please present your boarding pass QR code in your dashboard to the driver upon boarding.</p>
+          <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;" />
+          <p style="font-size: 11px; color: #737373; text-align: center;">D-Ride Operations Team &copy; 2026. Have a safe trip!</p>
+        </div>
+      `;
+      const emailText =
+        `Dear ${passengerName},\n\n` +
+        `Your booking has been successfully confirmed. Here are your trip details:\n\n` +
+        `Route: ${tripDetails.routeName}\n` +
+        `Departure: ${formattedDate}\n` +
+        `Seat Number: ${tripDetails.seatNumber}\n` +
+        `Fare Paid: EGP ${tripDetails.price.toFixed(2)}\n\n` +
+        `Have a safe trip!\n\nD-Ride Operations Team`;
+
+      await this.mailService.sendMail(
+        email,
+        `D-Ride Booking Confirmation — ${tripDetails.routeName}`,
+        emailText,
+        emailHtml,
+      );
+    }
   }
 
   /**
@@ -180,6 +222,7 @@ export class NotificationsService implements OnModuleInit {
       percentage: number;
       reason: string;
     },
+    email?: string,
   ): Promise<void> {
     const formattedDate = new Date(refundDetails.departureTime).toLocaleString(
       'en-US',
@@ -220,6 +263,46 @@ export class NotificationsService implements OnModuleInit {
 
     await this.sendSMS(to, smsMessage);
     await this.sendWhatsApp(to, whatsappMessage);
+
+    // Dispatch email if provided
+    if (email) {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #0e0e1b; color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #f5b731; margin: 0;">D-Ride Cancellation & Refund Update 💵</h2>
+          </div>
+          <p>Dear ${passengerName},</p>
+          <p>Your booking has been cancelled and a refund has been processed. Here are the details:</p>
+          <div style="margin: 24px 0; padding: 16px; background-color: #14142b; border-left: 4px solid #f5b731; border-radius: 4px;">
+            <p style="margin: 4px 0;">📍 <strong>Route:</strong> ${refundDetails.routeName}</p>
+            <p style="margin: 4px 0;">⏰ <strong>Departure:</strong> ${formattedDate}</p>
+            <p style="margin: 4px 0;">💵 <strong>Original Fare:</strong> EGP ${refundDetails.originalAmount.toFixed(2)}</p>
+            <p style="margin: 4px 0;">💸 <strong>Refund Amount:</strong> EGP ${refundDetails.refundAmount.toFixed(2)} (${refundDetails.percentage}%)</p>
+            <p style="margin: 4px 0;">📝 <strong>Status:</strong> ${statusText.toUpperCase()}</p>
+            <p style="margin: 4px 0;">📋 <strong>Reason:</strong> ${refundDetails.reason}</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;" />
+          <p style="font-size: 11px; color: #737373; text-align: center;">D-Ride Operations Team &copy; 2026.</p>
+        </div>
+      `;
+      const emailText =
+        `Dear ${passengerName},\n\n` +
+        `Your booking has been cancelled and a refund has been processed.\n\n` +
+        `Route: ${refundDetails.routeName}\n` +
+        `Departure: ${formattedDate}\n` +
+        `Original Fare: EGP ${refundDetails.originalAmount.toFixed(2)}\n` +
+        `Refund Amount: EGP ${refundDetails.refundAmount.toFixed(2)} (${refundDetails.percentage}%)\n` +
+        `Status: ${statusText.toUpperCase()}\n` +
+        `Reason: ${refundDetails.reason}\n\n` +
+        `D-Ride Operations Team`;
+
+      await this.mailService.sendMail(
+        email,
+        `D-Ride Booking Cancellation & Refund — ${refundDetails.routeName}`,
+        emailText,
+        emailHtml,
+      );
+    }
   }
 
   /**
