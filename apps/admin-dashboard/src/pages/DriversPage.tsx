@@ -317,7 +317,7 @@ export function DriversPage() {
           </Button>,
         ]}
         width={600}
-        destroyOnClose={true}
+        destroyOnHidden={true}
       >
         <List
           loading={reviewsLoading}

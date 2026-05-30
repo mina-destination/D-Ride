@@ -444,4 +444,45 @@ export async function setupAdminMockAPI(page: Page) {
   await page.route('**/api/paymob/features', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { allowCashOnDelivery: true } }) });
   });
+
+  // Reviews & ratings
+  await page.route(/\/api\/reviews\/driver\/[a-zA-Z0-9_-]+\/list$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [
+          {
+            _id: 'rev-1',
+            userName: 'Ahmed Aly',
+            userAvatar: '',
+            rating: 5,
+            comment: 'Great driving, arrived on time!',
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            _id: 'rev-2',
+            userName: 'Sara Hassan',
+            userAvatar: '',
+            rating: 4,
+            comment: 'Smooth ride.',
+            createdAt: new Date(Date.now() - 172800000).toISOString(),
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route(/\/api\/reviews\/driver\/[a-zA-Z0-9_-]+$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          averageRating: 4.8,
+          totalReviews: 2
+        }
+      })
+    });
+  });
 }
