@@ -57,7 +57,10 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER')
   @Put(':id')
-  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdatePartnerDto) {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdatePartnerDto,
+  ) {
     const partner = await this.partnersService.update(id, data);
     return {
       success: true,

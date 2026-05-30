@@ -119,7 +119,16 @@ export const authAPI = {
   googleLogin: (data: { email: string; name: string; googleId: string }): Promise<any> =>
     api.post('/auth/google', data),
   getProfile: (): Promise<any> => api.get('/auth/profile'),
+  forgotPassword: (email: string): Promise<any> =>
+    api.post('/auth/forgot-password', { email }),
+  resetPassword: (data: { email: string; otp: string; newPassword: string }): Promise<any> =>
+    api.post('/auth/reset-password', data),
+  changePasswordRequest: (): Promise<any> =>
+    api.post('/auth/change-password-request'),
+  changePassword: (data: { otp: string; newPassword: string }): Promise<any> =>
+    api.post('/auth/change-password', data),
 };
+
 
 export const routesAPI = {
   getAll: (): Promise<any> => api.get('/routes'),

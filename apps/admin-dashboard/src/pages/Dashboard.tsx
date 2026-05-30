@@ -121,7 +121,7 @@ export default function DashboardPage() {
     const xCoords = [15, 95, 175, 255, 335, 415, 485];
     const now = new Date();
     
-    let rawPoints: { label: string; x: number; count: number }[] = [];
+    let rawPoints: { label: string; x: number; count: number }[];
     if (bookingsRange === 'daily') {
       rawPoints = xCoords.map((x, i) => {
         const hoursAgo = (6 - i) * 3;

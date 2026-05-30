@@ -185,7 +185,16 @@ export class UsersService implements OnModuleInit {
 
   async updateUser(id: string, data: any): Promise<any> {
     // Allowlist only safe fields to prevent mass assignment of walletBalance, crmNotes, etc.
-    const allowedFields = ['name', 'email', 'phone', 'password', 'role', 'avatarUrl', 'isActive', 'status'];
+    const allowedFields = [
+      'name',
+      'email',
+      'phone',
+      'password',
+      'role',
+      'avatarUrl',
+      'isActive',
+      'status',
+    ];
     const updateData: any = {};
     for (const key of allowedFields) {
       if (data[key] !== undefined) {

@@ -114,4 +114,21 @@ export const driverAPI = {
     const res: any = await api.put(`/bookings/${bookingId}/verify-ticket`, { token });
     return res.data;
   },
+
+  forgotPassword: async (email: string) => {
+    return api.post('/auth/forgot-password', { email });
+  },
+  
+  resetPassword: async (data: { email: string; otp: string; newPassword: string }) => {
+    return api.post('/auth/reset-password', data);
+  },
+  
+  changePasswordRequest: async () => {
+    return api.post('/auth/change-password-request');
+  },
+  
+  changePassword: async (data: { otp: string; newPassword: string }) => {
+    return api.post('/auth/change-password', data);
+  },
 };
+

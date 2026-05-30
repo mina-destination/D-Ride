@@ -73,9 +73,9 @@ export function RefundsPage() {
     const amount = booking.amountEGP || 0;
     const refundAmount = action === 'FULL' ? amount : action === 'HALF' ? amount * 0.5 : 0;
     
-    let title = '';
-    let description = '';
-    let danger = false;
+    let title: string;
+    let description: string;
+    let danger: boolean;
 
     if (action === 'FULL') {
       title = 'Approve 100% Refund';

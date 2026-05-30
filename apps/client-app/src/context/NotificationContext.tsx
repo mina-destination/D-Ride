@@ -31,6 +31,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
+  const showToast = (title: string, description: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const newToast: ToastMessage = {
+      id: Math.random().toString(36).substring(2, 9),
+      title,
+      description,
+      type
+    };
+    setToast(newToast);
+  };
+
   // Register global Axios toast callback
   useEffect(() => {
     registerApiToastCallback(showToast);
@@ -77,16 +87,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     // Trigger screen toast as info
     showToast(title, description, 'info');
-  };
-
-  const showToast = (title: string, description: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
-    const newToast: ToastMessage = {
-      id: Math.random().toString(36).substring(2, 9),
-      title,
-      description,
-      type
-    };
-    setToast(newToast);
   };
 
   const markRead = (id: string) => {

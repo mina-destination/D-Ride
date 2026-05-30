@@ -41,13 +41,19 @@ export class SupportController {
 
   @Roles('ADMIN')
   @Post('tickets/:id/reply')
-  async replyToTicket(@Param('id', ParseUUIDPipe) id: string, @Body() data: ReplyTicketDto) {
+  async replyToTicket(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: ReplyTicketDto,
+  ) {
     return this.supportService.replyToTicket(id, data.text, data.adminName);
   }
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
   @Get('tickets/:id/messages')
-  async getMessages(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+  async getMessages(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.supportService.getTicketMessages(id, req.user.sub);
   }
 

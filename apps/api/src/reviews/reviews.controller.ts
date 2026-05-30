@@ -13,14 +13,11 @@ import { CreateReviewDto } from './dto/create-review.dto';
 
 @Controller('reviews')
 export class ReviewsController {
-  constructor(private readonly reviewsService: ReviewsService) { }
+  constructor(private readonly reviewsService: ReviewsService) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async createReview(
-    @Req() req: any,
-    @Body() data: CreateReviewDto,
-  ) {
+  async createReview(@Req() req: any, @Body() data: CreateReviewDto) {
     const userId = req.user.sub || req.user.userId || req.user.id;
     const review = await this.reviewsService.createReview(userId, data);
     return {

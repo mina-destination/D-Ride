@@ -103,7 +103,9 @@ export class SupportGateway
   ) {
     const user = (client as any).user;
     if (!user) {
-      this.logger.error('WebSocket joinTicket attempt from unauthenticated client');
+      this.logger.error(
+        'WebSocket joinTicket attempt from unauthenticated client',
+      );
       client.disconnect(true);
       return { event: 'error', message: 'Unauthorized' };
     }

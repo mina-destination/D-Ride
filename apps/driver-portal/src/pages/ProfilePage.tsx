@@ -1,13 +1,67 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Phone, ShieldCheck, LogOut, Truck, Compass, Award, Star, Globe } from 'lucide-react';
+import { Mail, Phone, ShieldCheck, LogOut, Truck, Compass, Award, Star, Globe, Lock } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
+import { driverAPI } from '../services/api';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
   const navigate = useNavigate();
+
+  // Change Password States
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [changePasswordStep, setChangePasswordStep] = useState(1);
+  const [changePasswordOtp, setChangePasswordOtp] = useState('');
+  const [changePasswordNewPassword, setChangePasswordNewPassword] = useState('');
+  const [changePasswordConfirmPassword, setChangePasswordConfirmPassword] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+
+  const handleChangePasswordRequest = async () => {
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+    setChangePasswordLoading(true);
+    try {
+      await driverAPI.changePasswordRequest();
+      setChangePasswordSuccess('A verification OTP has been sent to your email.');
+      setChangePasswordStep(2);
+    } catch (err: any) {
+      setChangePasswordError(err?.message || 'Failed to dispatch verification OTP');
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+    
+    if (changePasswordNewPassword !== changePasswordConfirmPassword) {
+      setChangePasswordError('Passwords do not match');
+      return;
+    }
+
+    setChangePasswordLoading(true);
+    try {
+      await driverAPI.changePassword({
+        otp: changePasswordOtp,
+        newPassword: changePasswordNewPassword,
+      });
+      setChangePasswordSuccess('Password updated successfully!');
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+      }, 2000);
+    } catch (err: any) {
+      setChangePasswordError(err?.message || 'Failed to change password. Please check the OTP.');
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -229,6 +283,52 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Security & Password Card */}
+        <div className="glass-card" style={{
+          padding: '1.25rem',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'rgba(14, 14, 27, 0.45)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <h4 className="title-outfit" style={{ margin: '0 0 4px 0', fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Lock size={14} style={{ color: 'var(--primary)' }} />
+            Security & Credentials
+          </h4>
+          
+          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+            Change your account password by sending a 6-digit OTP verification code to your email.
+          </p>
+
+          <button
+            onClick={() => {
+              setShowChangePasswordModal(true);
+              setChangePasswordStep(1);
+              setChangePasswordOtp('');
+              setChangePasswordNewPassword('');
+              setChangePasswordConfirmPassword('');
+              setChangePasswordError('');
+              setChangePasswordSuccess('');
+            }}
+            className="btn btn-primary btn-block"
+            style={{
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 700
+            }}
+            id="change-password-trigger"
+          >
+            <Lock size={14} />
+            Change Account Password
+          </button>
+        </div>
+
         {/* Language selector inline card */}
         <div className="glass-card" style={{
           padding: '1.25rem',
@@ -276,7 +376,261 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Dedicated Sign Out Button */}
+        <button
+          onClick={handleLogout}
+          className="btn btn-danger btn-block"
+          style={{
+            marginTop: '10px',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <LogOut size={18} />
+          {t('signOut')}
+        </button>
+
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 10007,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            style={{
+              background: '#121224',
+              color: '#ffffff',
+              borderRadius: '24px',
+              padding: '2.5rem 2rem',
+              maxWidth: '420px',
+              width: '100%',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+              position: 'relative'
+            }}
+          >
+            <button 
+              onClick={() => setShowChangePasswordModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: 'none',
+                color: '#a3a3a3',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            >
+              ✕
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>Change Password</h2>
+              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0 }}>
+                {changePasswordStep === 1 
+                  ? 'Request a security verification OTP to your registered email.' 
+                  : 'Enter the 6-digit verification code and configure your new password.'}
+              </p>
+            </div>
+
+            {changePasswordError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                fontWeight: 500
+              }}>
+                {changePasswordError}
+              </div>
+            )}
+
+            {changePasswordSuccess && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#34d399',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                fontWeight: 500
+              }}>
+                {changePasswordSuccess}
+              </div>
+            )}
+
+            {changePasswordStep === 1 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
+                <p style={{ fontSize: '0.9rem', color: '#d1d5db', margin: 0 }}>
+                  A verification code will be sent to: <strong style={{ color: '#f5b731' }}>{user?.email}</strong>
+                </p>
+                <button
+                  onClick={handleChangePasswordRequest}
+                  disabled={changePasswordLoading}
+                  style={{
+                    background: '#f5b731',
+                    color: '#06060e',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    opacity: changePasswordLoading ? 0.7 : 1
+                  }}
+                  id="request-change-otp-btn"
+                >
+                  {changePasswordLoading ? 'Sending OTP...' : 'Send Verification OTP'}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleChangePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="cp-otp" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>6-Digit Code</label>
+                  <input
+                    id="cp-otp"
+                    type="text"
+                    maxLength={6}
+                    value={changePasswordOtp}
+                    onChange={(e) => setChangePasswordOtp(e.target.value)}
+                    placeholder="123456"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      fontSize: '1.1rem',
+                      letterSpacing: '6px',
+                      textAlign: 'center',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: '#f5b731',
+                      fontWeight: 'bold',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="cp-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>New Password</label>
+                  <input
+                    id="cp-password"
+                    type="password"
+                    value={changePasswordNewPassword}
+                    onChange={(e) => setChangePasswordNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      fontSize: '0.95rem',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      color: 'white',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="cp-confirm-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>Confirm Password</label>
+                  <input
+                    id="cp-confirm-password"
+                    type="password"
+                    value={changePasswordConfirmPassword}
+                    onChange={(e) => setChangePasswordConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      fontSize: '0.95rem',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      color: 'white',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setChangePasswordStep(1)}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: 'white',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Back
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    disabled={changePasswordLoading}
+                    style={{
+                      flex: 2,
+                      background: '#f5b731',
+                      color: '#06060e',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      opacity: changePasswordLoading ? 0.7 : 1
+                    }}
+                    id="change-password-submit-btn"
+                  >
+                    {changePasswordLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

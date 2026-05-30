@@ -59,7 +59,7 @@ export default function MyTripsPage() {
           <img src={logo} alt="Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px', objectFit: 'contain', boxShadow: '0 0 10px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
           <div>
             <h2 className="title-outfit" style={{ fontSize: '14px', margin: 0, color: 'var(--text-primary)' }}>
-              {t('helloDriver', { name: user?.name?.split(' ')[0] || 'Driver' })}
+              {t('helloDriver', { name: user?.name || 'Driver' })}
             </h2>
             <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
               {t('cairoRegionFleet')}
@@ -171,7 +171,7 @@ export default function MyTripsPage() {
               return (
                 <div
                   key={trip._id}
-                  className="glass-card interactive"
+                  className="glass-card interactive trip-card"
                   onClick={() => navigate(`/trips/${trip._id}`)}
                   style={{ cursor: 'pointer' }}
                 >

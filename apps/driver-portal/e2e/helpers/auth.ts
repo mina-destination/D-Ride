@@ -3,7 +3,7 @@ import { MOCK_DRIVER_USER } from './mock-api';
 
 export async function loginAsDriver(page: Page) {
   await page.addInitScript((user) => {
-    window.localStorage.setItem('dride_token', 'mock-driver-jwt-token');
+    window.localStorage.setItem('dride_driver_token', 'mock-driver-jwt-token');
     window.localStorage.setItem('dride_user', JSON.stringify(user));
   }, MOCK_DRIVER_USER);
 }

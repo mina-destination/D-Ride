@@ -123,7 +123,10 @@ export class RoutesController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateRouteDto) {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdateRouteDto,
+  ) {
     const route = await this.routesService.update(id, data as any);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }

@@ -6,11 +6,25 @@ import { Role, TripStatus, BookingStatus, PaymentStatus } from '@prisma/client';
 
 async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
-    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '============================================================');
-    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '🚨 CRITICAL SAFETY ALERT: DATABASE SEEDING IS FORBIDDEN IN PRODUCTION!');
-    console.error('\x1b[41m\x1b[37m%s\x1b[0m', 'Abort: Attempt to run seeder would wipe operational tables!');
-    console.error('\x1b[41m\x1b[37m%s\x1b[0m', '============================================================');
-    throw new Error('Database seeding transaction blocked in production environment.');
+    console.error(
+      '\x1b[41m\x1b[37m%s\x1b[0m',
+      '============================================================',
+    );
+    console.error(
+      '\x1b[41m\x1b[37m%s\x1b[0m',
+      '🚨 CRITICAL SAFETY ALERT: DATABASE SEEDING IS FORBIDDEN IN PRODUCTION!',
+    );
+    console.error(
+      '\x1b[41m\x1b[37m%s\x1b[0m',
+      'Abort: Attempt to run seeder would wipe operational tables!',
+    );
+    console.error(
+      '\x1b[41m\x1b[37m%s\x1b[0m',
+      '============================================================',
+    );
+    throw new Error(
+      'Database seeding transaction blocked in production environment.',
+    );
   }
 
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -121,7 +135,7 @@ async function bootstrap() {
 
   const getSnappedRoute = async (checkpoints: [number, number][]) => {
     try {
-      const coordsString = checkpoints.map(c => `${c[0]},${c[1]}`).join(';');
+      const coordsString = checkpoints.map((c) => `${c[0]},${c[1]}`).join(';');
       const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
       const response = await fetch(url);
       const data = await response.json();
@@ -133,7 +147,7 @@ async function bootstrap() {
     }
     return {
       type: 'LineString',
-      coordinates: checkpoints
+      coordinates: checkpoints,
     };
   };
 
@@ -141,7 +155,7 @@ async function bootstrap() {
     [31.2357, 30.0444],
     [31.1171, 30.0131],
     [30.29, 30.85],
-    [29.9187, 31.2001]
+    [29.9187, 31.2001],
   ];
   const alexPath = await getSnappedRoute(alexCoords);
 
@@ -188,7 +202,7 @@ async function bootstrap() {
     [31.2825, 30.0635],
     [32.3, 29.98],
     [34.33, 27.91],
-    [34.5152, 28.501]
+    [34.5152, 28.501],
   ];
   const dahabPath = await getSnappedRoute(dahabCoords);
 
@@ -337,22 +351,19 @@ async function bootstrap() {
     data: [
       {
         name: 'Paymob Egypt',
-        logoUrl:
-          'https://placehold.co/400x400/26272b/fff?text=Paymob',
+        logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Paymob',
         websiteUrl: 'https://paymob.com',
         isActive: true,
       },
       {
         name: 'Orange Egypt',
-        logoUrl:
-          'https://placehold.co/400x400/26272b/fff?text=Orange',
+        logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Orange',
         websiteUrl: 'https://orange.eg',
         isActive: true,
       },
       {
         name: 'Vodafone Cash',
-        logoUrl:
-          'https://placehold.co/400x400/26272b/fff?text=Vodafone',
+        logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Vodafone',
         websiteUrl: 'https://vodafone.com.eg',
         isActive: true,
       },

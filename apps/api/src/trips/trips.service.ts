@@ -41,7 +41,11 @@ export class TripsService {
 
         // Directional Sequence Validation: Enforce pickup is strictly before dropoff
         if (pickupCheckpointName && dropoffCheckpointName) {
-          if (pickupIdx === -1 || dropoffIdx === -1 || pickupIdx >= dropoffIdx) {
+          if (
+            pickupIdx === -1 ||
+            dropoffIdx === -1 ||
+            pickupIdx >= dropoffIdx
+          ) {
             return null; // Reject this candidate
           }
         }
@@ -58,7 +62,9 @@ export class TripsService {
           if (pickupCheckpointName && cp.name === pickupCheckpointName) {
             pickupCheckpoint = {
               ...cpWithTimes,
-              localizedDepartureTime: new Date(depTime + offsetMs).toISOString(),
+              localizedDepartureTime: new Date(
+                depTime + offsetMs,
+              ).toISOString(),
             };
           }
           if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
@@ -80,7 +86,10 @@ export class TripsService {
 
     if (pickupCheckpoint && dropoffCheckpoint) {
       let segmentPrice = 0;
-      if (pickupCheckpoint.prices && pickupCheckpoint.prices[dropoffCheckpoint.name] !== undefined) {
+      if (
+        pickupCheckpoint.prices &&
+        pickupCheckpoint.prices[dropoffCheckpoint.name] !== undefined
+      ) {
         segmentPrice = Number(pickupCheckpoint.prices[dropoffCheckpoint.name]);
       } else {
         const pickupPrice = Number(pickupCheckpoint.priceFromStartEGP || 0);
@@ -235,7 +244,11 @@ export class TripsService {
       },
     });
     if (!trip) throw new NotFoundException('Trip not found');
-    const result = this.mapTrip(trip, pickupCheckpointName, dropoffCheckpointName);
+    const result = this.mapTrip(
+      trip,
+      pickupCheckpointName,
+      dropoffCheckpointName,
+    );
     if (!result) {
       throw new BadRequestException('Invalid route checkpoint sequence');
     }
@@ -327,7 +340,11 @@ export class TripsService {
 
   async create(data: any): Promise<any> {
     let finalPrice = Number(data.priceEGP);
-    if (data.priceEGP === undefined || data.priceEGP === null || isNaN(finalPrice)) {
+    if (
+      data.priceEGP === undefined ||
+      data.priceEGP === null ||
+      isNaN(finalPrice)
+    ) {
       const route = await this.prisma.route.findUnique({
         where: { id: data.routeId },
       });
@@ -353,7 +370,11 @@ export class TripsService {
     }
 
     let finalSeats = Number(data.availableSeats);
-    if (data.availableSeats === undefined || data.availableSeats === null || isNaN(finalSeats)) {
+    if (
+      data.availableSeats === undefined ||
+      data.availableSeats === null ||
+      isNaN(finalSeats)
+    ) {
       let seats = 14;
       if (data.vehicleId) {
         const vehicle = await this.prisma.vehicle.findUnique({
@@ -380,7 +401,9 @@ export class TripsService {
         throw new BadRequestException('Invalid arrival time');
       }
       if (arrTime <= depTime) {
-        throw new BadRequestException('Arrival time must be after departure time');
+        throw new BadRequestException(
+          'Arrival time must be after departure time',
+        );
       }
     }
 
@@ -433,7 +456,9 @@ export class TripsService {
     }
 
     if (arrTime && arrTime <= depTime) {
-      throw new BadRequestException('Arrival time must be after departure time');
+      throw new BadRequestException(
+        'Arrival time must be after departure time',
+      );
     }
 
     if (updateData.status) {
@@ -516,7 +541,9 @@ export class TripsService {
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
-    const caller = await this.prisma.user.findUnique({ where: { id: driverId } });
+    const caller = await this.prisma.user.findUnique({
+      where: { id: driverId },
+    });
     if (!caller) throw new NotFoundException('User not found');
 
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(caller.role);

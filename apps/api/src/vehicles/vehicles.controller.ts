@@ -42,7 +42,10 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async updateVehicle(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateVehicleDto) {
+  async updateVehicle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdateVehicleDto,
+  ) {
     return this.vehiclesService.updateVehicle(id, data);
   }
 

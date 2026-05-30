@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistance } from '../utils/geo';
 
@@ -371,14 +376,24 @@ export class RoutesService {
           const cpI = checkpoints[i];
           if (!cpI.location?.coordinates) continue;
           const [cpILng, cpILat] = cpI.location.coordinates;
-          const distToPickup = getDistance(pickupLng, pickupLat, cpILng, cpILat);
+          const distToPickup = getDistance(
+            pickupLng,
+            pickupLat,
+            cpILng,
+            cpILat,
+          );
           if (distToPickup > radiusMeters) continue;
 
           for (let j = i + 1; j < checkpoints.length; j++) {
             const cpJ = checkpoints[j];
             if (!cpJ.location?.coordinates) continue;
             const [cpJLng, cpJLat] = cpJ.location.coordinates;
-            const distToDropoff = getDistance(dropoffLng, dropoffLat, cpJLng, cpJLat);
+            const distToDropoff = getDistance(
+              dropoffLng,
+              dropoffLat,
+              cpJLng,
+              cpJLat,
+            );
             if (distToDropoff > radiusMeters) continue;
 
             const totalDist = distToPickup + distToDropoff;

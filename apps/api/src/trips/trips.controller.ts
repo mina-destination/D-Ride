@@ -79,7 +79,10 @@ export class TripsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateTripDto) {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdateTripDto,
+  ) {
     const trip = await this.tripsService.update(id, data as any);
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }

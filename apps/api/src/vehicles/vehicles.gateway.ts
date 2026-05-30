@@ -252,7 +252,10 @@ export class VehiclesGateway
       );
       return {
         event: 'locationAck',
-        data: { success: false, error: 'Access Denied: Not your assigned vehicle' },
+        data: {
+          success: false,
+          error: 'Access Denied: Not your assigned vehicle',
+        },
       };
     }
 

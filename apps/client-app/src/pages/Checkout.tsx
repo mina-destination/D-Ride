@@ -618,11 +618,11 @@ export default function CheckoutPage() {
                         
                       const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
                       
-                      let dotBg = 'var(--surface-hover)';
-                      let dotBorder = '3px solid rgba(255,255,255,0.15)';
+                      let dotBg: string;
+                      let dotBorder: string;
                       let dotShadow = 'none';
-                      let dotSize = '20px';
-                      let dotInnerSize = '6px';
+                      let dotSize: string;
+                      let dotInnerSize: string;
                       let dotInnerBg = 'transparent';
                       let animName = 'none';
                       

@@ -25,7 +25,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
       const { statusCode } = res;
       const duration = Date.now() - startTime;
       const userId = (req as any).user?.sub || 'anonymous';
-      const requestId = req.headers['x-request-id'] || 'none';
+      const requestId = String(req.headers['x-request-id'] || 'none');
 
       this.logger.log(
         `[${requestId}] ${method} ${originalUrl} ${statusCode} ${duration}ms - IP: ${ip} - User: ${userId} - UA: ${userAgent}`,
