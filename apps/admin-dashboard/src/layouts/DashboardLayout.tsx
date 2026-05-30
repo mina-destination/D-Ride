@@ -81,6 +81,8 @@ export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   // Auto-collapse sidebar on mobile viewport sizes
   useEffect(() => {
     if (window.innerWidth <= 768) {
@@ -296,8 +298,6 @@ export default function DashboardLayout() {
     }
     return true;
   });
-
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>

@@ -36,7 +36,7 @@ const translations: Record<Language, Record<string, string>> = {
     helloDriver: 'Hello, {name}',
     cairoRegionFleet: 'Cairo Region Shuttle Fleet',
     refreshTrips: 'Refresh trips',
-    signOut: 'Sign out',
+    signOut: 'Sign Out',
     currentActive: 'Current & Active',
     pastShifts: 'Past Shifts',
     loadingAssignments: 'Loading assignments...',

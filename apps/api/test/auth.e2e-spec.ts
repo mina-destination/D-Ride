@@ -16,7 +16,9 @@ describe('Auth E2E', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     app.setGlobalPrefix('api');
     await app.init();
     prisma = app.get(PrismaService);
@@ -54,9 +56,7 @@ describe('Auth E2E', () => {
   });
 
   it('GET /api/auth/profile — should reject unauthenticated request', async () => {
-    await request(app.getHttpServer())
-      .get('/api/auth/profile')
-      .expect(401);
+    await request(app.getHttpServer()).get('/api/auth/profile').expect(401);
   });
 
   it('POST /api/auth/login — should rate limit after threshold', async () => {

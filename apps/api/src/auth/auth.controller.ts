@@ -12,6 +12,9 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -48,5 +51,35 @@ export class AuthController {
       data: profile,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() data: ForgotPasswordDto) {
+    const result = await this.authService.forgotPassword(data.email);
+    return { success: true, ...result, timestamp: new Date().toISOString() };
+  }
+
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Post('reset-password')
+  async resetPassword(@Body() data: ResetPasswordDto) {
+    const result = await this.authService.resetPassword(data);
+    return { success: true, ...result, timestamp: new Date().toISOString() };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @Post('change-password-request')
+  async changePasswordRequest(@Request() req: any) {
+    const result = await this.authService.changePasswordRequest(req.user.sub);
+    return { success: true, ...result, timestamp: new Date().toISOString() };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() data: ChangePasswordDto) {
+    const result = await this.authService.changePassword(req.user.sub, data);
+    return { success: true, ...result, timestamp: new Date().toISOString() };
   }
 }

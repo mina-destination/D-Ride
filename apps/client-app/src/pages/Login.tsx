@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { LogIn, RefreshCw } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -13,6 +14,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Forgot Password States
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordOtp, setForgotPasswordOtp] = useState('');
+  const [forgotPasswordNewPassword, setForgotPasswordNewPassword] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState('');
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordError('');
+    setForgotPasswordSuccess('');
+    setForgotPasswordLoading(true);
+    try {
+      await authAPI.forgotPassword(forgotPasswordEmail);
+      setForgotPasswordSuccess('An OTP has been sent to your email.');
+      setForgotPasswordStep(2);
+    } catch (err: any) {
+      setForgotPasswordError(err?.message || 'Failed to request OTP');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordError('');
+    setForgotPasswordSuccess('');
+    setForgotPasswordLoading(true);
+    try {
+      await authAPI.resetPassword({
+        email: forgotPasswordEmail,
+        otp: forgotPasswordOtp,
+        newPassword: forgotPasswordNewPassword,
+      });
+      setForgotPasswordSuccess('Password reset successfully! You can now log in.');
+      setTimeout(() => {
+        setShowForgotPasswordModal(false);
+        setEmail(forgotPasswordEmail);
+      }, 2000);
+    } catch (err: any) {
+      setForgotPasswordError(err?.message || 'Failed to reset password. Please check the OTP.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
 
   // Google Chooser States
   const [showGoogleChooser, setShowGoogleChooser] = useState(false);
@@ -95,7 +145,34 @@ export default function LoginPage() {
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="password">{t('loginPasswordLabel')}</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label htmlFor="password" style={{ margin: 0 }}>{t('loginPasswordLabel')}</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPasswordModal(true);
+                  setForgotPasswordStep(1);
+                  setForgotPasswordEmail('');
+                  setForgotPasswordOtp('');
+                  setForgotPasswordNewPassword('');
+                  setForgotPasswordError('');
+                  setForgotPasswordSuccess('');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent, #f5b731)',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  padding: 0,
+                  outline: 'none'
+                }}
+                id="forgot-password-link"
+              >
+                Forgot Password?
+              </button>
+            </div>
             <input
               id="password"
               type="password"
@@ -410,6 +487,251 @@ export default function LoginPage() {
             <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '2rem', paddingTop: '1rem', fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', lineHeight: 1.4 }}>
               To continue, Google will share your name, email address, and profile picture with D-Ride.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 10006,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            style={{
+              background: '#121224',
+              color: '#ffffff',
+              borderRadius: '24px',
+              padding: '2.5rem 2rem',
+              maxWidth: '420px',
+              width: '100%',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+              position: 'relative'
+            }}
+          >
+            <button 
+              onClick={() => setShowForgotPasswordModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: 'none',
+                color: '#a3a3a3',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            >
+              ✕
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>Forgot Password</h2>
+              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0 }}>
+                {forgotPasswordStep === 1 
+                  ? 'Enter your email to receive a 6-digit verification code.' 
+                  : 'Enter the 6-digit code sent to your email and your new password.'}
+              </p>
+            </div>
+
+            {forgotPasswordError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                fontWeight: 500
+              }}>
+                {forgotPasswordError}
+              </div>
+            )}
+
+            {forgotPasswordSuccess && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#34d399',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                fontWeight: 500
+              }}>
+                {forgotPasswordSuccess}
+              </div>
+            )}
+
+            {forgotPasswordStep === 1 ? (
+              <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="fp-email" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>Email Address</label>
+                  <input
+                    id="fp-email"
+                    type="email"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      fontSize: '0.95rem',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'white',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#f5b731'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={forgotPasswordLoading}
+                  style={{
+                    background: '#f5b731',
+                    color: '#06060e',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  id="fp-request-otp-btn"
+                >
+                  {forgotPasswordLoading ? 'Sending...' : 'Send Reset Code'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="fp-otp" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>6-Digit Code</label>
+                  <input
+                    id="fp-otp"
+                    type="text"
+                    maxLength={6}
+                    value={forgotPasswordOtp}
+                    onChange={(e) => setForgotPasswordOtp(e.target.value)}
+                    placeholder="123456"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      fontSize: '1.1rem',
+                      letterSpacing: '6px',
+                      textAlign: 'center',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: '#f5b731',
+                      fontWeight: 'bold',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label htmlFor="fp-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>New Password</label>
+                  <input
+                    id="fp-password"
+                    type="password"
+                    value={forgotPasswordNewPassword}
+                    onChange={(e) => setForgotPasswordNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      fontSize: '0.95rem',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'white',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#f5b731'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setForgotPasswordStep(1)}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Back
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    disabled={forgotPasswordLoading}
+                    style={{
+                      flex: 2,
+                      background: '#f5b731',
+                      color: '#06060e',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      opacity: forgotPasswordLoading ? 0.7 : 1
+                    }}
+                    id="fp-reset-btn"
+                  >
+                    {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -50,9 +50,14 @@ export class PaymobController {
 
   @UseGuards(JwtAuthGuard)
   @Post('checkout')
-  async initializeCheckout(@Request() req: any, @Body() data: InitializeCheckoutDto) {
+  async initializeCheckout(
+    @Request() req: any,
+    @Body() data: InitializeCheckoutDto,
+  ) {
     // Verify the authenticated user owns the booking
-    const booking = await this.prisma.booking.findUnique({ where: { id: data.bookingId } });
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: data.bookingId },
+    });
     if (booking && booking.userId !== req.user.sub) {
       throw new ForbiddenException('You do not own this booking');
     }
@@ -63,14 +68,15 @@ export class PaymobController {
 
   @UseGuards(JwtAuthGuard)
   @Post('confirm')
-  async confirmPayment(
-    @Request() req: any,
-    @Body() body: ConfirmPaymentDto
-  ) {
-    this.logger.log(`Direct confirmation request for: ${body.bookingId}, success: ${body.success}`);
+  async confirmPayment(@Request() req: any, @Body() body: ConfirmPaymentDto) {
+    this.logger.log(
+      `Direct confirmation request for: ${body.bookingId}, success: ${body.success}`,
+    );
     // Verify ownership: for booking confirmations, check user owns the booking
     if (body.bookingId && !body.bookingId.startsWith('wallet_')) {
-      const booking = await this.prisma.booking.findUnique({ where: { id: body.bookingId } });
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: body.bookingId },
+      });
       if (booking && booking.userId !== req.user.sub) {
         throw new ForbiddenException('You do not own this booking');
       }
@@ -84,7 +90,9 @@ export class PaymobController {
     if (body.success && body.bookingId) {
       // 1. If already confirmed in our DB, return success immediately (happy path)
       if (!body.bookingId.startsWith('wallet_')) {
-        const booking = await this.prisma.booking.findUnique({ where: { id: body.bookingId } });
+        const booking = await this.prisma.booking.findUnique({
+          where: { id: body.bookingId },
+        });
         if (booking && booking.status === 'CONFIRMED') {
           return { success: true };
         }
@@ -105,12 +113,19 @@ export class PaymobController {
       }
 
       // 2. Perform server-side validation against Paymob API to prevent spoofing
-      const isValid = await this.paymobService.verifyTransactionOnPaymob(body.bookingId, body.transactionId);
+      const isValid = await this.paymobService.verifyTransactionOnPaymob(
+        body.bookingId,
+        body.transactionId,
+      );
       if (!isValid) {
         throw new ForbiddenException('Payment verification failed on Paymob');
       }
 
-      await this.paymobService.confirmPaymentDirect(body.bookingId, body.amount, body.transactionId);
+      await this.paymobService.confirmPaymentDirect(
+        body.bookingId,
+        body.amount,
+        body.transactionId,
+      );
     }
     return { success: true };
   }

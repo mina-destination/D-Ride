@@ -12,11 +12,11 @@ async function run() {
   const paymob = await prisma.partner.updateMany({
     where: {
       name: { contains: 'Paymob', mode: 'insensitive' },
-      logoUrl: { contains: 'brandfetch' }
+      logoUrl: { contains: 'brandfetch' },
     },
     data: {
-      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Paymob'
-    }
+      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Paymob',
+    },
   });
   console.log(`Updated Paymob: ${paymob.count} records`);
 
@@ -24,11 +24,11 @@ async function run() {
   const orange = await prisma.partner.updateMany({
     where: {
       name: { contains: 'Orange', mode: 'insensitive' },
-      logoUrl: { contains: 'brandfetch' }
+      logoUrl: { contains: 'brandfetch' },
     },
     data: {
-      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Orange'
-    }
+      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Orange',
+    },
   });
   console.log(`Updated Orange: ${orange.count} records`);
 
@@ -36,11 +36,11 @@ async function run() {
   const vodafone = await prisma.partner.updateMany({
     where: {
       name: { contains: 'Vodafone', mode: 'insensitive' },
-      logoUrl: { contains: 'brandfetch' }
+      logoUrl: { contains: 'brandfetch' },
     },
     data: {
-      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Vodafone'
-    }
+      logoUrl: 'https://placehold.co/400x400/26272b/fff?text=Vodafone',
+    },
   });
   console.log(`Updated Vodafone: ${vodafone.count} records`);
 
@@ -48,7 +48,7 @@ async function run() {
   await app.close();
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('Error running fix-logos:', err);
   process.exit(1);
 });

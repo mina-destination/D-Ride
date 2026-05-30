@@ -430,7 +430,8 @@ export class BookingsService {
             }
           }
 
-          const overlap = routeCheckpoints.length < 2 || (startReq < endB && startB < endReq);
+          const overlap =
+            routeCheckpoints.length < 2 || (startReq < endB && startB < endReq);
           if (overlap) {
             b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
           }
@@ -642,7 +643,9 @@ export class BookingsService {
 
   async cancel(id: string, userId: string, userRole?: string): Promise<any> {
     const updated = await this.prisma.$transaction(async (tx) => {
-      const isAdmin = userRole && ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole);
+      const isAdmin =
+        userRole &&
+        ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole);
       const booking = await tx.booking.findFirst({
         where: isAdmin ? { id } : { id, userId },
       });
@@ -673,7 +676,10 @@ export class BookingsService {
    * Credits the wallet balance back to the user based on refund policies/actions
    * and marks the booking as REFUNDED or FAILED (rejected).
    */
-  async refundBooking(bookingId: string, action?: 'FULL' | 'HALF' | 'REJECT'): Promise<any> {
+  async refundBooking(
+    bookingId: string,
+    action?: 'FULL' | 'HALF' | 'REJECT',
+  ): Promise<any> {
     // 1. Fetch booking with trip, route, and user details first to compute policy
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -693,16 +699,24 @@ export class BookingsService {
       throw new BadRequestException('Only cancelled bookings can be refunded');
     }
 
-    if (booking.paymentStatus === 'REFUNDED' || booking.paymentStatus === 'FAILED') {
-      throw new BadRequestException('Refund request has already been processed');
+    if (
+      booking.paymentStatus === 'REFUNDED' ||
+      booking.paymentStatus === 'FAILED'
+    ) {
+      throw new BadRequestException(
+        'Refund request has already been processed',
+      );
     }
 
     // 2. Calculate policy recommendation based on time difference between cancellation (updatedAt) and trip departure
     const cancellationTime = new Date(booking.updatedAt);
-    const departureTime = booking.trip ? new Date(booking.trip.departureTime) : null;
-    
+    const departureTime = booking.trip
+      ? new Date(booking.trip.departureTime)
+      : null;
+
     let calculatedAction: 'FULL' | 'HALF' | 'REJECT' = 'REJECT';
-    let calculatedReason = 'Cancelled less than 24 hours before departure (rejected)';
+    let calculatedReason =
+      'Cancelled less than 24 hours before departure (rejected)';
     let calculatedPercentage = 0;
 
     if (departureTime) {
@@ -714,11 +728,13 @@ export class BookingsService {
         calculatedPercentage = 100;
       } else if (diffHours >= 24) {
         calculatedAction = 'HALF';
-        calculatedReason = 'Cancelled 24-48 hours before departure (50% refund)';
+        calculatedReason =
+          'Cancelled 24-48 hours before departure (50% refund)';
         calculatedPercentage = 50;
       } else {
         calculatedAction = 'REJECT';
-        calculatedReason = 'Cancelled less than 24 hours before departure (no refund)';
+        calculatedReason =
+          'Cancelled less than 24 hours before departure (no refund)';
         calculatedPercentage = 0;
       }
     }
@@ -756,7 +772,10 @@ export class BookingsService {
       const updated = await tx.booking.update({
         where: { id: bookingId },
         data: {
-          status: finalAction === 'REJECT' ? BookingStatus.CANCELLED : BookingStatus.REFUNDED,
+          status:
+            finalAction === 'REJECT'
+              ? BookingStatus.CANCELLED
+              : BookingStatus.REFUNDED,
           paymentStatus: finalAction === 'REJECT' ? 'FAILED' : 'REFUNDED',
         },
       });
@@ -788,7 +807,9 @@ export class BookingsService {
           u.name || 'Valued Passenger',
           {
             routeName: r?.name || 'D-Ride Trip',
-            departureTime: t?.departureTime ? t.departureTime.toISOString() : new Date().toISOString(),
+            departureTime: t?.departureTime
+              ? t.departureTime.toISOString()
+              : new Date().toISOString(),
             originalAmount: booking.amountEGP,
             refundAmount: refundAmount,
             percentage: refundPercentage,

@@ -17,7 +17,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PartnersModule } from './partners/partners.module';
 import configuration from './config/configuration';
-import { RequestIdMiddleware, RequestLoggerMiddleware } from './utils/security.middleware';
+import {
+  RequestIdMiddleware,
+  RequestLoggerMiddleware,
+} from './utils/security.middleware';
 
 @Module({
   imports: [
@@ -32,17 +35,17 @@ import { RequestIdMiddleware, RequestLoggerMiddleware } from './utils/security.m
       {
         name: 'short',
         ttl: 1000,
-        limit: 3,
+        limit: 15,
       },
       {
         name: 'medium',
         ttl: 10000,
-        limit: 20,
+        limit: 60,
       },
       {
         name: 'long',
         ttl: 60000,
-        limit: 100,
+        limit: 200,
       },
     ]),
 
@@ -73,8 +76,6 @@ import { RequestIdMiddleware, RequestLoggerMiddleware } from './utils/security.m
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestIdMiddleware, RequestLoggerMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestIdMiddleware, RequestLoggerMiddleware).forRoutes('*');
   }
 }

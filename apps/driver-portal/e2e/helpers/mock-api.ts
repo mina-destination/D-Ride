@@ -203,21 +203,21 @@ export async function setupDriverMockAPI(page: Page) {
   });
 
   // Bookings for a trip (occupied seats / manifest)
-  await page.route('**/api/bookings/occupied/*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: [1, 2, 3] }),
-    });
-  });
-
-  // Bookings list for trip
-  await page.route('**/api/bookings*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: MOCK_BOOKINGS }),
-    });
+  await page.route(/\/api\/bookings/, async (route) => {
+    const url = route.request().url();
+    if (url.includes('/occupied/')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [1, 2, 3] }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: MOCK_BOOKINGS }),
+      });
+    }
   });
 
   // Vehicle location updates

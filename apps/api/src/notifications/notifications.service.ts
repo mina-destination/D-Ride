@@ -56,7 +56,9 @@ export class NotificationsService implements OnModuleInit {
   async sendSMS(to: string, message: string): Promise<boolean> {
     const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
     if (!this.validatePhoneNumber(formattedTo)) {
-      this.logger.warn(`Invalid phone number format: ${to}. Skipping SMS dispatch.`);
+      this.logger.warn(
+        `Invalid phone number format: ${to}. Skipping SMS dispatch.`,
+      );
       return false;
     }
 
@@ -88,7 +90,9 @@ export class NotificationsService implements OnModuleInit {
   async sendWhatsApp(to: string, message: string): Promise<boolean> {
     const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
     if (!this.validatePhoneNumber(formattedTo)) {
-      this.logger.warn(`Invalid phone number format: ${to}. Skipping WhatsApp dispatch.`);
+      this.logger.warn(
+        `Invalid phone number format: ${to}. Skipping WhatsApp dispatch.`,
+      );
       return false;
     }
 

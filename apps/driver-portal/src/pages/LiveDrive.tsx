@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
@@ -295,6 +295,22 @@ export default function LiveDrivePage() {
           {streetPath.length > 0 && (
             <Polyline positions={streetPath} color="#f5b731" weight={5} opacity={0.8} />
           )}
+          {trip?.routeId?.checkpoints?.map((cp: any, idx: number) => {
+            const coords = cp.location?.coordinates || cp.coordinates;
+            if (!coords) return null;
+            return (
+              <Marker 
+                key={cp._id || idx} 
+                position={[coords[1], coords[0]]}
+              >
+                <Tooltip permanent direction="top" offset={[0, -10]}>
+                  <span style={{ color: '#000', fontWeight: 'bold' }}>
+                    {language === 'ar' ? (cp.nameAr || cp.name) : cp.name}
+                  </span>
+                </Tooltip>
+              </Marker>
+            );
+          })}
           {currentCoords && (
             <Marker position={[currentCoords.lat, currentCoords.lng]} icon={driverBusIcon} />
           )}

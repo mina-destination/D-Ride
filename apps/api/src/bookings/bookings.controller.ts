@@ -62,7 +62,11 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   @Put(':id/cancel')
   async cancel(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const booking = await this.bookingsService.cancel(id, req.user.sub, req.user.role);
+    const booking = await this.bookingsService.cancel(
+      id,
+      req.user.sub,
+      req.user.role,
+    );
     return {
       success: true,
       data: booking,
@@ -112,7 +116,10 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('DRIVER', 'ADMIN')
   @Put(':id/verify-ticket')
-  async verifyTicket(@Param('id', ParseUUIDPipe) id: string, @Body('token') token: string) {
+  async verifyTicket(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('token') token: string,
+  ) {
     const booking = await this.bookingsService.verifyTicket(id, token);
     return {
       success: true,
@@ -124,7 +131,10 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id/refund')
-  async refundBooking(@Param('id', ParseUUIDPipe) id: string, @Body('action') action?: 'FULL' | 'HALF' | 'REJECT') {
+  async refundBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('action') action?: 'FULL' | 'HALF' | 'REJECT',
+  ) {
     const booking = await this.bookingsService.refundBooking(id, action);
     return {
       success: true,

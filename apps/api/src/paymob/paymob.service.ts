@@ -201,20 +201,28 @@ export class PaymobService {
           const u = populated.user;
           const t = populated.trip;
           const r = t?.route;
-          const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
+          const seatsStr =
+            (populated.seatNumbers as any[])?.join(', ') || 'N/A';
           // Fire-and-forget notification
-          this.bookingsService['notificationsService']?.sendBookingConfirmation(
-            u.phone || '',
-            u.name || 'Valued Passenger',
-            {
-              routeName: r?.name || 'D-Ride Minibus Trip',
-              departureTime: t.departureTime?.toISOString() || new Date().toISOString(),
-              seatNumber: seatsStr,
-              price: populated.amountEGP || 0,
-            },
-          ).catch((err: any) => this.logger.error('Notification dispatch failed:', err));
+          this.bookingsService['notificationsService']
+            ?.sendBookingConfirmation(
+              u.phone || '',
+              u.name || 'Valued Passenger',
+              {
+                routeName: r?.name || 'D-Ride Minibus Trip',
+                departureTime:
+                  t.departureTime?.toISOString() || new Date().toISOString(),
+                seatNumber: seatsStr,
+                price: populated.amountEGP || 0,
+              },
+            )
+            .catch((err: any) =>
+              this.logger.error('Notification dispatch failed:', err),
+            );
         }
-        this.logger.log(`Booking ${bookingId} confirmed & notification triggered.`);
+        this.logger.log(
+          `Booking ${bookingId} confirmed & notification triggered.`,
+        );
       } catch (err: any) {
         this.logger.error(
           `Error triggering post-webhook notification: ${err.message}`,
@@ -404,7 +412,7 @@ export class PaymobService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Token ${this.apiKey}`,
+            Authorization: `Token ${this.apiKey}`,
           },
         },
       );
@@ -414,12 +422,16 @@ export class PaymobService {
       const paymentKey = intentionRes.data.payment_keys?.[0]?.key || '';
 
       if (orderId && data.bookingId) {
-        await this.prisma.booking.update({
-          where: { id: data.bookingId },
-          data: { paymobOrderId: orderId },
-        }).catch((err) =>
-          this.logger.error(`Failed to save paymobOrderId to booking: ${err.message}`),
-        );
+        await this.prisma.booking
+          .update({
+            where: { id: data.bookingId },
+            data: { paymobOrderId: orderId },
+          })
+          .catch((err) =>
+            this.logger.error(
+              `Failed to save paymobOrderId to booking: ${err.message}`,
+            ),
+          );
       }
 
       if (paymentMethod === 'WALLET') {
@@ -456,12 +468,16 @@ export class PaymobService {
         redirectUrl: hostedCheckoutUrl,
       };
     } catch (error: any) {
-      const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
+      const errorDetail = error.response
+        ? JSON.stringify(error.response.data)
+        : error.message;
       this.logger.error(
         `Failed to initialize Paymob checkout for ${paymentMethod}: ${errorDetail}`,
         error,
       );
-      throw new BadRequestException(`Payment initialization failed: ${errorDetail}`);
+      throw new BadRequestException(
+        `Payment initialization failed: ${errorDetail}`,
+      );
     }
   }
 
@@ -643,7 +659,7 @@ export class PaymobService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Token ${this.apiKey}`,
+            Authorization: `Token ${this.apiKey}`,
           },
         },
       );
@@ -685,8 +701,13 @@ export class PaymobService {
         redirectUrl: hostedCheckoutUrl,
       };
     } catch (error: any) {
-      const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-      this.logger.error(`Failed to initialize Paymob wallet topup: ${errorDetail}`, error);
+      const errorDetail = error.response
+        ? JSON.stringify(error.response.data)
+        : error.message;
+      this.logger.error(
+        `Failed to initialize Paymob wallet topup: ${errorDetail}`,
+        error,
+      );
       throw new BadRequestException(
         `Wallet topup payment initialization failed: ${errorDetail}`,
       );
@@ -832,12 +853,20 @@ export class PaymobService {
     }
   }
 
-  public async verifyTransactionOnPaymob(merchantOrderId: string, transactionId?: string): Promise<boolean> {
+  public async verifyTransactionOnPaymob(
+    merchantOrderId: string,
+    transactionId?: string,
+  ): Promise<boolean> {
     if (!this.apiKey) {
       return true;
     }
-    if (this.apiKey.startsWith('egy_sk_test_') || this.apiKey.startsWith('egy_sk_live_')) {
-      this.logger.warn(`Bypassing transaction verification check because key format is Paymob V1/Flash: ${this.apiKey.slice(0, 12)}...`);
+    if (
+      this.apiKey.startsWith('egy_sk_test_') ||
+      this.apiKey.startsWith('egy_sk_live_')
+    ) {
+      this.logger.warn(
+        `Bypassing transaction verification check because key format is Paymob V1/Flash: ${this.apiKey.slice(0, 12)}...`,
+      );
       return true;
     }
     try {
@@ -849,7 +878,9 @@ export class PaymobService {
 
       // 2. If we have transactionId, directly retrieve that transaction by ID
       if (transactionId) {
-        this.logger.log(`Verifying transaction directly using Paymob transaction ID: ${transactionId}`);
+        this.logger.log(
+          `Verifying transaction directly using Paymob transaction ID: ${transactionId}`,
+        );
         const res = await axios.get(
           `${this.apiBaseUrl}/api/acceptance/transactions/${transactionId}`,
           {
@@ -860,12 +891,12 @@ export class PaymobService {
         );
         const tx = res.data;
         const success = tx?.success === true && tx?.pending === false;
-        
+
         // Ensure the transaction actually belongs to this booking to prevent spoofing
         const bookingIdMatch =
           tx?.special_reference === merchantOrderId ||
           tx?.order?.merchant_order_id === merchantOrderId;
-          
+
         return success && bookingIdMatch;
       }
 
@@ -885,7 +916,9 @@ export class PaymobService {
       );
       return !!successTx;
     } catch (err: any) {
-      this.logger.error(`Failed to verify transaction on Paymob: ${err.message}`);
+      this.logger.error(
+        `Failed to verify transaction on Paymob: ${err.message}`,
+      );
       return false;
     }
   }

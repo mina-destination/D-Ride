@@ -139,10 +139,10 @@ async function bootstrap() {
     server.setTimeout(30000); // 30s max request duration
   }
   if ('keepAliveTimeout' in server) {
-    (server as any).keepAliveTimeout = 65000; // Must be > ALB idle timeout (60s)
+    server.keepAliveTimeout = 65000; // Must be > ALB idle timeout (60s)
   }
   if ('headersTimeout' in server) {
-    (server as any).headersTimeout = 66000;
+    server.headersTimeout = 66000;
   }
 
   logger.log(`🚀 D-Ride API running on http://localhost:${port}/api`);

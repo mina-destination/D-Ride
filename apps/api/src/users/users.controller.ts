@@ -32,7 +32,9 @@ export class UsersController {
     @Query('limit') limit?: string,
   ) {
     const pageNum = page ? Math.max(1, parseInt(page, 10)) : undefined;
-    const limitNum = limit ? Math.min(100, Math.max(1, parseInt(limit, 10))) : undefined;
+    const limitNum = limit
+      ? Math.min(100, Math.max(1, parseInt(limit, 10)))
+      : undefined;
 
     if (pageNum !== undefined && limitNum !== undefined) {
       const skip = (pageNum - 1) * limitNum;
@@ -60,7 +62,10 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Post(':id/notes')
-  async addCrmNote(@Param('id', ParseUUIDPipe) id: string, @Body() data: AddCrmNoteDto) {
+  async addCrmNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: AddCrmNoteDto,
+  ) {
     return this.usersService.addCrmNote(id, data.text, data.adminName);
   }
 
@@ -78,7 +83,10 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Put(':id')
-  async updateUser(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateUserDto) {
+  async updateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdateUserDto,
+  ) {
     return this.usersService.updateUser(id, data);
   }
 

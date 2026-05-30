@@ -32,7 +32,8 @@ export default () => {
       iframeId: process.env.PAYMOB_IFRAME_ID || '',
       integrationId: process.env.PAYMOB_INTEGRATION_ID || '',
       walletIntegrationId: process.env.PAYMOB_WALLET_INTEGRATION_ID || '',
-      apiBaseUrl: process.env.PAYMOB_API_BASE_URL || 'https://accept.paymob.com',
+      apiBaseUrl:
+        process.env.PAYMOB_API_BASE_URL || 'https://accept.paymob.com',
     },
 
     twilio: {

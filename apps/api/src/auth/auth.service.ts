@@ -2,12 +2,14 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { MailService } from '../notifications/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +18,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async getPermissionsForRole(role: string): Promise<string[]> {
@@ -157,14 +160,18 @@ export class AuthService {
         });
         const payload = ticket.getPayload();
         if (!payload || !payload.email) {
-          throw new UnauthorizedException('Invalid Google token: no email in payload');
+          throw new UnauthorizedException(
+            'Invalid Google token: no email in payload',
+          );
         }
         verifiedEmail = payload.email;
         verifiedName = payload.name || data.name;
         this.logger.log(`Google token verified for: ${verifiedEmail}`);
       } catch (err: any) {
         this.logger.error(`Google token verification failed: ${err.message}`);
-        throw new UnauthorizedException('Google authentication failed: invalid token');
+        throw new UnauthorizedException(
+          'Google authentication failed: invalid token',
+        );
       }
     } else {
       this.logger.warn(
@@ -210,5 +217,115 @@ export class AuthService {
       },
       accessToken: this.jwtService.sign(payload),
     };
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Generic message to avoid email enumeration
+      return { message: 'If the email exists, an OTP has been sent.' };
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordOtp: otp,
+        resetPasswordOtpExpires: expires,
+      },
+    });
+
+    await this.mailService.sendOtpEmail(user.email, user.name, otp, 'RESET');
+
+    return { message: 'If the email exists, an OTP has been sent.' };
+  }
+
+  async resetPassword(data: {
+    email: string;
+    otp: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpires) {
+      throw new BadRequestException('Invalid OTP or email');
+    }
+
+    if (user.resetPasswordOtp !== data.otp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    if (new Date() > user.resetPasswordOtpExpires) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordOtp: null,
+        resetPasswordOtpExpires: null,
+      },
+    });
+
+    return { message: 'Password has been reset successfully.' };
+  }
+
+  async changePasswordRequest(userId: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        resetPasswordOtp: otp,
+        resetPasswordOtpExpires: expires,
+      },
+    });
+
+    await this.mailService.sendOtpEmail(user.email, user.name, otp, 'CHANGE');
+
+    return { message: 'OTP has been sent to your email.' };
+  }
+
+  async changePassword(
+    userId: string,
+    data: { otp: string; newPassword: string },
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpires) {
+      throw new BadRequestException('No password change request active');
+    }
+
+    if (user.resetPasswordOtp !== data.otp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    if (new Date() > user.resetPasswordOtpExpires) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        resetPasswordOtp: null,
+        resetPasswordOtpExpires: null,
+      },
+    });
+
+    return { message: 'Password changed successfully.' };
   }
 }
