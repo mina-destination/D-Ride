@@ -580,6 +580,7 @@ export class BookingsService {
               seatNumber: seatsStr,
               price: populated.amountEGP || 0,
             },
+            u?.email || '',
           );
         }
       } catch (err) {
@@ -631,6 +632,7 @@ export class BookingsService {
               seatNumber: seatsStr,
               price: populated.amountEGP || 0,
             },
+            u?.email || '',
           );
         }
       } catch (err) {
@@ -815,6 +817,7 @@ export class BookingsService {
             percentage: refundPercentage,
             reason: reason,
           },
+          u.email || '',
         );
       }
     } catch (err) {
