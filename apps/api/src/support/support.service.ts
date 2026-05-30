@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,6 +17,20 @@ export class SupportService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Limit active open tickets to mitigate database-flooding abuse / DDoS
+    const openTicketsCount = await this.prisma.supportTicket.count({
+      where: {
+        userId,
+        status: 'OPEN',
+      },
+    });
+
+    if (openTicketsCount >= 5) {
+      throw new BadRequestException(
+        'You have reached the maximum limit of 5 open support tickets. Please wait until your open tickets are resolved.',
+      );
     }
 
     const ticket = await this.prisma.supportTicket.create({
