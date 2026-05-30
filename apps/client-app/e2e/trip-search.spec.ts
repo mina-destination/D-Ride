@@ -35,8 +35,8 @@ test.describe('Trip Search Page', () => {
     const firstCard = tripCards.first();
     await expect(firstCard.locator('.trip-price')).toContainText('65 EGP');
 
-    // Available seats calculation: 14 available - 3 booked = 11 seats left
-    await expect(firstCard.locator('.trip-seats')).toContainText('11 seats left');
+    // Available seats calculation: 14 available - 3 booked - 1 locked = 10 seats left
+    await expect(firstCard.locator('.trip-seats')).toContainText('10 seats left');
 
     // Verify amenities render
     await expect(firstCard.locator('.trip-amenities')).toBeVisible();

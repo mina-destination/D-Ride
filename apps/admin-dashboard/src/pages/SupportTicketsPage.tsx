@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Drawer, Space, Tag, Input, Select, message, Popconfirm, Form, Timeline, Card, Avatar, Divider, Typography } from 'antd';
+import { Table, Button, Drawer, Space, Tag, Input, Select, Form, Timeline, Card, Avatar, Divider, Typography } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { useAuth } from '../context/AuthContext';
 import { supportAPI } from '../services/api';
 import { 

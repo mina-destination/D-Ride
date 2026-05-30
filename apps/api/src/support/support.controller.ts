@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Request,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,19 +35,19 @@ export class SupportController {
 
   @Roles('ADMIN')
   @Put('tickets/:id/resolve')
-  async resolveTicket(@Param('id') id: string) {
+  async resolveTicket(@Param('id', ParseUUIDPipe) id: string) {
     return this.supportService.resolveTicket(id);
   }
 
   @Roles('ADMIN')
   @Post('tickets/:id/reply')
-  async replyToTicket(@Param('id') id: string, @Body() data: ReplyTicketDto) {
+  async replyToTicket(@Param('id', ParseUUIDPipe) id: string, @Body() data: ReplyTicketDto) {
     return this.supportService.replyToTicket(id, data.text, data.adminName);
   }
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
   @Get('tickets/:id/messages')
-  async getMessages(@Request() req: any, @Param('id') id: string) {
+  async getMessages(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.supportService.getTicketMessages(id, req.user.sub);
   }
 

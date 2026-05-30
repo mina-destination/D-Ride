@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Form, Input, Space, message, Select, Tag, List, Rate, Avatar } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, Select, Tag, List, Rate, Avatar } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { usersAPI, reviewsAPI } from '../services/api';
 import { UserCog, Download } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
@@ -192,7 +194,15 @@ export function DriversPage() {
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
           <Button type="link" onClick={() => handleOpenReviewsModal(record)}>View Reviews</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
+          <Popconfirm
+            title="Delete driver?"
+            description="Are you sure you want to delete this driver?"
+            onConfirm={() => handleDelete(record._id)}
+            okText="Yes, Delete"
+            cancelText="No"
+          >
+            <Button type="link" danger>Delete</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -259,7 +269,7 @@ export function DriversPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnHidden
+        forceRender={true}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ status: 'ACTIVE' }}>
           <Form.Item 
@@ -307,7 +317,7 @@ export function DriversPage() {
           </Button>,
         ]}
         width={600}
-        destroyOnHidden
+        destroyOnClose={true}
       >
         <List
           loading={reviewsLoading}

@@ -1,23 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import api, { bookingsAPI, paymobAPI } from '../services/api';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
-import logo from '../assets/d-ride-logo.jpeg';
+
 import { Lock, Bus } from 'lucide-react';
-import { useNotifications } from '../context/NotificationContext';
 
 export default function PaymentPage() {
   const { t, isRtl } = useTranslation();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const navigate = useNavigate();
-  const { addNotification } = useNotifications();
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH'>('CARD');
-  const [allowCashOnDelivery, setAllowCashOnDelivery] = useState(true);
+  const [paymentMethod] = useState<'CARD'>('CARD');
 
   useEffect(() => {
     if (!bookingId) return;
@@ -30,21 +27,6 @@ export default function PaymentPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-
-
-
-    api.get('/paymob/features')
-      .then((res: any) => {
-        const allowed = res ? (res.allowCashOnDelivery ?? res.data?.allowCashOnDelivery) : false;
-        setAllowCashOnDelivery(!!allowed);
-        if (!allowed) {
-          setPaymentMethod(prev => prev === 'CASH' ? 'CARD' : prev);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to load feature flags:", err);
-        setAllowCashOnDelivery(true);
-      });
   }, [bookingId]);
 
   const handleCheckout = async () => {
@@ -60,18 +42,7 @@ export default function PaymentPage() {
       });
 
       // Redirect or navigate
-      if (paymentMethod === 'CASH') {
-        const routeName = isRtl
-          ? (booking.tripId?.routeId?.nameAr || booking.tripId?.routeId?.name || 'رحلتك')
-          : (booking.tripId?.routeId?.name || 'your commute');
-        addNotification(
-          isRtl ? 'تم تأكيد الحجز 🎫' : 'Booking Confirmed 🎫',
-          isRtl
-            ? `تم تأكيد حجز مقعدك لرحلة "${routeName}". يرجى الدفع نقداً عند صعود الحافلة.`
-            : `Your seat reservation for "${routeName}" is confirmed. Please pay cash on board.`
-        );
-        navigate('/my-trips');
-      } else if (paymobResult.redirectUrl) {
+      if (paymobResult.redirectUrl) {
         window.location.href = paymobResult.redirectUrl;
       } else if (paymobResult.iframeUrl) {
         window.location.href = paymobResult.iframeUrl;
@@ -127,10 +98,7 @@ export default function PaymentPage() {
         
         {/* Header Section */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <Link to="/">
-            <img src={logo} alt="D-Ride" className="auth-logo" />
-          </Link>
-          <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
+          <h1 style={{ color: 'var(--text-primary)', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {t('secureRidePayment')}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
@@ -252,8 +220,7 @@ export default function PaymentPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                 {/* Credit Card Card Option */}
                 <div 
-                  className={`payment-card-option ${paymentMethod === 'CARD' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('CARD')}
+                  className={`payment-card-option active`}
                 >
                   <div className="payment-card-radio">
                     <div className="payment-card-radio-inner" />
@@ -268,59 +235,24 @@ export default function PaymentPage() {
                     </span>
                   </div>
                 </div>
-
-                {/* Cash Card Option */}
-                {allowCashOnDelivery && (
-                  <div 
-                    className={`payment-card-option ${paymentMethod === 'CASH' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('CASH')}
-                  >
-                    <div className="payment-card-radio">
-                      <div className="payment-card-radio-inner" />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.2rem' }}>💵</span>
-                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{t('cashOptionTitle')}</strong>
-                      </div>
-                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        {t('cashOptionDesc')}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Dynamic instruction box based on choice */}
-              {paymentMethod === 'CARD' ? (
-                <div 
-                  className="success-box-opaque"
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    fontSize: '0.85rem',
-                    lineHeight: 1.4,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
-                >
-                  <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
-                </div>
-              ) : (
-                <div 
-                  className="warning-box-opaque"
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    fontSize: '0.85rem',
-                    lineHeight: 1.4
-                  }}
-                >
-                  🤝 {t('cashOnBoardInstructions', { amount: booking.amountEGP })}
-                </div>
-              )}
+              <div 
+                className="success-box-opaque"
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+              >
+                <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
+              </div>
             </div>
 
           </div>
@@ -421,9 +353,7 @@ export default function PaymentPage() {
               >
                 {processing 
                   ? t('processingPay') 
-                  : paymentMethod === 'CASH' 
-                    ? t('confirmCash') 
-                    : t('payViaPaymob', { amount: booking.amountEGP })
+                  : t('payViaPaymob', { amount: booking.amountEGP })
                 }
               </button>
               

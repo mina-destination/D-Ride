@@ -10,8 +10,8 @@ test.describe('Authentication Flow', () => {
     await page.goto('/login');
 
     // Page title and subtitles
-    await expect(page.locator('.auth-title')).toHaveText('Welcome Back');
-    await expect(page.locator('.auth-subtitle')).toHaveText('Sign in to book your ride');
+    await expect(page.locator('.auth-title')).toHaveText('Sign In to D-Ride');
+    await expect(page.locator('.auth-subtitle')).toHaveText('Enter your credentials to manage your commutes and book seats.');
 
     // Navbar should be hidden on login page
     await expect(page.locator('.nav')).not.toBeVisible();
@@ -42,8 +42,8 @@ test.describe('Authentication Flow', () => {
   test('should load register page and handle successful registration', async ({ page }) => {
     await page.goto('/register');
 
-    await expect(page.locator('.auth-title')).toHaveText('Create Account');
-    await expect(page.locator('.auth-subtitle')).toHaveText('Join the smarter commute');
+    await expect(page.locator('.auth-title')).toHaveText('Create Passenger Account');
+    await expect(page.locator('.auth-subtitle')).toHaveText("Join Egypt's premium commuter minibus network today.");
 
     // Navbar should be hidden on register page
     await expect(page.locator('.nav')).not.toBeVisible();
@@ -78,11 +78,11 @@ test.describe('Authentication Flow', () => {
     await page.goto('/login');
 
     // Go to register page
-    await page.click('a:has-text("Register")');
+    await page.click('a:has-text("Sign up now")');
     await expect(page).toHaveURL('/register');
 
     // Go to login page
-    await page.click('a:has-text("Sign In")');
+    await page.click('a:has-text("Sign in now")');
     await expect(page).toHaveURL('/login');
   });
 });

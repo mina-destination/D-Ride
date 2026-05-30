@@ -1,5 +1,26 @@
 import { Page } from '@playwright/test';
 
+export const MOCK_PARTNERS = [
+  {
+    _id: 'partner-1',
+    name: 'Cairo University',
+    logoUrl: 'https://via.placeholder.com/120',
+    websiteUrl: 'https://cu.edu.eg',
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    _id: 'partner-2',
+    name: 'Paymob Egypt',
+    logoUrl: 'https://via.placeholder.com/120',
+    websiteUrl: null,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
+
 export const MOCK_USER = {
   _id: 'user-123',
   name: 'Test Passenger',
@@ -148,6 +169,7 @@ export const MOCK_BOOKINGS = [
 ];
 
 export async function setupMockAPI(page: Page) {
+  const activeBookings = [...MOCK_BOOKINGS];
   // Block and abort all external third-party requests (maps, fonts, CDNs) to prevent DNS/network timeouts
   await page.route(
     (url) => !url.host.includes('localhost') && !url.host.includes('127.0.0.1'),
@@ -314,11 +336,15 @@ export async function setupMockAPI(page: Page) {
     const request = route.request();
     if (request.method() === 'POST') {
       const payload = request.postDataJSON();
+      // Look up full trip details for tripId
+      const tripDetail = MOCK_TRIPS.find(t => t._id === (payload?.tripId || 'trip-1')) || MOCK_TRIPS[0];
       const newBooking = {
         _id: 'booking-new-123',
         userId: 'user-123',
-        tripId: payload?.tripId || 'trip-1',
+        tripId: tripDetail,
         seatNumbers: payload?.seatNumbers || [1],
+        pickupStopId: payload?.pickupStopId || 'cp-1',
+        dropoffStopId: payload?.dropoffStopId || 'cp-3',
         pickupCheckpoint: payload?.pickupCheckpoint || MOCK_ROUTES[0].checkpoints[0],
         status: 'CONFIRMED', // Set to confirmed so it shows up in active trips
         paymentStatus: 'SUCCESS',
@@ -327,6 +353,7 @@ export async function setupMockAPI(page: Page) {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      activeBookings.push(newBooking);
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -334,6 +361,7 @@ export async function setupMockAPI(page: Page) {
       });
     }
   });
+
 
   // 11. Bookings Cancel Mocking
   await page.route(/\/api\/bookings\/.*\/cancel/, async (route) => {
@@ -351,8 +379,8 @@ export async function setupMockAPI(page: Page) {
       contentType: 'application/json',
       body: JSON.stringify({
         data: {
-          redirectUrl: 'http://localhost:5173/payment/callback?status=success&bookingId=booking-new-123',
-          iframeUrl: 'http://localhost:5173/payment/callback?status=success&bookingId=booking-new-123',
+          redirectUrl: 'http://localhost:5173/payment/callback?success=true&bookingId=booking-new-123&amount=65',
+          iframeUrl: 'http://localhost:5173/payment/callback?success=true&bookingId=booking-new-123&amount=65',
           orderId: 98765,
         },
       }),
@@ -369,34 +397,29 @@ export async function setupMockAPI(page: Page) {
   });
 
   // 14. Booking Details Mocking
-  await page.route(/\/api\/bookings\/[a-zA-Z0-9_-]+$/, async (route) => {
+  await page.route(/\/api\/bookings\/(?!my-bookings|occupied|cancel)[a-zA-Z0-9_-]+$/, async (route) => {
     const url = route.request().url();
     const bookingId = url.split('/').pop()?.split('?')[0];
-    if (bookingId === 'my-bookings') {
-      await route.fallback();
-      return;
-    }
+    const booking = activeBookings.find((b) => b._id === bookingId) || {
+      _id: bookingId || 'booking-new-123',
+      userId: 'user-123',
+      tripId: MOCK_TRIPS[0],
+      seatNumbers: [1],
+      pickupStopId: 'cp-1',
+      dropoffStopId: 'cp-3',
+      pickupCheckpoint: MOCK_ROUTES[0].checkpoints[0],
+      dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2],
+      status: 'PENDING',
+      paymentStatus: 'PENDING',
+      amountEGP: 65,
+      bookedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        data: {
-          _id: bookingId || 'booking-new-123',
-          userId: 'user-123',
-          tripId: MOCK_TRIPS[0],
-          seatNumbers: [1],
-          pickupStopId: 'cp-1',
-          dropoffStopId: 'cp-3',
-          pickupCheckpoint: MOCK_ROUTES[0].checkpoints[0],
-          dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2],
-          status: 'PENDING',
-          paymentStatus: 'PENDING',
-          amountEGP: 65,
-          bookedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      }),
+      body: JSON.stringify({ data: booking }),
     });
   });
 
@@ -407,8 +430,52 @@ export async function setupMockAPI(page: Page) {
       contentType: 'application/json',
       body: JSON.stringify({
         data: {
-          allowCashOnDelivery: true,
+          allowCashOnDelivery: false,
         }
+      }),
+    });
+  });
+
+  // 15b. Paymob Confirm Mocking
+  await page.route('**/api/paymob/confirm', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true
+      }),
+    });
+  });
+
+  // 16. Partners Mocking
+  await page.route('**/api/partners', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: MOCK_PARTNERS }),
+    });
+  });
+
+  // 17. Smart Search Mocking (for routes page trip counts)
+  await page.route('**/api/routes/smart-search*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [
+          {
+            trip: MOCK_TRIPS[0],
+            pickupCheckpoint: MOCK_ROUTES[0].checkpoints[1], // Ring Road
+            dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2], // Smart Village Gate
+            totalWalkingDistance: 120,
+          },
+          {
+            trip: MOCK_TRIPS[1],
+            pickupCheckpoint: MOCK_ROUTES[0].checkpoints[1], // Ring Road
+            dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2], // Smart Village Gate
+            totalWalkingDistance: 150,
+          }
+        ]
       }),
     });
   });

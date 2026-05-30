@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button, Popconfirm, message } from 'antd';
+import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { bookingsAPI } from '../services/api';
 import { CreditCard, TrendingUp, Target, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
@@ -75,7 +77,7 @@ export function PaymentsPage() {
       dataIndex: 'paymobOrderId',
       key: 'paymobOrderId',
       sorter: (a: any, b: any) => (a.paymobOrderId || 0) - (b.paymobOrderId || 0),
-      render: (val: number) => val ? <strong style={{ color: 'var(--primary-color)' }}>#{val}</strong> : <span style={{ color: 'var(--text-muted)' }}>Cash/Pending</span>,
+      render: (val: number) => val ? <strong style={{ color: 'var(--primary-color)' }}>#{val}</strong> : <span style={{ color: 'var(--text-muted)' }}>Pending</span>,
     },
     {
       title: 'Passenger',
@@ -176,7 +178,7 @@ export function PaymentsPage() {
 
   const handleExportData = (dataToExport: any[]) => {
     const headers = [
-      { key: 'paymobOrderId', label: 'Paymob Order ID', transform: (val: number) => val ? `#${val}` : 'Cash/Pending' },
+      { key: 'paymobOrderId', label: 'Paymob Order ID', transform: (val: number) => val ? `#${val}` : 'Pending' },
       { key: 'userId.name', label: 'Passenger Name' },
       { key: 'userId.phone', label: 'Passenger Phone' },
       { key: 'amountEGP', label: 'Amount (EGP)' },

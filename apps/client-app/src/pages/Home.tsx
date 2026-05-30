@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { routesAPI, partnersAPI } from '../services/api';
+import { routesAPI, partnersAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
 
@@ -73,6 +73,8 @@ function RouteSearchForm() {
     return `${year}-${month}-${day}`;
   }, []);
   const [passengers, setPassengers] = useState<number>(1);
+  const [maxAvailableSeats, setMaxAvailableSeats] = useState<number>(10);
+  const [isFetchingLimit, setIsFetchingLimit] = useState<boolean>(false);
   const navigate = useNavigate();
 
   // Swvl-style autocomplete states
@@ -90,6 +92,46 @@ function RouteSearchForm() {
   // Map modal states
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [mapPickerCoords, setMapPickerCoords] = useState<[number, number] | null>(null);
+
+  // Fetch dynamic capacity limit based on route and date
+  useEffect(() => {
+    if (fromStation && toStation && travelDate) {
+      const routeId = fromStation.routeId;
+      if (routeId) {
+        setIsFetchingLimit(true);
+        tripsAPI.search(routeId, travelDate)
+          .then((tripsList: any[]) => {
+            if (tripsList && tripsList.length > 0) {
+              const maxSeats = Math.max(...tripsList.map(trip => {
+                const lockedCount = trip.lockedSeats ? trip.lockedSeats.length : 0;
+                const seatsLeft = trip.availableSeats - trip.bookedSeats - lockedCount;
+                return Math.max(0, seatsLeft);
+              }));
+              // If there is capacity, cap the passenger counter at the maximum available seats, otherwise fallback to 10
+              setMaxAvailableSeats(maxSeats > 0 ? maxSeats : 10);
+            } else {
+              setMaxAvailableSeats(10); // Default fallback if no trips are scheduled yet
+            }
+          })
+          .catch(err => {
+            console.error('Failed to fetch seat limit:', err);
+            setMaxAvailableSeats(10); // Safe fallback
+          })
+          .finally(() => {
+            setIsFetchingLimit(false);
+          });
+      }
+    } else {
+      setMaxAvailableSeats(10); // Standard limit when fields are incomplete
+    }
+  }, [fromStation, toStation, travelDate]);
+
+  // Clamp current selection if it exceeds the dynamic limit
+  useEffect(() => {
+    if (passengers > maxAvailableSeats) {
+      setPassengers(Math.max(1, maxAvailableSeats));
+    }
+  }, [maxAvailableSeats, passengers]);
   const [nearestStationFromMap, setNearestStationFromMap] = useState<any>(null);
   const [mapLoading, setMapLoading] = useState(false);
 
@@ -729,14 +771,27 @@ function RouteSearchForm() {
                 <span className="passenger-count">{passengers}</span>
                 <button
                   type="button"
-                  onClick={() => setPassengers((p) => Math.min(10, p + 1))}
+                  onClick={() => setPassengers((p) => Math.min(maxAvailableSeats, p + 1))}
                   className="passenger-control-btn"
-                  disabled={passengers >= 10}
+                  disabled={passengers >= maxAvailableSeats}
                 >
                   +
                 </button>
               </div>
             </div>
+            {fromStation && toStation && (
+              <div style={{ fontSize: '0.75rem', color: maxAvailableSeats < 10 ? '#EF4444' : '#10B981', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                {isFetchingLimit ? (
+                  <span>Checking seat availability...</span>
+                ) : (
+                  <span>
+                    {maxAvailableSeats < 10 
+                      ? `⚠️ Only ${maxAvailableSeats} seats left on this date!` 
+                      : `✅ Up to ${maxAvailableSeats} seats available`}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

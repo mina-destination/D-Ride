@@ -10,12 +10,43 @@ import compression from 'compression';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const isProduction = process.env.NODE_ENV === 'production';
+
   // Integrate helmet middleware package for standard production HTTP security hardening
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: isProduction
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'https:'],
+              connectSrc: ["'self'"],
+              fontSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              frameSrc: ["'none'"],
+              baseUri: ["'self'"],
+              formAction: ["'self'"],
+            },
+          }
+        : false, // Swagger UI requires inline scripts and styles in non-production
+      crossOriginEmbedderPolicy: isProduction,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+      noSniff: true,
+      originAgentCluster: true,
+      dnsPrefetchControl: { allow: false },
+      frameguard: { action: 'deny' },
+      permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+    }),
+  );
 
   // Mitigate Memory Exhaustion and Payload Attacks by reducing body size limits
-  app.use(json({ limit: '2mb' }));
-  app.use(urlencoded({ extended: true, limit: '2mb' }));
+  app.use(json({ limit: '256kb' }));
+  app.use(urlencoded({ extended: true, limit: '256kb' }));
 
   const logger = new Logger('Bootstrap');
 
@@ -47,7 +78,6 @@ async function bootstrap() {
 
   // Enable CORS using environment-driven origin lookups (whitelisting passenger app, driver portal, and admin dashboard)
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
-  const isProduction = process.env.NODE_ENV === 'production';
   let origins: string[] = [];
 
   if (allowedOriginsEnv) {
@@ -75,6 +105,10 @@ async function bootstrap() {
   app.enableCors({
     origin: origins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    exposedHeaders: ['X-Request-ID'],
+    maxAge: 86400,
   });
 
   // Global API prefix
@@ -94,8 +128,23 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
+  // Enable graceful shutdown hooks
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  const server = await app.listen(port);
+
+  // Set server timeouts
+  if (typeof server.setTimeout === 'function') {
+    server.setTimeout(30000); // 30s max request duration
+  }
+  if ('keepAliveTimeout' in server) {
+    (server as any).keepAliveTimeout = 65000; // Must be > ALB idle timeout (60s)
+  }
+  if ('headersTimeout' in server) {
+    (server as any).headersTimeout = 66000;
+  }
+
   logger.log(`🚀 D-Ride API running on http://localhost:${port}/api`);
 
   if (process.env.NODE_ENV !== 'production') {
@@ -105,3 +154,13 @@ async function bootstrap() {
   }
 }
 bootstrap();
+
+// Uncaught exception handlers — prevent silent crashes
+process.on('unhandledRejection', (reason: any) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  process.exit(1);
+});

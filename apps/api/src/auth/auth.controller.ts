@@ -6,7 +6,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -18,12 +18,14 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
   @Post('register')
   async register(@Body() data: RegisterDto) {
     const result = await this.authService.register(data);
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(@Body() data: LoginDto) {
     const user = await this.authService.validateUser(data.email, data.password);

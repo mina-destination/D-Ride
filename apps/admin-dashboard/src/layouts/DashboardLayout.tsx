@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
@@ -25,8 +25,10 @@ const navItems = [
   
   { label: 'Finance & Sales', type: 'section' as const },
   { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
+  { path: '/refunds', icon: <Undo2 size={18} />, label: 'Refund Requests' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
   { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
+  { path: '/finance-calculator', icon: <Calculator size={18} />, label: 'Profit Simulator' },
   
   { label: 'Administration', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
@@ -41,8 +43,10 @@ const pageTitles: Record<string, string> = {
   '/vehicles': 'Vehicles',
   '/drivers': 'Drivers',
   '/bookings': 'Bookings',
+  '/refunds': 'Refund Requests',
   '/payments': 'Payments',
   '/analytics': 'Analytics & Profits',
+  '/finance-calculator': 'Route Profit & Cost Simulator',
   '/passengers': 'Passengers',
   '/crm': 'CRM',
   '/support-tickets': 'Support Tickets',
@@ -59,8 +63,10 @@ const pathPermissionMap: Record<string, string> = {
   '/vehicles': 'vehicles',
   '/drivers': 'drivers',
   '/bookings': 'bookings',
+  '/refunds': 'bookings',
   '/payments': 'payments',
   '/analytics': 'dashboard',
+  '/finance-calculator': 'dashboard',
   '/passengers': 'passengers',
   '/crm': 'crm',
   '/support-tickets': 'crm',
@@ -70,15 +76,10 @@ const pathPermissionMap: Record<string, string> = {
 };
 
 export default function DashboardLayout() {
-  const { user, logout, syncProfile } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Dynamically sync profile permissions on route changes
-  useEffect(() => {
-    syncProfile();
-  }, [location.pathname]);
 
   // Auto-collapse sidebar on mobile viewport sizes
   useEffect(() => {

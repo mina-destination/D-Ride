@@ -195,7 +195,7 @@ async function setupConsoleAndAPIMocks(page: any, role: 'OWNER' | 'DRIVER' | 'PA
       contentType: 'application/json',
       body: JSON.stringify({
         data: {
-          redirectUrl: 'http://localhost:5173/payment/callback?status=success&bookingId=booking-new-e2e',
+          redirectUrl: 'http://localhost:5173/payment/callback?success=true&bookingId=booking-new-e2e&amount=65',
         }
       }),
     });
@@ -205,7 +205,15 @@ async function setupConsoleAndAPIMocks(page: any, role: 'OWNER' | 'DRIVER' | 'PA
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ data: { allowCashOnDelivery: true } }),
+      body: JSON.stringify({ data: { allowCashOnDelivery: false } }),
+    });
+  });
+
+  await page.route('**/api/paymob/confirm', async (route: any) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
     });
   });
 
@@ -291,9 +299,9 @@ test.describe('D-Ride Multiview Dashboard Console Flow', () => {
     await page.click('.auth-button');
     await page.waitForURL(new RegExp('\\/payment\\?bookingId='));
 
-    // Choose cash payment method
-    await page.locator('.payment-card-option:has-text("Cash on Board")').click();
-    await page.click('button:has-text("Confirm Booking (Cash)")');
+    // Confirm booking via card (Card is active by default)
+    await page.click('button:has-text("Pay 65 EGP via Paymob")');
+    await page.click('button:has-text("View My Trips")');
 
     // Should redirect to My Trips page
     await page.waitForURL('http://localhost:5173/my-trips');

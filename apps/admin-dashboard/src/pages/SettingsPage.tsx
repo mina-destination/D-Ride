@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, message, InputNumber, Table, Checkbox, Spin } from 'antd';
+import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, InputNumber, Table, Checkbox, Spin } from 'antd';
+import { message } from '../utils/antdGlobal';
 import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usersAPI } from '../services/api';

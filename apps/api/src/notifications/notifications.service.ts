@@ -45,13 +45,23 @@ export class NotificationsService implements OnModuleInit {
     }
   }
 
+  private validatePhoneNumber(phone: string): boolean {
+    const e164Regex = /^\+?[1-9]\d{6,14}$/;
+    return e164Regex.test(phone);
+  }
+
   /**
    * Dispatches an SMS message.
    */
   async sendSMS(to: string, message: string): Promise<boolean> {
+    const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
+    if (!this.validatePhoneNumber(formattedTo)) {
+      this.logger.warn(`Invalid phone number format: ${to}. Skipping SMS dispatch.`);
+      return false;
+    }
+
     if (this.isTwilioConfigured && this.twilioClient) {
       try {
-        const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
         await this.twilioClient.messages.create({
           body: message,
           from: this.twilioPhone,
@@ -76,9 +86,14 @@ export class NotificationsService implements OnModuleInit {
    * Dispatches a WhatsApp message.
    */
   async sendWhatsApp(to: string, message: string): Promise<boolean> {
+    const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
+    if (!this.validatePhoneNumber(formattedTo)) {
+      this.logger.warn(`Invalid phone number format: ${to}. Skipping WhatsApp dispatch.`);
+      return false;
+    }
+
     if (this.isTwilioConfigured && this.twilioClient && this.twilioWhatsApp) {
       try {
-        const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
         await this.twilioClient.messages.create({
           body: message,
           from: `whatsapp:${this.twilioWhatsApp}`,
@@ -143,6 +158,62 @@ export class NotificationsService implements OnModuleInit {
       `*Thank you for riding with D-Ride!* 🚌`;
 
     // Send both for maximum visibility
+    await this.sendSMS(to, smsMessage);
+    await this.sendWhatsApp(to, whatsappMessage);
+  }
+
+  /**
+   * Sends a refund notification to the passenger.
+   */
+  async sendRefundNotification(
+    to: string,
+    passengerName: string,
+    refundDetails: {
+      routeName: string;
+      departureTime: string;
+      originalAmount: number;
+      refundAmount: number;
+      percentage: number;
+      reason: string;
+    },
+  ): Promise<void> {
+    const formattedDate = new Date(refundDetails.departureTime).toLocaleString(
+      'en-US',
+      {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    );
+
+    let statusText = '';
+    if (refundDetails.percentage === 100) {
+      statusText = `approved for 100% full refund (EGP ${refundDetails.refundAmount.toFixed(2)})`;
+    } else if (refundDetails.percentage === 50) {
+      statusText = `approved for 50% partial refund (EGP ${refundDetails.refundAmount.toFixed(2)})`;
+    } else {
+      statusText = `rejected (no refund)`;
+    }
+
+    const smsMessage =
+      `Hi ${passengerName}, your refund request for trip (${refundDetails.routeName} on ${formattedDate}) has been ${statusText}.\n\n` +
+      `Policy Reason: ${refundDetails.reason}.\n` +
+      `Thank you for using D-Ride!`;
+
+    const whatsappMessage =
+      `*D-Ride Refund Status Update* 💵\n\n` +
+      `Dear *${passengerName}*,\n` +
+      `Your refund request for the following booking has been processed:\n\n` +
+      `📍 *Route:* ${refundDetails.routeName}\n` +
+      `⏰ *Departure:* ${formattedDate}\n` +
+      `💰 *Original Amount:* EGP ${refundDetails.originalAmount.toFixed(2)}\n` +
+      `💸 *Refund Amount:* EGP ${refundDetails.refundAmount.toFixed(2)} (${refundDetails.percentage}%)\n` +
+      `📝 *Status:* ${statusText.toUpperCase()}\n` +
+      `📋 *Reason:* ${refundDetails.reason}\n\n` +
+      `*Thank you for choosing D-Ride!* 🚌`;
+
     await this.sendSMS(to, smsMessage);
     await this.sendWhatsApp(to, whatsappMessage);
   }

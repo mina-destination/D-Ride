@@ -4,9 +4,38 @@ import {
   IsNumber,
   IsOptional,
   IsUUID,
-  IsObject,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class LocationDto {
+  @IsString()
+  type: string;
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: number[];
+}
+
+class CheckpointDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  nameAr?: string;
+
+  @IsString()
+  type: string;
+
+  @IsNumber()
+  order: number;
+
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location: LocationDto;
+}
 
 export class CreateBookingDto {
   @IsUUID()
@@ -35,10 +64,12 @@ export class CreateBookingDto {
   dropoffCheckpointId?: string;
 
   @IsOptional()
-  @IsObject()
-  pickupCheckpoint?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => CheckpointDto)
+  pickupCheckpoint?: CheckpointDto;
 
   @IsOptional()
-  @IsObject()
-  dropoffCheckpoint?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => CheckpointDto)
+  dropoffCheckpoint?: CheckpointDto;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import logo from '../assets/d-ride-logo.jpeg';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+
 import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -17,10 +17,10 @@ export default function PaymentCallbackPage() {
     if (processedRef.current) return;
     processedRef.current = true;
 
-    // Paymob redirects with `success=true` or `success=false`
     const isSuccess = searchParams.get('success') === 'true';
     const bookingId = searchParams.get('bookingId');
     const amountStr = searchParams.get('amount');
+    const transactionId = searchParams.get('id');
     
     // In local development, the backend runs on localhost, so Paymob webhooks cannot reach it directly.
     // Therefore, we confirm the transaction on the backend directly via this redirect callback.
@@ -29,6 +29,7 @@ export default function PaymentCallbackPage() {
         bookingId,
         success: true,
         amount: amountStr ? parseFloat(amountStr) : undefined,
+        transactionId: transactionId || undefined,
       })
       .then(() => {
         setStatus('success');
@@ -48,13 +49,7 @@ export default function PaymentCallbackPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card glass" style={{ textAlign: 'center', maxWidth: '500px' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <Link to="/">
-            <img src={logo} alt="D-Ride" className="auth-logo" />
-          </Link>
-        </div>
-
+      <div className="auth-card glass" style={{ textAlign: 'center', maxWidth: '500px', paddingTop: '2.5rem' }}>
         {status === 'loading' && <p>{t('verifyingPayment')}</p>}
 
         {status === 'success' && (

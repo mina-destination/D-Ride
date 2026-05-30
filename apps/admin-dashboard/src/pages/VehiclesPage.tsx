@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Form, Input, Space, message, Select, InputNumber, Tag } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, Select, InputNumber, Tag } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { vehiclesAPI } from '../services/api';
 import { CarFront, Download } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
@@ -151,7 +153,15 @@ export function VehiclesPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id)}>Delete</Button>
+          <Popconfirm
+            title="Delete vehicle?"
+            description="Are you sure you want to delete this vehicle?"
+            onConfirm={() => handleDelete(record._id)}
+            okText="Yes, Delete"
+            cancelText="No"
+          >
+            <Button type="link" danger>Delete</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -232,7 +242,7 @@ export function VehiclesPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        destroyOnHidden
+        forceRender={true}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ capacity: 14, status: 'ACTIVE' }}>
           <Form.Item 

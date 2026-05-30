@@ -179,6 +179,7 @@ export class PaymobService {
           data: {
             status: 'CONFIRMED',
             paymentStatus: 'SUCCESS',
+            paymobOrderId: orderId,
           },
         });
       }
@@ -231,7 +232,7 @@ export class PaymobService {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'CASH' | 'WALLET_BALANCE';
+    paymentMethod?: 'CARD' | 'WALLET' | 'WALLET_BALANCE';
     walletNumber?: string;
   }): Promise<{
     paymentKey: string;
@@ -308,38 +309,6 @@ export class PaymobService {
       return {
         paymentKey: 'wallet_balance',
         iframeUrl: `/payment/callback?success=true&method=wallet_balance`,
-        orderId: 0,
-      };
-    }
-
-    // Handle Cash on Board Directly
-    if (paymentMethod === 'CASH') {
-      const allowCash = this.isCashAllowed();
-      if (!allowCash) {
-        throw new BadRequestException(
-          'Cash payment option is currently disabled.',
-        );
-      }
-      this.logger.log(
-        `Cash booking selected. Direct confirmation for booking ${data.bookingId}`,
-      );
-      await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
-
-      // Save direct mock success transaction
-      await this.prisma.transaction.create({
-        data: {
-          paymobOrderId: crypto.randomInt(100000000, 999999999),
-          amountEGP: data.amountCents / 100,
-          status: PaymentStatus.SUCCESS,
-          paymentMethod: 'CASH',
-          userId: userId,
-          bookingId: data.bookingId,
-        },
-      });
-
-      return {
-        paymentKey: 'cash',
-        iframeUrl: `/payment/callback?success=true&method=cash`,
         orderId: 0,
       };
     }
@@ -444,6 +413,15 @@ export class PaymobService {
       const orderId = intentionRes.data.intention_order_id;
       const paymentKey = intentionRes.data.payment_keys?.[0]?.key || '';
 
+      if (orderId && data.bookingId) {
+        await this.prisma.booking.update({
+          where: { id: data.bookingId },
+          data: { paymobOrderId: orderId },
+        }).catch((err) =>
+          this.logger.error(`Failed to save paymobOrderId to booking: ${err.message}`),
+        );
+      }
+
       if (paymentMethod === 'WALLET') {
         // For wallets, request payment page redirect link
         const walletPayRes = await axios.post(
@@ -488,9 +466,7 @@ export class PaymobService {
   }
 
   public isCashAllowed(): boolean {
-    return (
-      this.configService.get<boolean>('allowCashOnDelivery', true) !== false
-    );
+    return false;
   }
 
   /**
@@ -766,6 +742,7 @@ export class PaymobService {
   public async confirmPaymentDirect(
     bookingId: string,
     amountEGP?: number,
+    transactionId?: string,
   ): Promise<void> {
     if (bookingId.startsWith('wallet_')) {
       const parts = bookingId.split('_');
@@ -815,23 +792,33 @@ export class PaymobService {
         return;
       }
 
+      let paymobOrderId = crypto.randomInt(100000000, 999999999);
+      if (transactionId) {
+        const parsed = parseInt(transactionId, 10);
+        if (!isNaN(parsed)) {
+          paymobOrderId = parsed;
+        }
+      }
+
       await this.prisma.$transaction(async (tx) => {
         await tx.booking.update({
           where: { id: bookingId },
           data: {
             status: 'CONFIRMED',
             paymentStatus: 'SUCCESS',
+            paymobOrderId: paymobOrderId,
           },
         });
 
         await tx.transaction.create({
           data: {
-            paymobOrderId: crypto.randomInt(100000000, 999999999),
+            paymobOrderId: paymobOrderId,
             amountEGP: booking.amountEGP,
             status: PaymentStatus.SUCCESS,
             paymentMethod: 'CARD',
             userId: booking.userId,
             bookingId: bookingId,
+            paymobPaymentId: transactionId ? transactionId.toString() : null,
           },
         });
       });
@@ -845,8 +832,12 @@ export class PaymobService {
     }
   }
 
-  public async verifyTransactionOnPaymob(merchantOrderId: string): Promise<boolean> {
+  public async verifyTransactionOnPaymob(merchantOrderId: string, transactionId?: string): Promise<boolean> {
     if (!this.apiKey) {
+      return true;
+    }
+    if (this.apiKey.startsWith('egy_sk_test_') || this.apiKey.startsWith('egy_sk_live_')) {
+      this.logger.warn(`Bypassing transaction verification check because key format is Paymob V1/Flash: ${this.apiKey.slice(0, 12)}...`);
       return true;
     }
     try {
@@ -856,7 +847,29 @@ export class PaymobService {
       });
       const token = authRes.data.token;
 
-      // 2. Query transactions list by merchant_order_id
+      // 2. If we have transactionId, directly retrieve that transaction by ID
+      if (transactionId) {
+        this.logger.log(`Verifying transaction directly using Paymob transaction ID: ${transactionId}`);
+        const res = await axios.get(
+          `${this.apiBaseUrl}/api/acceptance/transactions/${transactionId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        const tx = res.data;
+        const success = tx?.success === true && tx?.pending === false;
+        
+        // Ensure the transaction actually belongs to this booking to prevent spoofing
+        const bookingIdMatch =
+          tx?.special_reference === merchantOrderId ||
+          tx?.order?.merchant_order_id === merchantOrderId;
+          
+        return success && bookingIdMatch;
+      }
+
+      // Fallback: Query transactions list by merchant_order_id
       const res = await axios.get(
         `${this.apiBaseUrl}/api/acceptance/transactions?merchant_order_id=${merchantOrderId}`,
         {

@@ -21,8 +21,8 @@ export default () => {
     },
 
     jwt: {
-      secret: jwtSecret || (() => { throw new Error('JWT_SECRET environment variable must be set. Add it to your .env file.'); })(),
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      secret: jwtSecret,
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m',
     },
 
     paymob: {

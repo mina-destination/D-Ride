@@ -11,6 +11,7 @@ import {
   Request,
   ForbiddenException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymobService } from './paymob.service';
 import { InitializeCheckoutDto } from './dto/initialize-checkout.dto';
@@ -27,6 +28,7 @@ export class PaymobController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Throttle({ short: { limit: 30, ttl: 60000 } })
   @Post('webhook')
   @UsePipes(
     new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false }),
@@ -103,12 +105,12 @@ export class PaymobController {
       }
 
       // 2. Perform server-side validation against Paymob API to prevent spoofing
-      const isValid = await this.paymobService.verifyTransactionOnPaymob(body.bookingId);
+      const isValid = await this.paymobService.verifyTransactionOnPaymob(body.bookingId, body.transactionId);
       if (!isValid) {
         throw new ForbiddenException('Payment verification failed on Paymob');
       }
 
-      await this.paymobService.confirmPaymentDirect(body.bookingId, body.amount);
+      await this.paymobService.confirmPaymentDirect(body.bookingId, body.amount, body.transactionId);
     }
     return { success: true };
   }

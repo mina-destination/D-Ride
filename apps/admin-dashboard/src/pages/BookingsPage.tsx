@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Space, message, Tag, Typography, Tooltip, Input, Select, Card, Popconfirm } from 'antd';
+import { Table, Button, Space, Tag, Typography, Tooltip, Input, Select, Card } from 'antd';
+import { Popconfirm } from '../components/Popconfirm';
+import { message } from '../utils/antdGlobal';
 import { bookingsAPI } from '../services/api';
 import { Ticket, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
@@ -202,9 +204,17 @@ export function BookingsPage() {
         <Space>
           {record.status !== 'CANCELLED' ? (
             <Tooltip title="Cancel this seat booking">
-              <Button type="link" danger onClick={() => handleCancel(record._id)}>
-                Cancel Booking
-              </Button>
+              <Popconfirm
+                title="Cancel this booking?"
+                description="Are you sure you want to cancel this booking?"
+                onConfirm={() => handleCancel(record._id)}
+                okText="Yes, Cancel"
+                cancelText="No"
+              >
+                <Button type="link" danger>
+                  Cancel Booking
+                </Button>
+              </Popconfirm>
             </Tooltip>
           ) : (
             <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No Actions</span>

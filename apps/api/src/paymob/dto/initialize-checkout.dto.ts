@@ -23,7 +23,7 @@ export class InitializeCheckoutDto {
 
   @IsString()
   @IsOptional()
-  paymentMethod?: 'CARD' | 'WALLET' | 'CASH';
+  paymentMethod?: 'CARD' | 'WALLET';
 
   @IsString()
   @IsOptional()
