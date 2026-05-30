@@ -184,77 +184,114 @@ export default function Navbar() {
           </Link>
         </li>
         {isAuthenticated ? (
-          <li className="profile-dropdown-container" ref={dropdownRef}>
-            <button 
-              className="profile-avatar-btn" 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              aria-label="User profile"
-              aria-expanded={isDropdownOpen}
-            >
-              {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
-            </button>
-            
-            <div className={`profile-dropdown ${isDropdownOpen ? 'open' : ''}`}>
-              <div className="profile-dropdown-header">
-                <div className="profile-dropdown-avatar">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : <User size={16} />}
+          <>
+            {/* Desktop-only Profile dropdown */}
+            <li className="profile-dropdown-container desktop-only" ref={dropdownRef}>
+              <button 
+                className="profile-avatar-btn" 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                aria-label="User profile"
+                aria-expanded={isDropdownOpen}
+              >
+                {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
+              </button>
+              
+              <div className={`profile-dropdown ${isDropdownOpen ? 'open' : ''}`}>
+                <div className="profile-dropdown-header">
+                  <div className="profile-dropdown-avatar">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : <User size={16} />}
+                  </div>
+                  <div className="profile-dropdown-info">
+                    <span className="profile-name">{user?.name}</span>
+                    <span className="profile-email">{user?.email}</span>
+                  </div>
                 </div>
-                <div className="profile-dropdown-info">
-                  <span className="profile-name">{user?.name}</span>
-                  <span className="profile-email">{user?.email}</span>
-                </div>
-              </div>
-              <hr className="profile-divider" />
-              <ul className="profile-dropdown-menu">
-                <li>
-                  <Link 
-                    to="/my-trips" 
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setIsOpen(false);
-                    }}
-                    className="profile-menu-item"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <MapPin size={16} /> <span>{t('myTrips')}</span>
-                    </div>
-                    <ChevronRight size={14} className="profile-menu-chevron" />
-                  </Link>
-                </li>
-                <li>
-                  <Link 
-                    to="/profile" 
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setIsOpen(false);
-                    }}
-                    className="profile-menu-item"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <User size={16} /> <span>{t('profile')}</span>
-                    </div>
-                    <ChevronRight size={14} className="profile-menu-chevron" />
-                  </Link>
-                </li>
+                <hr className="profile-divider" />
+                <ul className="profile-dropdown-menu">
+                  <li>
+                    <Link 
+                      to="/my-trips" 
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsOpen(false);
+                      }}
+                      className="profile-menu-item"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <MapPin size={16} /> <span>{t('myTrips')}</span>
+                      </div>
+                      <ChevronRight size={14} className="profile-menu-chevron" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/profile" 
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsOpen(false);
+                      }}
+                      className="profile-menu-item"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <User size={16} /> <span>{t('profile')}</span>
+                      </div>
+                      <ChevronRight size={14} className="profile-menu-chevron" />
+                    </Link>
+                  </li>
 
-                <li>
-                  <button 
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setIsOpen(false);
-                      handleLogout();
-                    }}
-                    className="profile-menu-item logout-btn"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <LogOut size={16} /> <span>{t('signOut')}</span>
-                    </div>
-                    <ChevronRight size={14} className="profile-menu-chevron" />
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </li>
+                  <li>
+                    <button 
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsOpen(false);
+                        handleLogout();
+                      }}
+                      className="profile-menu-item logout-btn"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <LogOut size={16} /> <span>{t('signOut')}</span>
+                      </div>
+                      <ChevronRight size={14} className="profile-menu-chevron" />
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </li>
+
+            {/* Mobile-only Profile items */}
+            <li className="mobile-only">
+              <Link 
+                to="/my-trips" 
+                onClick={() => setIsOpen(false)}
+                className={isRouteActive('/my-trips') ? 'nav-link-active' : ''}
+              >
+                <MapPin size={16} className="nav-mobile-icon" />
+                <span>{t('myTrips')}</span>
+              </Link>
+            </li>
+            <li className="mobile-only">
+              <Link 
+                to="/profile" 
+                onClick={() => setIsOpen(false)}
+                className={isRouteActive('/profile') ? 'nav-link-active' : ''}
+              >
+                <User size={16} className="nav-mobile-icon" />
+                <span>{t('profile')}</span>
+              </Link>
+            </li>
+            <li className="mobile-only">
+              <button 
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+                className="nav-mobile-logout"
+              >
+                <LogOut size={16} className="nav-mobile-icon" />
+                <span>{t('signOut')}</span>
+              </button>
+            </li>
+          </>
         ) : (
           <>
             <li><Link to="/login" className="nav-secondary" onClick={() => setIsOpen(false)}>{t('signIn')}</Link></li>
