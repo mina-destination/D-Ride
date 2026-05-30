@@ -6,6 +6,7 @@ import {
   IsUUID,
   IsString,
   ValidateNested,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -19,6 +20,14 @@ class LocationDto {
 }
 
 class CheckpointDto {
+  @IsOptional()
+  @IsString()
+  _id?: string;
+
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   name: string;
 
@@ -35,6 +44,46 @@ class CheckpointDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsObject()
+  prices?: Record<string, any>;
+
+  @IsOptional()
+  @IsNumber()
+  minutesFromStart?: number;
+
+  @IsOptional()
+  @IsNumber()
+  bufferTimeMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  priceFromStartEGP?: number;
+
+  @IsOptional()
+  @IsNumber()
+  geofenceRadiusMeters?: number;
+
+  @IsOptional()
+  @IsString()
+  estimatedDepartureTime?: string;
+
+  @IsOptional()
+  @IsString()
+  estimatedArrivalTime?: string;
+
+  @IsOptional()
+  @IsString()
+  localizedDepartureTime?: string;
+
+  @IsOptional()
+  @IsString()
+  localizedArrivalTime?: string;
 }
 
 export class CreateBookingDto {
