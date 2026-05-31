@@ -59,11 +59,13 @@ export class TripsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('pickupCheckpointName') pickupCheckpointName?: string,
     @Query('dropoffCheckpointName') dropoffCheckpointName?: string,
+    @Query('routeId') routeId?: string,
   ) {
     const trip = await this.tripsService.findById(
       id,
       pickupCheckpointName,
       dropoffCheckpointName,
+      routeId,
     );
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }

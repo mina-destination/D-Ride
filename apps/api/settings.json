@@ -1,0 +1,14 @@
+{
+  "appName": "D-Ride",
+  "currency": "EGP",
+  "supportEmail": "support@d-ride.net",
+  "supportPhone": "+20 100 123 4567",
+  "maxSeats": 4,
+  "bookingWindow": 14,
+  "cancelTimeout": 15,
+  "enableLiveTracking": true,
+  "gpsInterval": 5,
+  "paymobIntegrationId": "123456",
+  "paymobFrameId": "78901",
+  "isSandbox": true
+}

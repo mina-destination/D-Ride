@@ -340,7 +340,7 @@ export function RouteFinancePage() {
                   {/* Variable 3: Ticket Price */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <Text strong style={{ color: 'var(--text-primary)' }}>Ticket Ticket Price (EGP)</Text>
+                      <Text strong style={{ color: 'var(--text-primary)' }}>Ticket Price (EGP)</Text>
                       <InputNumber
                         min={30}
                         max={2000}

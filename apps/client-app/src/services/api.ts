@@ -137,7 +137,7 @@ export const authAPI = {
 
 
 export const routesAPI = {
-  getAll: (): Promise<any> => api.get('/routes'),
+  getAll: (includeVirtual = true): Promise<any> => api.get('/routes', { params: { includeVirtual } }),
   findNearby: (lat: number, lng: number, maxDistance?: number): Promise<any> =>
     api.get('/routes/nearby', { params: { lat, lng, maxDistance } }),
   getNearestCheckpoint: (routeId: string, lat: number, lng: number): Promise<any> =>
@@ -198,5 +198,9 @@ export const reviewsAPI = {
 
 export const partnersAPI = {
   getActive: (): Promise<any> => api.get('/partners'),
+};
+
+export const settingsAPI = {
+  get: (): Promise<any> => api.get('/settings'),
 };
 

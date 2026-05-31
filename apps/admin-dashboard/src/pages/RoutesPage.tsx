@@ -1099,7 +1099,7 @@ export function RoutesPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
-        width={1000}
+        width={1300}
         destroyOnHidden
       >
         <div style={{ margin: '1.5rem 0' }}>
@@ -1115,7 +1115,7 @@ export function RoutesPage() {
           />
         </div>
 
-        <div className="wizard-content" style={{ minHeight: '400px', display: 'grid', gridTemplateColumns: currentStep > 0 ? '420px 1fr' : '1fr', gap: '20px' }}>
+        <div className="wizard-content" style={{ minHeight: '600px', display: 'grid', gridTemplateColumns: currentStep > 0 ? '500px 1fr' : '1fr', gap: '24px' }}>
           
           {/* LEFT PANEL: CONFIGURATION CONTROLS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1373,22 +1373,44 @@ export function RoutesPage() {
                             />
                           </div>
 
-                          {/* Row 2: CITY (promoted first-class fields) */}
-                          <div>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#F5B731', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
-                              🏙️ City Leg
-                            </span>
-                            <Input 
-                              placeholder="e.g. Cairo, Alexandria"
-                              value={cp.city || ''}
-                              onChange={e => {
-                                const updated = [...checkpoints];
-                                updated[idx].city = e.target.value;
-                                setCheckpoints(updated);
-                              }}
-                              size="small"
-                              style={{ borderColor: cp.city ? '#10B981' : undefined }}
-                            />
+                          {/* Row 2: CITY & Stop Purpose */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#F5B731', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                🏙️ City Leg
+                              </span>
+                              <Input 
+                                placeholder="e.g. Cairo, Alexandria"
+                                value={cp.city || ''}
+                                onChange={e => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].city = e.target.value;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                style={{ borderColor: cp.city ? '#10B981' : undefined, width: '100%' }}
+                              />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '2px' }}>
+                                🛑 Stop Purpose
+                              </span>
+                              <Select
+                                value={cp.purpose || 'BOTH'}
+                                onChange={val => {
+                                  const updated = [...checkpoints];
+                                  updated[idx].purpose = val;
+                                  setCheckpoints(updated);
+                                }}
+                                size="small"
+                                style={{ width: '100%' }}
+                              >
+                                <Select.Option value="BOTH">Pickup & Dropoff</Select.Option>
+                                <Select.Option value="REST">Rest Stop Only</Select.Option>
+                                <Select.Option value="DROP_OFF">Drop-off Only</Select.Option>
+                                <Select.Option value="PICKUP">Pickup Only</Select.Option>
+                              </Select>
+                            </div>
                           </div>
 
                           {/* Row 3: Timing + Geofence (secondary config) */}
@@ -1488,12 +1510,17 @@ export function RoutesPage() {
                         </div>
                         {checkpoints.map((pickupCp, pIdx) => {
                           if (!pickupCp.prices) return null;
-                          return Object.entries(pickupCp.prices).map(([dropoffName, price]) => (
-                            <div key={`${pIdx}-${dropoffName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-primary)' }}>
-                              <span>✨ {pickupCp.name} ➔ {dropoffName}</span>
-                              <strong style={{ color: '#10B981' }}>{price as number} EGP</strong>
-                            </div>
-                          ));
+                          if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') return null;
+                          return Object.entries(pickupCp.prices).map(([dropoffName, price]) => {
+                            const dropoffCp = checkpoints.find(c => c.name === dropoffName);
+                            if (dropoffCp && (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP')) return null;
+                            return (
+                              <div key={`${pIdx}-${dropoffName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-primary)' }}>
+                                <span>✨ {pickupCp.name} ➔ {dropoffName}</span>
+                                <strong style={{ color: '#10B981' }}>{price as number} EGP</strong>
+                              </div>
+                            );
+                          });
                         })}
                       </div>
                     )}
@@ -1517,7 +1544,9 @@ export function RoutesPage() {
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
                       {checkpoints.slice(0, -1).map((pickupCp, pIdx) => {
+                        if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') return null;
                         return checkpoints.slice(pIdx + 1).map((dropoffCp) => {
+                          if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') return null;
                           const dropoffName = dropoffCp.name;
                           const customPrice = pickupCp.prices?.[dropoffName];
                           
@@ -1632,7 +1661,7 @@ export function RoutesPage() {
 
           {/* RIGHT PANEL: INTERACTIVE LEAFLET MAP */}
           {currentStep > 0 && (
-            <div style={{ height: '480px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ height: '680px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
               {snapping && (
                 <div style={{
                   position: 'absolute',

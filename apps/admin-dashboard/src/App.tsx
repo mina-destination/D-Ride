@@ -163,10 +163,15 @@ function DashboardIndexRoute() {
     'vehicles',
     'drivers',
     'bookings',
+    'refunds',
     'payments',
+    'analytics',
+    'finance-calculator',
     'passengers',
     'crm',
-    'settings'
+    'support-tickets',
+    'settings',
+    'partners'
   ].find(p => user.permissions?.includes(p));
   
   if (allowedPermission) {
@@ -176,10 +181,15 @@ function DashboardIndexRoute() {
       vehicles: '/vehicles',
       drivers: '/drivers',
       bookings: '/bookings',
+      refunds: '/refunds',
       payments: '/payments',
+      analytics: '/analytics',
+      'finance-calculator': '/finance-calculator',
       passengers: '/passengers',
       crm: '/crm',
-      settings: '/settings'
+      'support-tickets': '/support-tickets',
+      settings: '/settings',
+      partners: '/partners'
     };
     return <Navigate to={pathMap[allowedPermission]} replace />;
   }
@@ -211,16 +221,16 @@ function AppRoutes() {
         <Route path="vehicles" element={<ProtectedRoute permission="vehicles"><VehiclesPage /></ProtectedRoute>} />
         <Route path="drivers" element={<ProtectedRoute permission="drivers"><DriversPage /></ProtectedRoute>} />
         <Route path="bookings" element={<ProtectedRoute permission="bookings"><BookingsPage /></ProtectedRoute>} />
-        <Route path="refunds" element={<ProtectedRoute permission="bookings"><RefundsPage /></ProtectedRoute>} />
+        <Route path="refunds" element={<ProtectedRoute permission="refunds"><RefundsPage /></ProtectedRoute>} />
         <Route path="payments" element={<ProtectedRoute permission="payments"><PaymentsPage /></ProtectedRoute>} />
-        <Route path="analytics" element={<ProtectedRoute permission="dashboard"><AnalyticsPage /></ProtectedRoute>} />
-        <Route path="finance-calculator" element={<ProtectedRoute permission="dashboard"><RouteFinancePage /></ProtectedRoute>} />
+        <Route path="analytics" element={<ProtectedRoute permission="analytics"><AnalyticsPage /></ProtectedRoute>} />
+        <Route path="finance-calculator" element={<ProtectedRoute permission="finance-calculator"><RouteFinancePage /></ProtectedRoute>} />
         <Route path="passengers" element={<ProtectedRoute permission="passengers"><PassengersPage /></ProtectedRoute>} />
         <Route path="crm" element={<ProtectedRoute permission="crm"><CrmPage /></ProtectedRoute>} />
-        <Route path="support-tickets" element={<ProtectedRoute permission="crm"><SupportTicketsPage /></ProtectedRoute>} />
+        <Route path="support-tickets" element={<ProtectedRoute permission="support-tickets"><SupportTicketsPage /></ProtectedRoute>} />
         <Route path="administrators" element={<ProtectedRoute permission="settings"><AdministratorsPage /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute permission="settings"><SettingsPage /></ProtectedRoute>} />
-        <Route path="partners" element={<ProtectedRoute permission="settings"><PartnersPage /></ProtectedRoute>} />
+        <Route path="partners" element={<ProtectedRoute permission="partners"><PartnersPage /></ProtectedRoute>} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 

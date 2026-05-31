@@ -259,6 +259,17 @@ export class BookingsService {
           cp.name === data.dropoffStopId,
       );
 
+      if (pickupCp) {
+        if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') {
+          throw new BadRequestException(`Selected pickup checkpoint "${pickupCp.name}" is not available for boarding`);
+        }
+      }
+      if (dropoffCp) {
+        if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') {
+          throw new BadRequestException(`Selected dropoff checkpoint "${dropoffCp.name}" is not available for drop-off`);
+        }
+      }
+
       let segmentPrice = currentTrip.priceEGP || 0;
       let pickupCheckpointData = data.pickupCheckpoint || null;
       let dropoffCheckpointData = data.dropoffCheckpoint || null;

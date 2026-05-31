@@ -128,6 +128,8 @@ export default function CheckoutPage() {
     const dropoffCheckpointName = searchParams.get('dropoffCheckpointName');
 
     const checkpoints = trip.routeId.checkpoints || [];
+    const firstValidPickup = checkpoints.find((cp: any) => cp.purpose !== 'REST' && cp.purpose !== 'DROP_OFF') || checkpoints[0];
+    const lastValidDropoff = [...checkpoints].reverse().find((cp: any) => cp.purpose !== 'REST' && cp.purpose !== 'PICKUP') || checkpoints[checkpoints.length - 1];
 
     if (checkpointName) {
       const match = checkpoints.find((cp: any) => cp.name === checkpointName);
@@ -160,15 +162,15 @@ export default function CheckoutPage() {
                   setSelectedPickupCheckpoint(cp);
                   setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                 } else if (checkpoints.length > 0) {
-                  setSelectedPickupCheckpoint(checkpoints[0]);
-                  setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
+                  setSelectedPickupCheckpoint(firstValidPickup);
+                  setMapFocusCoords([firstValidPickup.location.coordinates[1], firstValidPickup.location.coordinates[0]]);
                 }
               })
               .catch(err => {
                 console.error(err);
                 if (checkpoints.length > 0) {
-                  setSelectedPickupCheckpoint(checkpoints[0]);
-                  setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
+                  setSelectedPickupCheckpoint(firstValidPickup);
+                  setMapFocusCoords([firstValidPickup.location.coordinates[1], firstValidPickup.location.coordinates[0]]);
                 }
               });
           }
@@ -176,21 +178,21 @@ export default function CheckoutPage() {
         (error) => {
           console.log("Geolocation error or denied:", error);
           if (!checkpointName && checkpoints.length > 0) {
-            setSelectedPickupCheckpoint(checkpoints[0]);
-            setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
+            setSelectedPickupCheckpoint(firstValidPickup);
+            setMapFocusCoords([firstValidPickup.location.coordinates[1], firstValidPickup.location.coordinates[0]]);
           }
         }
       );
     } else {
       if (!checkpointName && checkpoints.length > 0) {
-        setSelectedPickupCheckpoint(checkpoints[0]);
-        setMapFocusCoords([checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]]);
+        setSelectedPickupCheckpoint(firstValidPickup);
+        setMapFocusCoords([firstValidPickup.location.coordinates[1], firstValidPickup.location.coordinates[0]]);
       }
     }
 
     // Default dropoff to end if not specified
     if (!dropoffCheckpointName && checkpoints.length > 0) {
-      setSelectedDropoffCheckpoint(checkpoints[checkpoints.length - 1]);
+      setSelectedDropoffCheckpoint(lastValidDropoff);
     }
   }, [trip, searchParams]);
 
@@ -487,27 +489,38 @@ export default function CheckoutPage() {
                             <Popup>
                               <strong>{cp.name}</strong>
                               {cp.nameAr && <><br />{cp.nameAr}</>}
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                <button 
-                                  onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    setSelectedPickupCheckpoint(cp); 
-                                    setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                  }}
-                                  style={{ fontSize: '11px', padding: '6px 12px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                >
-                                  Set Pickup
-                                </button>
-                                <button 
-                                  onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    setSelectedDropoffCheckpoint(cp); 
-                                    setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                  }}
-                                  style={{ fontSize: '11px', padding: '6px 12px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                >
-                                  Set Dropoff
-                                </button>
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexDirection: 'column' }}>
+                                {cp.purpose === 'REST' && (
+                                  <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 'bold', marginBottom: '4px' }}>
+                                    {isRtl ? 'استراحة فقط - لا يمكن الحجز من/إلى هذا الموقف' : 'Rest Stop Only - Cannot book to/from here'}
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  {cp.purpose !== 'REST' && cp.purpose !== 'DROP_OFF' && (
+                                    <button 
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        setSelectedPickupCheckpoint(cp); 
+                                        setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                      }}
+                                      style={{ fontSize: '11px', padding: '6px 12px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                    >
+                                      Set Pickup
+                                    </button>
+                                  )}
+                                  {cp.purpose !== 'REST' && cp.purpose !== 'PICKUP' && (
+                                    <button 
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        setSelectedDropoffCheckpoint(cp); 
+                                        setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
+                                      }}
+                                      style={{ fontSize: '11px', padding: '6px 12px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                    >
+                                      Set Dropoff
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </Popup>
                           </Marker>
@@ -649,10 +662,17 @@ export default function CheckoutPage() {
                         dotInnerSize = '6px';
                         dotInnerBg = 'var(--primary)';
                       } else {
-                        dotBg = '#141416';
-                        dotBorder = '2px solid rgba(255,255,255,0.08)';
-                        dotSize = '16px';
-                        dotInnerSize = '4px';
+                        if (cp.purpose === 'REST') {
+                          dotBg = '#242426';
+                          dotBorder = '2px dashed rgba(239, 68, 68, 0.4)';
+                          dotSize = '16px';
+                          dotInnerSize = '4px';
+                        } else {
+                          dotBg = '#141416';
+                          dotBorder = '2px solid rgba(255,255,255,0.08)';
+                          dotSize = '16px';
+                          dotInnerSize = '4px';
+                        }
                       }
                       
                       return (
@@ -661,9 +681,11 @@ export default function CheckoutPage() {
                           onClick={() => {
                             let updated = false;
                             if (cpIdx < dropoffIdx) {
+                              if (cp.purpose === 'REST' || cp.purpose === 'DROP_OFF') return;
                               setSelectedPickupCheckpoint(cp);
                               updated = true;
                             } else if (cpIdx > pickupIdx) {
+                              if (cp.purpose === 'REST' || cp.purpose === 'PICKUP') return;
                               setSelectedDropoffCheckpoint(cp);
                               updated = true;
                             }
@@ -679,7 +701,8 @@ export default function CheckoutPage() {
                             minWidth: '110px',
                             zIndex: 1, 
                             position: 'relative', 
-                            cursor: 'pointer',
+                            cursor: cp.purpose === 'REST' ? 'not-allowed' : 'pointer',
+                            opacity: cp.purpose === 'REST' ? 0.4 : 1,
                           }}
                           className="p-3 touch-manipulation min-w-[48px] min-h-[48px] checkpoint-item"
                         >
@@ -739,6 +762,21 @@ export default function CheckoutPage() {
                               transition: 'all 0.2s'
                             }}>
                               {cp.nameAr}
+                            </span>
+                          )}
+                          {cp.purpose && cp.purpose !== 'BOTH' && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold',
+                              color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
+                              marginTop: '4px',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {cp.purpose === 'REST' 
+                                ? (isRtl ? 'استراحة فقط' : 'Rest Only') 
+                                : cp.purpose === 'DROP_OFF' 
+                                  ? (isRtl ? 'نزول فقط' : 'Drop Only') 
+                                  : (isRtl ? 'صعود فقط' : 'Pickup Only')}
                             </span>
                           )}
                         </div>

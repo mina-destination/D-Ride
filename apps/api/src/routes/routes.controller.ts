@@ -23,8 +23,9 @@ export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
   @Get()
-  async findAll() {
-    const routes = await this.routesService.findAll();
+  async findAll(@Query('includeVirtual') includeVirtual?: string) {
+    const showVirtual = includeVirtual === 'true';
+    const routes = await this.routesService.findAll(showVirtual);
     return { success: true, data: routes, timestamp: new Date().toISOString() };
   }
 
@@ -89,14 +90,14 @@ export class RoutesController {
   }
 
   @Get(':id')
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id') id: string) {
     const route = await this.routesService.findById(id);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
   @Get(':id/nearest-checkpoint')
   async findNearestCheckpoint(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Query('lat') lat: string,
     @Query('lng') lng: string,
   ) {
