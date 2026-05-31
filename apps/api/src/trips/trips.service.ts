@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
+import { getVirtualRoute } from '../utils/routes';
 
 @Injectable()
 export class TripsService {
@@ -15,6 +16,7 @@ export class TripsService {
     trip: any,
     pickupCheckpointName?: string,
     dropoffCheckpointName?: string,
+    virtualRouteId?: string,
   ) {
     if (!trip) return null;
 
@@ -22,8 +24,28 @@ export class TripsService {
     let pickupCheckpoint: any = null;
     let dropoffCheckpoint: any = null;
 
+    let actualPickupCpName = pickupCheckpointName;
+    let actualDropoffCpName = dropoffCheckpointName;
+
     if (trip.route) {
-      routeCopy = { ...trip.route };
+      if (virtualRouteId && virtualRouteId.includes('_sub_')) {
+        const parts = virtualRouteId.split('_sub_');
+        const indices = parts[1].split('_');
+        const startIndex = parseInt(indices[0], 10);
+        const endIndex = parseInt(indices[1], 10);
+
+        if (trip.route.checkpoints && Array.isArray(trip.route.checkpoints)) {
+          const cps = trip.route.checkpoints as any[];
+          if (cps[startIndex] && cps[endIndex]) {
+            actualPickupCpName = actualPickupCpName || cps[startIndex].name;
+            actualDropoffCpName = actualDropoffCpName || cps[endIndex].name;
+          }
+        }
+        routeCopy = getVirtualRoute(trip.route, startIndex, endIndex);
+      } else {
+        routeCopy = { ...trip.route };
+      }
+
       if (routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
         const depTime = new Date(trip.departureTime).getTime();
 
@@ -31,16 +53,16 @@ export class TripsService {
         let dropoffIdx = -1;
 
         routeCopy.checkpoints.forEach((cp: any, idx: number) => {
-          if (pickupCheckpointName && cp.name === pickupCheckpointName) {
+          if (actualPickupCpName && cp.name === actualPickupCpName) {
             pickupIdx = idx;
           }
-          if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
+          if (actualDropoffCpName && cp.name === actualDropoffCpName) {
             dropoffIdx = idx;
           }
         });
 
         // Directional Sequence Validation: Enforce pickup is strictly before dropoff
-        if (pickupCheckpointName && dropoffCheckpointName) {
+        if (actualPickupCpName && actualDropoffCpName) {
           if (
             pickupIdx === -1 ||
             dropoffIdx === -1 ||
@@ -59,7 +81,7 @@ export class TripsService {
             estimatedArrivalTime: new Date(depTime + offsetMs).toISOString(),
           };
 
-          if (pickupCheckpointName && cp.name === pickupCheckpointName) {
+          if (actualPickupCpName && cp.name === actualPickupCpName) {
             pickupCheckpoint = {
               ...cpWithTimes,
               localizedDepartureTime: new Date(
@@ -67,7 +89,7 @@ export class TripsService {
               ).toISOString(),
             };
           }
-          if (dropoffCheckpointName && cp.name === dropoffCheckpointName) {
+          if (actualDropoffCpName && cp.name === actualDropoffCpName) {
             dropoffCheckpoint = {
               ...cpWithTimes,
               localizedArrivalTime: new Date(depTime + offsetMs).toISOString(),
@@ -105,14 +127,14 @@ export class TripsService {
 
     if (pickupCheckpoint) {
       t.pickupCheckpoint = pickupCheckpoint;
-    } else if (pickupCheckpointName) {
-      t.pickupCheckpoint = { name: pickupCheckpointName };
+    } else if (actualPickupCpName) {
+      t.pickupCheckpoint = { name: actualPickupCpName };
     }
 
     if (dropoffCheckpoint) {
       t.dropoffCheckpoint = dropoffCheckpoint;
-    } else if (dropoffCheckpointName) {
-      t.dropoffCheckpoint = { name: dropoffCheckpointName };
+    } else if (actualDropoffCpName) {
+      t.dropoffCheckpoint = { name: actualDropoffCpName };
     }
 
     if (trip.vehicle) {
@@ -233,6 +255,7 @@ export class TripsService {
     id: string,
     pickupCheckpointName?: string,
     dropoffCheckpointName?: string,
+    virtualRouteId?: string,
   ): Promise<any> {
     await this.cleanupExpiredBookings(id);
     const trip = await this.prisma.trip.findUnique({
@@ -248,6 +271,7 @@ export class TripsService {
       trip,
       pickupCheckpointName,
       dropoffCheckpointName,
+      virtualRouteId,
     );
     if (!result) {
       throw new BadRequestException('Invalid route checkpoint sequence');
@@ -265,9 +289,35 @@ export class TripsService {
     // This avoids a heavy global updateMany that becomes a bottleneck under load.
 
     const where: any = { status: TripStatus.SCHEDULED };
-    if (routeId) {
-      where.routeId = routeId;
+    let actualRouteId = routeId;
+    let actualPickupCpName = pickupCheckpointName;
+    let actualDropoffCpName = dropoffCheckpointName;
+
+    if (routeId && routeId.includes('_sub_')) {
+      const parts = routeId.split('_sub_');
+      const parentId = parts[0];
+      const indices = parts[1].split('_');
+      const startIndex = parseInt(indices[0], 10);
+      const endIndex = parseInt(indices[1], 10);
+
+      actualRouteId = parentId;
+
+      const parentRoute = await this.prisma.route.findUnique({
+        where: { id: parentId },
+      });
+      if (parentRoute && parentRoute.checkpoints && Array.isArray(parentRoute.checkpoints)) {
+        const cps = parentRoute.checkpoints as any[];
+        if (cps[startIndex] && cps[endIndex]) {
+          actualPickupCpName = actualPickupCpName || cps[startIndex].name;
+          actualDropoffCpName = actualDropoffCpName || cps[endIndex].name;
+        }
+      }
     }
+
+    if (actualRouteId) {
+      where.routeId = actualRouteId;
+    }
+
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);
@@ -333,7 +383,7 @@ export class TripsService {
     return trips
       .map((t) => {
         t.bookedSeats = bookedSeatsMap[t.id] || 0;
-        return this.mapTrip(t, pickupCheckpointName, dropoffCheckpointName);
+        return this.mapTrip(t, actualPickupCpName, actualDropoffCpName, routeId);
       })
       .filter((t) => t !== null);
   }

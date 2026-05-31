@@ -163,14 +163,14 @@ export default function TripSearchPage() {
       const dropoffIdx = checkpoints.findIndex((c: any) => c.name === dropoffName);
 
       if (draggingTrip.type === 'pickup') {
-        if (closestIdx < dropoffIdx) {
+        if (closestIdx < dropoffIdx && targetCp.purpose !== 'REST' && targetCp.purpose !== 'DROP_OFF') {
           setSelectedCheckpoints(prev => ({
             ...prev,
             [tripId]: targetCp.name
           }));
         }
       } else if (draggingTrip.type === 'dropoff') {
-        if (closestIdx > pickupIdx) {
+        if (closestIdx > pickupIdx && targetCp.purpose !== 'REST' && targetCp.purpose !== 'PICKUP') {
           setSelectedDropoffCheckpoints(prev => ({
             ...prev,
             [tripId]: targetCp.name
@@ -1035,10 +1035,17 @@ export default function TripSearchPage() {
                                         dotInnerSize = '6px';
                                         dotInnerBg = 'var(--primary)';
                                       } else {
-                                        dotBg = '#141416';
-                                        dotBorder = '2px solid rgba(255,255,255,0.08)';
-                                        dotSize = '16px';
-                                        dotInnerSize = '4px';
+                                        if (cp.purpose === 'REST') {
+                                          dotBg = '#242426';
+                                          dotBorder = '2px dashed rgba(239, 68, 68, 0.4)';
+                                          dotSize = '16px';
+                                          dotInnerSize = '4px';
+                                        } else {
+                                          dotBg = '#141416';
+                                          dotBorder = '2px solid rgba(255,255,255,0.08)';
+                                          dotSize = '16px';
+                                          dotInnerSize = '4px';
+                                        }
                                       }
 
                                       const getPriceBetween = (pIdx: number, dIdx: number) => {
@@ -1080,11 +1087,13 @@ export default function TripSearchPage() {
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             if (cpIdx < dropoffIdx) {
+                                              if (cp.purpose === 'REST' || cp.purpose === 'DROP_OFF') return;
                                               setSelectedCheckpoints(prev => ({
                                                 ...prev,
                                                 [trip._id]: cp.name
                                               }));
                                             } else if (cpIdx > pickupIdx) {
+                                              if (cp.purpose === 'REST' || cp.purpose === 'PICKUP') return;
                                               setSelectedDropoffCheckpoints(prev => ({
                                                 ...prev,
                                                 [trip._id]: cp.name
@@ -1099,7 +1108,8 @@ export default function TripSearchPage() {
                                             minWidth: '110px',
                                             zIndex: 1, 
                                             position: 'relative', 
-                                            cursor: draggingTrip && draggingTrip.tripId === trip._id ? 'grabbing' : 'pointer',
+                                            cursor: cp.purpose === 'REST' ? 'not-allowed' : (draggingTrip && draggingTrip.tripId === trip._id ? 'grabbing' : 'pointer'),
+                                            opacity: cp.purpose === 'REST' ? 0.4 : 1,
                                             touchAction: 'none'
                                           }}
                                           className="checkpoint-step p-3 touch-manipulation min-w-[48px] min-h-[48px] checkpoint-item"
@@ -1179,6 +1189,22 @@ export default function TripSearchPage() {
                                               transition: 'all 0.2s'
                                             }}>
                                               {cp.nameAr}
+                                            </span>
+                                          )}
+
+                                          {cp.purpose && cp.purpose !== 'BOTH' && (
+                                            <span style={{
+                                              fontSize: '0.65rem',
+                                              fontWeight: 'bold',
+                                              color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
+                                              marginTop: '4px',
+                                              whiteSpace: 'nowrap'
+                                            }}>
+                                              {cp.purpose === 'REST' 
+                                                ? (isRtl ? 'استراحة فقط' : 'Rest Only') 
+                                                : cp.purpose === 'DROP_OFF' 
+                                                  ? (isRtl ? 'نزول فقط' : 'Drop Only') 
+                                                  : (isRtl ? 'صعود فقط' : 'Pickup Only')}
                                             </span>
                                           )}
 

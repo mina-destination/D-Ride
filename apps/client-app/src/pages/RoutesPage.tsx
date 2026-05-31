@@ -531,6 +531,25 @@ export default function RoutesPage() {
                             <strong style={{ fontSize: '1rem', color: 'var(--text-primary)', display: 'block' }}>{language === 'ar' && cp.nameAr ? cp.nameAr : cp.name}</strong>
                             {language === 'ar' && cp.name && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.name}</span>}
                             {language !== 'ar' && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.nameAr}</span>}
+                            {cp.purpose && cp.purpose !== 'BOTH' && (
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                marginTop: '6px',
+                                backgroundColor: cp.purpose === 'REST' ? 'rgba(239, 68, 68, 0.15)' : cp.purpose === 'DROP_OFF' ? 'rgba(245, 183, 49, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
+                                border: `1px solid ${cp.purpose === 'REST' ? 'rgba(239, 68, 68, 0.25)' : cp.purpose === 'DROP_OFF' ? 'rgba(245, 183, 49, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`
+                              }}>
+                                {cp.purpose === 'REST' 
+                                  ? (language === 'ar' ? 'استراحة فقط' : 'Rest Stop Only') 
+                                  : cp.purpose === 'DROP_OFF' 
+                                    ? (language === 'ar' ? 'نزول فقط' : 'Drop-off Only') 
+                                    : (language === 'ar' ? 'صعود فقط' : 'Pickup Only')}
+                              </span>
+                            )}
                           </div>
 
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: language === 'ar' ? 'left' : 'right', flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>

@@ -6,6 +6,7 @@ import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activi
 import { bookingsAPI, tripsAPI, vehiclesAPI, usersAPI } from '../services/api';
 import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 function MapPanController({ panTo }: { panTo: [number, number] | null }) {
   const map = useMap();
@@ -76,6 +77,7 @@ const getAreaPath = (points: { x: number; y: number }[]) => {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { theme } = useTheme();
   const mapTileUrl = theme === 'dark'
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -956,7 +958,15 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Bookings</h3>
-            <span className="card-action">View All →</span>
+            <span 
+              className="card-action" 
+              onClick={() => navigate('/bookings')} 
+              style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              View All →
+            </span>
           </div>
           <table className="data-table">
             <thead>
@@ -1052,7 +1062,15 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Activity</h3>
-            <span className="card-action">See All</span>
+            <span 
+              className="card-action" 
+              onClick={() => navigate('/crm')} 
+              style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              See All
+            </span>
           </div>
           <div className="card-body">
             <div className="activity-list">

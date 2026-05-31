@@ -9,31 +9,31 @@ import { Popover, List, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 
 const navItems = [
-  { label: 'Overview', type: 'section' as const },
+  { label: 'Overview & Insights', type: 'section' as const },
   { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   
-  { label: 'Fleet Operations', type: 'section' as const },
+  { label: 'Operations', type: 'section' as const },
   { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
   { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
   { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicles' },
   { path: '/drivers', icon: <UserCog size={18} />, label: 'Drivers' },
   
-  { label: 'Customer Relations', type: 'section' as const },
-  { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
-  { path: '/crm', icon: <Megaphone size={18} />, label: 'CRM' },
-  { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Tickets' },
-  
-  { label: 'Finance & Sales', type: 'section' as const },
+  { label: 'Sales & Finance', type: 'section' as const },
   { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
   { path: '/refunds', icon: <Undo2 size={18} />, label: 'Refund Requests' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
-  { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   { path: '/finance-calculator', icon: <Calculator size={18} />, label: 'Profit Simulator' },
   
-  { label: 'Administration', type: 'section' as const },
+  { label: 'CRM & Support', type: 'section' as const },
+  { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
+  { path: '/crm', icon: <Megaphone size={18} />, label: 'CRM' },
+  { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Tickets' },
+  { path: '/partners', icon: <Handshake size={18} />, label: 'Partners' },
+  
+  { label: 'System Settings', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
   { path: '/settings', icon: <Settings size={18} />, label: 'Settings' },
-  { path: '/partners', icon: <Handshake size={18} />, label: 'Partners' },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -63,16 +63,16 @@ const pathPermissionMap: Record<string, string> = {
   '/vehicles': 'vehicles',
   '/drivers': 'drivers',
   '/bookings': 'bookings',
-  '/refunds': 'bookings',
+  '/refunds': 'refunds',
   '/payments': 'payments',
-  '/analytics': 'dashboard',
-  '/finance-calculator': 'dashboard',
+  '/analytics': 'analytics',
+  '/finance-calculator': 'finance-calculator',
   '/passengers': 'passengers',
   '/crm': 'crm',
-  '/support-tickets': 'crm',
+  '/support-tickets': 'support-tickets',
   '/administrators': 'settings',
   '/settings': 'settings',
-  '/partners': 'settings',
+  '/partners': 'partners',
 };
 
 export default function DashboardLayout() {

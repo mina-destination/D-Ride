@@ -25,53 +25,81 @@ export class UsersService implements OnModuleInit {
   }
 
   private async seedDefaultPermissions() {
-    const count = await this.prisma.rolePermission.count();
-    if (count === 0) {
-      await this.prisma.rolePermission.createMany({
-        data: [
-          {
-            role: Role.SUPER_ADMIN,
-            permissions: [
-              'dashboard',
-              'routes',
-              'trips',
-              'vehicles',
-              'drivers',
-              'bookings',
-              'payments',
-              'passengers',
-              'crm',
-              'settings',
-            ],
-          },
-          {
-            role: Role.ADMIN,
-            permissions: [
-              'dashboard',
-              'routes',
-              'trips',
-              'vehicles',
-              'drivers',
-              'bookings',
-              'payments',
-              'passengers',
-              'crm',
-            ],
-          },
-          {
-            role: Role.OPERATION,
-            permissions: [
-              'dashboard',
-              'routes',
-              'trips',
-              'vehicles',
-              'drivers',
-              'bookings',
-            ],
-          },
+    const defaultPerms = [
+      {
+        role: Role.SUPER_ADMIN,
+        permissions: [
+          'dashboard',
+          'routes',
+          'trips',
+          'vehicles',
+          'drivers',
+          'bookings',
+          'refunds',
+          'payments',
+          'analytics',
+          'finance-calculator',
+          'passengers',
+          'crm',
+          'support-tickets',
+          'settings',
+          'partners',
         ],
-      });
-      console.log('Seeded default role permissions successfully');
+      },
+      {
+        role: Role.ADMIN,
+        permissions: [
+          'dashboard',
+          'routes',
+          'trips',
+          'vehicles',
+          'drivers',
+          'bookings',
+          'refunds',
+          'payments',
+          'analytics',
+          'passengers',
+          'crm',
+          'support-tickets',
+        ],
+      },
+      {
+        role: Role.OPERATION,
+        permissions: [
+          'dashboard',
+          'routes',
+          'trips',
+          'vehicles',
+          'drivers',
+          'bookings',
+          'support-tickets',
+        ],
+      },
+    ];
+
+    try {
+      for (const item of defaultPerms) {
+        const existing = await this.prisma.rolePermission.findUnique({
+          where: { role: item.role },
+        });
+        if (!existing) {
+          await this.prisma.rolePermission.create({
+            data: item,
+          });
+        } else {
+          const existingPermissions = (existing.permissions as string[]) || [];
+          const merged = Array.from(new Set([...existingPermissions, ...item.permissions]));
+          if (merged.length !== existingPermissions.length) {
+            await this.prisma.rolePermission.update({
+              where: { role: item.role },
+              data: { permissions: merged },
+            });
+          }
+        }
+      }
+      console.log('Seeded and verified default role permissions successfully');
+    } catch (err) {
+      console.error('Failed to seed default role permissions:', err);
     }
   }
 

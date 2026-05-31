@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistance } from '../utils/geo';
+import { getVirtualRoute } from '../utils/routes';
 
 @Injectable()
 export class RoutesService {
@@ -13,16 +14,56 @@ export class RoutesService {
 
   constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<any[]> {
-    this.logger.log('Fetching all routes');
+  async findAll(includeVirtual = false): Promise<any[]> {
+    this.logger.log(`Fetching all routes (includeVirtual: ${includeVirtual})`);
     const routes = await this.prisma.route.findMany({
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },
     });
-    return routes.map((r) => ({ ...r, _id: r.id }));
+    
+    const allRoutes: any[] = [];
+    for (const r of routes) {
+      allRoutes.push({ ...r, _id: r.id });
+
+      if (includeVirtual && r.checkpoints && Array.isArray(r.checkpoints) && r.checkpoints.length >= 2) {
+        const cps = r.checkpoints as any[];
+        const N = cps.length;
+        for (let i = 0; i < N; i++) {
+          const startCp = cps[i];
+          if (startCp.purpose === 'REST' || startCp.purpose === 'DROP_OFF') continue;
+
+          for (let j = i + 1; j < N; j++) {
+            const endCp = cps[j];
+            if (endCp.purpose === 'REST' || endCp.purpose === 'PICKUP') continue;
+
+            if (i === 0 && j === N - 1) continue; // Skip full route
+            allRoutes.push(getVirtualRoute(r, i, j));
+          }
+        }
+      }
+    }
+    return allRoutes;
   }
 
   async findById(id: string): Promise<any> {
+    if (id && id.includes('_sub_')) {
+      const parts = id.split('_sub_');
+      const parentId = parts[0];
+      const indices = parts[1].split('_');
+      const startIndex = parseInt(indices[0], 10);
+      const endIndex = parseInt(indices[1], 10);
+
+      const parentRoute = await this.prisma.route.findUnique({ where: { id: parentId } });
+      if (!parentRoute) {
+        throw new NotFoundException(`Route with ID ${id} not found`);
+      }
+      try {
+        return getVirtualRoute(parentRoute, startIndex, endIndex);
+      } catch (e: any) {
+        throw new BadRequestException(e.message);
+      }
+    }
+
     const route = await this.prisma.route.findUnique({ where: { id } });
     if (!route) {
       throw new NotFoundException(`Route with ID ${id} not found`);
@@ -163,6 +204,7 @@ export class RoutesService {
     let minDistance = Infinity;
 
     for (const checkpoint of route.checkpoints as any[]) {
+      if (checkpoint.purpose === 'REST') continue;
       if (!checkpoint.location || !checkpoint.location.coordinates) continue;
       const [cpLng, cpLat] = checkpoint.location.coordinates;
       const distance = getDistance(lng, lat, cpLng, cpLat);
@@ -306,8 +348,8 @@ export class RoutesService {
         const pickupMatches: number[] = [];
         const dropoffMatches: number[] = [];
         checkpoints.forEach((cp, idx) => {
-          if (this.matchesCity(cp, pickupCity)) pickupMatches.push(idx);
-          if (this.matchesCity(cp, dropoffCity)) dropoffMatches.push(idx);
+          if (cp.purpose !== 'REST' && cp.purpose !== 'DROP_OFF' && this.matchesCity(cp, pickupCity)) pickupMatches.push(idx);
+          if (cp.purpose !== 'REST' && cp.purpose !== 'PICKUP' && this.matchesCity(cp, dropoffCity)) dropoffMatches.push(idx);
         });
 
         // Find best directional pair (pickup before dropoff)
@@ -374,6 +416,7 @@ export class RoutesService {
         // Loop over checkpoints and ensure we only form pairs where i < j (pickup is strictly before dropoff)
         for (let i = 0; i < checkpoints.length; i++) {
           const cpI = checkpoints[i];
+          if (cpI.purpose === 'REST' || cpI.purpose === 'DROP_OFF') continue;
           if (!cpI.location?.coordinates) continue;
           const [cpILng, cpILat] = cpI.location.coordinates;
           const distToPickup = getDistance(
@@ -386,6 +429,7 @@ export class RoutesService {
 
           for (let j = i + 1; j < checkpoints.length; j++) {
             const cpJ = checkpoints[j];
+            if (cpJ.purpose === 'REST' || cpJ.purpose === 'PICKUP') continue;
             if (!cpJ.location?.coordinates) continue;
             const [cpJLng, cpJLat] = cpJ.location.coordinates;
             const distToDropoff = getDistance(
@@ -491,6 +535,7 @@ export class RoutesService {
     for (const route of routes) {
       const checkpoints = (route.checkpoints as any[]) || [];
       for (const cp of checkpoints) {
+        if (cp.purpose === 'REST') continue;
         if (!cp.location?.coordinates) continue;
         const [cpLng, cpLat] = cp.location.coordinates;
         const distance = getDistance(lng, lat, cpLng, cpLat);

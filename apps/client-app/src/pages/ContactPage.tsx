@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supportAPI } from '../services/api';
+import { supportAPI, settingsAPI } from '../services/api';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -15,18 +15,34 @@ export default function ContactPage() {
   });
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('dride_settings');
-    if (savedSettings) {
+    const fetchLatestSettings = async () => {
       try {
-        const parsed = JSON.parse(savedSettings);
-        setSupportInfo({
-          email: parsed.supportEmail || 'support@dride.com',
-          phone: parsed.supportPhone || '+20 100 123 4567'
-        });
-      } catch (e) {
-        console.error('Error parsing settings from localStorage', e);
+        const settings = await settingsAPI.get();
+        if (settings) {
+          setSupportInfo({
+            email: settings.supportEmail || 'support@dride.com',
+            phone: settings.supportPhone || '+20 100 123 4567'
+          });
+          localStorage.setItem('dride_settings', JSON.stringify(settings));
+        }
+      } catch (err) {
+        console.warn('Backend settings query failed, trying localStorage fallback...', err);
+        const savedSettings = localStorage.getItem('dride_settings');
+        if (savedSettings) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            setSupportInfo({
+              email: parsed.supportEmail || 'support@dride.com',
+              phone: parsed.supportPhone || '+20 100 123 4567'
+            });
+          } catch (e) {
+            console.error('Error parsing settings from localStorage fallback', e);
+          }
+        }
       }
-    }
+    };
+
+    fetchLatestSettings();
   }, []);
 
   const [subject, setSubject] = useState('');

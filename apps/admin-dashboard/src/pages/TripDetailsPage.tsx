@@ -753,7 +753,7 @@ export function TripDetailsPage() {
                   label: `${c.name} (${c.email || c.phone || 'No Contact Info'})`,
                 }))}
                 style={{ width: '100%' }}
-                locale={{ emptyText: 'No passengers registered yet' }}
+                notFoundContent="No passengers registered yet"
               />
             </div>
           ) : (

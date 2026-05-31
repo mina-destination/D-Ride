@@ -197,3 +197,9 @@ export const partnersAPI = {
   delete: (id: string): Promise<any> => api.delete(`/partners/${id}`),
 };
 
+// ── Settings API ────────────────────────────────────────────
+export const settingsAPI = {
+  get: (): Promise<any> => api.get('/settings'),
+  save: (data: any): Promise<any> => api.put('/settings', data),
+};
+

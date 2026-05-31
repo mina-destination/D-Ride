@@ -3,7 +3,7 @@ import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, I
 import { message } from '../utils/antdGlobal';
 import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI } from '../services/api';
+import { usersAPI, settingsAPI } from '../services/api';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -18,15 +18,20 @@ export function SettingsPage() {
 
   const permissionsList = [
     { key: 'dashboard', label: 'Dashboard' },
+    { key: 'analytics', label: 'Analytics' },
     { key: 'routes', label: 'Routes' },
     { key: 'trips', label: 'Trips' },
     { key: 'vehicles', label: 'Vehicles' },
     { key: 'drivers', label: 'Drivers' },
     { key: 'bookings', label: 'Bookings' },
+    { key: 'refunds', label: 'Refund Requests' },
     { key: 'payments', label: 'Payments' },
+    { key: 'finance-calculator', label: 'Profit Simulator' },
     { key: 'passengers', label: 'Passengers' },
     { key: 'crm', label: 'CRM (Users)' },
-    { key: 'settings', label: 'Settings' },
+    { key: 'support-tickets', label: 'Support Tickets' },
+    { key: 'settings', label: 'Settings & Admins' },
+    { key: 'partners', label: 'Partners' },
   ];
 
   const loadPermissions = async () => {
@@ -50,7 +55,21 @@ export function SettingsPage() {
     }
   };
 
+  const loadSystemSettings = async () => {
+    try {
+      setLoading(true);
+      const settings = await settingsAPI.get();
+      form.setFieldsValue(settings);
+      localStorage.setItem('dride_settings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to load system settings', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    loadSystemSettings();
     if (user?.role === 'OWNER') {
       loadPermissions();
     }
@@ -85,9 +104,8 @@ export function SettingsPage() {
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      localStorage.setItem('dride_settings', JSON.stringify(values));
+      const updated = await settingsAPI.save(values);
+      localStorage.setItem('dride_settings', JSON.stringify(updated));
       message.success('System settings updated successfully!');
     } catch (error) {
       message.error('Failed to save settings');
@@ -96,7 +114,7 @@ export function SettingsPage() {
     }
   };
 
-  // Load mock/saved initial values
+  // Load mock/saved initial values as a synchronous fallback prior to API promise resolving
   const getInitialValues = () => {
     const saved = localStorage.getItem('dride_settings');
     if (saved) return JSON.parse(saved);
@@ -279,7 +297,7 @@ export function SettingsPage() {
               <Spin tip="Loading permissions..." />
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-scroll-container">
               <Table
                 dataSource={['SUPER_ADMIN', 'ADMIN', 'OPERATION'].map(role => ({ key: role, role }))}
                 pagination={false}
@@ -297,6 +315,7 @@ export function SettingsPage() {
                     title: p.label,
                     key: p.key,
                     align: 'center' as const,
+                    width: 130,
                     render: (_: any, record: any) => (
                       <Checkbox
                         checked={rolePermissions[record.role]?.includes(p.key) || false}
@@ -324,7 +343,7 @@ export function SettingsPage() {
                     )
                   }
                 ]}
-                scroll={{ x: 1100 }}
+                scroll={{ x: 2200 }}
               />
             </div>
           )}
