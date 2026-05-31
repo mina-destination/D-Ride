@@ -1,9 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { UserPlus, RefreshCw } from 'lucide-react';
+
+function decodeJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      window
+        .atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -22,6 +39,70 @@ export default function RegisterPage() {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customEmail, setCustomEmail] = useState('');
+
+  // Real Google Sign-In setup
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const isGoogleConfigured = clientId && clientId !== 'your_google_client_id_here';
+
+    if (!isGoogleConfigured) return;
+
+    const handleCredentialResponse = async (response: any) => {
+      setGoogleLoading(true);
+      setError('');
+      try {
+        const credential = response.credential;
+        const payload = decodeJwt(credential);
+        const email = payload?.email || '';
+        const name = payload?.name || 'Google User';
+
+        await loginWithGoogle({ email, name, googleId: credential });
+        navigate('/');
+      } catch (err: any) {
+        setError(err?.message || 'Google Sign-In failed');
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    const initializeGoogle = () => {
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse,
+        });
+
+        const btnContainer = document.getElementById('google-signin-btn');
+        if (btnContainer) {
+          btnContainer.innerHTML = ''; // prevent duplicate buttons
+          (window as any).google.accounts.id.renderButton(
+            btnContainer,
+            { 
+              theme: 'outline', 
+              size: 'large', 
+              text: 'continue_with', 
+              shape: 'rectangular',
+              width: btnContainer.clientWidth || 340
+            }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to initialize Google Sign-In:', err);
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initializeGoogle();
+    } else {
+      const interval = setInterval(() => {
+        if ((window as any).google?.accounts?.id) {
+          clearInterval(interval);
+          initializeGoogle();
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [loginWithGoogle, navigate]);
 
   const handleOpenGoogleChooser = () => {
     setShowGoogleChooser(true);
@@ -161,37 +242,53 @@ export default function RegisterPage() {
         </div>
 
         {/* Google G-Button */}
-        <button 
-          type="button" 
-          onClick={handleOpenGoogleChooser}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            width: '100%',
-            padding: '0.75rem',
-            background: 'white',
-            color: '#1f2937',
-            border: 'none',
-            borderRadius: '12px',
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18">
-            <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
-            <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
-            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
-          </svg>
-          Continue with Google
-        </button>
+        {import.meta.env.VITE_GOOGLE_CLIENT_ID && 
+         import.meta.env.VITE_GOOGLE_CLIENT_ID !== 'your_google_client_id_here' ? (
+          <div 
+            id="google-signin-btn" 
+            style={{ 
+              width: '100%', 
+              minHeight: '44px', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              marginTop: '0.5rem',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          />
+        ) : (
+          <button 
+            type="button" 
+            onClick={handleOpenGoogleChooser}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              width: '100%',
+              padding: '0.75rem',
+              background: 'white',
+              color: '#1f2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18">
+              <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
+              <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
+            </svg>
+            Continue with Google
+          </button>
+        )}
 
         <div className="auth-switch">
           {t('alreadyHaveAccount')} <Link to="/login">{t('signInNow')}</Link>

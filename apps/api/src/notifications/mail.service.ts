@@ -118,6 +118,29 @@ export class MailService implements OnModuleInit {
     await this.sendMail(to, `${titleText} — D-Ride`, text, html);
   }
 
+  async sendWelcomeEmail(to: string, name: string): Promise<void> {
+    const text =
+      `Hi ${name},\n\n` +
+      `Welcome to D-Ride! Your passenger account has been successfully created.\n\n` +
+      `You can now book rides, manage bookings, and get ticket confirmations directly in your email.\n\n` +
+      `Thank you for choosing D-Ride!`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #0e0e1b; color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #f5b731; margin: 0;">Welcome to D-Ride! 🚌</h2>
+        </div>
+        <p>Dear ${name},</p>
+        <p>Welcome to D-Ride! Your passenger account has been successfully created.</p>
+        <p>You can now log in, book comfortable minibus rides, manage your tickets, and track drivers in real-time.</p>
+        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;" />
+        <p style="font-size: 11px; color: #737373; text-align: center;">D-Ride Operations Team &copy; 2026. Have a wonderful journey!</p>
+      </div>
+    `;
+
+    await this.sendMail(to, `Welcome to D-Ride! 🚌`, text, html);
+  }
+
   private logMockMessage(
     channel: string,
     to: string,

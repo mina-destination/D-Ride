@@ -349,35 +349,45 @@ export function SupportTicketsPage() {
               </h3>
               
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '24px', borderRadius: '8px' }}>
-                <Timeline>
-                  {/* Passenger Message */}
-                  <Timeline.Item color="blue" dot={<Avatar size="small" style={{ background: '#3b82f6' }}>P</Avatar>}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedTicket.name} (Passenger)</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        {new Date(selectedTicket.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <Card size="small" style={{ background: 'var(--background)', border: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
-                      {selectedTicket.message}
-                    </Card>
-                  </Timeline.Item>
-
-                  {/* Admin Replies */}
-                  {selectedTicket.replies?.map((reply: any, idx: number) => (
-                    <Timeline.Item key={idx} color="green" dot={<Avatar size="small" style={{ background: '#10b981' }}>A</Avatar>}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{reply.adminName || 'Admin'} (Support)</span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {new Date(reply.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <Card size="small" style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.1)', color: 'var(--text-primary)', fontSize: '13px' }}>
-                        {reply.text}
-                      </Card>
-                    </Timeline.Item>
-                  ))}
-                </Timeline>
+                <Timeline
+                  items={[
+                    {
+                      color: 'blue',
+                      dot: <Avatar size="small" style={{ background: '#3b82f6' }}>P</Avatar>,
+                      children: (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedTicket.name} (Passenger)</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {new Date(selectedTicket.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <Card size="small" style={{ background: 'var(--background)', border: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
+                            {selectedTicket.message}
+                          </Card>
+                        </>
+                      ),
+                    },
+                    ...(selectedTicket.replies?.map((reply: any, idx: number) => ({
+                      key: idx,
+                      color: 'green' as const,
+                      dot: <Avatar size="small" style={{ background: '#10b981' }}>A</Avatar>,
+                      children: (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{reply.adminName || 'Admin'} (Support)</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {new Date(reply.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <Card size="small" style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.1)', color: 'var(--text-primary)', fontSize: '13px' }}>
+                            {reply.text}
+                          </Card>
+                        </>
+                      ),
+                    })) || []),
+                  ]}
+                />
               </div>
             </div>
 

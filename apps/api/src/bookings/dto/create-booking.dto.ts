@@ -121,4 +121,15 @@ export class CreateBookingDto {
   @ValidateNested()
   @Type(() => CheckpointDto)
   dropoffCheckpoint?: CheckpointDto;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @IsOptional()
+  isReward?: boolean;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }

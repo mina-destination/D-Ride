@@ -106,7 +106,7 @@ export class SupportService {
       throw new NotFoundException('User not found');
     }
 
-    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION', 'OWNER'].includes(user.role);
     if (!isAdmin) {
       const ticket = await this.prisma.supportTicket.findUnique({
         where: { id: ticketId },

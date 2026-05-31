@@ -9,15 +9,15 @@ export interface PopconfirmProps {
   okText?: string;
   cancelText?: string;
   okButtonProps?: { danger?: boolean };
-  children: React.ReactElement;
+  children: React.ReactNode;
 }
 
 export function Popconfirm({
   title,
   description = '',
   onConfirm,
-  okText = 'Yes',
-  cancelText = 'No',
+  okText,
+  cancelText,
   okButtonProps,
   children,
 }: PopconfirmProps) {
@@ -41,15 +41,32 @@ export function Popconfirm({
     });
   };
 
-  const child = children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>;
-
-  return React.cloneElement(child, {
-    onClick: (e: React.MouseEvent) => {
-      // Execute original child onClick if any
-      if (child.props.onClick) {
-        child.props.onClick(e);
+  // Clone the child element and attach the click handler directly to ensure it triggers correctly.
+  // This is much safer than a span wrapper because it avoids nested block-in-inline issues and
+  // attaches the handler directly to the actual interactive element.
+  if (React.isValidElement(children)) {
+    const child = children as React.ReactElement<any>;
+    return React.cloneElement(child, {
+      onClick: (e: React.MouseEvent) => {
+        // Call the original onClick if it exists
+        if (child.props && typeof child.props.onClick === 'function') {
+          child.props.onClick(e);
+        }
+        handleClick(e);
       }
-      handleClick(e);
-    },
-  });
+    });
+  }
+
+  // Fallback to span wrapper if child is not a valid React element
+  return (
+    <span
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      style={{ display: 'inline-block', cursor: 'pointer' }}
+    >
+      {children}
+    </span>
+  );
 }
+

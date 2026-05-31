@@ -107,7 +107,7 @@ export function DriversPage() {
         message.success('Driver updated successfully');
       } else {
         await usersAPI.create({ ...values, role: 'DRIVER' });
-        message.success('Driver registered successfully with default password.');
+        message.success('Driver registered successfully.');
       }
       setIsModalOpen(false);
       fetchDrivers();
@@ -293,6 +293,15 @@ export function DriversPage() {
           >
             <Input />
           </Form.Item>
+          {!editingId && (
+            <Form.Item 
+              name="password" 
+              label="Password" 
+              rules={[{ required: true, message: 'Please input a password for the driver!' }]}
+            >
+              <Input.Password />
+            </Form.Item>
+          )}
           <Form.Item 
             name="status" 
             label="Status" 

@@ -60,11 +60,17 @@ api.interceptors.response.use(
       const isSearch = url?.includes('/search') || url?.includes('/nearby');
       
       if (!isAuth && !isLocation && !isSearch) {
+        const raw = response.data;
+        const isEnvelopeMessage =
+          raw &&
+          typeof raw === 'object' &&
+          typeof raw.message === 'string' &&
+          ('success' in raw || 'statusCode' in raw);
         let msg = 'Action completed successfully';
-        if (response.data && typeof response.data === 'object' && response.data.message) {
-          msg = response.data.message;
-        } else if (response.data && typeof response.data === 'string') {
-          msg = response.data;
+        if (isEnvelopeMessage) {
+          msg = raw.message;
+        } else if (typeof raw === 'string') {
+          msg = raw;
         }
         if (apiToastCallback) {
           apiToastCallback('Success', msg, 'success');

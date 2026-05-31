@@ -70,6 +70,11 @@ export class AuthService {
 
     this.logger.log(`User registered: ${user.email} (${user.role})`);
 
+    // Asynchronously send a welcome email
+    this.mailService.sendWelcomeEmail(user.email, user.name).catch((err) => {
+      this.logger.error(`Failed to send welcome email to ${user.email}:`, err);
+    });
+
     const payload = { sub: user.id, email: user.email, role: user.role };
     const permissions = await this.getPermissionsForRole(user.role);
     return {
@@ -199,6 +204,13 @@ export class AuthService {
         },
       });
       this.logger.log(`Google User registered: ${user.email} (${user.role})`);
+
+      // Asynchronously send a welcome email
+      const userEmail = user.email;
+      const userName = user.name;
+      this.mailService.sendWelcomeEmail(userEmail, userName).catch((err) => {
+        this.logger.error(`Failed to send welcome email to ${userEmail}:`, err);
+      });
     } else {
       this.logger.log(`Google User logged in: ${user.email}`);
     }
