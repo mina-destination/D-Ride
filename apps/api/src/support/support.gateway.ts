@@ -83,7 +83,7 @@ export class SupportGateway
     const user = client.user;
     const role = (user?.role || '').toUpperCase();
 
-    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION') {
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OPERATION' || role === 'OWNER') {
       client.join('support_operators');
       this.logger.log(
         `Support client ${client.id} (User: ${user?.id || 'unknown'}, Role: ${user?.role || 'none'}) joined support_operators room`,
@@ -110,7 +110,7 @@ export class SupportGateway
       return { event: 'error', message: 'Unauthorized' };
     }
 
-    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION', 'OWNER'].includes(user.role);
     if (!isAdmin) {
       // Verify that the ticket is owned by the authenticated user
       const ticket = await this.prisma.supportTicket.findUnique({

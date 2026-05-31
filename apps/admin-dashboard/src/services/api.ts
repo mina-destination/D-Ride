@@ -52,11 +52,20 @@ api.interceptors.response.use(
       const isSearch = url?.includes('/search') || url?.includes('/nearby');
       
       if (!isAuth && !isLocation && !isSearch) {
+        // Only use response.data.message as toast when it's clearly an API
+        // envelope message (has 'success' or 'statusCode' field), not a data
+        // record that happens to have a 'message' property (e.g. support tickets).
+        const raw = response.data;
+        const isEnvelopeMessage =
+          raw &&
+          typeof raw === 'object' &&
+          typeof raw.message === 'string' &&
+          ('success' in raw || 'statusCode' in raw);
         let msg = 'Action completed successfully';
-        if (response.data && typeof response.data === 'object' && response.data.message) {
-          msg = response.data.message;
-        } else if (response.data && typeof response.data === 'string') {
-          msg = response.data;
+        if (isEnvelopeMessage) {
+          msg = raw.message;
+        } else if (typeof raw === 'string') {
+          msg = raw;
         }
         message.success(msg);
       }

@@ -24,28 +24,28 @@ export class SupportController {
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
   @Throttle({
-    short: { limit: 1, ttl: 10000 },
-    medium: { limit: 3, ttl: 60000 },
-    long: { limit: 10, ttl: 3600000 },
+    short: { limit: 5, ttl: 10000 },
+    medium: { limit: 10, ttl: 60000 },
+    long: { limit: 30, ttl: 3600000 },
   })
   @Post('submit')
   async submitTicket(@Request() req: any, @Body() data: SubmitTicketDto) {
     return this.supportService.submitTicket(req.user.sub, data);
   }
 
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION')
   @Get('tickets')
   async getTickets() {
     return this.supportService.getAllTickets();
   }
 
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION')
   @Put('tickets/:id/resolve')
   async resolveTicket(@Param('id', ParseUUIDPipe) id: string) {
     return this.supportService.resolveTicket(id);
   }
 
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION')
   @Post('tickets/:id/reply')
   async replyToTicket(
     @Param('id', ParseUUIDPipe) id: string,

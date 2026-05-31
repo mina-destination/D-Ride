@@ -93,8 +93,12 @@ export class UsersService implements OnModuleInit {
   }
 
   async findAllByRole(role: string, limit = 100): Promise<any[]> {
+    const roleUpper = role.toUpperCase();
+    if (!Object.values(Role).includes(roleUpper as Role)) {
+      return [];
+    }
     const users = await this.prisma.user.findMany({
-      where: { role: role.toUpperCase() as Role },
+      where: { role: roleUpper as Role },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -110,7 +114,16 @@ export class UsersService implements OnModuleInit {
   }
 
   async findPaginated(role?: string, skip = 0, take = 20): Promise<any> {
-    const where = role ? { role: role.toUpperCase() as Role } : {};
+    const roleUpper = role?.toUpperCase();
+    if (roleUpper && !Object.values(Role).includes(roleUpper as Role)) {
+      return {
+        users: [],
+        total: 0,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+      };
+    }
+    const where = roleUpper ? { role: roleUpper as Role } : {};
     const [total, users] = await Promise.all([
       this.prisma.user.count({ where }),
       this.prisma.user.findMany({

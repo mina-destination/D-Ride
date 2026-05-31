@@ -448,13 +448,15 @@ export class BookingsService {
         );
       }
 
-      const amountEGP = segmentPrice * requestedSeats;
-      let bookingStatus: BookingStatus = BookingStatus.PENDING_PAYMENT;
-      let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
+      const isReward = !!data.isReward;
+      const amountEGP = isReward ? 0 : (segmentPrice * requestedSeats);
+      let bookingStatus: BookingStatus = isReward ? BookingStatus.CONFIRMED : BookingStatus.PENDING_PAYMENT;
+      let paymentStatus: PaymentStatus = isReward ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
 
       const isWallet =
-        data.paymentMethod === 'WALLET' ||
-        data.paymentMethod === 'WALLET_BALANCE';
+        !isReward &&
+        (data.paymentMethod === 'WALLET' ||
+          data.paymentMethod === 'WALLET_BALANCE');
 
       if (isWallet) {
         const user = await tx.user.findUnique({
@@ -531,15 +533,17 @@ export class BookingsService {
       // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
       await this.cleanupExpiredBookings(tripIdStr, tx);
 
-      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if WALLET payment
-      if (isWallet) {
+      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if WALLET or REWARD payment
+      if (isWallet || isReward) {
         await tx.transaction.create({
           data: {
             bookingId: newBooking.id,
             userId: data.userId.toString(),
             amountEGP,
             status: PaymentStatus.SUCCESS,
-            paymentMethod: data.paymentMethod || 'WALLET',
+            paymentMethod: isReward
+              ? (data.paymentMethod || 'ADMIN_REWARD')
+              : (data.paymentMethod || 'WALLET'),
           },
         });
       }

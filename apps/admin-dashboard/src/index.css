@@ -1276,7 +1276,7 @@ a.sidebar-item {
   animation: pulse-slow 3s infinite ease-in-out;
 }
 
-.ant-modal-content {
+.confirm-modal .ant-modal-content {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -1331,5 +1331,208 @@ a.sidebar-item {
   background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* ── Visual Minibus Layout ── */
+.bus-cabin {
+  width: 100%;
+  max-width: 280px;
+  background: rgba(10, 10, 18, 0.4);
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top: 6px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50px 50px 12px 12px;
+  padding: 1.5rem 1.25rem 1.5rem;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 1.5rem auto;
+}
+
+[data-theme="light"] .bus-cabin {
+  background: rgba(243, 244, 246, 0.8);
+  border-color: rgba(209, 213, 219, 1);
+  border-top-color: rgba(209, 213, 219, 1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+}
+
+.bus-cabin::before {
+  content: '';
+  position: absolute;
+  top: 32px;
+  left: -14px;
+  width: 10px;
+  height: 22px;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+[data-theme="light"] .bus-cabin::before {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.bus-cabin::after {
+  content: '';
+  position: absolute;
+  top: 32px;
+  right: -14px;
+  width: 10px;
+  height: 22px;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+[data-theme="light"] .bus-cabin::after {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.bus-windshield {
+  width: calc(100% + 2px);
+  margin-left: -1px;
+  height: 16px;
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.15) 0%, rgba(100, 180, 255, 0.05) 100%);
+  border: 2px solid rgba(100, 180, 255, 0.25);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  position: relative;
+}
+
+.cabin-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  align-items: center;
+}
+
+.cabin-aisle {
+  width: 30px;
+  height: 38px;
+  position: relative;
+}
+
+.cabin-aisle::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  opacity: 0.4;
+}
+
+.bus-seat {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px 8px 4px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-secondary) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+
+[data-theme="light"] .bus-seat {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+  color: #1f2937 !important;
+}
+
+.bus-seat-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.bus-seat.occupied {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.15) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  color: #10b981 !important;
+  cursor: pointer;
+}
+
+[data-theme="light"] .bus-seat.occupied {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #047857 !important;
+}
+
+.bus-seat.locked-luggage {
+  background: linear-gradient(135deg, rgba(245, 183, 49, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%) !important;
+  border-color: rgba(245, 183, 49, 0.6) !important;
+  color: #f5b731 !important;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .bus-seat.locked-luggage {
+  background: rgba(245, 183, 49, 0.1) !important;
+  border-color: rgba(245, 183, 49, 0.4) !important;
+  color: #b45309 !important;
+}
+
+.bus-seat.driver {
+  background: transparent !important;
+  border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .bus-seat.driver {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Opaque style overrides for sub-components in checkout to prevent transparency issues */
+.windshield-opaque {
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.12) 0%, rgba(100, 180, 255, 0.04) 100%) !important;
+  border: 2px solid rgba(100, 180, 255, 0.2) !important;
+  border-top: none !important;
+  opacity: 1 !important;
+}
+
+[data-theme="light"] .windshield-opaque {
+  background: linear-gradient(180deg, rgba(100, 180, 255, 0.12) 0%, rgba(100, 180, 255, 0.04) 100%) !important;
+  border-color: rgba(100, 180, 255, 0.25) !important;
+}
+
+.door-entry-opaque {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1.5px solid var(--primary-color, var(--primary, #f5b731)) !important;
+  color: var(--primary-color, var(--primary, #f5b731)) !important;
+  opacity: 1 !important;
+}
+
+[data-theme="light"] .door-entry-opaque {
+  background: #ffffff !important;
+  color: var(--primary-color, var(--primary, #b45309)) !important;
+}
+
+.warning-box-opaque {
+  background: rgba(245, 183, 49, 0.1) !important;
+  border: 1.5px solid #f5b731 !important;
+  color: #f5b731 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="light"] .warning-box-opaque {
+  background: #fffbeb !important;
+  color: #b45309 !important;
 }
 
