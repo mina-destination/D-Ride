@@ -189,7 +189,7 @@ export class RoutesService {
             const seatNo = Array.isArray(booking.seatNumbers)
               ? booking.seatNumbers.join(', ')
               : String(booking.seatNumbers || '');
-            await this.notificationsService.sendCancellationNotification(
+            this.notificationsService.sendCancellationNotification(
               u.phone || '',
               u.name || 'Valued Passenger',
               {
@@ -200,11 +200,17 @@ export class RoutesService {
               },
               u.email || '',
               'SYSTEM',
-            );
+            ).catch((notificationErr) => {
+              console.error(
+                'Failed to send cancellation notification for booking on route delete asynchronously:',
+                booking.id,
+                notificationErr,
+              );
+            });
           }
         } catch (notificationErr) {
           console.error(
-            'Failed to send cancellation notification for booking on route delete:',
+            'Failed to initiate cancellation notification for booking on route delete:',
             booking.id,
             notificationErr,
           );

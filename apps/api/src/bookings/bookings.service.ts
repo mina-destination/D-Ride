@@ -689,7 +689,7 @@ export class BookingsService {
     // Update bookedSeats of the trip dynamically (self-healing)
     await this.cleanupExpiredBookings(updated.tripId.toString());
 
-    // Send cancellation notification email/SMS/WhatsApp
+    // Send cancellation notification email/SMS/WhatsApp asynchronously
     try {
       const u = updated.user;
       const t = updated.trip;
@@ -704,7 +704,7 @@ export class BookingsService {
             ? 'SYSTEM'
             : 'PASSENGER';
 
-        await this.notificationsService.sendCancellationNotification(
+        this.notificationsService.sendCancellationNotification(
           u.phone || '',
           u.name || 'Valued Passenger',
           {
@@ -715,10 +715,10 @@ export class BookingsService {
           },
           u.email || '',
           initiator,
-        );
+        ).catch(err => console.error('Failed to send cancellation notification asynchronously:', err));
       }
     } catch (err) {
-      console.error('Failed to send cancellation notification:', err);
+      console.error('Failed to initiate cancellation notification:', err);
     }
 
     return this.mapBooking(updated);
