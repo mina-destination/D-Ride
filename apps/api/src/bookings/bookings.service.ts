@@ -673,6 +673,14 @@ export class BookingsService {
       const result = await tx.booking.update({
         where: { id },
         data: { status: BookingStatus.CANCELLED },
+        include: {
+          user: true,
+          trip: {
+            include: {
+              route: true,
+            },
+          },
+        },
       });
 
       return result;
@@ -680,6 +688,38 @@ export class BookingsService {
 
     // Update bookedSeats of the trip dynamically (self-healing)
     await this.cleanupExpiredBookings(updated.tripId.toString());
+
+    // Send cancellation notification email/SMS/WhatsApp
+    try {
+      const u = updated.user;
+      const t = updated.trip;
+      const r = t?.route;
+      if (u && t && r) {
+        const seatNo = Array.isArray(updated.seatNumbers)
+          ? updated.seatNumbers.join(', ')
+          : String(updated.seatNumbers || '');
+        const initiator =
+          userRole &&
+          ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole)
+            ? 'SYSTEM'
+            : 'PASSENGER';
+
+        await this.notificationsService.sendCancellationNotification(
+          u.phone || '',
+          u.name || 'Valued Passenger',
+          {
+            routeName: r.name || 'D-Ride Trip',
+            departureTime: t.departureTime.toISOString(),
+            seatNumber: seatNo,
+            price: updated.amountEGP,
+          },
+          u.email || '',
+          initiator,
+        );
+      }
+    } catch (err) {
+      console.error('Failed to send cancellation notification:', err);
+    }
 
     return this.mapBooking(updated);
   }

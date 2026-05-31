@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Input, Space, Steps, Spin, Select } from 'antd';
+import { Table, Button, Modal, Input, Space, Steps, Spin, Select, Switch } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
@@ -510,6 +510,7 @@ export function RoutesPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [routeName, setRouteName] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [isRouteActive, setIsRouteActive] = useState(true);
   const [distanceKm, setDistanceKm] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(0);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
@@ -555,6 +556,7 @@ export function RoutesPage() {
       setDistanceKm(route.distanceKm || 0);
       setDurationMinutes(route.estimatedDurationMinutes || 0);
       setCheckpoints(route.checkpoints || []);
+      setIsRouteActive(route.isActive !== false);
       
       if (route.path && route.path.coordinates) {
         setPoints(route.path.coordinates.map((coord: number[]) => [coord[1], coord[0]]));
@@ -569,6 +571,7 @@ export function RoutesPage() {
       setDurationMinutes(0);
       setPoints([]);
       setCheckpoints([]);
+      setIsRouteActive(true);
     }
     setIsModalOpen(true);
   };
@@ -901,7 +904,8 @@ export function RoutesPage() {
         },
         checkpoints: checkpoints,
         distanceKm: distanceKm,
-        estimatedDurationMinutes: finalDuration
+        estimatedDurationMinutes: finalDuration,
+        isActive: isRouteActive
       };
 
       if (editingId) {
@@ -925,6 +929,17 @@ export function RoutesPage() {
       fetchRoutes();
     } catch (error: any) {
       const errMsg = error.response?.data?.message || error.message || 'Failed to delete route';
+      message.error(Array.isArray(errMsg) ? errMsg[0] : errMsg);
+    }
+  };
+
+  const handleToggleStatus = async (id: string, nextActive: boolean) => {
+    try {
+      await routesAPI.update(id, { isActive: nextActive });
+      message.success(`Route status updated successfully! 🚀`);
+      fetchRoutes();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Failed to update route status';
       message.error(Array.isArray(errMsg) ? errMsg[0] : errMsg);
     }
   };
@@ -1007,6 +1022,29 @@ export function RoutesPage() {
             </span>
           )) : '—'}
         </div>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      render: (isActive: boolean, record: any) => (
+        <Space>
+          <Switch
+            checked={isActive}
+            onChange={(checked) => handleToggleStatus(record._id, checked)}
+            style={{
+              backgroundColor: isActive ? '#10B981' : '#EF4444',
+            }}
+          />
+          <span style={{
+            fontSize: '12px',
+            fontWeight: 600,
+            color: isActive ? '#10B981' : '#EF4444'
+          }}>
+            {isActive ? 'Active' : 'Disabled'}
+          </span>
+        </Space>
       )
     },
     {
@@ -1131,6 +1169,19 @@ export function RoutesPage() {
                     onChange={e => setRouteName(e.target.value)} 
                     size="large"
                   />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Active Status</label>
+                  <Space align="center">
+                    <Switch 
+                      checked={isRouteActive} 
+                      onChange={checked => setIsRouteActive(checked)} 
+                      style={{ backgroundColor: isRouteActive ? '#10B981' : '#EF4444' }}
+                    />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: isRouteActive ? '#10B981' : '#EF4444' }}>
+                      {isRouteActive ? 'Active (Visible to Passengers)' : 'Disabled (Hidden from Passengers)'}
+                    </span>
+                  </Space>
                 </div>
                 <div>
                   <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Route Banner Image URL / Google Drive link (Optional)</label>

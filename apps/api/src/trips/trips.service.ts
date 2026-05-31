@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 import { getVirtualRoute } from '../utils/routes';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TripsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private mapTrip(
     trip: any,
@@ -288,7 +292,13 @@ export class TripsService {
     // Note: Expired booking cleanup is handled lazily per-trip, not globally on every search.
     // This avoids a heavy global updateMany that becomes a bottleneck under load.
 
-    const where: any = { status: TripStatus.SCHEDULED };
+    const where: any = {
+      status: TripStatus.SCHEDULED,
+      route: {
+        isActive: true,
+        isDeleted: false,
+      },
+    };
     let actualRouteId = routeId;
     let actualPickupCpName = pickupCheckpointName;
     let actualDropoffCpName = dropoffCheckpointName;
@@ -533,19 +543,71 @@ export class TripsService {
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      const bookingsToNotify = await this.prisma.$transaction(async (tx) => {
         // 1. Soft-delete by setting trip status to CANCELLED
         await tx.trip.update({
           where: { id },
           data: { status: 'CANCELLED' },
         });
 
-        // 2. Set all bookings of this trip to CANCELLED so they display as cancelled to the passengers
+        // 2. Find all active bookings to notify before cancelling
+        const activeBookings = await tx.booking.findMany({
+          where: {
+            tripId: id,
+            status: {
+              in: ['CONFIRMED', 'PENDING_PAYMENT', 'BOARDED'],
+            },
+          },
+          include: {
+            user: true,
+            trip: {
+              include: {
+                route: true,
+              },
+            },
+          },
+        });
+
+        // 3. Set all bookings of this trip to CANCELLED so they display as cancelled to the passengers
         await tx.booking.updateMany({
           where: { tripId: id },
           data: { status: 'CANCELLED' },
         });
+
+        return activeBookings;
       });
+
+      // 4. Send cancellation notification email/SMS/WhatsApp asynchronously
+      for (const booking of bookingsToNotify) {
+        try {
+          const u = booking.user;
+          const t = booking.trip;
+          const r = t?.route;
+          if (u && t && r) {
+            const seatNo = Array.isArray(booking.seatNumbers)
+              ? booking.seatNumbers.join(', ')
+              : String(booking.seatNumbers || '');
+            await this.notificationsService.sendCancellationNotification(
+              u.phone || '',
+              u.name || 'Valued Passenger',
+              {
+                routeName: r.name || 'D-Ride Trip',
+                departureTime: t.departureTime.toISOString(),
+                seatNumber: seatNo,
+                price: booking.amountEGP,
+              },
+              u.email || '',
+              'SYSTEM',
+            );
+          }
+        } catch (notificationErr) {
+          console.error(
+            'Failed to send cancellation notification for booking:',
+            booking.id,
+            notificationErr,
+          );
+        }
+      }
     } catch (err) {
       throw new NotFoundException('Trip not found');
     }
