@@ -4,6 +4,7 @@ import {
   IsOptional,
   ValidateNested,
   IsObject,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -101,4 +102,12 @@ export class UpdateRouteDto {
 
   @IsOptional()
   estimatedDurationMinutes?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isDeleted?: boolean;
 }

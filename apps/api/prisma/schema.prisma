@@ -71,6 +71,7 @@ model Route {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   isActive                 Boolean  @default(true)
+  isDeleted                Boolean  @default(false)
   trips                    Trip[]
 
   @@map("routes")

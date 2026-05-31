@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsObject,
   IsNumber,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -106,4 +107,8 @@ export class CreateRouteDto {
   @IsNumber()
   @IsOptional()
   estimatedDurationMinutes?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

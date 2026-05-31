@@ -115,7 +115,7 @@ export const authAPI = {
 
 // ── Routes API ────────────────────────────────────────────
 export const routesAPI = {
-  getAll: (): Promise<any> => api.get('/routes'),
+  getAll: (includeInactive = true): Promise<any> => api.get('/routes', { params: { includeInactive } }),
   getById: (id: string): Promise<any> => api.get(`/routes/${id}`),
   create: (data: any): Promise<any> => api.post('/routes', data),
   update: (id: string, data: any): Promise<any> => api.put(`/routes/${id}`, data),

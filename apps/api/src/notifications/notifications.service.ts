@@ -209,6 +209,96 @@ export class NotificationsService implements OnModuleInit {
   }
 
   /**
+   * Sends a cancellation notification to the passenger.
+   */
+  async sendCancellationNotification(
+    to: string,
+    passengerName: string,
+    tripDetails: {
+      routeName: string;
+      departureTime: string;
+      seatNumber: string;
+      price: number;
+    },
+    email?: string,
+    cancelledBy: 'PASSENGER' | 'SYSTEM' = 'PASSENGER',
+  ): Promise<void> {
+    const formattedDate = new Date(tripDetails.departureTime).toLocaleString(
+      'en-US',
+      {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    );
+
+    const initiatorText =
+      cancelledBy === 'PASSENGER'
+        ? 'You have successfully cancelled your booking.'
+        : 'Your booking has been cancelled by D-Ride due to route schedule updates or emergency.';
+
+    const smsMessage =
+      `Hi ${passengerName}, your D-Ride ticket has been cancelled.\n\n` +
+      `Route: ${tripDetails.routeName}\n` +
+      `Time: ${formattedDate}\n` +
+      `Refund details will be processed shortly.`;
+
+    const whatsappMessage =
+      `*D-Ride Ticket Cancellation* ❌\n\n` +
+      `Dear *${passengerName}*,\n` +
+      `${initiatorText} Here are the details of the cancelled trip:\n\n` +
+      `📍 *Route:* ${tripDetails.routeName}\n` +
+      `⏰ *Departure:* ${formattedDate}\n` +
+      `💺 *Seat Number:* ${tripDetails.seatNumber}\n` +
+      `💵 *Original Fare:* EGP ${tripDetails.price.toFixed(2)}\n\n` +
+      `If a refund is applicable, it will be credited/processed shortly based on cancellation policies.\n` +
+      `*Thank you for choosing D-Ride!* 🚌`;
+
+    // Send SMS and WhatsApp for maximum visibility
+    await this.sendSMS(to, smsMessage);
+    await this.sendWhatsApp(to, whatsappMessage);
+
+    // Dispatch email if provided
+    if (email) {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #0e0e1b; color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #EF4444; margin: 0;">D-Ride Ticket Cancellation ❌</h2>
+          </div>
+          <p>Dear ${passengerName},</p>
+          <p>${initiatorText}</p>
+          <div style="margin: 24px 0; padding: 16px; background-color: #14142b; border-left: 4px solid #EF4444; border-radius: 4px;">
+            <p style="margin: 4px 0;">📍 <strong>Route:</strong> ${tripDetails.routeName}</p>
+            <p style="margin: 4px 0;">⏰ <strong>Departure:</strong> ${formattedDate}</p>
+            <p style="margin: 4px 0;">💺 <strong>Seat Number:</strong> ${tripDetails.seatNumber}</p>
+            <p style="margin: 4px 0;">💵 <strong>Original Fare:</strong> EGP ${tripDetails.price.toFixed(2)}</p>
+          </div>
+          <p style="font-size: 13px; color: #a3a3a3;">Refunds (if applicable) are processed within 24 hours based on our cancellation policies.</p>
+          <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;" />
+          <p style="font-size: 11px; color: #737373; text-align: center;">D-Ride Operations Team &copy; 2026. If you have questions, contact support.</p>
+        </div>
+      `;
+      const emailText =
+        `Dear ${passengerName},\n\n` +
+        `${initiatorText}\n\n` +
+        `Route: ${tripDetails.routeName}\n` +
+        `Departure: ${formattedDate}\n` +
+        `Seat Number: ${tripDetails.seatNumber}\n` +
+        `Original Fare: EGP ${tripDetails.price.toFixed(2)}\n\n` +
+        `Refunds (if applicable) are processed shortly.\n\nD-Ride Operations Team`;
+
+      await this.mailService.sendMail(
+        email,
+        `D-Ride Booking Cancellation — ${tripDetails.routeName}`,
+        emailText,
+        emailHtml,
+      );
+    }
+  }
+
+  /**
    * Sends a refund notification to the passenger.
    */
   async sendRefundNotification(

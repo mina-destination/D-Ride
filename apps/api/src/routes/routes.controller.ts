@@ -23,9 +23,13 @@ export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
   @Get()
-  async findAll(@Query('includeVirtual') includeVirtual?: string) {
+  async findAll(
+    @Query('includeVirtual') includeVirtual?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
     const showVirtual = includeVirtual === 'true';
-    const routes = await this.routesService.findAll(showVirtual);
+    const showInactive = includeInactive === 'true';
+    const routes = await this.routesService.findAll(showVirtual, showInactive);
     return { success: true, data: routes, timestamp: new Date().toISOString() };
   }
 

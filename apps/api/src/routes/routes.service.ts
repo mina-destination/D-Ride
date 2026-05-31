@@ -7,17 +7,24 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { getDistance } from '../utils/geo';
 import { getVirtualRoute } from '../utils/routes';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class RoutesService {
   private readonly logger = new Logger(RoutesService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
-  async findAll(includeVirtual = false): Promise<any[]> {
-    this.logger.log(`Fetching all routes (includeVirtual: ${includeVirtual})`);
+  async findAll(includeVirtual = false, includeInactive = false): Promise<any[]> {
+    this.logger.log(`Fetching all routes (includeVirtual: ${includeVirtual}, includeInactive: ${includeInactive})`);
     const routes = await this.prisma.route.findMany({
-      where: { isActive: true },
+      where: {
+        isDeleted: false,
+        isActive: includeInactive ? undefined : true,
+      },
       orderBy: { createdAt: 'desc' },
     });
     
@@ -81,6 +88,8 @@ export class RoutesService {
         checkpoints: data.checkpoints || [],
         distanceKm: data.distanceKm || 0,
         estimatedDurationMinutes: data.estimatedDurationMinutes || 0,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        isDeleted: false,
       },
     });
     return { ...route, _id: route.id };
@@ -88,16 +97,23 @@ export class RoutesService {
 
   async update(id: string, data: any): Promise<any> {
     try {
+      const updateData: any = {
+        name: data.name,
+        path: data.path,
+        coverImage: data.coverImage,
+        checkpoints: data.checkpoints,
+        distanceKm: data.distanceKm,
+        estimatedDurationMinutes: data.estimatedDurationMinutes,
+      };
+      if (data.isActive !== undefined) {
+        updateData.isActive = data.isActive;
+      }
+      if (data.isDeleted !== undefined) {
+        updateData.isDeleted = data.isDeleted;
+      }
       const route = await this.prisma.route.update({
         where: { id },
-        data: {
-          name: data.name,
-          path: data.path,
-          coverImage: data.coverImage,
-          checkpoints: data.checkpoints,
-          distanceKm: data.distanceKm,
-          estimatedDurationMinutes: data.estimatedDurationMinutes,
-        },
+        data: updateData,
       });
       return { ...route, _id: route.id };
     } catch (err) {
@@ -107,7 +123,7 @@ export class RoutesService {
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      const bookingsToNotify = await this.prisma.$transaction(async (tx) => {
         // 1. Find all active trips on this route
         const activeTrips = await tx.trip.findMany({
           where: {
@@ -120,8 +136,27 @@ export class RoutesService {
         });
 
         const activeTripIds = activeTrips.map((t) => t.id);
+        let activeBookings: any[] = [];
 
         if (activeTripIds.length > 0) {
+          // Find all active bookings associated with these trips to notify passengers
+          activeBookings = await tx.booking.findMany({
+            where: {
+              tripId: { in: activeTripIds },
+              status: {
+                in: ['CONFIRMED', 'PENDING_PAYMENT', 'BOARDED'],
+              },
+            },
+            include: {
+              user: true,
+              trip: {
+                include: {
+                  route: true,
+                },
+              },
+            },
+          });
+
           // 2. Soft-delete/cancel all active trips on this route
           await tx.trip.updateMany({
             where: { id: { in: activeTripIds } },
@@ -138,9 +173,43 @@ export class RoutesService {
         // 4. Soft-delete the route
         await tx.route.update({
           where: { id },
-          data: { isActive: false },
+          data: { isDeleted: true, isActive: false },
         });
+
+        return activeBookings;
       });
+
+      // 5. Send cancellation notification email/SMS/WhatsApp asynchronously
+      for (const booking of bookingsToNotify) {
+        try {
+          const u = booking.user;
+          const t = booking.trip;
+          const r = t?.route;
+          if (u && t && r) {
+            const seatNo = Array.isArray(booking.seatNumbers)
+              ? booking.seatNumbers.join(', ')
+              : String(booking.seatNumbers || '');
+            await this.notificationsService.sendCancellationNotification(
+              u.phone || '',
+              u.name || 'Valued Passenger',
+              {
+                routeName: r.name || 'D-Ride Trip',
+                departureTime: t.departureTime.toISOString(),
+                seatNumber: seatNo,
+                price: booking.amountEGP,
+              },
+              u.email || '',
+              'SYSTEM',
+            );
+          }
+        } catch (notificationErr) {
+          console.error(
+            'Failed to send cancellation notification for booking on route delete:',
+            booking.id,
+            notificationErr,
+          );
+        }
+      }
     } catch (err) {
       throw new NotFoundException(`Route with ID ${id} not found`);
     }
@@ -164,7 +233,7 @@ export class RoutesService {
     const maxLng = lng + deltaLng;
 
     const routes = await this.prisma.route.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isDeleted: false },
     });
     return routes
       .filter((route: any) => {
@@ -290,6 +359,10 @@ export class RoutesService {
     const where: any = {
       status: {
         in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'],
+      },
+      route: {
+        isActive: true,
+        isDeleted: false,
       },
     };
 
@@ -528,7 +601,7 @@ export class RoutesService {
   ): Promise<any[]> {
     this.logger.log(`Finding nearest checkpoints to [${lng}, ${lat}]`);
     const routes = await this.prisma.route.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isDeleted: false },
     });
     const candidates: any[] = [];
 

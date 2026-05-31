@@ -190,7 +190,10 @@ export function AnalyticsPage() {
   };
 
   const trendData = getWeeklyTrend();
-  const maxTrendVal = Math.max(...trendData.flatMap(t => [t.revenue, t.profit]), 100);
+  const allTrendValues = trendData.flatMap(t => [t.revenue, t.profit]);
+  const maxTrendVal = Math.max(...allTrendValues, 100);
+  const minTrendVal = Math.min(...allTrendValues, 0);
+  const trendValRange = maxTrendVal - minTrendVal;
 
   // SVG drawing details
   const svgWidth = 500;
@@ -198,13 +201,18 @@ export function AnalyticsPage() {
   const getSvgCoordinates = (values: number[]) => {
     return values.map((val, idx) => {
       const x = (idx / (values.length - 1)) * (svgWidth - 60) + 30;
-      const y = svgHeight - (val / maxTrendVal) * (svgHeight - 40) - 20;
+      const ratio = trendValRange > 0 ? (val - minTrendVal) / trendValRange : 0.5;
+      const y = svgHeight - ratio * (svgHeight - 40) - 20;
       return `${x},${y}`;
     }).join(' ');
   };
 
   const revenuePoints = getSvgCoordinates(trendData.map(t => t.revenue));
   const profitPoints = getSvgCoordinates(trendData.map(t => t.profit));
+  
+  // Calculate dynamic zero baseline Y coordinate
+  const zeroRatio = trendValRange > 0 ? (0 - minTrendVal) / trendValRange : 0.5;
+  const yZero = svgHeight - zeroRatio * (svgHeight - 40) - 20;
 
   // Payment Breakdown for Donut Chart
   const getPaymentBreakdown = () => {
@@ -440,7 +448,10 @@ export function AnalyticsPage() {
                 <line x1="30" y1="20" x2={svgWidth - 30} y2="20" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
                 <line x1="30" y1="65" x2={svgWidth - 30} y2="65" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
                 <line x1="30" y1="110" x2={svgWidth - 30} y2="110" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="5 5" />
-                <line x1="30" y1="140" x2={svgWidth - 30} y2="140" stroke="var(--border)" strokeWidth="1" />
+                
+                {/* Zero baseline */}
+                <line x1="30" y1={yZero} x2={svgWidth - 30} y2={yZero} stroke="rgba(239, 68, 68, 0.4)" strokeWidth="1.5" strokeDasharray="3 3" />
+                <line x1="30" y1="140" x2={svgWidth - 30} y2="140" stroke="var(--border)" strokeWidth="0.5" />
 
                 {/* Revenue Polyline */}
                 <polyline points={revenuePoints} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
@@ -450,8 +461,10 @@ export function AnalyticsPage() {
                 {/* Nodes & Interactive trigger circles */}
                 {trendData.map((d, i) => {
                   const x = (i / (trendData.length - 1)) * (svgWidth - 60) + 30;
-                  const revY = svgHeight - (d.revenue / maxTrendVal) * (svgHeight - 40) - 20;
-                  const profY = svgHeight - (d.profit / maxTrendVal) * (svgHeight - 40) - 20;
+                  const revRatio = trendValRange > 0 ? (d.revenue - minTrendVal) / trendValRange : 0.5;
+                  const profRatio = trendValRange > 0 ? (d.profit - minTrendVal) / trendValRange : 0.5;
+                  const revY = svgHeight - revRatio * (svgHeight - 40) - 20;
+                  const profY = svgHeight - profRatio * (svgHeight - 40) - 20;
                   const isHovered = hoveredTrendIndex === i;
 
                   return (
