@@ -587,7 +587,7 @@ export class TripsService {
             const seatNo = Array.isArray(booking.seatNumbers)
               ? booking.seatNumbers.join(', ')
               : String(booking.seatNumbers || '');
-            await this.notificationsService.sendCancellationNotification(
+            this.notificationsService.sendCancellationNotification(
               u.phone || '',
               u.name || 'Valued Passenger',
               {
@@ -598,11 +598,17 @@ export class TripsService {
               },
               u.email || '',
               'SYSTEM',
-            );
+            ).catch((notificationErr) => {
+              console.error(
+                'Failed to send cancellation notification for booking asynchronously:',
+                booking.id,
+                notificationErr,
+              );
+            });
           }
         } catch (notificationErr) {
           console.error(
-            'Failed to send cancellation notification for booking:',
+            'Failed to initiate cancellation notification for booking:',
             booking.id,
             notificationErr,
           );

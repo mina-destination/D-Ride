@@ -131,7 +131,7 @@ model Booking {
 
 model LiveVehicleLocation {
   id                String   @id @default(uuid())
-  vehicleId         String
+  vehicleId         String   @unique
   driverId          String
   location          Json
   speedKmh          Float    @default(0)
@@ -178,6 +178,7 @@ model Transaction {
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
+  @@index([bookingId])
   @@map("transactions")
 }
 
@@ -192,6 +193,7 @@ model ChatMessage {
   sender     User          @relation("UserChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
   ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
+  @@index([ticketId])
   @@map("chat_messages")
 }
 
@@ -207,6 +209,7 @@ model Review {
   trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([tripId])
   @@map("reviews")
 }
 
