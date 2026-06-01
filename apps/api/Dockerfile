@@ -9,7 +9,9 @@ COPY apps/api/package*.json ./apps/api/
 COPY packages/ ./packages/
 RUN npm install --include=dev
 COPY . .
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npx turbo run build --filter=api
+
 
 FROM node:20-alpine AS runner
 WORKDIR /app
