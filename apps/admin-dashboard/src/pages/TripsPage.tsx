@@ -120,6 +120,8 @@ export function TripsPage() {
   };
 
   const handleSubmit = async (values: any) => {
+    if (loading) return;
+
     try {
       const { lockSeat14, ...rest } = values;
       const payload = {
@@ -127,6 +129,12 @@ export function TripsPage() {
         departureTime: values.departureTime.toISOString(),
         lockedSeats: lockSeat14 ? [14] : [],
       };
+
+      // Ensure departure time is in the future when creating new trips
+      if (!editingId && dayjs(values.departureTime).isBefore(dayjs())) {
+        message.error('Departure time must be in the future!');
+        return;
+      }
 
       setLoading(true);
 
@@ -682,6 +690,7 @@ export function TripsPage() {
         open={isModalOpen}
         onCancel={handleCancel}
         onOk={() => form.submit()}
+        confirmLoading={loading}
         forceRender={true}
         width={800}
       >
@@ -852,7 +861,11 @@ export function TripsPage() {
                   rules={[{ required: true, message: 'Please select departure time' }]}
                   style={{ marginBottom: '8px' }}
                 >
-                  <DatePicker showTime style={{ width: '100%' }} />
+                  <DatePicker 
+                    showTime 
+                    style={{ width: '100%' }} 
+                    disabledDate={current => current && current.isBefore(dayjs().startOf('day'))}
+                  />
                 </Form.Item>
                 {selectedDepartureTime && selectedRoute?.estimatedDurationMinutes && (
                   <div style={{ marginTop: '-4px', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold', color: '#10B981' }}>
