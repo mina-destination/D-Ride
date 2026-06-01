@@ -84,6 +84,10 @@ class CheckpointDto {
   @IsOptional()
   @IsString()
   localizedArrivalTime?: string;
+
+  @IsOptional()
+  @IsString()
+  purpose?: string;
 }
 
 export class CreateBookingDto {
