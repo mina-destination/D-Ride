@@ -17,7 +17,6 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('routes')
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
@@ -117,7 +116,7 @@ export class RoutesController {
     };
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post()
   async create(@Body() data: CreateRouteDto) {
@@ -125,7 +124,7 @@ export class RoutesController {
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Put(':id')
   async update(
@@ -136,7 +135,7 @@ export class RoutesController {
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
   async delete(@Param('id', ParseUUIDPipe) id: string) {

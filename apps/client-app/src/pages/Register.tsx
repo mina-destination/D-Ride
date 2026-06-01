@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
@@ -26,6 +26,8 @@ export default function RegisterPage() {
   const { t } = useTranslation();
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -57,7 +59,7 @@ export default function RegisterPage() {
         const name = payload?.name || 'Google User';
 
         await loginWithGoogle({ email, name, googleId: credential });
-        navigate('/');
+        navigate(redirectTo);
       } catch (err: any) {
         setError(err?.message || 'Google Sign-In failed');
       } finally {
@@ -125,7 +127,7 @@ export default function RegisterPage() {
       const mockGoogleId = 'g-' + Math.random().toString(36).substring(2, 12);
       await loginWithGoogle({ email: gmail, name, googleId: mockGoogleId });
       setShowGoogleChooser(false);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err: any) {
       setError(err?.message || 'Google Sign-In failed');
       setShowGoogleChooser(false);
@@ -154,7 +156,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register({ name, email, phone, password });
-      navigate('/');
+      navigate(redirectTo);
     } catch (err: any) {
       setError(err?.message || t('registerFailed'));
     } finally {

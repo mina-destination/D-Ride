@@ -84,7 +84,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('dride_token');
       localStorage.removeItem('dride_user');
-      window.location.href = '/login';
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        window.location.href = `/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
     }
     
     const errorData = error.response?.data;
