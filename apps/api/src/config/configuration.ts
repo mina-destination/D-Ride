@@ -11,7 +11,11 @@ export default () => {
   return {
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv,
-    clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+    clientUrl:
+      process.env.CLIENT_URL ||
+      (nodeEnv === 'production'
+        ? 'https://d-ride.net'
+        : 'http://localhost:5173'),
     allowCashOnDelivery: process.env.ALLOW_CASH_ON_DELIVERY !== 'false',
 
     database: {
