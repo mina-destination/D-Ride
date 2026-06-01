@@ -54,6 +54,7 @@ function ScrollToHashElement() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -65,7 +66,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+    const redirectUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirectTo=${redirectUrl}`} replace />;
   }
 
   const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];

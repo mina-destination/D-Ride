@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
@@ -27,6 +27,8 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -105,7 +107,7 @@ export default function LoginPage() {
         const name = payload?.name || 'Google User';
 
         await loginWithGoogle({ email, name, googleId: credential });
-        navigate('/');
+        navigate(redirectTo);
       } catch (err: any) {
         setError(err?.message || 'Google Sign-In failed');
       } finally {
@@ -173,7 +175,7 @@ export default function LoginPage() {
       const mockGoogleId = 'g-' + Math.random().toString(36).substring(2, 12);
       await loginWithGoogle({ email: gmail, name, googleId: mockGoogleId });
       setShowGoogleChooser(false);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err: any) {
       setError(err?.message || 'Google Sign-In failed');
       setShowGoogleChooser(false);
@@ -194,7 +196,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err: any) {
       setError(err?.message || t('invalidCredentials'));
     } finally {
