@@ -10,6 +10,12 @@ import compression from 'compression';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Trust reverse proxy (Traefik/Coolify) to get correct client IPs for rate limiting
+  const expressApp = app.getHttpAdapter().getInstance();
+  if (expressApp && typeof expressApp.set === 'function') {
+    expressApp.set('trust proxy', 1);
+  }
+
   const isProduction = process.env.NODE_ENV === 'production';
 
   // Integrate helmet middleware package for standard production HTTP security hardening
