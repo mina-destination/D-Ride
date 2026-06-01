@@ -47,9 +47,6 @@ e2e/
 *.md
 **/*.md
 docs/
-**/*.jpeg
-**/*.png
-**/*.jpg
 *.resolved
 **/*.resolved
 D-ride logo.jpeg
