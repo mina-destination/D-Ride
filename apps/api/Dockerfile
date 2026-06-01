@@ -14,7 +14,9 @@ RUN npx turbo run build --filter=api
 
 
 FROM node:20-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
+
 # Only copy the necessary artifacts to the production image
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
