@@ -5,7 +5,7 @@ COPY package*.json ./
 COPY turbo.json ./
 COPY apps/driver-portal/package*.json ./apps/driver-portal/
 COPY packages/ ./packages/
-RUN npm install
+RUN npm install --include=dev
 COPY . .
 
 ARG VITE_API_URL

@@ -5,7 +5,7 @@ COPY package*.json ./
 COPY turbo.json ./
 COPY apps/admin-dashboard/package*.json ./apps/admin-dashboard/
 COPY packages/ ./packages/
-RUN npm install
+RUN npm install --include=dev
 COPY . .
 
 ARG VITE_API_URL
