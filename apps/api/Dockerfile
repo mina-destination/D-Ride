@@ -7,7 +7,7 @@ COPY package*.json ./
 COPY turbo.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY packages/ ./packages/
-RUN npm install
+RUN npm install --include=dev
 COPY . .
 RUN npx turbo run build --filter=api
 
