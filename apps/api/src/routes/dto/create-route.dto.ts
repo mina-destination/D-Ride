@@ -68,6 +68,10 @@ class StopDto {
   @IsObject()
   @IsOptional()
   prices?: Record<string, number>;
+
+  @IsString()
+  @IsOptional()
+  purpose?: string;
 }
 
 class PathDto {
