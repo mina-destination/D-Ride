@@ -35,10 +35,7 @@ e2e/
 **/e2e/
 
 # Frontend applications
-apps/client-app/
-apps/admin-dashboard/
-apps/driver-portal/
-packages/shared-theme/
+
 
 # Local Dev environment profiles
 .env
