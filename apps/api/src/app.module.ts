@@ -35,17 +35,17 @@ import {
       {
         name: 'short',
         ttl: 1000,
-        limit: 15,
+        limit: 50,
       },
       {
         name: 'medium',
         ttl: 10000,
-        limit: 60,
+        limit: 200,
       },
       {
         name: 'long',
         ttl: 60000,
-        limit: 200,
+        limit: 600,
       },
     ]),
 
