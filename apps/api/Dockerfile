@@ -1,5 +1,7 @@
 FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+
 # We will use turbo prune in a real monorepo scenario, but for now we copy everything
 COPY package*.json ./
 COPY turbo.json ./
