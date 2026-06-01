@@ -1,7 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -30,25 +28,6 @@ import {
       load: [configuration],
     }),
 
-    // Rate limiting module (applied globally via APP_GUARD)
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000,
-        limit: 50,
-      },
-      {
-        name: 'medium',
-        ttl: 10000,
-        limit: 200,
-      },
-      {
-        name: 'long',
-        ttl: 60000,
-        limit: 600,
-      },
-    ]),
-
     // Global Prisma Module for PostgreSQL connection
     PrismaModule,
 
@@ -68,10 +47,6 @@ import {
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
   ],
 })
 export class AppModule implements NestModule {

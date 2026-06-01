@@ -9,7 +9,6 @@ import {
   Request,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { SupportService } from './support.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -23,11 +22,6 @@ export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
   @Roles('PASSENGER', 'OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION', 'DRIVER')
-  @Throttle({
-    short: { limit: 5, ttl: 10000 },
-    medium: { limit: 10, ttl: 60000 },
-    long: { limit: 30, ttl: 3600000 },
-  })
   @Post('submit')
   async submitTicket(@Request() req: any, @Body() data: SubmitTicketDto) {
     return this.supportService.submitTicket(req.user.sub, data);
