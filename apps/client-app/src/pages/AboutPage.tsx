@@ -7,17 +7,7 @@ export default function AboutPage() {
   const isAr = language === 'ar';
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '7rem 2rem 4rem',
-      position: 'relative',
-      zIndex: 1,
-      background: 'var(--background)',
-      overflowX: 'clip' as any
-    }}>
+    <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

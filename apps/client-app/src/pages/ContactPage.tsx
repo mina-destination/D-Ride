@@ -68,16 +68,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '7rem 2rem 4rem',
-      position: 'relative',
-      zIndex: 1,
-      background: 'var(--background)'
-    }}>
+    <div className="page-container">
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />
