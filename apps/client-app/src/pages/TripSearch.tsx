@@ -450,68 +450,25 @@ export default function TripSearchPage() {
         ) : (
           <div>
             {/* Sorting Tabs & Date Selector */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: '1.5rem',
-              width: '100%',
-              flexWrap: 'wrap',
-              gap: '1rem'
-            }}>
+            <div className="sorting-date-row">
               {/* Sorting Tabs */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '0.75rem', 
-                background: 'var(--surface-elevated)',
-                padding: '6px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                maxWidth: 'fit-content'
-              }}>
+              <div className="sorting-tabs-container">
                 <button 
                   onClick={() => setSortBy('earliest')}
-                  style={{
-                    padding: '0.5rem 1.2rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: sortBy === 'earliest' ? 'var(--primary)' : 'transparent',
-                    color: sortBy === 'earliest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
-                    transition: 'var(--transition-base)'
-                  }}
+                  className={`sorting-tab-btn ${sortBy === 'earliest' ? 'active' : ''}`}
                 >
                   🕒 {t('earliest')}
                 </button>
                 <button 
                   onClick={() => setSortBy('cheapest')}
-                  style={{
-                    padding: '0.5rem 1.2rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: sortBy === 'cheapest' ? 'var(--primary)' : 'transparent',
-                    color: sortBy === 'cheapest' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
-                    transition: 'var(--transition-base)'
-                  }}
+                  className={`sorting-tab-btn ${sortBy === 'cheapest' ? 'active' : ''}`}
                 >
                   💰 {t('cheapest')}
                 </button>
                 {isSmartMode && (
                   <button 
                     onClick={() => setSortBy('walks')}
-                    style={{
-                      padding: '0.5rem 1.2rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      background: sortBy === 'walks' ? 'var(--primary)' : 'transparent',
-                      color: sortBy === 'walks' ? 'var(--text-on-primary)' : 'var(--text-secondary)',
-                      transition: 'var(--transition-base)'
-                    }}
+                    className={`sorting-tab-btn ${sortBy === 'walks' ? 'active' : ''}`}
                   >
                     🚶 {t('fewestWalks')}
                   </button>
