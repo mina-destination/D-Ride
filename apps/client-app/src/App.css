@@ -3633,6 +3633,8 @@
   padding-top: 7.5rem;
   padding-bottom: 2rem;
   background: var(--background);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .payment-page-container {
@@ -3642,12 +3644,16 @@
   padding-top: 7.5rem;
   padding-bottom: 4rem;
   width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .trip-search-page-container {
   align-items: flex-start;
   padding-top: 7.5rem;
   padding-bottom: 4rem;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
@@ -3665,7 +3671,12 @@
 /* Premium card mobile layout optimizations */
 @media (max-width: 640px) {
   .premium-card {
-    padding: 1.25rem !important;
+    padding: 1rem !important;
+    overflow: visible !important;
+  }
+  .premium-card-title {
+    font-size: 1.05rem !important;
+    word-break: break-word !important;
   }
 }
 
@@ -3727,5 +3738,43 @@
     border-radius: 6px !important;
     font-weight: 700 !important;
     display: inline-block !important;
+  }
+}
+
+/* ── Mobile Checkout & Invoice Overflow Fixes ──────────────── */
+@media (max-width: 640px) {
+  /* Scale bus cabin on small screens to prevent seats clipping */
+  .bus-cabin {
+    max-width: 260px !important;
+    padding: 1.25rem 1rem !important;
+    margin: 1rem auto !important;
+  }
+
+  /* Constrain inner content wrapper on checkout page */
+  .checkout-page-container > div,
+  .trip-search-page-container > div {
+    padding: 0 0.75rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Fix invoice and sidebar text overflow */
+  .sidebar-panel,
+  .main-panel {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Fix checkout page heading overflow */
+  .checkout-page-container h1 {
+    font-size: 1.5rem !important;
+    word-break: break-word !important;
+  }
+
+  /* Walking distance badge text wrap */
+  .trip-card-left > div:last-child {
+    word-break: break-word !important;
+    white-space: normal !important;
   }
 }

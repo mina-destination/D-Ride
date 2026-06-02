@@ -94,7 +94,7 @@ export default function PaymentPage() {
 
   return (
     <div className="payment-page-container">
-      <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
+      <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
