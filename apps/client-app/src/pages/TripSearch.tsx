@@ -807,7 +807,14 @@ export default function TripSearchPage() {
                                       alignSelf: 'center',
                                       display: 'flex',
                                       alignItems: 'center',
-                                      gap: '4px'
+                                      gap: '4px',
+                                      flexWrap: 'wrap',
+                                      whiteSpace: 'normal',
+                                      wordBreak: 'break-word',
+                                      textAlign: 'center',
+                                      justifyContent: 'center',
+                                      maxWidth: '100%',
+                                      boxSizing: 'border-box'
                                     }}>
                                       🚶 {t('walksTotal', { total: trip.totalWalkingDistance, pickup: trip.pickupCheckpoint.distanceMeters, dropoff: trip.dropoffCheckpoint.distanceMeters })}
                                     </div>
@@ -921,7 +928,10 @@ export default function TripSearchPage() {
                                       padding: '1.25rem 0.5rem 1rem 0.5rem',
                                       borderRadius: '12px',
                                       border: '1px solid rgba(255, 255, 255, 0.03)',
-                                      userSelect: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'auto'
+                                      userSelect: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'auto',
+                                      width: '100%',
+                                      maxWidth: '100%',
+                                      boxSizing: 'border-box'
                                     }} 
                                     className="checkpoint-scrollbar"
                                   >

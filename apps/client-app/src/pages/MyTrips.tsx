@@ -186,7 +186,7 @@ export default function MyTripsPage() {
         </div>
       )}
 
-      <section className="section" style={{ paddingTop: '6rem' }}>
+      <section className="section bookings-page-container">
         <div className="section-header">
           <div className="section-badge">{t('yourCommuteBadge')}</div>
           <h2 className="section-title">{t('myBookingsTitle')}</h2>
