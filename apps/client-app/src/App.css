@@ -3625,3 +3625,56 @@
     transform-origin: top center !important;
   }
 }
+
+/* Page container top padding configurations to prevent overlapping with floating header */
+.checkout-page-container {
+  min-height: 100vh;
+  width: 100%;
+  padding-top: 7.5rem;
+  padding-bottom: 2rem;
+  background: var(--background);
+}
+
+.payment-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 7.5rem;
+  padding-bottom: 4rem;
+  width: 100%;
+}
+
+.trip-search-page-container {
+  align-items: flex-start;
+  padding-top: 7.5rem;
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 768px) {
+  .checkout-page-container {
+    padding-top: 9.5rem !important;
+  }
+  .payment-page-container {
+    padding-top: 9.5rem !important;
+  }
+  .trip-search-page-container {
+    padding-top: 9.5rem !important;
+  }
+}
+
+/* Premium card mobile layout optimizations */
+@media (max-width: 640px) {
+  .premium-card {
+    padding: 1.25rem !important;
+  }
+}
+
+/* Fix Toast Notifications overlapping floating navbar on mobile viewports */
+@media (max-width: 640px) {
+  .toast-container {
+    top: 90px !important;
+    right: 16px !important;
+    left: 16px !important;
+    width: auto !important;
+  }
+}

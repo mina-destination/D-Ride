@@ -65,7 +65,7 @@ export default function PaymentPage() {
 
   if (loading) {
     return (
-      <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
+      <div className="payment-page-container">
         <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem', margin: '0 auto' }}>
           <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
@@ -93,7 +93,7 @@ export default function PaymentPage() {
   const seatNumbers = booking.seatNumbers || [];
 
   return (
-    <div className="auth-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '6rem', paddingBottom: '4rem', width: '100%' }}>
+    <div className="payment-page-container">
       <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
         
         {/* Header Section */}

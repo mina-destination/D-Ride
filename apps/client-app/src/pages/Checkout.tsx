@@ -266,7 +266,7 @@ export default function CheckoutPage() {
     return (
       <div 
         key={num}
-        className="p-3 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+        className="p-1 touch-manipulation flex items-center justify-center"
         style={{ cursor: isLocked || isOccupied ? 'not-allowed' : 'pointer' }}
         onClick={() => {
           if (!isLocked && !isOccupied) {
@@ -319,7 +319,7 @@ export default function CheckoutPage() {
   if (!tripId) return <div className="auth-page"><div className="premium-card">{t('noTripSelected')}</div></div>;
 
   return (
-    <div style={{ minHeight: '100vh', width: '100%', paddingTop: '6rem', paddingBottom: '2rem', background: 'var(--background)' }}>
+    <div className="checkout-page-container">
       <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
         
         {/* Header Section */}
