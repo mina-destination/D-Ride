@@ -72,7 +72,8 @@ api.interceptors.response.use(
         } else if (typeof raw === 'string') {
           msg = raw;
         }
-        if (apiToastCallback) {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        if (apiToastCallback && !isMobile) {
           apiToastCallback('Success', msg, 'success');
         }
       }
