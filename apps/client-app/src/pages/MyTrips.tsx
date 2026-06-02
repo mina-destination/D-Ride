@@ -291,36 +291,39 @@ export default function MyTripsPage() {
                         <div 
                           className="pass-qr-mock" 
                           title="Scan Ticket QR at Boarding" 
-                          style={{ display: 'flex', justifyContent: 'center', cursor: 'pointer' }}
+                          style={{ display: 'flex', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
                           onClick={() => handleShowQrModal(booking)}
                         >
                           <QrCode size={48} color="var(--text-primary)" strokeWidth={1.2} />
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
-                          {t('passId')}: #{booking._id.slice(-6).toUpperCase()}
-                        </div>
-                        {booking.boardingNumber && (
-                          <div style={{ 
-                            fontSize: '11px', 
-                            color: 'var(--primary)', 
-                            fontWeight: 'bold', 
-                            marginBottom: '0.5rem',
-                            background: 'rgba(245, 183, 49, 0.1)',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            border: '1px solid rgba(245, 183, 49, 0.25)',
-                            display: 'inline-block'
-                          }}>
-                            Code: #{booking.boardingNumber}
-                          </div>
-                        )}
                         
-                        <button 
-                          onClick={() => toggleFlip(booking._id)}
-                          className="btn-ghost"
-                        >
-                          <RefreshCw size={12} /> {t('optionsBtn')}
-                        </button>
+                        <div className="pass-sidebar-info">
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {t('passId')}: #{booking._id.slice(-6).toUpperCase()}
+                          </div>
+                          {booking.boardingNumber && (
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: 'var(--primary)', 
+                              fontWeight: 'bold', 
+                              background: 'rgba(245, 183, 49, 0.1)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(245, 183, 49, 0.25)',
+                              display: 'inline-block'
+                            }}>
+                              Code: #{booking.boardingNumber}
+                            </div>
+                          )}
+                          
+                          <button 
+                            onClick={() => toggleFlip(booking._id)}
+                            className="btn-ghost"
+                            style={{ padding: '4px 0', marginTop: '2px' }}
+                          >
+                            <RefreshCw size={12} /> {t('optionsBtn')}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
