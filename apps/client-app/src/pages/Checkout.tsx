@@ -679,16 +679,40 @@ export default function CheckoutPage() {
                         <div 
                           key={cpIdx} 
                           onClick={() => {
+                            if (cp.purpose === 'REST') return;
+
+                            let targetType: 'pickup' | 'dropoff';
+                            if (cpIdx === pickupIdx) {
+                              targetType = 'pickup';
+                            } else if (cpIdx === dropoffIdx) {
+                              targetType = 'dropoff';
+                            } else if (cpIdx < pickupIdx) {
+                              targetType = 'pickup';
+                            } else if (cpIdx > dropoffIdx) {
+                              targetType = 'dropoff';
+                            } else {
+                              const distToPickup = cpIdx - pickupIdx;
+                              const distToDropoff = dropoffIdx - cpIdx;
+                              if (distToPickup < distToDropoff) {
+                                targetType = 'pickup';
+                              } else if (distToDropoff < distToPickup) {
+                                targetType = 'dropoff';
+                              } else {
+                                targetType = 'dropoff'; // equidistant default
+                              }
+                            }
+
                             let updated = false;
-                            if (cpIdx < dropoffIdx) {
-                              if (cp.purpose === 'REST' || cp.purpose === 'DROP_OFF') return;
+                            if (targetType === 'pickup') {
+                              if (cp.purpose === 'DROP_OFF') return;
                               setSelectedPickupCheckpoint(cp);
                               updated = true;
-                            } else if (cpIdx > pickupIdx) {
-                              if (cp.purpose === 'REST' || cp.purpose === 'PICKUP') return;
+                            } else {
+                              if (cp.purpose === 'PICKUP') return;
                               setSelectedDropoffCheckpoint(cp);
                               updated = true;
                             }
+
                             if (updated) {
                               setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
                             }

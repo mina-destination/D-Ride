@@ -107,6 +107,11 @@ export default function TripSearchPage() {
   } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent, tripId: string, cpIdx: number, checkpoints: any[]) => {
+    // Only allow drag using mouse pointers to prevent touch devices from hijacking page/horizontal scrolling
+    if (e.pointerType !== 'mouse') {
+      return;
+    }
+
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -1086,14 +1091,37 @@ export default function TripSearchPage() {
                                           onPointerCancel={handlePointerUp}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (cpIdx < dropoffIdx) {
-                                              if (cp.purpose === 'REST' || cp.purpose === 'DROP_OFF') return;
+                                            if (cp.purpose === 'REST') return;
+
+                                            let targetType: 'pickup' | 'dropoff';
+                                            if (cpIdx === pickupIdx) {
+                                              targetType = 'pickup';
+                                            } else if (cpIdx === dropoffIdx) {
+                                              targetType = 'dropoff';
+                                            } else if (cpIdx < pickupIdx) {
+                                              targetType = 'pickup';
+                                            } else if (cpIdx > dropoffIdx) {
+                                              targetType = 'dropoff';
+                                            } else {
+                                              const distToPickup = cpIdx - pickupIdx;
+                                              const distToDropoff = dropoffIdx - cpIdx;
+                                              if (distToPickup < distToDropoff) {
+                                                targetType = 'pickup';
+                                              } else if (distToDropoff < distToPickup) {
+                                                targetType = 'dropoff';
+                                              } else {
+                                                targetType = 'dropoff'; // equidistant default
+                                              }
+                                            }
+
+                                            if (targetType === 'pickup') {
+                                              if (cp.purpose === 'DROP_OFF') return;
                                               setSelectedCheckpoints(prev => ({
                                                 ...prev,
                                                 [trip._id]: cp.name
                                               }));
-                                            } else if (cpIdx > pickupIdx) {
-                                              if (cp.purpose === 'REST' || cp.purpose === 'PICKUP') return;
+                                            } else {
+                                              if (cp.purpose === 'PICKUP') return;
                                               setSelectedDropoffCheckpoints(prev => ({
                                                 ...prev,
                                                 [trip._id]: cp.name

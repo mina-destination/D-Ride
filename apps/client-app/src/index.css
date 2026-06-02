@@ -112,7 +112,14 @@
 html {
   /* Smooth scrolling handled via JS scrollIntoView for targeted elements.
      CSS scroll-behavior: smooth causes janky main-thread scroll on heavy pages. */
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
