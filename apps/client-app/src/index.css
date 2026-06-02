@@ -695,6 +695,7 @@ textarea:focus-visible {
   flex-direction: column;
   gap: 2rem;
   width: 100%;
+  min-width: 0;
 }
 
 .sidebar-panel {
@@ -704,6 +705,7 @@ textarea:focus-visible {
   position: sticky;
   top: 7rem;
   width: 100%;
+  min-width: 0;
 }
 
 /* Custom premium card design */

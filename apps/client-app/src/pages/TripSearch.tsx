@@ -819,7 +819,11 @@ export default function TripSearchPage() {
                                   borderTop: '1px solid var(--border)',
                                   display: 'flex',
                                   flexDirection: 'column',
-                                  gap: '0.5rem'
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  maxWidth: '100%',
+                                  boxSizing: 'border-box',
+                                  overflow: 'hidden'
                                 }}>
                                   <div style={{ 
                                     display: 'flex', 
