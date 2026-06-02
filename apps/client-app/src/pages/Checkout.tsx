@@ -543,7 +543,10 @@ export default function CheckoutPage() {
                     background: 'rgba(255, 255, 255, 0.01)',
                     padding: '1.25rem 0.5rem 1rem 0.5rem',
                     borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.03)'
+                    border: '1px solid rgba(255, 255, 255, 0.03)',
+                    width: '100%',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box'
                   }} className="checkpoint-scrollbar">
                     <style>{`
                       @keyframes pulse-pickup {
