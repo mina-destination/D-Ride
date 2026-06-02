@@ -145,7 +145,7 @@ export default function RoutesPage() {
       {/* HEADER SECTION */}
       <div style={{
         background: 'linear-gradient(135deg, #1A1A2E 0%, #0F0F1A 100%)',
-        padding: '3rem 2rem',
+        padding: '8.5rem 2rem 3.5rem',
         borderBottom: '1px solid var(--border)',
         position: 'relative',
         overflow: 'clip',
@@ -192,15 +192,7 @@ export default function RoutesPage() {
           </p>
         </div>
       ) : (
-        <div style={{
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '2rem 1.5rem',
-          display: 'grid',
-          gridTemplateColumns: '420px 1fr',
-          gap: '2rem',
-          alignItems: 'start'
-        }}>
+        <div className="routes-explorer-grid">
           
           {/* LEFT COLUMN: ROUTE CARDS LIST */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -373,7 +365,7 @@ export default function RoutesPage() {
 
           {/* RIGHT COLUMN: ACTIVE ROUTE MAP & TIMELINE */}
           {activeRoute && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'sticky', top: '90px' }}>
+            <div className="routes-explorer-sidebar">
               
               {/* INTERACTIVE LEAFLET MAP */}
               <div style={{

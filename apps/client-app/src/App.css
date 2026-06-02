@@ -3563,7 +3563,65 @@
   transform: scale(1.06);
 }
 
+/* ============================================================
+   Mobile Responsive Layout Fixes
+   ============================================================ */
 
+/* Unified page-container wrapper styling for clean layout flow & navbar clearance */
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7.5rem 2rem 4rem;
+  position: relative;
+  z-index: 1;
+  background: var(--background);
+}
 
+@media (max-width: 768px) {
+  .page-container {
+    padding: 9.5rem 1.25rem 3rem !important; /* Increased top padding to clear floating nav */
+  }
+}
 
+/* Responsive grid layout for the Routes Explorer page */
+.routes-explorer-grid {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
 
+.routes-explorer-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 90px;
+}
+
+@media (max-width: 968px) {
+  .routes-explorer-grid {
+    grid-template-columns: 1fr !important;
+    padding: 1.5rem 1rem !important;
+  }
+  .routes-explorer-sidebar {
+    position: static !important;
+  }
+}
+
+/* Fix notifications dropdown clipping on mobile screens */
+@media (max-width: 640px) {
+  .notification-dropdown {
+    position: fixed !important;
+    top: 90px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    transform-origin: top center !important;
+  }
+}
