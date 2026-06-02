@@ -3678,3 +3678,54 @@
     width: auto !important;
   }
 }
+
+/* Stepper labels mobile overrides to prevent overlapping */
+@media (max-width: 640px) {
+  .stepper-label {
+    font-size: 0.55rem !important;
+    text-align: center !important;
+    max-width: 70px !important;
+    white-space: normal !important;
+  }
+}
+
+/* Responsive trip timings column/row on search results page */
+.trip-timings-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .trip-timings-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+  .trip-time-block {
+    width: 100% !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+  .trip-timeline {
+    display: flex !important;
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    flex: none !important;
+  }
+  .timeline-line, .timeline-dot {
+    display: none !important;
+  }
+  .trip-duration {
+    position: static !important;
+    transform: none !important;
+    font-size: 0.72rem !important;
+    color: var(--primary) !important;
+    background: rgba(245, 183, 49, 0.1) !important;
+    padding: 3px 10px !important;
+    border-radius: 6px !important;
+    font-weight: 700 !important;
+    display: inline-block !important;
+  }
+}

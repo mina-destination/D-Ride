@@ -766,7 +766,7 @@ export default function TripSearchPage() {
                                     )}
                                   </div>
 
-                                  <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                                  <div className="trip-timings-row">
                                     <div className="trip-time-block">
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{pickupTimeStr}</span>
                                       <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
