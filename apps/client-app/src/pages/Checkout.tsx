@@ -320,7 +320,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="checkout-page-container">
-      <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -1023,9 +1023,9 @@ export default function CheckoutPage() {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '8px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{t('legSegmentLabel')}</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-secondary)', flexShrink: 0 }}>{t('legSegmentLabel')}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', textAlign: 'right', wordBreak: 'break-word', minWidth: 0 }}>
                       {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('startLabel')) : (selectedPickupCheckpoint?.name || t('startLabel'))} ➔ {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('endLabel')) : (selectedDropoffCheckpoint?.name || t('endLabel'))}
                     </span>
                   </div>

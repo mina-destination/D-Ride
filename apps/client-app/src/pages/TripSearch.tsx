@@ -401,7 +401,7 @@ export default function TripSearchPage() {
 
   return (
     <div className="trip-search-page-container">
-      <div style={{ maxWidth: '950px', width: '100%', margin: '0 auto', padding: '0 1.5rem' }}>
+      <div style={{ maxWidth: '950px', width: '100%', margin: '0 auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }} className="animate-fade-in-up">
