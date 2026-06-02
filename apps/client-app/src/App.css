@@ -1419,6 +1419,9 @@
 @media (max-width: 768px) {
   .trip-card {
     flex-direction: column;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .trip-card-main-row {
     flex-direction: column !important;
@@ -1445,6 +1448,9 @@
   .boarding-pass {
     flex-direction: column;
   }
+  .pass-main {
+    padding: 1.25rem 1rem !important;
+  }
   .pass-divider {
     display: none;
   }
@@ -1456,6 +1462,7 @@
     justify-content: space-between;
     align-items: center;
     text-align: left;
+    padding: 1rem 1.25rem !important;
   }
   .pass-qr-mock {
     margin-bottom: 0;
@@ -1730,7 +1737,7 @@
 
 @media (max-width: 768px) {
   .ticket-inner {
-    height: 380px; /* Height for vertical mobile layout */
+    height: 440px !important; /* Increased height for vertical mobile layout to prevent clipping */
   }
 }
 
@@ -3788,6 +3795,10 @@
 @media (max-width: 768px) {
   .bookings-page-container {
     padding-top: 9.5rem !important;
+  }
+  .hero-bg-gradient,
+  .hero-bg-gradient-2 {
+    display: none !important;
   }
 }
 
