@@ -1420,13 +1420,26 @@
   .trip-card {
     flex-direction: column;
   }
+  .trip-card-main-row {
+    flex-direction: column !important;
+  }
   .trip-card-divider {
-    width: 100%;
-    height: 1px;
-    margin: 0 1rem;
+    width: 100% !important;
+    height: 1px !important;
+    border-left: none !important;
+    border-top: 2px dashed var(--border) !important;
+    margin: 0.75rem 0 !important;
   }
   .trip-card-right {
-    align-items: center;
+    width: 100% !important;
+    min-width: 100% !important;
+    border-left: none !important;
+    border-top: 1px dashed var(--border) !important;
+    align-items: center !important;
+    padding: 1.5rem !important;
+  }
+  .ticket-punch-cutout {
+    display: none !important;
   }
 
   .boarding-pass {

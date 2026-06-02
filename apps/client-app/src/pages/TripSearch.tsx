@@ -688,7 +688,7 @@ export default function TripSearchPage() {
                                   background: 'var(--background)',
                                   border: '1px solid var(--border)',
                                   zIndex: 5
-                                }} />
+                                }} className="ticket-punch-cutout" />
                                 {/* Ticket Punch Cutout Bottom */}
                                 <div style={{
                                   position: 'absolute',
@@ -700,7 +700,7 @@ export default function TripSearchPage() {
                                   background: 'var(--background)',
                                   border: '1px solid var(--border)',
                                   zIndex: 5
-                                }} />
+                                }} className="ticket-punch-cutout" />
 
                                 {/* Left Column: Premium Route Cover Landscape Banner */}
                                 <div style={{
@@ -1110,9 +1110,9 @@ export default function TripSearchPage() {
                                             position: 'relative', 
                                             cursor: cp.purpose === 'REST' ? 'not-allowed' : (draggingTrip && draggingTrip.tripId === trip._id ? 'grabbing' : 'pointer'),
                                             opacity: cp.purpose === 'REST' ? 0.4 : 1,
-                                            touchAction: 'none'
+                                            touchAction: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'auto'
                                           }}
-                                          className="checkpoint-step p-3 touch-manipulation min-w-[48px] min-h-[48px] checkpoint-item"
+                                          className="checkpoint-step p-3 min-w-[48px] min-h-[48px] checkpoint-item"
                                         >
                                           {/* City Legend Badge */}
                                           {cp.city && (
