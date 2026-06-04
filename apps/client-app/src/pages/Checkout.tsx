@@ -4,6 +4,7 @@ import api, { bookingsAPI, routesAPI } from '../services/api';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 
 import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -57,7 +58,13 @@ export default function CheckoutPage() {
   const requiredSeatsCount = passengersParam ? Math.max(1, parseInt(passengersParam, 10)) : 1;
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'اختيار المقاعد والدفع | دي-رايد' : 'Select Seats & Checkout | D-Ride';
+  const seoDescription = isAr
+    ? 'اختر محطات الركوب والنزول وحدد مقاعدك المفضلة على مخطط كابينة حافلة تويوتا هايس التابعة لدي-رايد.'
+    : 'Configure your checkpoints and select your seats in the Toyota HiAce cabin for your D-Ride commute.';
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -316,10 +323,11 @@ export default function CheckoutPage() {
     (coord: number[]) => [coord[1], coord[0]] as [number, number]
   ) || [];
 
-  if (!tripId) return <div className="auth-page"><div className="premium-card">{t('noTripSelected')}</div></div>;
+  if (!tripId) return <div className="auth-page"><SEO title={seoTitle} description={seoDescription} /><div className="premium-card">{t('noTripSelected')}</div></div>;
 
   return (
     <div className="checkout-page-container">
+      <SEO title={seoTitle} description={seoDescription} />
       <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}
@@ -707,13 +715,15 @@ export default function CheckoutPage() {
 
                             let updated = false;
                             if (targetType === 'pickup') {
-                              if (cp.purpose === 'DROP_OFF') return;
-                              setSelectedPickupCheckpoint(cp);
-                              updated = true;
+                              if (cp.purpose !== 'DROP_OFF') {
+                                setSelectedPickupCheckpoint(cp);
+                                updated = true;
+                              }
                             } else {
-                              if (cp.purpose === 'PICKUP') return;
-                              setSelectedDropoffCheckpoint(cp);
-                              updated = true;
+                              if (cp.purpose !== 'PICKUP') {
+                                setSelectedDropoffCheckpoint(cp);
+                                updated = true;
+                              }
                             }
 
                             if (updated) {

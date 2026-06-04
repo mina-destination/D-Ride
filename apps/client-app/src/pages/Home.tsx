@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { routesAPI, partnersAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
+import SEO from '../components/SEO';
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -921,7 +922,7 @@ function RouteSearchForm() {
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [partners, setPartners] = useState<any[]>([]);
 
   useEffect(() => {
@@ -930,8 +931,16 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
+  const seoTitle = language === 'ar'
+    ? 'دي-رايد | حجز أتوبيسات السفر في مصر'
+    : 'D-Ride | Smart Mass-Transit & Bus Booking in Egypt';
+  const seoDescription = language === 'ar'
+    ? 'احجز مقعدك في حافلات دي-رايد المكيفة والمريحة للسفر بين القاهرة، الإسكندرية، شرم الشيخ، دهب، نويبع، وطابا مع تتبع مباشر عبر GPS.'
+    : 'Book clean, air-conditioned buses connecting Cairo, Alexandria, Sharm El Sheikh, Dahab, Nuweiba, and Taba with real-time GPS tracking and cashless payments.';
+
   return (
     <>
+      <SEO title={seoTitle} description={seoDescription} keywords="cairo, alexandria, sharm el sheikh, dahab, nuweiba, taba, القاهرة, الاسكندرية, شرم الشيخ, دهب, نويبع, طابا" />
       {/* ── Hero Section ─────────────────────────────────── */}
       <section className="hero-section" id="hero">
         <div className="hero-bg-gradient" />

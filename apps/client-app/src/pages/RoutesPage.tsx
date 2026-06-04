@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 import { 
   Map as MapIcon, 
   Clock, 
@@ -139,8 +140,14 @@ export default function RoutesPage() {
     navigate(`/search?routeId=${routeId}`);
   };
 
+  const seoTitle = language === 'ar' ? 'مستكشف مسارات النقل في مصر | دي-رايد' : 'Egypt Transit Routes Explorer | D-Ride';
+  const seoDescription = language === 'ar'
+    ? 'تصفح مسارات وخطوط الحافلات الثابتة بين القاهرة، الإسكندرية، شرم الشيخ، دهب، نويبع وطابا مع جداول المواعيد والانتظار.'
+    : 'Explore fixed transit networks connecting Cairo, Alexandria, Sharm El Sheikh, Dahab, Nuweiba, and Taba with schedules and wait buffers.';
+
   return (
     <div className="routes-explorer-container" style={{ minHeight: 'calc(100vh - 72px)', background: 'var(--background)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}>
+      <SEO title={seoTitle} description={seoDescription} keywords="egypt routes, bus routes, cairo to sharm, alex to dahab, nuweiba, taba" />
       
       {/* HEADER SECTION */}
       <div style={{

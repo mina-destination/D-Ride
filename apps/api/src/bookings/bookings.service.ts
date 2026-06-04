@@ -261,12 +261,16 @@ export class BookingsService {
 
       if (pickupCp) {
         if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') {
-          throw new BadRequestException(`Selected pickup checkpoint "${pickupCp.name}" is not available for boarding`);
+          throw new BadRequestException(
+            `Selected pickup checkpoint "${pickupCp.name}" is not available for boarding`,
+          );
         }
       }
       if (dropoffCp) {
         if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') {
-          throw new BadRequestException(`Selected dropoff checkpoint "${dropoffCp.name}" is not available for drop-off`);
+          throw new BadRequestException(
+            `Selected dropoff checkpoint "${dropoffCp.name}" is not available for drop-off`,
+          );
         }
       }
 
@@ -460,9 +464,13 @@ export class BookingsService {
       }
 
       const isReward = !!data.isReward;
-      const amountEGP = isReward ? 0 : (segmentPrice * requestedSeats);
-      let bookingStatus: BookingStatus = isReward ? BookingStatus.CONFIRMED : BookingStatus.PENDING_PAYMENT;
-      let paymentStatus: PaymentStatus = isReward ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
+      const amountEGP = isReward ? 0 : segmentPrice * requestedSeats;
+      let bookingStatus: BookingStatus = isReward
+        ? BookingStatus.CONFIRMED
+        : BookingStatus.PENDING_PAYMENT;
+      let paymentStatus: PaymentStatus = isReward
+        ? PaymentStatus.SUCCESS
+        : PaymentStatus.PENDING;
 
       const isWallet =
         !isReward &&
@@ -553,8 +561,8 @@ export class BookingsService {
             amountEGP,
             status: PaymentStatus.SUCCESS,
             paymentMethod: isReward
-              ? (data.paymentMethod || 'ADMIN_REWARD')
-              : (data.paymentMethod || 'WALLET'),
+              ? data.paymentMethod || 'ADMIN_REWARD'
+              : data.paymentMethod || 'WALLET',
           },
         });
       }
@@ -704,18 +712,25 @@ export class BookingsService {
             ? 'SYSTEM'
             : 'PASSENGER';
 
-        this.notificationsService.sendCancellationNotification(
-          u.phone || '',
-          u.name || 'Valued Passenger',
-          {
-            routeName: r.name || 'D-Ride Trip',
-            departureTime: t.departureTime.toISOString(),
-            seatNumber: seatNo,
-            price: updated.amountEGP,
-          },
-          u.email || '',
-          initiator,
-        ).catch(err => console.error('Failed to send cancellation notification asynchronously:', err));
+        this.notificationsService
+          .sendCancellationNotification(
+            u.phone || '',
+            u.name || 'Valued Passenger',
+            {
+              routeName: r.name || 'D-Ride Trip',
+              departureTime: t.departureTime.toISOString(),
+              seatNumber: seatNo,
+              price: updated.amountEGP,
+            },
+            u.email || '',
+            initiator,
+          )
+          .catch((err) =>
+            console.error(
+              'Failed to send cancellation notification asynchronously:',
+              err,
+            ),
+          );
       }
     } catch (err) {
       console.error('Failed to initiate cancellation notification:', err);

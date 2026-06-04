@@ -4,14 +4,21 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import SEO from '../components/SEO';
 
 export default function PaymentCallbackPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
   const processedRef = useRef(false);
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'تأكيد عملية الدفع | دي-رايد' : 'Payment Confirmation | D-Ride';
+  const seoDescription = isAr
+    ? 'تأكيد تفاصيل الدفع الخاصة بحجز رحلتك على دي-رايد.'
+    : 'Confirming payment details for your D-Ride trip booking.';
 
   useEffect(() => {
     if (processedRef.current) return;
@@ -49,13 +56,14 @@ export default function PaymentCallbackPage() {
 
   return (
     <div className="auth-page">
+      <SEO title={seoTitle} description={seoDescription} />
       <div className="auth-card glass" style={{ textAlign: 'center', maxWidth: '500px', paddingTop: '2.5rem' }}>
-        {status === 'loading' && <p>{t('verifyingPayment')}</p>}
+        {status === 'loading' && <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{t('verifyingPayment')}</h1>}
 
         {status === 'success' && (
           <>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
-            <h2>{t('paymentSuccessful')}</h2>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('paymentSuccessful')}</h1>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
               {t('paymentSuccessDesc')}
             </p>
@@ -68,7 +76,7 @@ export default function PaymentCallbackPage() {
         {status === 'failed' && (
           <>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❌</div>
-            <h2>{t('paymentFailed')}</h2>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('paymentFailed')}</h1>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
               {t('paymentFailedDesc')}
             </p>
@@ -81,3 +89,4 @@ export default function PaymentCallbackPage() {
     </div>
   );
 }
+

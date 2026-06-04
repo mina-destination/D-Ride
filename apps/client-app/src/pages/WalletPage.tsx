@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { paymobAPI } from '../services/api';
 import { useNotifications } from '../context/NotificationContext';
+import SEO from '../components/SEO';
 import { 
   Wallet, 
   CreditCard, 
@@ -15,8 +16,14 @@ import {
 } from 'lucide-react';
 
 export default function WalletPage() {
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
   const { addNotification } = useNotifications();
+  
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'محفظتي الرقمية | دي-رايد' : 'My Prepaid Wallet | D-Ride';
+  const seoDescription = isAr
+    ? 'إدارة رصيد محفظة دي-رايد الخاصة بك، والشحن الفوري بالبطاقة أو محفظة الهاتف المحمول، ومراجعة سجل المعاملات.'
+    : 'Manage your prepaid D-Ride balance, top up instantly via credit card or mobile cash wallet, and review transaction history.';
   const [walletData, setWalletData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [topupAmount, setTopupAmount] = useState('');
@@ -88,6 +95,7 @@ export default function WalletPage() {
 
   return (
     <div className="container" style={{ padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>

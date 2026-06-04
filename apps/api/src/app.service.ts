@@ -39,7 +39,11 @@ export class AppService {
   saveSettings(settings: any): any {
     try {
       // Remove any unwanted properties or keep all of them
-      fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+      fs.writeFileSync(
+        this.settingsPath,
+        JSON.stringify(settings, null, 2),
+        'utf8',
+      );
       return settings;
     } catch (error) {
       console.error('Failed to write settings file:', error);

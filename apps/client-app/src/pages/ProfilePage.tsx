@@ -4,11 +4,18 @@ import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Mail, Phone, Calendar, ShieldCheck, LogOut, Award, Navigation, Leaf, Lock } from 'lucide-react';
 import { authAPI } from '../services/api';
+import SEO from '../components/SEO';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { t, language } = useTranslation();
   const navigate = useNavigate();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'الملف الشخصي | دي-رايد' : 'My Profile | D-Ride';
+  const seoDescription = isAr
+    ? 'عرض وتحديث إعدادات ملفك الشخصي كراكب، وكلمة مرور الأمان، وإحصاءات توفير الكربون على دي-رايد.'
+    : 'View and update your passenger profile settings, security password credentials, and carbon emission stats on D-Ride.';
 
   // Change Password States
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -79,6 +86,7 @@ export default function ProfilePage() {
 
   return (
     <div className="page-container">
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Dynamic background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />
@@ -134,9 +142,9 @@ export default function ProfilePage() {
             }}>
               {getInitials()}
             </div>
-            <h2 className="title-outfit" style={{ margin: '8px 0 0 0', fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+            <h1 className="title-outfit" style={{ margin: '8px 0 0 0', fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 800 }}>
               {user?.name || 'Commuter'}
-            </h2>
+            </h1>
             <span style={{
               fontSize: '10px',
               fontWeight: 800,

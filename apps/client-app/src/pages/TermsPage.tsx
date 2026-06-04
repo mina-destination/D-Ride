@@ -1,12 +1,19 @@
 import { useTranslation } from '../context/LanguageContext';
 import { FileText, Ban, Calendar, UserCheck, CreditCard } from 'lucide-react';
+import SEO from '../components/SEO';
 
 export default function TermsPage() {
   const { language } = useTranslation();
   const isAr = language === 'ar';
 
+  const seoTitle = isAr ? 'الشروط والأحكام | دي-رايد' : 'Terms of Service | D-Ride';
+  const seoDescription = isAr
+    ? 'راجع الشروط والأحكام الخاصة بمنصة دي-رايد، التزامات الركاب، سياسات حجز المقاعد، وسياسة الإلغاء واسترداد الأموال.'
+    : 'Review the D-Ride terms of service, passenger obligations, seating policies, and cancellation/refund policies.';
+
   return (
     <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

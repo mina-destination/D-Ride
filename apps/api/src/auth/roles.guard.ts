@@ -68,8 +68,8 @@ export class RolesGuard implements CanActivate {
       // 1. Routes
       if (resource === 'routes') {
         if (method === 'GET') {
-          return ['routes', 'analytics', 'finance-calculator', 'trips'].some((p) =>
-            userPermissions.includes(p),
+          return ['routes', 'analytics', 'finance-calculator', 'trips'].some(
+            (p) => userPermissions.includes(p),
           );
         }
         return userPermissions.includes('routes');

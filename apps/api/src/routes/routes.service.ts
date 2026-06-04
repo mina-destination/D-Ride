@@ -18,8 +18,13 @@ export class RoutesService {
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAll(includeVirtual = false, includeInactive = false): Promise<any[]> {
-    this.logger.log(`Fetching all routes (includeVirtual: ${includeVirtual}, includeInactive: ${includeInactive})`);
+  async findAll(
+    includeVirtual = false,
+    includeInactive = false,
+  ): Promise<any[]> {
+    this.logger.log(
+      `Fetching all routes (includeVirtual: ${includeVirtual}, includeInactive: ${includeInactive})`,
+    );
     const routes = await this.prisma.route.findMany({
       where: {
         isDeleted: false,
@@ -27,21 +32,28 @@ export class RoutesService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    
+
     const allRoutes: any[] = [];
     for (const r of routes) {
       allRoutes.push({ ...r, _id: r.id });
 
-      if (includeVirtual && r.checkpoints && Array.isArray(r.checkpoints) && r.checkpoints.length >= 2) {
+      if (
+        includeVirtual &&
+        r.checkpoints &&
+        Array.isArray(r.checkpoints) &&
+        r.checkpoints.length >= 2
+      ) {
         const cps = r.checkpoints as any[];
         const N = cps.length;
         for (let i = 0; i < N; i++) {
           const startCp = cps[i];
-          if (startCp.purpose === 'REST' || startCp.purpose === 'DROP_OFF') continue;
+          if (startCp.purpose === 'REST' || startCp.purpose === 'DROP_OFF')
+            continue;
 
           for (let j = i + 1; j < N; j++) {
             const endCp = cps[j];
-            if (endCp.purpose === 'REST' || endCp.purpose === 'PICKUP') continue;
+            if (endCp.purpose === 'REST' || endCp.purpose === 'PICKUP')
+              continue;
 
             if (i === 0 && j === N - 1) continue; // Skip full route
             allRoutes.push(getVirtualRoute(r, i, j));
@@ -60,7 +72,9 @@ export class RoutesService {
       const startIndex = parseInt(indices[0], 10);
       const endIndex = parseInt(indices[1], 10);
 
-      const parentRoute = await this.prisma.route.findUnique({ where: { id: parentId } });
+      const parentRoute = await this.prisma.route.findUnique({
+        where: { id: parentId },
+      });
       if (!parentRoute) {
         throw new NotFoundException(`Route with ID ${id} not found`);
       }
@@ -189,24 +203,26 @@ export class RoutesService {
             const seatNo = Array.isArray(booking.seatNumbers)
               ? booking.seatNumbers.join(', ')
               : String(booking.seatNumbers || '');
-            this.notificationsService.sendCancellationNotification(
-              u.phone || '',
-              u.name || 'Valued Passenger',
-              {
-                routeName: r.name || 'D-Ride Trip',
-                departureTime: t.departureTime.toISOString(),
-                seatNumber: seatNo,
-                price: booking.amountEGP,
-              },
-              u.email || '',
-              'SYSTEM',
-            ).catch((notificationErr) => {
-              console.error(
-                'Failed to send cancellation notification for booking on route delete asynchronously:',
-                booking.id,
-                notificationErr,
-              );
-            });
+            this.notificationsService
+              .sendCancellationNotification(
+                u.phone || '',
+                u.name || 'Valued Passenger',
+                {
+                  routeName: r.name || 'D-Ride Trip',
+                  departureTime: t.departureTime.toISOString(),
+                  seatNumber: seatNo,
+                  price: booking.amountEGP,
+                },
+                u.email || '',
+                'SYSTEM',
+              )
+              .catch((notificationErr) => {
+                console.error(
+                  'Failed to send cancellation notification for booking on route delete asynchronously:',
+                  booking.id,
+                  notificationErr,
+                );
+              });
           }
         } catch (notificationErr) {
           console.error(
@@ -427,8 +443,18 @@ export class RoutesService {
         const pickupMatches: number[] = [];
         const dropoffMatches: number[] = [];
         checkpoints.forEach((cp, idx) => {
-          if (cp.purpose !== 'REST' && cp.purpose !== 'DROP_OFF' && this.matchesCity(cp, pickupCity)) pickupMatches.push(idx);
-          if (cp.purpose !== 'REST' && cp.purpose !== 'PICKUP' && this.matchesCity(cp, dropoffCity)) dropoffMatches.push(idx);
+          if (
+            cp.purpose !== 'REST' &&
+            cp.purpose !== 'DROP_OFF' &&
+            this.matchesCity(cp, pickupCity)
+          )
+            pickupMatches.push(idx);
+          if (
+            cp.purpose !== 'REST' &&
+            cp.purpose !== 'PICKUP' &&
+            this.matchesCity(cp, dropoffCity)
+          )
+            dropoffMatches.push(idx);
         });
 
         // Find best directional pair (pickup before dropoff)

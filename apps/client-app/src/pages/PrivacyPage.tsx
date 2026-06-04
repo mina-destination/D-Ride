@@ -1,12 +1,19 @@
 import { useTranslation } from '../context/LanguageContext';
 import { Shield, Lock, MapPin, Database, EyeOff } from 'lucide-react';
+import SEO from '../components/SEO';
 
 export default function PrivacyPage() {
   const { language } = useTranslation();
   const isAr = language === 'ar';
 
+  const seoTitle = isAr ? 'سياسة الخصوصية | دي-رايد' : 'Privacy Policy | D-Ride';
+  const seoDescription = isAr
+    ? 'اعرف كيف تجمع منصة دي-رايد بياناتك الشخصية وتؤمن تعاملاتك المالية المتكاملة مع بوابة بيموب لحمايتها.'
+    : 'Understand how D-Ride collects, stores, and secures your personal and payment data in compliance with PCI-DSS standards.';
+
   return (
     <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

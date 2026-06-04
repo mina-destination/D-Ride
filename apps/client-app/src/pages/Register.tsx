@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { UserPlus, RefreshCw } from 'lucide-react';
+import SEO from '../components/SEO';
 
 function decodeJwt(token: string) {
   try {
@@ -23,8 +24,14 @@ function decodeJwt(token: string) {
 }
 
 export default function RegisterPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { register, loginWithGoogle } = useAuth();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'إنشاء حساب جديد | دي-رايد' : 'Create Account | D-Ride';
+  const seoDescription = isAr
+    ? 'انضم إلى دي-رايد لحجز حافلات نقل مريحة ومكيفة تربط القاهرة، الإسكندرية، شرم الشيخ، دهب، نويبع، وطابا.'
+    : 'Join D-Ride to book premium minibuses connecting Cairo, Alexandria, Sharm El Sheikh, Dahab, Nuweiba, and Taba.';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/';
@@ -166,6 +173,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <SEO title={seoTitle} description={seoDescription} />
       <div className="auth-card glass">
         <div className="auth-header">
           <img src={logo} alt="D-Ride" className="auth-logo" />

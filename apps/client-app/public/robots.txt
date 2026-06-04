@@ -1,0 +1,27 @@
+# D-Ride Robots.txt - SEO Directives
+User-agent: *
+
+# Allow crawling of public content
+Allow: /$
+Allow: /routes
+Allow: /partners
+Allow: /about
+Allow: /contact
+Allow: /login
+Allow: /register
+Allow: /terms
+Allow: /privacy
+
+# Disallow indexing private pages, checkout flows, and search results parameters
+Disallow: /search?*
+Disallow: /checkout
+Disallow: /payment
+Disallow: /payment/callback
+Disallow: /track
+Disallow: /my-trips
+Disallow: /profile
+Disallow: /wallet
+
+# Host and Sitemap locations
+Host: https://d-ride.com
+Sitemap: https://d-ride.com/sitemap.xml

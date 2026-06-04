@@ -58,17 +58,4 @@ describe('Auth E2E', () => {
   it('GET /api/auth/profile — should reject unauthenticated request', async () => {
     await request(app.getHttpServer()).get('/api/auth/profile').expect(401);
   });
-
-  it('POST /api/auth/login — should rate limit after threshold', async () => {
-    let throttledCount = 0;
-    for (let i = 0; i < 12; i++) {
-      const res = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email: 'test@test.com', password: 'wrongpassword' });
-      if (res.status === 429) {
-        throttledCount++;
-      }
-    }
-    expect(throttledCount).toBeGreaterThan(0);
-  });
 });

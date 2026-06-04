@@ -3,10 +3,17 @@ import { useAuth } from '../context/AuthContext';
 import { supportAPI, settingsAPI } from '../services/api';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 
 export default function ContactPage() {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'اتصل بنا | دي-رايد' : 'Contact Support | D-Ride';
+  const seoDescription = isAr
+    ? 'اتصل بخدمة عملاء دي-رايد وسجل تذكرة دعم لحل أي مشكلة في الحجز أو الدفع لرحلتك.'
+    : 'Get in touch with the D-Ride support team. Submit a support ticket for help with tickets, payments, or routes.';
 
   // Load support info dynamically from settings saved in LocalStorage, with fallback defaults
   const [supportInfo, setSupportInfo] = useState({
@@ -69,6 +76,7 @@ export default function ContactPage() {
 
   return (
     <div className="page-container">
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

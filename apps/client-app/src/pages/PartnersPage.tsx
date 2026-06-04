@@ -3,11 +3,18 @@ import { partnersAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import { Globe, ArrowRight, Award, ShieldCheck, Zap } from 'lucide-react';
 import { cleanGoogleDriveLink } from '../utils/google-drive';
+import SEO from '../components/SEO';
 
 export default function PartnersPage() {
   const { language } = useTranslation();
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'شركاء النجاح | دي-رايد' : 'Our Valued Partners | D-Ride';
+  const seoDescription = isAr
+    ? 'تصفح شراكاتنا الاستراتيجية مع كبرى الجامعات، المؤسسات، وبوابات الدفع الإلكتروني الوطنية في مصر (مثل بيموب).'
+    : 'Explore our strategic collaborations with leading Egypt institutions, universities, and secure payment networks like Paymob.';
 
   useEffect(() => {
     setLoading(true);
@@ -23,10 +30,9 @@ export default function PartnersPage() {
       });
   }, []);
 
-  const isAr = language === 'ar';
-
   return (
     <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

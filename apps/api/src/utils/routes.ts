@@ -1,6 +1,10 @@
 import { getDistance } from './geo';
 
-export function getVirtualRoute(parentRoute: any, startIndex: number, endIndex: number) {
+export function getVirtualRoute(
+  parentRoute: any,
+  startIndex: number,
+  endIndex: number,
+) {
   const checkpoints = (parentRoute.checkpoints as any[]) || [];
   const startCp = checkpoints[startIndex];
   const endCp = checkpoints[endIndex];
@@ -15,11 +19,13 @@ export function getVirtualRoute(parentRoute: any, startIndex: number, endIndex: 
     endCp.purpose === 'REST' ||
     endCp.purpose === 'PICKUP'
   ) {
-    throw new Error('Invalid virtual route: checkpoints do not support pickup/dropoff roles');
+    throw new Error(
+      'Invalid virtual route: checkpoints do not support pickup/dropoff roles',
+    );
   }
 
   const id = `${parentRoute.id}_sub_${startIndex}_${endIndex}`;
-  
+
   // Construct English and Arabic names
   const name = `${startCp.name} to ${endCp.name}`;
   const nameAr = `${startCp.nameAr || startCp.name} إلى ${endCp.nameAr || endCp.name}`;
@@ -28,22 +34,30 @@ export function getVirtualRoute(parentRoute: any, startIndex: number, endIndex: 
   const startPrice = startCp.priceFromStartEGP || 0;
 
   // Construct relative checkpoints
-  const subCheckpoints = checkpoints.slice(startIndex, endIndex + 1).map((cp, idx) => {
-    const relativeMinutes = Math.max(0, (cp.minutesFromStart || 0) - startMinutes);
-    const relativePrice = Math.max(0, (cp.priceFromStartEGP || 0) - startPrice);
+  const subCheckpoints = checkpoints
+    .slice(startIndex, endIndex + 1)
+    .map((cp, idx) => {
+      const relativeMinutes = Math.max(
+        0,
+        (cp.minutesFromStart || 0) - startMinutes,
+      );
+      const relativePrice = Math.max(
+        0,
+        (cp.priceFromStartEGP || 0) - startPrice,
+      );
 
-    let type = 'CHECKPOINT';
-    if (idx === 0) type = 'START';
-    else if (idx === endIndex - startIndex) type = 'END';
+      let type = 'CHECKPOINT';
+      if (idx === 0) type = 'START';
+      else if (idx === endIndex - startIndex) type = 'END';
 
-    return {
-      ...cp,
-      type,
-      order: idx + 1,
-      minutesFromStart: relativeMinutes,
-      priceFromStartEGP: relativePrice,
-    };
-  });
+      return {
+        ...cp,
+        type,
+        order: idx + 1,
+        minutesFromStart: relativeMinutes,
+        priceFromStartEGP: relativePrice,
+      };
+    });
 
   const duration = Math.max(1, (endCp.minutesFromStart || 0) - startMinutes);
 
@@ -66,7 +80,7 @@ export function getVirtualRoute(parentRoute: any, startIndex: number, endIndex: 
       }
       return closestIdx;
     };
-    
+
     const cStartIdx = findClosestIdx(startCp);
     const cEndIdx = findClosestIdx(endCp);
     if (cStartIdx !== -1 && cEndIdx !== -1 && cStartIdx < cEndIdx) {
@@ -82,10 +96,13 @@ export function getVirtualRoute(parentRoute: any, startIndex: number, endIndex: 
   if (startCp.location?.coordinates && endCp.location?.coordinates) {
     const [lng1, lat1] = startCp.location.coordinates;
     const [lng2, lat2] = endCp.location.coordinates;
-    distanceKm = Math.round((getDistance(lng1, lat1, lng2, lat2) / 1000) * 1.25 * 10) / 10;
+    distanceKm =
+      Math.round((getDistance(lng1, lat1, lng2, lat2) / 1000) * 1.25 * 10) / 10;
   }
   if (!distanceKm || isNaN(distanceKm)) {
-    distanceKm = parentRoute.distanceKm * (duration / (parentRoute.estimatedDurationMinutes || 1));
+    distanceKm =
+      parentRoute.distanceKm *
+      (duration / (parentRoute.estimatedDurationMinutes || 1));
     distanceKm = Math.round(distanceKm * 10) / 10;
   }
 
