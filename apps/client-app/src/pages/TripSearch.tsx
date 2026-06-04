@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripsAPI, routesAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
+import { CustomDatePicker } from '../components/CustomDatePicker';
 
 // Map imports removed
 
@@ -113,6 +114,14 @@ export default function TripSearchPage() {
       day: 'numeric' 
     });
   }, [date, isRtl, t]);
+
+  const todayLocalStr = useMemo(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
 
   const [route, setRoute] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
@@ -497,32 +506,15 @@ export default function TripSearchPage() {
               </div>
 
               {/* Date Input Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('travelDateLabel')}:</span>
-                <input 
-                  type="date"
-                  value={date || ''}
-                  onChange={(e) => {
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('travelDateLabel')}:</span>
+                <CustomDatePicker
+                  value={date || todayLocalStr}
+                  min={todayLocalStr}
+                  onChange={(dateStr) => {
                     const newParams = new URLSearchParams(searchParams);
-                    if (e.target.value) {
-                      newParams.set('date', e.target.value);
-                    } else {
-                      newParams.delete('date');
-                    }
+                    newParams.set('date', dateStr);
                     navigate(`/search?${newParams.toString()}`);
-                  }}
-                  style={{
-                    background: 'var(--surface-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-primary)',
-                    padding: '0.4rem 0.8rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    outline: 'none',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.2s',
-                    fontFamily: 'var(--font-family)'
                   }}
                 />
               </div>
