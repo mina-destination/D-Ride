@@ -96,6 +96,7 @@ export default function LoginPage() {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customEmail, setCustomEmail] = useState('');
+  const [isGoogleHovered, setIsGoogleHovered] = useState(false);
 
   // Real Google Sign-In setup
   useEffect(() => {
@@ -299,17 +300,67 @@ export default function LoginPage() {
         {import.meta.env.VITE_GOOGLE_CLIENT_ID && 
          import.meta.env.VITE_GOOGLE_CLIENT_ID !== 'your_google_client_id_here' ? (
           <div 
-            id="google-signin-btn" 
+            onMouseEnter={() => setIsGoogleHovered(true)}
+            onMouseLeave={() => setIsGoogleHovered(false)}
             style={{ 
+              position: 'relative', 
               width: '100%', 
-              minHeight: '44px', 
-              display: 'flex', 
-              justifyContent: 'center', 
-              marginTop: '0.5rem',
-              borderRadius: '12px',
-              overflow: 'hidden'
+              height: '44px', 
+              marginTop: '0.5rem' 
             }}
-          />
+          >
+            {/* Custom Styled Google Button */}
+            <button
+              type="button"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                background: isGoogleHovered ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                border: isGoogleHovered ? '1px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                pointerEvents: 'none',
+                transition: 'all 0.2s ease',
+                transform: isGoogleHovered ? 'translateY(-1px)' : 'none',
+                boxShadow: isGoogleHovered ? '0 4px 12px rgba(245, 183, 49, 0.15)' : 'none'
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
+                <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
+                <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
+              </svg>
+              <span>{isAr ? 'المواصلة باستخدام Google' : 'Continue with Google'}</span>
+            </button>
+
+            {/* Invisible Real Google SDK Overlay */}
+            <div 
+              id="google-signin-btn" 
+              style={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0.01,
+                cursor: 'pointer',
+                zIndex: 10,
+                overflow: 'hidden',
+                borderRadius: '12px'
+              }}
+            />
+          </div>
         ) : (
           <button 
             type="button" 
@@ -318,29 +369,30 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '10px',
+              gap: '12px',
               width: '100%',
               padding: '0.75rem',
-              background: 'white',
-              color: '#1f2937',
-              border: 'none',
+              background: isGoogleHovered ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+              border: isGoogleHovered ? '1px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '12px',
               fontWeight: 'bold',
               fontSize: '0.95rem',
+              color: 'white',
               cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              transition: 'all 0.2s ease',
+              transform: isGoogleHovered ? 'translateY(-1px)' : 'none',
+              boxShadow: isGoogleHovered ? '0 4px 12px rgba(245, 183, 49, 0.15)' : 'none'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
+            onMouseEnter={() => setIsGoogleHovered(true)}
+            onMouseLeave={() => setIsGoogleHovered(false)}
           >
-            <svg width="18" height="18" viewBox="0 0 18 18">
+            <svg width="20" height="20" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
               <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
               <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
               <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
               <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
             </svg>
-            Continue with Google
+            <span>{isAr ? 'المواصلة باستخدام Google' : 'Continue with Google'}</span>
           </button>
         )}
 
