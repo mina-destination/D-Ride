@@ -283,8 +283,9 @@
   justify-content: center;
   position: relative;
   padding: 6rem 2rem 4rem;
-  overflow: hidden;
+  overflow: visible;
   scroll-margin-top: 80px;
+  z-index: 5;
 }
 
 .hero-bg-gradient {
@@ -626,6 +627,7 @@
   justify-content: center;
   animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
   opacity: 0;
+  z-index: 10;
 }
 
 .hero-card {
