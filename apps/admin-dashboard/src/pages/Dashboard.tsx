@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Bus, CarFront, Banknote, Users, User, CreditCard, AlertTriangle, Activity, Flame } from 'lucide-react';
+import { Bus, CarFront, Banknote, Users, CreditCard, Activity, Flame, Ticket } from 'lucide-react';
 import { bookingsAPI, tripsAPI, vehiclesAPI, usersAPI } from '../services/api';
 import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
@@ -117,6 +117,152 @@ export default function DashboardPage() {
         setPassengersCount(12); // Fallback
       });
   }, []);
+
+  // Format "time ago" string
+  const formatTimeAgo = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    const diffMs = new Date().getTime() - new Date(dateStr).getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 1) return 'just now';
+    if (diffMins === 1) return '1 min ago';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours === 1) return '1 hr ago';
+    if (diffHours < 24) return `${diffHours} hrs ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'yesterday';
+    return `${diffDays} days ago`;
+  };
+
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Occupancy stats calculation
+  const occupancyStats = useMemo(() => {
+    const activeTrips = allTrips.filter(t => t.status !== 'CANCELLED' && t.status !== 'COMPLETED');
+    const tripsToCalculate = activeTrips.length > 0 ? activeTrips : allTrips.filter(t => t.status !== 'CANCELLED');
+    
+    let totalBooked = 0;
+    let totalAvailable = 0;
+    
+    tripsToCalculate.forEach(t => {
+      totalBooked += t.bookedSeats || 0;
+      totalAvailable += t.availableSeats || 14;
+    });
+
+    if (totalAvailable === 0) totalAvailable = 14;
+
+    const bookedPercentage = Math.round((totalBooked / totalAvailable) * 100) || 0;
+    const freeSeats = Math.max(0, totalAvailable - totalBooked);
+    const freePercentage = Math.max(0, 100 - bookedPercentage);
+    
+    const avgLoad = tripsToCalculate.length > 0
+      ? Math.round(tripsToCalculate.reduce((sum, t) => sum + ((t.bookedSeats || 0) / (t.availableSeats || 14) * 100), 0) / tripsToCalculate.length)
+      : 0;
+
+    return {
+      totalBooked,
+      totalAvailable,
+      freeSeats,
+      bookedPercentage,
+      freePercentage,
+      avgLoad
+    };
+  }, [allTrips]);
+
+  // Recent Bookings memo
+  const recentBookings = useMemo(() => {
+    return [...bookings]
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 5);
+  }, [bookings]);
+
+  // Recent Activities memo
+  const recentActivities = useMemo(() => {
+    const activities: { id: string; type: 'booking' | 'trip' | 'vehicle'; text: React.ReactNode; date: Date; icon: React.ReactNode }[] = [];
+
+    // 1. Process Bookings
+    bookings.forEach(b => {
+      const name = b.userId?.name || 'Passenger';
+      const routeName = b.tripId?.routeId?.name || 'Route';
+      const time = new Date(b.createdAt || b.updatedAt);
+      
+      if (b.paymentStatus === 'SUCCESS') {
+        activities.push({
+          id: `pay-${b._id}`,
+          type: 'booking',
+          text: <span><strong>Payment received</strong> — EGP {b.amountEGP} from {name} via Paymob</span>,
+          date: time,
+          icon: <CreditCard size={16} />
+        });
+      } else {
+        activities.push({
+          id: `book-${b._id}`,
+          type: 'booking',
+          text: <span><strong>Seat reserved</strong> — {name} booked seat on {routeName}</span>,
+          date: time,
+          icon: <Ticket size={16} />
+        });
+      }
+    });
+
+    // 2. Process Trips
+    allTrips.forEach(t => {
+      const routeName = t.routeId?.name || 'Route';
+      const tripIdShort = t._id.slice(-6).toUpperCase();
+      const time = new Date(t.updatedAt || t.departureTime);
+
+      if (t.status === 'IN_TRANSIT') {
+        activities.push({
+          id: `transit-${t._id}`,
+          type: 'trip',
+          text: <span><strong>Trip #{tripIdShort}</strong> departed on schedule on line {routeName}</span>,
+          date: time,
+          icon: <Bus size={16} />
+        });
+      } else if (t.status === 'BOARDING') {
+        activities.push({
+          id: `board-${t._id}`,
+          type: 'trip',
+          text: <span><strong>Boarding gates open</strong> for Trip #{tripIdShort} ({routeName})</span>,
+          date: time,
+          icon: <Bus size={16} />
+        });
+      } else if (t.status === 'COMPLETED') {
+        activities.push({
+          id: `complete-${t._id}`,
+          type: 'trip',
+          text: <span><strong>Trip #{tripIdShort}</strong> successfully completed its run</span>,
+          date: time,
+          icon: <Activity size={16} />
+        });
+      }
+    });
+
+    // 3. Process Vehicles
+    allVehicles.forEach(v => {
+      const plate = v.licensePlate || 'N/A';
+      const make = v.make || 'Shuttle';
+      const time = new Date(v.updatedAt || new Date());
+      
+      if (v.isActive) {
+        activities.push({
+          id: `veh-${v._id}`,
+          type: 'vehicle',
+          text: <span><strong>Vehicle {plate}</strong> ({make}) status updated to Active</span>,
+          date: time,
+          icon: <CarFront size={16} />
+        });
+      }
+    });
+
+    return activities
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5);
+  }, [bookings, allTrips, allVehicles]);
 
   // Dynamic line chart generator
   const getDynamicBookingsData = () => {
@@ -889,7 +1035,7 @@ export default function DashboardPage() {
                   fill="none"
                   stroke="var(--primary)"
                   strokeWidth={hoveredDonutSector === 'booked' ? '5' : '3.5'}
-                  strokeDasharray="81, 100"
+                  strokeDasharray={`${occupancyStats.bookedPercentage}, 100`}
                   style={{ transition: 'all 0.2s', cursor: 'pointer' }}
                   onMouseEnter={() => setHoveredDonutSector('booked')}
                   onMouseLeave={() => setHoveredDonutSector(null)}
@@ -900,17 +1046,17 @@ export default function DashboardPage() {
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', width: '80%' }}>
                 {hoveredDonutSector === 'free' ? (
                   <>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-secondary)' }}>19%</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-secondary)' }}>{occupancyStats.freePercentage}%</div>
                     <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Free</div>
                   </>
                 ) : hoveredDonutSector === 'average' ? (
                   <>
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>74.3%</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>{occupancyStats.avgLoad}%</div>
                     <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Avg Load</div>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>81%</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{occupancyStats.bookedPercentage}%</div>
                     <div style={{ fontSize: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       {hoveredDonutSector === 'booked' ? 'Booked' : 'Utilized'}
                     </div>
@@ -927,7 +1073,7 @@ export default function DashboardPage() {
               >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></span>
                 <span style={{ fontWeight: hoveredDonutSector === 'booked' ? 'bold' : 'normal' }}>
-                  <strong>34</strong> Seats Booked
+                  <strong>{occupancyStats.totalBooked}</strong> Seats Booked
                 </span>
               </div>
               <div 
@@ -937,7 +1083,7 @@ export default function DashboardPage() {
               >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--border)' }}></span>
                 <span style={{ fontWeight: hoveredDonutSector === 'free' ? 'bold' : 'normal' }}>
-                  <strong>8</strong> Seats Free
+                  <strong>{occupancyStats.freeSeats}</strong> Seats Free
                 </span>
               </div>
               <div 
@@ -947,7 +1093,7 @@ export default function DashboardPage() {
               >
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></span>
                 <span style={{ fontWeight: hoveredDonutSector === 'average' ? 'bold' : 'normal' }}>
-                  <strong>74.3%</strong> Avg Load
+                  <strong>{occupancyStats.avgLoad}%</strong> Avg Load
                 </span>
               </div>
             </div>
@@ -982,81 +1128,57 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <div className="table-user">
-                    <div className="table-avatar" style={{ background: 'rgba(245,183,49,0.15)', color: '#F5B731' }}>AH</div>
-                    <div>
-                      <div className="table-user-name">Ahmed Hassan</div>
-                      <div className="table-user-email">ahmed@mail.com</div>
-                    </div>
-                  </div>
-                </td>
-                <td>Maadi → Smart Village</td>
-                <td style={{ fontWeight: 600 }}>EGP 45</td>
-                <td><span className="status-badge confirmed">Confirmed</span></td>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>2 min ago</td>
-              </tr>
-              <tr>
-                <td>
-                  <div className="table-user">
-                    <div className="table-avatar" style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}>SM</div>
-                    <div>
-                      <div className="table-user-name">Sara Mohamed</div>
-                      <div className="table-user-email">sara@mail.com</div>
-                    </div>
-                  </div>
-                </td>
-                <td>Heliopolis → New Cairo</td>
-                <td style={{ fontWeight: 600 }}>EGP 35</td>
-                <td><span className="status-badge confirmed">Confirmed</span></td>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>5 min ago</td>
-              </tr>
-              <tr>
-                <td>
-                  <div className="table-user">
-                    <div className="table-avatar" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>OE</div>
-                    <div>
-                      <div className="table-user-name">Omar El-Sayed</div>
-                      <div className="table-user-email">omar@mail.com</div>
-                    </div>
-                  </div>
-                </td>
-                <td>Nasr City → 6th October</td>
-                <td style={{ fontWeight: 600 }}>EGP 55</td>
-                <td><span className="status-badge pending">Pending</span></td>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>8 min ago</td>
-              </tr>
-              <tr>
-                <td>
-                  <div className="table-user">
-                    <div className="table-avatar" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>NK</div>
-                    <div>
-                      <div className="table-user-name">Nadia Khalil</div>
-                      <div className="table-user-email">nadia@mail.com</div>
-                    </div>
-                  </div>
-                </td>
-                <td>Dokki → Mohandessin</td>
-                <td style={{ fontWeight: 600 }}>EGP 25</td>
-                <td><span className="status-badge cancelled">Cancelled</span></td>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>15 min ago</td>
-              </tr>
-              <tr>
-                <td>
-                  <div className="table-user">
-                    <div className="table-avatar" style={{ background: 'rgba(245,183,49,0.15)', color: '#F5B731' }}>YA</div>
-                    <div>
-                      <div className="table-user-name">Youssef Ali</div>
-                      <div className="table-user-email">youssef@mail.com</div>
-                    </div>
-                  </div>
-                </td>
-                <td>Zamalek → Downtown</td>
-                <td style={{ fontWeight: 600 }}>EGP 20</td>
-                <td><span className="status-badge confirmed">Confirmed</span></td>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>22 min ago</td>
-              </tr>
+              {recentBookings.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No recent bookings found
+                  </td>
+                </tr>
+              ) : (
+                recentBookings.map((b: any) => {
+                  const name = b.userId?.name || 'Unknown User';
+                  const email = b.userId?.email || 'N/A';
+                  const routeName = b.tripId?.routeId?.name || 'N/A';
+                  const amount = b.amountEGP || 0;
+                  const status = b.status || 'PENDING';
+                  const initials = getInitials(name);
+                  
+                  let statusClass = 'pending';
+                  if (status === 'CONFIRMED' || status === 'SUCCESS') statusClass = 'confirmed';
+                  if (status === 'CANCELLED') statusClass = 'cancelled';
+
+                  return (
+                    <tr key={b._id}>
+                      <td>
+                        <div className="table-user">
+                          <div className="table-avatar" style={{ 
+                            background: status === 'CANCELLED' 
+                              ? 'rgba(239,68,68,0.15)' 
+                              : status === 'PENDING' 
+                                ? 'rgba(245,183,49,0.15)' 
+                                : 'rgba(59,130,246,0.15)', 
+                            color: status === 'CANCELLED' 
+                              ? '#EF4444' 
+                              : status === 'PENDING' 
+                                ? '#F5B731' 
+                                : '#3B82F6' 
+                          }}>
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="table-user-name">{name}</div>
+                            <div className="table-user-email">{email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{routeName}</td>
+                      <td style={{ fontWeight: 600 }}>EGP {amount}</td>
+                      <td><span className={`status-badge ${statusClass}`}>{status}</span></td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatTimeAgo(b.createdAt)}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -1077,51 +1199,25 @@ export default function DashboardPage() {
           </div>
           <div className="card-body">
             <div className="activity-list">
-              <div className="activity-item">
-                <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bus size={16} /></div>
-                <div>
-                  <div className="activity-text">
-                    <strong>Trip #1284</strong> departed from Maadi station on schedule
-                  </div>
-                  <div className="activity-time">3 minutes ago</div>
+              {recentActivities.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No recent activity recorded
                 </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={16} /></div>
-                <div>
-                  <div className="activity-text">
-                    <strong>Payment received</strong> — EGP 45 from Ahmed Hassan via Paymob
+              ) : (
+                recentActivities.map((act: any) => (
+                  <div className="activity-item" key={act.id}>
+                    <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {act.icon}
+                    </div>
+                    <div>
+                      <div className="activity-text">
+                        {act.text}
+                      </div>
+                      <div className="activity-time">{formatTimeAgo(act.date.toISOString())}</div>
+                    </div>
                   </div>
-                  <div className="activity-time">5 minutes ago</div>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CarFront size={16} /></div>
-                <div>
-                  <div className="activity-text">
-                    <strong>Vehicle ABC-123</strong> went online in Heliopolis zone
-                  </div>
-                  <div className="activity-time">12 minutes ago</div>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></div>
-                <div>
-                  <div className="activity-text">
-                    <strong>Driver Mohamed</strong> completed 15 trips today — new personal record
-                  </div>
-                  <div className="activity-time">28 minutes ago</div>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AlertTriangle size={16} /></div>
-                <div>
-                  <div className="activity-text">
-                    <strong>Route 7</strong> — 10 minute delay reported near Ring Road exit
-                  </div>
-                  <div className="activity-time">35 minutes ago</div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
           </div>
         </div>
