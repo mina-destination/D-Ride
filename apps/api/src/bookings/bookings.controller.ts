@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 
 @Controller('bookings')
 export class BookingsController {
@@ -43,7 +44,8 @@ export class BookingsController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   async create(@Request() req: any, @Body() data: CreateBookingDto) {
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(

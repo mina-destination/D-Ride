@@ -143,14 +143,16 @@ export class PaymobService {
         return;
       }
 
-      // Retrieve userId from booking if available
+      // Retrieve userId and tripId from booking if available
       let userId = '';
+      let bookingTripId = '';
       if (bookingId) {
         const booking = await tx.booking.findUnique({
           where: { id: bookingId },
         });
         if (booking) {
           userId = booking.userId;
+          bookingTripId = booking.tripId;
         }
       }
 
@@ -182,6 +184,9 @@ export class PaymobService {
             paymobOrderId: orderId,
           },
         });
+        if (bookingTripId) {
+          await this.bookingsService.cleanupExpiredBookings(bookingTripId, tx);
+        }
       }
     });
 
@@ -842,6 +847,8 @@ export class PaymobService {
             paymobPaymentId: transactionId ? transactionId.toString() : null,
           },
         });
+
+        await this.bookingsService.cleanupExpiredBookings(booking.tripId, tx);
       });
 
       try {

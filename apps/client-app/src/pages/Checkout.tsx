@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Phone, RefreshCw } from 'lucide-react';
@@ -71,6 +71,7 @@ export default function CheckoutPage() {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const isSubmitting = useRef(false);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [occupiedSeats, setOccupiedSeats] = useState<number[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -212,6 +213,8 @@ export default function CheckoutPage() {
   }, [trip, searchParams]);
 
   const performReservation = async () => {
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     setProcessing(true);
     try {
       // Create the booking with all selected seat numbers
@@ -230,11 +233,15 @@ export default function CheckoutPage() {
       navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (error) {
       alert(t('reservationFailed') + ((error as any)?.message || 'Unknown error'));
+    } finally {
       setProcessing(false);
+      isSubmitting.current = false;
     }
   };
 
   const handleReserve = async () => {
+    if (processing || isSubmitting.current) return;
+
     if (selectedSeats.length !== requiredSeatsCount) {
       alert(t('pleaseSelectSeatsToMatch', { count: requiredSeatsCount }));
       return;
@@ -252,6 +259,7 @@ export default function CheckoutPage() {
 
   const handlePromptPhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting.current) return;
     setPromptError('');
     
     const cleanPhone = promptPhone.replace(/\D/g, '');
@@ -262,6 +270,7 @@ export default function CheckoutPage() {
     const normalizedPhone = '+20' + cleanPhone.substring(1);
     
     setPromptLoading(true);
+    isSubmitting.current = true;
     try {
       await updateProfile({ phone: normalizedPhone });
       setShowPhonePrompt(false);
@@ -282,9 +291,10 @@ export default function CheckoutPage() {
       navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (err: any) {
       setPromptError(err?.message || 'Failed to update phone number. Please try again.');
-      setProcessing(false);
     } finally {
       setPromptLoading(false);
+      setProcessing(false);
+      isSubmitting.current = false;
     }
   };
 
