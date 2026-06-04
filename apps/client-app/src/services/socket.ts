@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL 
-  ? import.meta.env.VITE_API_URL.replace('/api', '') 
+  ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') 
   : 'http://localhost:3000';
 
 class SocketService {
@@ -9,9 +9,11 @@ class SocketService {
 
   connect() {
     if (!this.socket) {
+      const token = localStorage.getItem('dride_token');
       this.socket = io(SOCKET_URL, {
         path: '/api/socket.io',
         transports: ['websocket'],
+        auth: { token },
       });
 
       this.socket.on('connect', () => {
