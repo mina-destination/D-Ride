@@ -19,6 +19,7 @@ interface AuthContextType {
   register: (data: { name: string; email: string; phone: string; password: string }) => Promise<void>;
   loginWithGoogle: (data: { email: string; name: string; googleId: string }) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: { name?: string; phone?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -95,9 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('dride_user');
   };
 
+  const updateProfile = async (data: { name?: string; phone?: string }) => {
+    const updatedUser: any = await authAPI.updateProfile(data);
+    setUser(updatedUser);
+    localStorage.setItem('dride_user', JSON.stringify(updatedUser));
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, token, isAuthenticated: !!user && !!token, isLoading, login, register, loginWithGoogle, logout }}
+      value={{ user, token, isAuthenticated: !!user && !!token, isLoading, login, register, loginWithGoogle, logout, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
