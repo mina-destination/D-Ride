@@ -24,6 +24,7 @@ export interface SendMessagePayload {
 
 @WebSocketGateway({
   namespace: 'support',
+  path: '/api/socket.io',
   cors: {
     origin: process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())

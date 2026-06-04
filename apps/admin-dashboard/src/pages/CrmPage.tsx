@@ -345,6 +345,7 @@ export function CrmPage() {
     const token = localStorage.getItem('dride_token');
 
     const socket = io(`${socketUrl}/support`, {
+      path: '/api/socket.io',
       transports: ['websocket'],
       auth: { token },
     });
