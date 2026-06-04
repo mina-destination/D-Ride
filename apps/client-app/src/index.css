@@ -144,11 +144,41 @@ body {
     linear-gradient(90deg, rgba(245, 183, 49, 0.015) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none;
-  z-index: 0;
+  z-index: -2;
   mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
   will-change: transform; /* GPU-promote to avoid scroll-triggered repaints */
   transform: translateZ(0);
+}
+
+/* Animated floating ambient glow blobs (aurora nebula) in dark mode for premium aesthetics */
+[data-theme="dark"] body::after {
+  content: '';
+  position: fixed;
+  top: -15%;
+  left: -15%;
+  width: 130%;
+  height: 130%;
+  z-index: -1;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(circle at 15% 20%, rgba(245, 183, 49, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 35%);
+  animation: spaceFloat 25s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes spaceFloat {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(2%, -3%) scale(1.04) rotate(4deg);
+  }
+  100% {
+    transform: translate(-1%, 2%) scale(0.98) rotate(-2deg);
+  }
 }
 
 a {
