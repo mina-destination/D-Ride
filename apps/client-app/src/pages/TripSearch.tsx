@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripsAPI, routesAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 
 // Map imports removed
 
@@ -69,7 +70,7 @@ const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string, isRt
 // Map configurations removed
 
 export default function TripSearchPage() {
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
   const [searchParams] = useSearchParams();
   const routeId = searchParams.get('routeId');
   const pickupLat = searchParams.get('pickupLat');
@@ -82,6 +83,12 @@ export default function TripSearchPage() {
   const passengers = searchParams.get('passengers') ? parseInt(searchParams.get('passengers')!, 10) : 1;
 
   const navigate = useNavigate();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'الرحلات والحافلات المتاحة | دي-رايد' : 'Available Commute Minibuses | D-Ride';
+  const seoDescription = isAr
+    ? 'تصفح مواعيد رحلات دي-رايد وجداول المقاعد وأسعار التذاكر لخطوط القاهرة، الإسكندرية، شرم الشيخ، دهب، نويبع، وطابا.'
+    : 'Browse scheduled D-Ride trip times, seat availability, and pricing for routes connecting Cairo, Alexandria, Sharm, Dahab, Nuweiba, and Taba.';
 
   const dateString = useMemo(() => {
     if (!date) return t('next5days');
@@ -395,8 +402,9 @@ export default function TripSearchPage() {
   if (!routeId && !isSmartMode) {
     return (
       <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
         <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h2>{t('noSearchParameters')}</h2>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-primary)' }}>{t('noSearchParameters')}</h1>
           <p>{t('noSearchParametersDesc')}</p>
           <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>{t('backToHome')}</button>
         </div>
@@ -406,6 +414,7 @@ export default function TripSearchPage() {
 
   return (
     <div className="trip-search-page-container">
+      <SEO title={seoTitle} description={seoDescription} />
       <div style={{ maxWidth: '950px', width: '100%', margin: '0 auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
         
         {/* Header */}

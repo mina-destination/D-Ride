@@ -7,6 +7,7 @@ import { socketService } from '../services/socket';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 import { Microscope, Square, Rocket } from 'lucide-react';
 
 // Fix for default marker icon in react-leaflet
@@ -26,8 +27,14 @@ const busIcon = new L.Icon({
 });
 
 export default function LiveTrackingPage() {
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
   const { theme } = useTheme();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'تتبع الحافلة مباشرة | دي-رايد' : 'Live Shuttle Tracking | D-Ride';
+  const seoDescription = isAr
+    ? 'تتبع حافلة دي-رايد الخاصة بك مباشرة على الخريطة التفاعلية مع تحديثات الموقع الجغرافي الفورية.'
+    : 'Track your D-Ride commuter minibus live on the interactive map with real-time GPS telemetry updates.';
   const mapTileUrl = theme === 'dark'
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
@@ -140,8 +147,9 @@ export default function LiveTrackingPage() {
   if (!vehicleId) {
     return (
       <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
         <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h2>{t('noVehicleSelected')}</h2>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
           <p>{t('selectTripToTrack')}</p>
           <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
         </div>
@@ -155,6 +163,7 @@ export default function LiveTrackingPage() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <SEO title={seoTitle} description={seoDescription} />
       <div style={{ flex: 1, position: 'relative' }}>
         
         {/* Floating Trip Status Info Drawer Card */}
@@ -205,9 +214,9 @@ export default function LiveTrackingPage() {
             </span>
           </div>
 
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0', lineHeight: 1.3 }}>
+          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0', lineHeight: 1.3 }}>
             {isRtl ? (trip?.routeId?.nameAr || trip?.routeId?.name || t('loadingRoute')) : (trip?.routeId?.name || t('loadingRoute'))}
-          </h3>
+          </h1>
 
           <div style={{ background: 'var(--surface-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--text-secondary)' }}>
             <strong>{t('scheduledDeparture')}</strong> {trip ? new Date(trip.departureTime).toLocaleString(isRtl ? 'ar-EG' : 'en-US') : t('loadingRoute')}

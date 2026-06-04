@@ -5,6 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import logo from '../assets/d-ride-logo.jpeg';
 import { LogIn, RefreshCw } from 'lucide-react';
 import { authAPI } from '../services/api';
+import SEO from '../components/SEO';
 
 function decodeJwt(token: string) {
   try {
@@ -24,8 +25,14 @@ function decodeJwt(token: string) {
 }
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { login, loginWithGoogle } = useAuth();
+  
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'تسجيل الدخول | دي-رايد' : 'Sign In | D-Ride';
+  const seoDescription = isAr
+    ? 'سجل الدخول بأمان إلى حساب دي-رايد الخاص بك لإدارة وحجز التذاكر والرحلات اليومية.'
+    : 'Securely sign in to your D-Ride passenger account to book tickets and manage your commutes.';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/';
@@ -206,6 +213,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <SEO title={seoTitle} description={seoDescription} />
       <div className="auth-card glass">
         <div className="auth-header">
           <img src={logo} alt="D-Ride" className="auth-logo" />

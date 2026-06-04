@@ -88,7 +88,9 @@ export class UsersService implements OnModuleInit {
           });
         } else {
           const existingPermissions = (existing.permissions as string[]) || [];
-          const merged = Array.from(new Set([...existingPermissions, ...item.permissions]));
+          const merged = Array.from(
+            new Set([...existingPermissions, ...item.permissions]),
+          );
           if (merged.length !== existingPermissions.length) {
             await this.prisma.rolePermission.update({
               where: { role: item.role },

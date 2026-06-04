@@ -2,14 +2,21 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
+import SEO from '../components/SEO';
 
 import { Lock, Bus } from 'lucide-react';
 
 export default function PaymentPage() {
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const navigate = useNavigate();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'بوابة الدفع الآمنة | دي-رايد' : 'Secure Payment Gateway | D-Ride';
+  const seoDescription = isAr
+    ? 'أكمل عملية دفع حجز تذكرة الحافلة الخاصة بك بأمان باستخدام بطاقة الائتمان عبر بوابة بيموب مصر.'
+    : 'Complete your premium bus ticket reservation payment securely using credit card via Paymob Egypt.';
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +65,7 @@ export default function PaymentPage() {
   if (!bookingId) {
     return (
       <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
         <div className="auth-card solid-checkout-card">{t('noBookingSelected')}</div>
       </div>
     );
@@ -66,6 +74,7 @@ export default function PaymentPage() {
   if (loading) {
     return (
       <div className="payment-page-container">
+        <SEO title={seoTitle} description={seoDescription} />
         <div className="auth-container" style={{ maxWidth: '600px', width: '100%', padding: '0 1rem', margin: '0 auto' }}>
           <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
             <div style={{ animation: 'pulse 1.5s infinite', display: 'flex', justifyContent: 'center' }}>
@@ -81,6 +90,7 @@ export default function PaymentPage() {
   if (!booking) {
     return (
       <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
         <div className="auth-card solid-checkout-card" style={{ textAlign: 'center', padding: '3rem' }}>
           <p>{t('bookingDetailsNotFound')}</p>
           <button onClick={() => navigate('/')} className="btn-primary" style={{ marginTop: '1rem' }}>{t('returnToHome')}</button>
@@ -94,6 +104,7 @@ export default function PaymentPage() {
 
   return (
     <div className="payment-page-container">
+      <SEO title={seoTitle} description={seoDescription} />
       <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}

@@ -46,10 +46,12 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Request() req: any, @Body() data: CreateBookingDto) {
-    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(req.user.role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(
+      req.user.role,
+    );
     const bookingData = {
       ...data,
-      userId: (isAdmin && data.userId) ? data.userId : req.user.sub,
+      userId: isAdmin && data.userId ? data.userId : req.user.sub,
     };
     const booking = await this.bookingsService.create(bookingData as any);
     return {

@@ -7,11 +7,18 @@ import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
 import { shareTicketPdf } from '../utils/pdfUtils';
+import SEO from '../components/SEO';
 
 export default function MyTripsPage() {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { addNotification } = useNotifications();
+
+  const isAr = language === 'ar';
+  const seoTitle = isAr ? 'رحلاتي وحجوزاتي | دي-رايد' : 'My Bookings | D-Ride';
+  const seoDescription = isAr
+    ? 'إدارة تذاكر حافلات دي-رايد، وتذاكر الركوب، وتتبع السائق وتقييم رحلتك.'
+    : 'Manage your active commutes, boarding passes, and rate your trips on D-Ride.';
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -150,7 +157,7 @@ export default function MyTripsPage() {
 
   return (
     <>
-
+      <SEO title={seoTitle} description={seoDescription} />
 
       {/* ── WhatsApp Push Notification Simulation Toast ────── */}
       {showWhatsAppToast && recentBooking && (
@@ -189,7 +196,7 @@ export default function MyTripsPage() {
       <section className="section bookings-page-container">
         <div className="section-header">
           <div className="section-badge">{t('yourCommuteBadge')}</div>
-          <h2 className="section-title">{t('myBookingsTitle')}</h2>
+          <h1 className="section-title">{t('myBookingsTitle')}</h1>
           <p className="section-subtitle">
             {t('myBookingsSub')}
           </p>

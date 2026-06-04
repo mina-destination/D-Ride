@@ -1,13 +1,20 @@
 import { useTranslation } from '../context/LanguageContext';
 import { Bus, ShieldCheck, Zap } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
+import SEO from '../components/SEO';
 
 export default function AboutPage() {
   const { language } = useTranslation();
   const isAr = language === 'ar';
 
+  const seoTitle = isAr ? 'من نحن | دي-رايد' : 'About Us | D-Ride';
+  const seoDescription = isAr
+    ? 'تعرف على قصة دي-رايد، المنصة الرائدة للنقل الجماعي الذكي في مصر التي تربط الإسكندرية، القاهرة، شرم الشيخ، دهب، نويبع وطابا بأسطول حديث ومريح.'
+    : 'Learn about D-Ride, Egypt\'s smart transportation service connecting Alexandria, Cairo, Sharm, Dahab, Nuweiba, and Taba with premium passenger convenience.';
+
   return (
     <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
+      <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />

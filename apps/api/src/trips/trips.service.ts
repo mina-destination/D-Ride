@@ -315,7 +315,11 @@ export class TripsService {
       const parentRoute = await this.prisma.route.findUnique({
         where: { id: parentId },
       });
-      if (parentRoute && parentRoute.checkpoints && Array.isArray(parentRoute.checkpoints)) {
+      if (
+        parentRoute &&
+        parentRoute.checkpoints &&
+        Array.isArray(parentRoute.checkpoints)
+      ) {
         const cps = parentRoute.checkpoints as any[];
         if (cps[startIndex] && cps[endIndex]) {
           actualPickupCpName = actualPickupCpName || cps[startIndex].name;
@@ -393,7 +397,12 @@ export class TripsService {
     return trips
       .map((t) => {
         t.bookedSeats = bookedSeatsMap[t.id] || 0;
-        return this.mapTrip(t, actualPickupCpName, actualDropoffCpName, routeId);
+        return this.mapTrip(
+          t,
+          actualPickupCpName,
+          actualDropoffCpName,
+          routeId,
+        );
       })
       .filter((t) => t !== null);
   }
@@ -587,24 +596,26 @@ export class TripsService {
             const seatNo = Array.isArray(booking.seatNumbers)
               ? booking.seatNumbers.join(', ')
               : String(booking.seatNumbers || '');
-            this.notificationsService.sendCancellationNotification(
-              u.phone || '',
-              u.name || 'Valued Passenger',
-              {
-                routeName: r.name || 'D-Ride Trip',
-                departureTime: t.departureTime.toISOString(),
-                seatNumber: seatNo,
-                price: booking.amountEGP,
-              },
-              u.email || '',
-              'SYSTEM',
-            ).catch((notificationErr) => {
-              console.error(
-                'Failed to send cancellation notification for booking asynchronously:',
-                booking.id,
-                notificationErr,
-              );
-            });
+            this.notificationsService
+              .sendCancellationNotification(
+                u.phone || '',
+                u.name || 'Valued Passenger',
+                {
+                  routeName: r.name || 'D-Ride Trip',
+                  departureTime: t.departureTime.toISOString(),
+                  seatNumber: seatNo,
+                  price: booking.amountEGP,
+                },
+                u.email || '',
+                'SYSTEM',
+              )
+              .catch((notificationErr) => {
+                console.error(
+                  'Failed to send cancellation notification for booking asynchronously:',
+                  booking.id,
+                  notificationErr,
+                );
+              });
           }
         } catch (notificationErr) {
           console.error(
