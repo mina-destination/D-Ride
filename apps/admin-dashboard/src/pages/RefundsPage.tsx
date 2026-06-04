@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Table, Tag, Button, Space, Card, Typography, Row, Col, Statistic, Tooltip, Input, Select } from 'antd';
+import { Table, Tag, Button, Space, Card, Typography, Row, Col, Statistic, Tooltip, Input, Select, DatePicker } from 'antd';
 import { Undo2, AlertTriangle, CheckCircle, XCircle, Clock, User, MapPin, Calendar } from 'lucide-react';
 import { bookingsAPI } from '../services/api';
 import { useConfirm } from '../context/ConfirmContext';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
@@ -11,6 +12,7 @@ export function RefundsPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PROCESSED' | 'ALL'>('PENDING');
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
   const confirm = useConfirm();
 
   const loadRefundRequests = async () => {
@@ -121,7 +123,11 @@ export function RefundsPage() {
     const passengerName = b.userId?.name?.toLowerCase() || '';
     const passengerPhone = b.userId?.phone || '';
     const routeName = b.tripId?.routeId?.name?.toLowerCase() || '';
-    return passengerName.includes(term) || passengerPhone.includes(term) || routeName.includes(term);
+    
+    const matchesSearch = passengerName.includes(term) || passengerPhone.includes(term) || routeName.includes(term);
+    const matchesDate = !selectedDate || (b.tripId?.departureTime && dayjs(b.tripId.departureTime).isSame(selectedDate, 'day'));
+    
+    return matchesSearch && matchesDate;
   });
 
   // Statistics
@@ -362,6 +368,13 @@ export function RefundsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: 280 }}
+              allowClear
+            />
+            <DatePicker
+              placeholder="Filter by Trip Date"
+              value={selectedDate}
+              onChange={setSelectedDate}
+              style={{ width: 180 }}
               allowClear
             />
             <Select 

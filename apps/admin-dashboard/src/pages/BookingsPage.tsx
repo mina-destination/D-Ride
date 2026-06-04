@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Space, Tag, Typography, Tooltip, Input, Select, Card } from 'antd';
+import { Table, Button, Space, Tag, Typography, Tooltip, Input, Select, Card, DatePicker } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { bookingsAPI } from '../services/api';
 import { Ticket, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
+import dayjs from 'dayjs';
 
 const { Title, Paragraph } = Typography;
 
@@ -14,6 +15,7 @@ export function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('ALL');
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
   
   // Row selection & bulk states
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
@@ -108,7 +110,11 @@ export function BookingsPage() {
       paymentStatusFilter === 'ALL' || 
       (b.paymentStatus || 'PENDING') === paymentStatusFilter;
 
-    return matchesSearch && matchesStatus && matchesPaymentStatus;
+    const matchesDate = 
+      !selectedDate || 
+      (b.tripId?.departureTime && dayjs(b.tripId.departureTime).isSame(selectedDate, 'day'));
+
+    return matchesSearch && matchesStatus && matchesPaymentStatus && matchesDate;
   });
 
   const columns = [
@@ -240,6 +246,13 @@ export function BookingsPage() {
             onSearch={value => setSearchTerm(value)}
             onChange={e => setSearchTerm(e.target.value)}
             style={{ width: 250 }}
+            allowClear
+          />
+          <DatePicker
+            placeholder="Filter by Departure Date"
+            value={selectedDate}
+            onChange={value => setSelectedDate(value)}
+            style={{ width: 200 }}
             allowClear
           />
           <Select

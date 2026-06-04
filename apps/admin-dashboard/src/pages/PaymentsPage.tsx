@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button } from 'antd';
+import { Table, Tag, Typography, Statistic, Row, Col, Card, Input, Select, Space, Button, DatePicker } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { bookingsAPI } from '../services/api';
 import { CreditCard, TrendingUp, Target, Download, XCircle } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
+import dayjs from 'dayjs';
 
 const { Title, Paragraph } = Typography;
 
@@ -14,6 +15,7 @@ export function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL');
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
 
   // Row selection & bulk states
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
@@ -66,6 +68,8 @@ export function PaymentsPage() {
       if (dateFilter === 'TODAY') matchesDate = diffDays < 1;
       else if (dateFilter === '7DAYS') matchesDate = diffDays <= 7;
       else if (dateFilter === '30DAYS') matchesDate = diffDays <= 30;
+    } else if (selectedDate && p.createdAt) {
+      matchesDate = dayjs(p.createdAt).isSame(selectedDate, 'day');
     }
 
     return matchesSearch && matchesStatus && matchesDate;
@@ -227,7 +231,12 @@ export function PaymentsPage() {
           </Select>
           <Select
             value={dateFilter}
-            onChange={value => setDateFilter(value)}
+            onChange={value => {
+              setDateFilter(value);
+              if (value !== 'ALL') {
+                setSelectedDate(null);
+              }
+            }}
             style={{ width: 160 }}
           >
             <Select.Option value="ALL">All Time</Select.Option>
@@ -235,6 +244,18 @@ export function PaymentsPage() {
             <Select.Option value="7DAYS">Last 7 Days</Select.Option>
             <Select.Option value="30DAYS">Last 30 Days</Select.Option>
           </Select>
+          <DatePicker
+            placeholder="Custom Date"
+            value={selectedDate}
+            onChange={val => {
+              setSelectedDate(val);
+              if (val) {
+                setDateFilter('ALL');
+              }
+            }}
+            style={{ width: 160 }}
+            allowClear
+          />
           <Button 
             onClick={() => {
               setIsSelectionMode(!isSelectionMode);
