@@ -39,6 +39,7 @@ export class WsJwtGuard implements CanActivate {
 
 @UseGuards(WsJwtGuard)
 @WebSocketGateway({
+  path: '/api/socket.io',
   cors: {
     origin: process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())

@@ -10,6 +10,7 @@ class SocketService {
   connect() {
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
+        path: '/api/socket.io',
         transports: ['websocket'],
       });
 

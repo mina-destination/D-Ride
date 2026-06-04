@@ -284,6 +284,7 @@ export default function DashboardPage() {
     if (fleet.length === 0) return;
 
     const socket = io(SOCKET_URL, {
+      path: '/api/socket.io',
       transports: ['websocket'],
     });
 
