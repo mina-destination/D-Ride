@@ -34,7 +34,7 @@ const activeBusIcon = new L.Icon({
   popupAnchor: [0, -35],
 });
 
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
+const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
 
 interface ActiveBus {
   id: string;
@@ -283,9 +283,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (fleet.length === 0) return;
 
+    const token = localStorage.getItem('dride_token');
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
       transports: ['websocket'],
+      auth: { token },
     });
 
     socket.on('connect', () => {

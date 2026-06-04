@@ -341,7 +341,7 @@ export function CrmPage() {
 
     // 2. Setup WebSocket connection
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    const socketUrl = apiUrl.replace('/api', '');
+    const socketUrl = apiUrl.replace(/\/api$/, '');
     const token = localStorage.getItem('dride_token');
 
     const socket = io(`${socketUrl}/support`, {
