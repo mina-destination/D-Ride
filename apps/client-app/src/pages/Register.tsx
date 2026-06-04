@@ -159,10 +159,22 @@ export default function RegisterPage() {
       setError(t('phoneMustBe11'));
       return;
     }
+    const normalizedPhone = '+20' + cleanPhone.substring(1);
+
+    // Password complexity check
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}[\]|\\:;"'<>,.?/-]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      setError(
+        isAr
+          ? 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل وتتضمن حرفًا كبيرًا وحرفًا صغيرًا ورقمًا ورمزًا خاصًا.'
+          : 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+      );
+      return;
+    }
 
     setLoading(true);
     try {
-      await register({ name, email, phone, password });
+      await register({ name, email, phone: normalizedPhone, password });
       navigate(redirectTo);
     } catch (err: any) {
       setError(err?.message || t('registerFailed'));
@@ -226,8 +238,33 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('loginPasswordPlaceholder')}
               required
-              minLength={6}
+              minLength={8}
+              style={{ marginBottom: '8px' }}
             />
+            {password.length > 0 && (
+              <div className="password-complexity-feedback" style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: password.length >= 8 ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span>{password.length >= 8 ? '✓' : '○'}</span>
+                  <span>{isAr ? '8 أحرف على الأقل' : 'At least 8 characters'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: /[A-Z]/.test(password) ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span>{/[A-Z]/.test(password) ? '✓' : '○'}</span>
+                  <span>{isAr ? 'حرف كبير واحد على الأقل (A-Z)' : 'At least one uppercase letter (A-Z)'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: /[a-z]/.test(password) ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span>{/[a-z]/.test(password) ? '✓' : '○'}</span>
+                  <span>{isAr ? 'حرف صغير واحد على الأقل (a-z)' : 'At least one lowercase letter (a-z)'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: /\d/.test(password) ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span>{/\d/.test(password) ? '✓' : '○'}</span>
+                  <span>{isAr ? 'رقم واحد على الأقل (0-9)' : 'At least one number (0-9)'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: /[!@#$%^&*()_+={}[\]|\\:;"'<>,.?/-]/.test(password) ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span>{/[!@#$%^&*()_+={}[\]|\\:;"'<>,.?/-]/.test(password) ? '✓' : '○'}</span>
+                  <span>{isAr ? 'رمز خاص واحد على الأقل (مثل @، #، $)' : 'At least one special character (e.g. @, #, $)'}</span>
+                </div>
+              </div>
+            )}
           </div>
           <button type="submit" className="btn-primary auth-btn" disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             {loading ? (

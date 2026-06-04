@@ -136,6 +136,8 @@ export const authAPI = {
     api.post('/auth/change-password-request'),
   changePassword: (data: { otp: string; newPassword: string }): Promise<any> =>
     api.post('/auth/change-password', data),
+  updateProfile: (data: { name?: string; phone?: string }): Promise<any> =>
+    api.put('/auth/profile', data),
 };
 
 

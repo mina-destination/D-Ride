@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   Get,
+  Put,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -73,5 +75,12 @@ export class AuthController {
   async changePassword(@Request() req: any, @Body() data: ChangePasswordDto) {
     const result = await this.authService.changePassword(req.user.sub, data);
     return { success: true, ...result, timestamp: new Date().toISOString() };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('profile')
+  async updateProfile(@Request() req: any, @Body() data: UpdateProfileDto) {
+    const result = await this.authService.updateProfile(req.user.sub, data);
+    return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 }

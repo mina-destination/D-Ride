@@ -57,12 +57,24 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
+    let normalizedPhone = phone;
+    if (phone) {
+      const clean = phone.replace(/\D/g, '');
+      if (clean.startsWith('0') && clean.length === 11) {
+        normalizedPhone = '+20' + clean.slice(1);
+      } else if (clean.startsWith('20') && clean.length === 12) {
+        normalizedPhone = '+' + clean;
+      } else if (!phone.startsWith('+')) {
+        normalizedPhone = '+' + clean;
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await this.prisma.user.create({
       data: {
         name,
         email,
-        phone,
+        phone: normalizedPhone,
         password: hashedPassword,
         role: Role.PASSENGER,
       },
@@ -339,5 +351,38 @@ export class AuthService {
     });
 
     return { message: 'Password changed successfully.' };
+  }
+
+  async updateProfile(userId: string, data: { name?: string; phone?: string }) {
+    const { name, phone } = data;
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) {
+      let normalizedPhone = phone;
+      if (phone) {
+        const clean = phone.replace(/\D/g, '');
+        if (clean.startsWith('0') && clean.length === 11) {
+          normalizedPhone = '+20' + clean.slice(1);
+        } else if (clean.startsWith('20') && clean.length === 12) {
+          normalizedPhone = '+' + clean;
+        } else if (!phone.startsWith('+')) {
+          normalizedPhone = '+' + clean;
+        }
+      }
+      updateData.phone = normalizedPhone;
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    const permissions = await this.getPermissionsForRole(user.role);
+    const result = { ...user, _id: user.id };
+    delete (result as any).password;
+    return {
+      ...result,
+      permissions,
+    };
   }
 }

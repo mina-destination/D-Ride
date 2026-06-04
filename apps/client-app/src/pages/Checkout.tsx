@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
-import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus } from 'lucide-react';
+import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Phone, RefreshCw } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
+import { useAuth } from '../context/AuthContext';
 
 import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -59,6 +60,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { t, isRtl, language } = useTranslation();
+  const { user, updateProfile } = useAuth();
 
   const isAr = language === 'ar';
   const seoTitle = isAr ? 'اختيار المقاعد والدفع | دي-رايد' : 'Select Seats & Checkout | D-Ride';
@@ -76,6 +78,12 @@ export default function CheckoutPage() {
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
+
+  // Phone Prompt States
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [promptPhone, setPromptPhone] = useState('');
+  const [promptError, setPromptError] = useState('');
+  const [promptLoading, setPromptLoading] = useState(false);
 
   const getLegPrice = () => {
     if (!trip) return 0;
@@ -203,12 +211,7 @@ export default function CheckoutPage() {
     }
   }, [trip, searchParams]);
 
-  const handleReserve = async () => {
-    if (selectedSeats.length !== requiredSeatsCount) {
-      alert(t('pleaseSelectSeatsToMatch', { count: requiredSeatsCount }));
-      return;
-    }
-
+  const performReservation = async () => {
     setProcessing(true);
     try {
       // Create the booking with all selected seat numbers
@@ -228,6 +231,60 @@ export default function CheckoutPage() {
     } catch (error) {
       alert(t('reservationFailed') + ((error as any)?.message || 'Unknown error'));
       setProcessing(false);
+    }
+  };
+
+  const handleReserve = async () => {
+    if (selectedSeats.length !== requiredSeatsCount) {
+      alert(t('pleaseSelectSeatsToMatch', { count: requiredSeatsCount }));
+      return;
+    }
+
+    if (!user?.phone) {
+      setPromptPhone('');
+      setPromptError('');
+      setShowPhonePrompt(true);
+      return;
+    }
+
+    await performReservation();
+  };
+
+  const handlePromptPhoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPromptError('');
+    
+    const cleanPhone = promptPhone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setPromptError(isAr ? 'يجب أن يكون رقم الهاتف مكوناً من 11 رقماً' : 'Phone number must be exactly 11 digits');
+      return;
+    }
+    const normalizedPhone = '+20' + cleanPhone.substring(1);
+    
+    setPromptLoading(true);
+    try {
+      await updateProfile({ phone: normalizedPhone });
+      setShowPhonePrompt(false);
+      
+      // Perform reservation with normalized phone now in user record
+      setProcessing(true);
+      const booking = await bookingsAPI.create({
+        tripId: trip._id || trip.id,
+        seatNumbers: selectedSeats,
+        pickupStopId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id, 
+        dropoffStopId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id, 
+        pickupCheckpointId: selectedPickupCheckpoint?.id || selectedPickupCheckpoint?._id || selectedPickupCheckpoint?.name,
+        dropoffCheckpointId: selectedDropoffCheckpoint?.id || selectedDropoffCheckpoint?._id || selectedDropoffCheckpoint?.name,
+        pickupCheckpoint: selectedPickupCheckpoint || undefined,
+        dropoffCheckpoint: selectedDropoffCheckpoint || undefined,
+      });
+
+      navigate(`/payment?bookingId=${booking._id || booking.id}`);
+    } catch (err: any) {
+      setPromptError(err?.message || 'Failed to update phone number. Please try again.');
+      setProcessing(false);
+    } finally {
+      setPromptLoading(false);
     }
   };
 
@@ -1138,6 +1195,169 @@ export default function CheckoutPage() {
           </div>
         )}
       </div>
+
+      {/* Phone Number Prompt Modal */}
+      {showPhonePrompt && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 10007,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            style={{
+              background: '#121224',
+              color: '#ffffff',
+              borderRadius: '24px',
+              padding: '2.5rem 2rem',
+              maxWidth: '420px',
+              width: '100%',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+              position: 'relative'
+            }}
+          >
+            <button 
+              onClick={() => setShowPhonePrompt(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: 'none',
+                color: '#a3a3a3',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            >
+              ✕
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: '#f5b731' }}>
+                <Phone size={40} />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>
+                {isAr ? 'أدخل رقم الهاتف' : 'Enter Phone Number'}
+              </h2>
+              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0, lineHeight: 1.4 }}>
+                {isAr 
+                  ? 'يرجى تقديم رقم هاتف مصري صالح لتلقي تأكيد الحجز وإشعارات الرحلة عبر الرسائل القصيرة والواتساب.'
+                  : 'Please provide a valid Egyptian phone number to receive your booking confirmation and trip notifications via SMS & WhatsApp.'}
+              </p>
+            </div>
+
+            {promptError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                fontWeight: 500
+              }}>
+                {promptError}
+              </div>
+            )}
+
+            <form onSubmit={handlePromptPhoneSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label htmlFor="prompt-phone-input" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>
+                  {isAr ? 'رقم الهاتف (11 رقم)' : 'Phone Number (11 digits)'}
+                </label>
+                <input
+                  id="prompt-phone-input"
+                  type="tel"
+                  value={promptPhone}
+                  onChange={(e) => setPromptPhone(e.target.value)}
+                  placeholder={isAr ? '01012345678' : '01012345678'}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px',
+                    fontSize: '0.95rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'white',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPhonePrompt(false)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+                
+                <button
+                  type="submit"
+                  disabled={promptLoading}
+                  style={{
+                    flex: 2,
+                    background: '#f5b731',
+                    color: '#06060e',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    opacity: promptLoading ? 0.7 : 1
+                  }}
+                >
+                  {promptLoading ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      {isAr ? 'حفظ...' : 'Saving...'}
+                    </>
+                  ) : (
+                    isAr ? 'حفظ ومتابعة الحجز' : 'Save & Continue'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
