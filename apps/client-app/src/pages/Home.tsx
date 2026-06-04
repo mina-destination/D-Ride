@@ -5,8 +5,9 @@ import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { routesAPI, partnersAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Calendar, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
 import SEO from '../components/SEO';
+import { CustomDatePicker } from '../components/CustomDatePicker';
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -729,16 +730,11 @@ function RouteSearchForm() {
         <div className="from-to-row">
           <div className="from-to-field full-width">
             <label className="field-label">{t('travelDateLabel')}</label>
-            <div className="field-select-wrapper">
-              <Calendar size={16} className="field-icon-left" />
-              <input
-                type="date"
-                value={travelDate}
-                min={todayLocalStr}
-                onChange={(e) => setTravelDate(e.target.value)}
-                className="field-input"
-              />
-            </div>
+            <CustomDatePicker
+              value={travelDate}
+              min={todayLocalStr}
+              onChange={setTravelDate}
+            />
           </div>
         </div>
 
