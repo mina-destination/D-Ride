@@ -1549,3 +1549,12 @@ a.sidebar-item {
   }
 }
 
+/* Dark Mode Leaflet Map Styling Override */
+[data-theme="dark"] .leaflet-tile {
+  filter: hue-rotate(205deg) saturate(1.8) brightness(0.7) contrast(1.2) !important;
+}
+
+[data-theme="dark"] .leaflet-container {
+  background: #0b1320 !important;
+}
+
