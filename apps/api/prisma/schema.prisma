@@ -110,7 +110,7 @@ model Booking {
   pickupStopId        String?
   dropoffStopId       String?
   pickupCheckpoint    Json?
-  status              BookingStatus @default(PENDING)
+  status              BookingStatus @default(PENDING_PAYMENT)
   paymentStatus       PaymentStatus @default(PENDING)
   paymobOrderId       Int?          @unique
   amountEGP           Float

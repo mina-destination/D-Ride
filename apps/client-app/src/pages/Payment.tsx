@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
@@ -22,6 +22,7 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentMethod] = useState<'CARD'>('CARD');
+  const isSubmitting = useRef(false);
 
   useEffect(() => {
     if (!bookingId) return;
@@ -37,8 +38,9 @@ export default function PaymentPage() {
   }, [bookingId]);
 
   const handleCheckout = async () => {
-    if (!booking) return;
+    if (!booking || processing || isSubmitting.current) return;
 
+    isSubmitting.current = true;
     setProcessing(true);
     try {
       // Initialize Paymob Checkout
@@ -58,7 +60,9 @@ export default function PaymentPage() {
       }
     } catch (error) {
       alert((isRtl ? 'فشل بدء عملية الدفع: ' : 'Payment initialization failed: ') + ((error as any)?.message || 'Unknown error'));
+    } finally {
       setProcessing(false);
+      isSubmitting.current = false;
     }
   };
 

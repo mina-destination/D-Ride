@@ -15,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PartnersModule } from './partners/partners.module';
 import configuration from './config/configuration';
+import { ThrottlerModule } from '@nestjs/throttler';
 import {
   RequestIdMiddleware,
   RequestLoggerMiddleware,
@@ -27,6 +28,14 @@ import {
       isGlobal: true,
       load: [configuration],
     }),
+
+    // Rate Limiting
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
 
     // Global Prisma Module for PostgreSQL connection
     PrismaModule,

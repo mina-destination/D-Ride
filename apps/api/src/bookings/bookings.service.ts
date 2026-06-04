@@ -107,7 +107,7 @@ export class BookingsService {
     const expiredBookings = await prismaClient.booking.findMany({
       where: {
         tripId,
-        status: BookingStatus.PENDING_PAYMENT,
+        status: { in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING] },
         createdAt: { lt: tenMinutesAgo },
       },
     });
@@ -134,7 +134,9 @@ export class BookingsService {
             },
           },
           {
-            status: BookingStatus.PENDING_PAYMENT,
+            status: {
+              in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
+            },
             createdAt: { gte: tenMinutesAgo },
           },
         ],
@@ -218,6 +220,9 @@ export class BookingsService {
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
     const booking = await this.prisma.$transaction(async (tx) => {
+      // 0. Acquire exclusive row-level lock on the trip to serialize concurrent bookings
+      await tx.$queryRaw`SELECT id FROM "trips" WHERE id = ${tripIdStr} FOR UPDATE`;
+
       // 1. Clean up expired pending payments and recalculate current bookedSeats count
       const activeBookedSeatsCount = await this.cleanupExpiredBookings(
         tripIdStr,
@@ -233,6 +238,24 @@ export class BookingsService {
         },
       });
       if (!currentTrip) throw new NotFoundException('Trip not found');
+
+      // 2.5. Prevent duplicate pending bookings for the same user on the same trip
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const existingPending = await tx.booking.findFirst({
+        where: {
+          userId: data.userId.toString(),
+          tripId: tripIdStr,
+          status: {
+            in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
+          },
+          createdAt: { gte: tenMinutesAgo },
+        },
+      });
+      if (existingPending) {
+        throw new BadRequestException(
+          'You already have a pending booking for this trip. Please complete or cancel it first.',
+        );
+      }
 
       // Enforce bounds checks on requested seat numbers
       const capacity = currentTrip.vehicle?.capacity || 14;
