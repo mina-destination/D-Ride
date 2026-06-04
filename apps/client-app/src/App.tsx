@@ -4,6 +4,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import SupportChatWidget from './components/SupportChatWidget';
+import BackgroundAnimation from './components/BackgroundAnimation';
 import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
@@ -134,6 +135,7 @@ function AppRoutes() {
   return (
     <>
       <ScrollToHashElement />
+      <BackgroundAnimation />
       <Navbar />
       <SupportChatWidget />
       <Routes>
