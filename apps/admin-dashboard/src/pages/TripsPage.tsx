@@ -45,6 +45,7 @@ export function TripsPage() {
   const [activeSims, setActiveSims] = useState<Record<string, ActiveSimulation>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
 
   // Bulk schedule states
   const [isBulkScheduler, setIsBulkScheduler] = useState(false);
@@ -460,7 +461,11 @@ export function TripsPage() {
         ? t.status !== 'CANCELLED'
         : t.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesDate = 
+      !selectedDate || 
+      (t.departureTime && dayjs(t.departureTime).isSame(selectedDate, 'day'));
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const handleBulkDelete = async () => {
@@ -570,6 +575,13 @@ export function TripsPage() {
             onSearch={value => setSearchTerm(value)}
             onChange={e => setSearchTerm(e.target.value)}
             style={{ width: 250 }}
+            allowClear
+          />
+          <DatePicker
+            placeholder="Filter by Departure Date"
+            value={selectedDate}
+            onChange={value => setSelectedDate(value)}
+            style={{ width: 200 }}
             allowClear
           />
           <Select
