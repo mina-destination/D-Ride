@@ -3,8 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 export default function BackgroundAnimation() {
   const { theme } = useTheme();
 
-  // Only render the transit animation in dark mode to keep light mode clean and light.
-  if (theme !== 'dark') return null;
+  // Render the transit animation in both themes, adjusting opacity and colors dynamically.
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: -1 }}>
@@ -22,7 +21,7 @@ export default function BackgroundAnimation() {
           stroke: var(--primary);
           stroke-width: 1.5;
           stroke-dasharray: 6 8;
-          opacity: 0.15;
+          opacity: ${theme === 'dark' ? 0.15 : 0.22};
           animation: routeFlow 25s linear infinite;
         }
 
@@ -30,7 +29,7 @@ export default function BackgroundAnimation() {
           stroke: #A855F7; /* Purple express line */
           stroke-width: 1.5;
           stroke-dasharray: 6 8;
-          opacity: 0.12;
+          opacity: ${theme === 'dark' ? 0.12 : 0.18};
           animation: routeFlow 35s linear infinite reverse;
         }
 
@@ -172,10 +171,10 @@ export default function BackgroundAnimation() {
       <div className="absolute neon-bus neon-bus-1">
         <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', filter: 'drop-shadow(0 0 6px var(--primary))' }}>
           {/* Bus Outline Wireframe */}
-          <path d="M4 18h20V9c0-2-1.5-3-3.5-3h-13C5.5 6 4 7 4 9v9z" stroke="var(--primary)" strokeWidth="1.8" fill="rgba(6, 6, 14, 0.9)" />
+          <path d="M4 18h20V9c0-2-1.5-3-3.5-3h-13C5.5 6 4 7 4 9v9z" stroke="var(--primary)" strokeWidth="1.8" fill="var(--surface)" />
           {/* Wheels */}
-          <circle cx="8" cy="20" r="2.5" stroke="var(--primary)" strokeWidth="1.5" fill="rgba(6, 6, 14, 0.9)" />
-          <circle cx="20" cy="20" r="2.5" stroke="var(--primary)" strokeWidth="1.5" fill="rgba(6, 6, 14, 0.9)" />
+          <circle cx="8" cy="20" r="2.5" stroke="var(--primary)" strokeWidth="1.5" fill="var(--surface)" />
+          <circle cx="20" cy="20" r="2.5" stroke="var(--primary)" strokeWidth="1.5" fill="var(--surface)" />
           {/* Windows */}
           <path d="M6 9h4v3H6V9zm6 0h4v3h-4V9zm6 0h4v3h-4V9z" fill="var(--primary)" opacity="0.3" />
           {/* Headlight */}
@@ -187,10 +186,10 @@ export default function BackgroundAnimation() {
       <div className="absolute neon-bus neon-bus-2">
         <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', filter: 'drop-shadow(0 0 6px #A855F7)' }}>
           {/* Bus Outline Wireframe (Facing left/driving leftwards) */}
-          <path d="M24 18H4V9c0-2 1.5-3 3.5-3h13c1.5 0 3.5 1 3.5 3v9z" stroke="#A855F7" strokeWidth="1.8" fill="rgba(6, 6, 14, 0.9)" />
+          <path d="M24 18H4V9c0-2 1.5-3 3.5-3h13c1.5 0 3.5 1 3.5 3v9z" stroke="#A855F7" strokeWidth="1.8" fill="var(--surface)" />
           {/* Wheels */}
-          <circle cx="20" cy="20" r="2.5" stroke="#A855F7" strokeWidth="1.5" fill="rgba(6, 6, 14, 0.9)" />
-          <circle cx="8" cy="20" r="2.5" stroke="#A855F7" strokeWidth="1.5" fill="rgba(6, 6, 14, 0.9)" />
+          <circle cx="20" cy="20" r="2.5" stroke="#A855F7" strokeWidth="1.5" fill="var(--surface)" />
+          <circle cx="8" cy="20" r="2.5" stroke="#A855F7" strokeWidth="1.5" fill="var(--surface)" />
           {/* Windows */}
           <path d="M22 9h-4v3h4V9zm-6 0h-4v3h4V9zm-6 0H6v3h4V9z" fill="#A855F7" opacity="0.3" />
           {/* Headlight */}
