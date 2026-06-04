@@ -433,7 +433,7 @@ export default function LoginPage() {
                 {!showCustomForm ? (
                   <>
                     {[
-                      { name: 'Bishoy Daniel', email: 'bishoy@gmail.com', avatar: 'BD' },
+                      { name: 'Ahmed Hassan', email: 'ahmed@gmail.com', avatar: 'AH' },
                       { name: 'Omar Khaled', email: 'omar.khaled@gmail.com', avatar: 'OK' }
                     ].map((acc) => (
                       <button
