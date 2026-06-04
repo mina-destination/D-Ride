@@ -52,19 +52,31 @@ const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string, isRt
     day: 'numeric' 
   });
 
-  if (!targetDateStr) return formatted;
-  if (groupDateStr === targetDateStr) return isRtl ? `🎯 ${formatted} (التاريخ المحدد)` : `🎯 ${formatted} (Selected Date)`;
+  // Calculate diff days relative to actual today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffTimeToday = groupDate.getTime() - today.getTime();
+  const diffDaysToday = Math.round(diffTimeToday / (1000 * 60 * 60 * 24));
 
-  const [ty, tm, td] = targetDateStr.split('-').map(Number);
-  const targetDate = new Date(ty, tm - 1, td);
-  
-  const diffTime = groupDate.getTime() - targetDate.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === -1) return isRtl ? `📅 ${formatted} (أمس)` : `📅 ${formatted} (Yesterday)`;
-  if (diffDays === 1) return isRtl ? `📅 ${formatted} (غداً)` : `📅 ${formatted} (Tomorrow)`;
-  if (diffDays < 0) return isRtl ? `📅 ${formatted} (قبل ${Math.abs(diffDays)} يوم/أيام)` : `📅 ${formatted} (${Math.abs(diffDays)} Days Before)`;
-  return isRtl ? `📅 ${formatted} (بعد ${diffDays} يوم/أيام)` : `📅 ${formatted} (${diffDays} Days After)`;
+  // If it's the selected date, prioritize that label
+  if (targetDateStr && groupDateStr === targetDateStr) {
+    return isRtl ? `🎯 ${formatted} (التاريخ المحدد)` : `🎯 ${formatted} (Selected Date)`;
+  }
+
+  // Relative to actual today
+  if (diffDaysToday === 0) {
+    return isRtl ? `📅 ${formatted} (اليوم)` : `📅 ${formatted} (Today)`;
+  }
+  if (diffDaysToday === 1) {
+    return isRtl ? `📅 ${formatted} (غداً)` : `📅 ${formatted} (Tomorrow)`;
+  }
+  if (diffDaysToday === -1) {
+    return isRtl ? `📅 ${formatted} (أمس)` : `📅 ${formatted} (Yesterday)`;
+  }
+
+  // For other dates, return formatted (with calendar emoji if a target date is searched)
+  if (!targetDateStr) return formatted;
+  return `📅 ${formatted}`;
 };
 
 // Map configurations removed
@@ -544,7 +556,7 @@ export default function TripSearchPage() {
                           whiteSpace: 'nowrap',
                           transition: 'all 0.3s ease'
                         }}>
-                          {getRelativeDateLabel(group.dateKey, date)}
+                          {getRelativeDateLabel(group.dateKey, date, isRtl)}
                         </span>
                         <div style={{ 
                           flex: 1, 
