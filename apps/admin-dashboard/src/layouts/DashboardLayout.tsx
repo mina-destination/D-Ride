@@ -81,13 +81,23 @@ export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => 
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
 
-  // Auto-collapse sidebar on mobile viewport sizes
+  // Auto-collapse sidebar on mobile viewport sizes and window resizing
   useEffect(() => {
-    if (window.innerWidth <= 768) {
-      setIsSidebarCollapsed(true);
-    }
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    
+    // Check on mount
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
