@@ -2,10 +2,8 @@
 node_modules/
 jspm_packages/
 web_modules/
-
 # Turbo build cache
 .turbo/
-
 # Build outputs
 dist/
 dist-ssr/
@@ -18,10 +16,8 @@ out/
 .serverless/
 .fusebox/
 .dynamodb/
-
 # TypeScript build info
 *.tsbuildinfo
-
 # Debug logs
 logs
 *.log
@@ -30,21 +26,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
 # Diagnostic reports
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
 # Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
-
 # Coverage directory
 coverage
 *.lcov
 .nyc_output
-
 # IDEs and OS files
 .vscode/*
 !.vscode/extensions.json
@@ -58,19 +50,23 @@ coverage
 .Trashes
 ehthumbs.db
 Thumbs.db
-
 # Playwright test artifacts
 playwright-report/
 **/playwright-report/
 test-results/
 **/test-results/
-
 # Stale metadata compiler output
 *.resolved
 **/*.resolved
-
 # Secure local environment files
 .env
 .env.*
 **/.env*
 !.env.example
+
+# managed by open-wa
+**.data.json
+**.node-persist**
+**_IGNORE_**
+dride-session/
+# end managed by open-wa

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, InputNumber, Table, Checkbox, Spin } from 'antd';
 import { message } from '../utils/antdGlobal';
-import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield } from 'lucide-react';
+import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI, settingsAPI } from '../services/api';
+import { usersAPI, settingsAPI, whatsappAPI } from '../services/api';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -15,6 +15,26 @@ export function SettingsPage() {
   const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>({});
   const [loadingPermissions, setLoadingPermissions] = useState(false);
   const [savingPermissions, setSavingPermissions] = useState<string | null>(null);
+
+  const [whatsappStatus, setWhatsappStatus] = useState<string>('DISCONNECTED');
+  const [whatsappQr, setWhatsappQr] = useState<string | null>(null);
+  const [whatsappActionLoading, setWhatsappActionLoading] = useState(false);
+
+  const fetchWhatsappStatus = async () => {
+    try {
+      const res = await whatsappAPI.getStatus();
+      setWhatsappStatus(res.status);
+      setWhatsappQr(res.qrCode);
+    } catch (err) {
+      console.error('Failed to fetch WhatsApp connection status', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchWhatsappStatus();
+    const interval = setInterval(fetchWhatsappStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const permissionsList = [
     { key: 'dashboard', label: 'Dashboard' },
@@ -275,6 +295,125 @@ export function SettingsPage() {
               </Space>
             </Col>
           </Row>
+        </Card>
+      ),
+    },
+    {
+      key: 'whatsapp',
+      label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MessageCircle size={16} /> WhatsApp Gateway</span>,
+      children: (
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <Title level={4}>WhatsApp Gateway Connection</Title>
+            <Paragraph type="secondary">
+              Connect a WhatsApp account via OpenWA to send booking ticket notifications and handle passenger customer support chats in real-time.
+            </Paragraph>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem 0', minHeight: '300px' }}>
+            {whatsappStatus === 'CONNECTING' && (
+              <Space direction="vertical" align="center" size="large">
+                <Spin size="large" tip="Connecting to WhatsApp service..." />
+                <Text type="secondary">Initializing headless browser and session files. Please wait...</Text>
+              </Space>
+            )}
+
+            {whatsappStatus === 'DISCONNECTED' && (
+              <Space direction="vertical" align="center" size="middle">
+                <div style={{ padding: '1.5rem', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageCircle size={48} />
+                </div>
+                <Title level={5} style={{ margin: 0 }}>WhatsApp Gateway is Offline</Title>
+                <Text type="secondary">The WhatsApp automation server is not currently running or configured.</Text>
+                <Button 
+                  type="primary" 
+                  loading={whatsappActionLoading}
+                  onClick={async () => {
+                    try {
+                      setWhatsappActionLoading(true);
+                      await whatsappAPI.restart();
+                      fetchWhatsappStatus();
+                    } catch (err) {
+                      // Handled by axios interceptor
+                    } finally {
+                      setWhatsappActionLoading(false);
+                    }
+                  }}
+                  style={{ background: 'var(--primary-color)' }}
+                >
+                  Start Connection
+                </Button>
+              </Space>
+            )}
+
+            {whatsappStatus === 'SCAN_QR' && (
+              <Row gutter={[24, 24]} align="middle" justify="center" style={{ width: '100%', maxWidth: '700px' }}>
+                <Col xs={24} md={12} style={{ display: 'flex', justifyContent: 'center' }}>
+                  {whatsappQr ? (
+                    <div style={{ padding: '16px', background: '#ffffff', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}>
+                      <img src={whatsappQr} alt="WhatsApp QR Code" style={{ width: '220px', height: '220px', display: 'block' }} />
+                    </div>
+                  ) : (
+                    <Spin tip="Generating QR Code..." />
+                  )}
+                </Col>
+                <Col xs={24} md={12}>
+                  <Space direction="vertical" size="middle">
+                    <Title level={5} style={{ margin: 0, color: 'var(--primary-color)' }}>Link WhatsApp Account</Title>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <Text><Text strong>1.</Text> Open WhatsApp on your mobile phone.</Text>
+                      <Text><Text strong>2.</Text> Tap the Menu (⋮) or Settings icon and select <Text strong>Linked Devices</Text>.</Text>
+                      <Text><Text strong>3.</Text> Tap <Text strong>Link a Device</Text>.</Text>
+                      <Text><Text strong>4.</Text> Scan the QR code shown on the left with your phone's camera.</Text>
+                    </div>
+                    <Button 
+                      loading={whatsappActionLoading}
+                      onClick={async () => {
+                        try {
+                          setWhatsappActionLoading(true);
+                          await whatsappAPI.restart();
+                          fetchWhatsappStatus();
+                        } catch (err) {}
+                        finally { setWhatsappActionLoading(false); }
+                      }}
+                      style={{ marginTop: '8px' }}
+                    >
+                      Regenerate QR Code
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            )}
+
+            {whatsappStatus === 'CONNECTED' && (
+              <Space direction="vertical" align="center" size="middle" style={{ textAlign: 'center' }}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ padding: '1.5rem', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MessageCircle size={48} />
+                  </div>
+                  <div style={{ position: 'absolute', right: '4px', bottom: '4px', width: '16px', height: '16px', borderRadius: '50%', background: '#22c55e', border: '3px solid var(--surface-elevated)' }} />
+                </div>
+                <Title level={5} style={{ margin: 0, color: '#22c55e' }}>WhatsApp Gateway is Connected</Title>
+                <Text type="secondary">The platform is active and ready to deliver tickets and process customer service messages.</Text>
+                <Button 
+                  danger
+                  type="text"
+                  loading={whatsappActionLoading}
+                  onClick={async () => {
+                    try {
+                      setWhatsappActionLoading(true);
+                      await whatsappAPI.restart();
+                      fetchWhatsappStatus();
+                    } catch (err) {}
+                    finally { setWhatsappActionLoading(false); }
+                  }}
+                  style={{ marginTop: '1rem' }}
+                >
+                  Disconnect Account
+                </Button>
+              </Space>
+            )}
+          </div>
         </Card>
       ),
     },

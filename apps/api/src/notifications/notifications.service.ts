@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Twilio } from 'twilio';
 import { MailService } from './mail.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -14,6 +15,7 @@ export class NotificationsService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly whatsappService: WhatsappService,
   ) {}
 
   onModuleInit() {
@@ -88,9 +90,6 @@ export class NotificationsService implements OnModuleInit {
     }
   }
 
-  /**
-   * Dispatches a WhatsApp message.
-   */
   async sendWhatsApp(to: string, message: string): Promise<boolean> {
     const formattedTo = to.startsWith('+') ? to : `+20${to}`; // Default to Egypt country code
     if (!this.validatePhoneNumber(formattedTo)) {
@@ -98,6 +97,12 @@ export class NotificationsService implements OnModuleInit {
         `Invalid phone number format: ${to}. Skipping WhatsApp dispatch.`,
       );
       return false;
+    }
+
+    // Attempt dispatch via OpenWA WhatsappService first
+    const sentViaOpenWA = await this.whatsappService.sendWhatsAppMessage(to, message);
+    if (sentViaOpenWA) {
+      return true;
     }
 
     if (this.isTwilioConfigured && this.twilioClient && this.twilioWhatsApp) {

@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PartnersModule } from './partners/partners.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import configuration from './config/configuration';
 import { ThrottlerModule } from '@nestjs/throttler';
 import {
@@ -52,6 +53,7 @@ import {
     NotificationsModule,
     ReviewsModule,
     PartnersModule,
+    WhatsappModule,
   ],
   controllers: [AppController],
   providers: [AppService],
