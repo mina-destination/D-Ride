@@ -259,12 +259,12 @@ export function PassengersPage() {
   return (
     <div style={{ padding: '2rem 0' }}>
       {/* Page Header */}
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={28} /> Passengers Registry</h1>
           <p>Manage and monitor customer accounts, trip privileges, and status across the D-Ride commute network</p>
         </div>
-        <Space size="middle">
+        <Space size="middle" wrap>
           <Input.Search 
             placeholder="Search name, email, phone..." 
             value={searchTerm} 

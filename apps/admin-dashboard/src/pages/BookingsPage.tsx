@@ -232,14 +232,14 @@ export function BookingsPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <Title level={2} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Ticket size={28} /> Bookings Management
           </Title>
           <Paragraph>View passenger seat reservations and assign route statuses</Paragraph>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Search passenger, route, ID..."
             value={searchTerm}

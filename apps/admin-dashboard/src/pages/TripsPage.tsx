@@ -563,7 +563,7 @@ export function TripsPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bus size={28} /> Trips Management & Simulation</h1>
           <p>Schedule trips and trigger live GPS route simulations to passenger app trackers</p>

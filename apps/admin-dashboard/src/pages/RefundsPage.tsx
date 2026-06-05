@@ -311,7 +311,7 @@ export function RefundsPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Undo2 size={28} style={{ color: 'var(--primary)' }} /> Refund Requests Management

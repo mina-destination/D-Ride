@@ -181,12 +181,12 @@ export function VehiclesPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CarFront size={28} /> Fleet Management</h1>
           <p>Manage all vehicles in the D-Ride network</p>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Search license, make, model..."
             value={searchTerm}
