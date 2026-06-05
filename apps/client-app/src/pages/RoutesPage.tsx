@@ -4,7 +4,6 @@ import { routesAPI, tripsAPI } from '../services/api';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { 
@@ -99,7 +98,6 @@ export default function RoutesPage() {
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
-  const { theme } = useTheme();
   const { t, language } = useTranslation();
 
   useEffect(() => {
@@ -399,9 +397,7 @@ export default function RoutesPage() {
                   >
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                      url={theme === 'dark'
-                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'}
+                      url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                     />
                     
                     {polylinePath.length > 0 && <MapAutoFit path={polylinePath} />}

@@ -1551,7 +1551,7 @@ a.sidebar-item {
 
 /* Dark Mode Leaflet Map Styling Override */
 [data-theme="dark"] .leaflet-tile {
-  filter: hue-rotate(205deg) saturate(1.8) brightness(0.7) contrast(1.2) !important;
+  filter: invert(100%) hue-rotate(195deg) saturate(1.8) brightness(80%) contrast(110%) !important;
 }
 
 [data-theme="dark"] .leaflet-container {

@@ -5,7 +5,6 @@ import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { useTheme } from '../context/ThemeContext';
 import 'leaflet/dist/leaflet.css';
 import { routesAPI } from '../services/api';
 import { 
@@ -486,10 +485,7 @@ function haversineDistance(lng1: number, lat1: number, lng2: number, lat2: numbe
 }
 
 export function RoutesPage() {
-  const { theme } = useTheme();
-  const mapTileUrl = theme === 'dark'
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
   const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
   const [routes, setRoutes] = useState<any[]>([]);
