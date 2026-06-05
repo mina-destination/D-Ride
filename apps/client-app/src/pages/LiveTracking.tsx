@@ -5,7 +5,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
 import api from '../services/api';
-import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { Microscope, Square, Rocket } from 'lucide-react';
@@ -28,16 +27,13 @@ const busIcon = new L.Icon({
 
 export default function LiveTrackingPage() {
   const { t, isRtl, language } = useTranslation();
-  const { theme } = useTheme();
 
   const isAr = language === 'ar';
   const seoTitle = isAr ? 'تتبع الحافلة مباشرة | دي-رايد' : 'Live Shuttle Tracking | D-Ride';
   const seoDescription = isAr
     ? 'تتبع حافلة دي-رايد الخاصة بك مباشرة على الخريطة التفاعلية مع تحديثات الموقع الجغرافي الفورية.'
     : 'Track your D-Ride commuter minibus live on the interactive map with real-time GPS telemetry updates.';
-  const mapTileUrl = theme === 'dark'
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
   const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
   const [searchParams] = useSearchParams();

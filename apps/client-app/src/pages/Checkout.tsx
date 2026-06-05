@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Phone, RefreshCw } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
@@ -58,7 +57,6 @@ export default function CheckoutPage() {
   const passengersParam = searchParams.get('passengers');
   const requiredSeatsCount = passengersParam ? Math.max(1, parseInt(passengersParam, 10)) : 1;
   const navigate = useNavigate();
-  const { theme } = useTheme();
   const { t, isRtl, language } = useTranslation();
   const { user, updateProfile } = useAuth();
 
@@ -535,9 +533,7 @@ export default function CheckoutPage() {
                     <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
                       <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                        url={theme === 'dark'
-                          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                          : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'}
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                       />
                       <MapFocusController coords={mapFocusCoords} />
                       {polylinePath.length > 0 && (
