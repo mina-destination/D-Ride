@@ -45,7 +45,8 @@ export class WhatsappService implements OnModuleInit {
         headless: true,
         disableSpins: true,
         qrLogSkip: true,
-        chromiumArgs: ['--no-sandbox', '--disable-setuid-sandbox'],
+        useChrome: true,
+        customUserAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       });
 
       this.status = 'CONNECTED';
@@ -81,7 +82,7 @@ export class WhatsappService implements OnModuleInit {
     }
 
     // Delete session files to force a new login/QR
-    const sessionDir = path.join(process.cwd(), 'dride-session');
+    const sessionDir = path.join(process.cwd(), '_IGNORE_dride-session');
     const sessionFile = path.join(process.cwd(), 'dride-session.data.json');
     try {
       if (fs.existsSync(sessionDir)) {
