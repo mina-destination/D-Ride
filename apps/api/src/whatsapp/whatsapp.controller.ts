@@ -21,4 +21,11 @@ export class WhatsappController {
     await this.whatsappService.restart();
     return { success: true, message: 'WhatsApp client session cleared and restarted.' };
   }
+
+  @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION')
+  @Get('screenshot')
+  async getScreenshot() {
+    const screenshot = await this.whatsappService.getBrowserScreenshot();
+    return { screenshot };
+  }
 }
