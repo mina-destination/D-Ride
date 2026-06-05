@@ -33,6 +33,10 @@ export class WhatsappService implements OnModuleInit {
           clientId: 'dride-session',
           dataPath: path.join(process.cwd(), '.wwebjs_auth')
         }),
+        webVersionCache: {
+          type: 'remote',
+          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+        },
         puppeteer: {
           headless: true,
           args: [
@@ -43,7 +47,8 @@ export class WhatsappService implements OnModuleInit {
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
           ],
         }
       });
@@ -59,6 +64,10 @@ export class WhatsappService implements OnModuleInit {
             this.logger.error('Failed to convert WhatsApp QR string to DataURL', err);
           }
         });
+      });
+
+      this.client.on('authenticated', () => {
+        this.logger.log('WhatsApp client authenticated successfully! Loading session...');
       });
 
       this.client.on('ready', () => {
@@ -114,13 +123,17 @@ export class WhatsappService implements OnModuleInit {
 
     // Delete session files to force a new login/QR
     const sessionDir = path.join(process.cwd(), '.wwebjs_auth');
+    const cacheDir = path.join(process.cwd(), '.wwebjs_cache');
     try {
       if (fs.existsSync(sessionDir)) {
         fs.rmSync(sessionDir, { recursive: true, force: true });
       }
-      this.logger.log('WhatsApp session cache cleared.');
+      if (fs.existsSync(cacheDir)) {
+        fs.rmSync(cacheDir, { recursive: true, force: true });
+      }
+      this.logger.log('WhatsApp session and version caches cleared.');
     } catch (err) {
-      this.logger.error('Failed to clean up WhatsApp session files', err);
+      this.logger.error('Failed to clean up WhatsApp session and cache files', err);
     }
 
     // Re-initialize
@@ -157,6 +170,20 @@ export class WhatsappService implements OnModuleInit {
       status: this.status,
       qrCode: this.qrCode,
     };
+  }
+
+  async getBrowserScreenshot(): Promise<string | null> {
+    if (!this.client) return null;
+    try {
+      const page = (this.client as any).pupPage;
+      if (page) {
+        const screenshotBase64 = await page.screenshot({ encoding: 'base64' });
+        return `data:image/png;base64,${screenshotBase64}`;
+      }
+    } catch (err) {
+      this.logger.error('Failed to take browser screenshot', err);
+    }
+    return null;
   }
 
   private async handleIncomingMessage(message: any) {
