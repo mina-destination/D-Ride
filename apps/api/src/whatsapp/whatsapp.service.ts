@@ -1,9 +1,10 @@
 import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
-import { create, ev, Client, ChatId } from '@open-wa/wa-automate';
+import { Client, LocalAuth } from 'whatsapp-web.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupportGateway } from '../support/support.gateway';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class WhatsappService implements OnModuleInit {
@@ -23,46 +24,76 @@ export class WhatsappService implements OnModuleInit {
   }
 
   private async initializeClient() {
-    this.logger.log('Starting WhatsApp client initialization...');
+    this.logger.log('Starting WhatsApp client initialization via whatsapp-web.js...');
     this.status = 'CONNECTING';
 
-    // 1. Register listener for QR codes (must be registered BEFORE create())
-    ev.on('qr.**', async (qrcode, sessionId) => {
-      if (sessionId === 'dride-session') {
-        this.qrCode = qrcode;
-        this.status = 'SCAN_QR';
-        this.logger.log(`WhatsApp QR code generated for session: ${sessionId}`);
-      }
-    });
-
     try {
-      // 2. Start the client
-      this.client = await create({
-        sessionId: 'dride-session',
-        multiDevice: true,
-        authTimeout: 0,
-        qrTimeout: 0,
-        headless: true,
-        disableSpins: true,
-        qrLogSkip: true,
-        useChrome: true,
-        customUserAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      this.client = new Client({
+        authStrategy: new LocalAuth({
+          clientId: 'dride-session',
+          dataPath: path.join(process.cwd(), '.wwebjs_auth')
+        }),
+        puppeteer: {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu'
+          ],
+        }
       });
 
-      this.status = 'CONNECTED';
-      this.qrCode = null;
-      this.logger.log('WhatsApp client successfully connected!');
+      // Register Event Listeners
+      this.client.on('qr', (qr) => {
+        QRCode.toDataURL(qr, (err, url) => {
+          if (!err) {
+            this.qrCode = url;
+            this.status = 'SCAN_QR';
+            this.logger.log('WhatsApp QR code generated successfully.');
+          } else {
+            this.logger.error('Failed to convert WhatsApp QR string to DataURL', err);
+          }
+        });
+      });
 
-      // 3. Register incoming message listener
-      this.client.onMessage(async (message) => {
+      this.client.on('ready', () => {
+        this.status = 'CONNECTED';
+        this.qrCode = null;
+        this.logger.log('WhatsApp client successfully connected!');
+      });
+
+      this.client.on('auth_failure', (msg) => {
+        this.status = 'DISCONNECTED';
+        this.logger.error(`WhatsApp authentication failure: ${msg}`);
+      });
+
+      this.client.on('disconnected', (reason) => {
+        this.status = 'DISCONNECTED';
+        this.qrCode = null;
+        this.logger.warn(`WhatsApp client disconnected: ${reason}`);
+      });
+
+      this.client.on('message', async (message) => {
         try {
           await this.handleIncomingMessage(message);
         } catch (err) {
           this.logger.error('Error handling incoming WhatsApp message', err);
         }
       });
+
+      // Trigger initialization
+      this.client.initialize().catch((err) => {
+        this.logger.error('Failed to run client.initialize()', err);
+        this.status = 'DISCONNECTED';
+      });
+
     } catch (error) {
-      this.logger.error('Failed to connect WhatsApp client', error);
+      this.logger.error('Failed to instantiate WhatsApp client', error);
       this.status = 'DISCONNECTED';
     }
   }
@@ -74,22 +105,18 @@ export class WhatsappService implements OnModuleInit {
 
     if (this.client) {
       try {
-        await this.client.kill();
+        await this.client.destroy();
       } catch (err) {
-        this.logger.warn('Failed to cleanly kill WhatsApp client', err);
+        this.logger.warn('Failed to cleanly destroy WhatsApp client', err);
       }
       this.client = null;
     }
 
     // Delete session files to force a new login/QR
-    const sessionDir = path.join(process.cwd(), '_IGNORE_dride-session');
-    const sessionFile = path.join(process.cwd(), 'dride-session.data.json');
+    const sessionDir = path.join(process.cwd(), '.wwebjs_auth');
     try {
       if (fs.existsSync(sessionDir)) {
         fs.rmSync(sessionDir, { recursive: true, force: true });
-      }
-      if (fs.existsSync(sessionFile)) {
-        fs.unlinkSync(sessionFile);
       }
       this.logger.log('WhatsApp session cache cleared.');
     } catch (err) {
@@ -106,7 +133,6 @@ export class WhatsappService implements OnModuleInit {
       return false;
     }
 
-    // OpenWA requires recipient formatted as 201xxxxxxx@c.us
     let cleanPhone = to.replace(/[^0-9]/g, '');
     if (cleanPhone.startsWith('01') && cleanPhone.length === 11) {
       cleanPhone = `20${cleanPhone.slice(1)}`; // Prepend Egypt code if starts with 01
@@ -117,11 +143,11 @@ export class WhatsappService implements OnModuleInit {
     const formattedRecipient = `${cleanPhone}@c.us`;
 
     try {
-      await this.client.sendText(formattedRecipient as ChatId, message);
-      this.logger.log(`WhatsApp message successfully sent via OpenWA to ${formattedRecipient}`);
+      await this.client.sendMessage(formattedRecipient, message);
+      this.logger.log(`WhatsApp message successfully sent via whatsapp-web.js to ${formattedRecipient}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp message via OpenWA to ${formattedRecipient}`, error);
+      this.logger.error(`Failed to send WhatsApp message via whatsapp-web.js to ${formattedRecipient}`, error);
       return false;
     }
   }
@@ -137,8 +163,12 @@ export class WhatsappService implements OnModuleInit {
     if (!this.client) {
       return;
     }
+
     // Only handle chat messages (not groups, media, broadcast channels, or other events)
-    if (message.isGroupMsg || message.isMedia || message.type !== 'chat') {
+    const isGroup = message.from.endsWith('@g.us');
+    const isMedia = message.hasMedia;
+
+    if (isGroup || isMedia || message.type !== 'chat') {
       return;
     }
 
@@ -148,7 +178,6 @@ export class WhatsappService implements OnModuleInit {
     this.logger.log(`Incoming WhatsApp message from ${fromPhone}: "${text}"`);
 
     // Look up user in database
-    // Match phone patterns (e.g. "+201...", "201...", "01...")
     const cleanPhoneSuffix = fromPhone.startsWith('20') ? fromPhone.slice(2) : fromPhone;
     const user = await this.prisma.user.findFirst({
       where: {
@@ -162,7 +191,7 @@ export class WhatsappService implements OnModuleInit {
     });
 
     if (!user) {
-      await this.client.sendText(
+      await this.client.sendMessage(
         message.from,
         `Welcome to D-Ride! 🚌\n\n` +
         `This phone number is not registered on our platform.\n` +
@@ -193,7 +222,7 @@ export class WhatsappService implements OnModuleInit {
           this.supportGateway.server.to(`ticket_${activeTicket.id}`).emit('ticketClosed', { ticketId: activeTicket.id });
         }
 
-        await this.client.sendText(
+        await this.client.sendMessage(
           message.from,
           `🚪 *Live Chat Ended*\n\n` +
           `Your support session has been resolved. You are back in the main menu.\n\n` +
@@ -252,7 +281,7 @@ export class WhatsappService implements OnModuleInit {
       });
 
       if (bookings.length === 0) {
-        await this.client.sendText(
+        await this.client.sendMessage(
           message.from,
           `🎫 *Your Active Bookings*\n\nYou have no active bookings at the moment. Reply with *3* to talk to support.`,
         );
@@ -274,13 +303,13 @@ export class WhatsappService implements OnModuleInit {
             `   *Status:* ${b.status}\n\n`;
         });
         bookingText += `Reply with *M* to show the main menu.`;
-        await this.client.sendText(message.from, bookingText);
+        await this.client.sendMessage(message.from, bookingText);
       }
       return;
     }
 
     if (text === '2') {
-      await this.client.sendText(
+      await this.client.sendMessage(
         message.from,
         `💵 *Your Wallet Balance*\n\n` +
         `Current Balance: *EGP ${user.walletBalance.toFixed(2)}*\n\n` +
@@ -298,7 +327,7 @@ export class WhatsappService implements OnModuleInit {
       });
 
       if (openTicketsCount >= 5) {
-        await this.client.sendText(
+        await this.client.sendMessage(
           message.from,
           `⚠️ *Support Ticket Limit Reached*\n\n` +
           `You already have ${openTicketsCount} open support tickets on D-Ride. Please wait until they are resolved.`,
@@ -342,7 +371,7 @@ export class WhatsappService implements OnModuleInit {
         });
       }
 
-      await this.client.sendText(
+      await this.client.sendMessage(
         message.from,
         `👨‍💻 *D-Ride Live Support*\n\n` +
         `You are now connected to our support desk! Any message you type here will be sent directly to customer service.\n\n` +
@@ -359,6 +388,6 @@ export class WhatsappService implements OnModuleInit {
       `2️⃣  *Wallet Balance* (Check your account funds)\n` +
       `3️⃣  *Live Chat with Support* (Speak to customer service)`;
 
-    await this.client.sendText(message.from, menuMsg);
+    await this.client.sendMessage(message.from, menuMsg);
   }
 }
