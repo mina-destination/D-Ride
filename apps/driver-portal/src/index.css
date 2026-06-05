@@ -433,10 +433,10 @@ button, input, select {
 
 /* Dark Mode Leaflet Map Styling Override */
 .leaflet-tile {
-  filter: invert(100%) hue-rotate(195deg) saturate(1.8) brightness(80%) contrast(110%) !important;
+  filter: invert(100%) sepia(90%) saturate(475%) hue-rotate(180deg) brightness(110%) contrast(90%) !important;
 }
 
 .leaflet-container {
-  background: #0b1320 !important;
+  background: #0e1621 !important;
 }
 
