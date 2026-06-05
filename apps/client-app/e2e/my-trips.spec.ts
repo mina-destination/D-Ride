@@ -12,7 +12,7 @@ test.describe('My Trips & Tickets Page', () => {
     await page.goto('/my-trips');
 
     // Page headers
-    await expect(page.locator('h2')).toHaveText('My Bookings & Boarding Passes');
+    await expect(page.locator('h1')).toHaveText('My Bookings & Boarding Passes');
 
     // Ticket details
     const ticket = page.locator('.ticket-container');
