@@ -625,6 +625,34 @@ textarea:focus-visible {
 }
 
 /* ── Mobile Layout Responsiveness Overrides ── */
+@media (max-width: 768px) {
+  /* Contact page grid stacking */
+  .contact-container {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  /* Profile page grid stacking */
+  .profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Wallet sections stacking */
+  .wallet-top-section {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* General page padding */
+  .page-container {
+    padding: 1rem 0.75rem !important;
+  }
+
+  /* Navbar search and extras */
+  .nav-search {
+    display: none !important;
+  }
+}
+
 @media (max-width: 480px) {
   .auth-page {
     padding: 0.75rem;
@@ -639,6 +667,20 @@ textarea:focus-visible {
   }
   .seat-selector-container {
     padding: 1rem 0.5rem !important;
+  }
+
+  /* Hero text sizing */
+  .hero-title {
+    font-size: 1.75rem !important;
+  }
+
+  .hero-subtitle {
+    font-size: 0.85rem !important;
+  }
+
+  /* Contact form read-only details */
+  .contact-container .auth-card div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
   }
 }
 

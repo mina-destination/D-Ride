@@ -583,7 +583,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: '420px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1 }}>
+        <div className="fleet-map-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: '420px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1 }}>
           
           {/* Shuttles Sidebar */}
           <div style={{ background: 'var(--surface-elevated)', overflowY: 'auto', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
@@ -770,7 +770,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
         {/* Bookings SVG Line Chart */}
         <div className="card" style={{ padding: '1.25rem 1.5rem', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

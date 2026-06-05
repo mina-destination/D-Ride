@@ -47,6 +47,11 @@
   --sidebar-collapsed-width: 72px;
   --topbar-height: 64px;
 
+  /* Glass & Overlay (fallback — also injected via JS from shared-theme) */
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(229, 231, 235, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+
   /* Misc */
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -79,6 +84,11 @@
   --sidebar-item-hover: #0E0E1B;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --primary-color: var(--primary);
+
+  /* Glass & Overlay dark mode fallbacks */
+  --glass-bg: rgba(14, 14, 27, 0.65);
+  --glass-border: rgba(245, 183, 49, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Reset & Base ──────────────────────────────────────────── */
@@ -777,20 +787,100 @@ body {
 
   .main-content {
     margin-left: 0 !important;
-    padding: 1rem !important;
+    padding: 0.5rem !important;
   }
   
   .topbar {
-    margin: 0.5rem 0 1.5rem 0 !important;
+    margin: 0.5rem 0 1rem 0 !important;
     width: 100% !important;
+    padding: 0 0.75rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  .topbar-title {
+    font-size: 1rem;
   }
 
   .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .topbar-search {
     display: none;
+  }
+
+  .dashboard-content {
+    padding: 1rem 0.75rem;
+  }
+
+  /* Fleet map card mobile */
+  .fleet-map-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+
+  .fleet-map-grid > div:first-child {
+    max-height: 180px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .fleet-map-grid > div:last-child {
+    height: 280px !important;
+  }
+
+  /* Charts grid mobile */
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Wizard / Routes mobile */
+  .wizard-content {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Table horizontal scroll on mobile */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-right .topbar-icon-btn:not(:first-child):not(:last-child) {
+    display: none;
+  }
+
+  .card-header {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  /* Ant Design Modals on very small screens */
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+  }
+
+  .ant-modal .ant-modal-body div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
   }
 }
 
