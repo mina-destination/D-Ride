@@ -10,6 +10,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { MailService } from '../notifications/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getPermissionsForRole(role: string): Promise<string[]> {
@@ -86,6 +88,18 @@ export class AuthService {
     this.mailService.sendWelcomeEmail(user.email, user.name).catch((err) => {
       this.logger.error(`Failed to send welcome email to ${user.email}:`, err);
     });
+
+    // Asynchronously send a welcome WhatsApp message if phone is provided
+    if (user.phone) {
+      const welcomeMsg = 
+        `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
+        `Your account has been registered successfully with your phone number.\n\n` +
+        `You can now use this chat to query your active bookings, check wallet balance, or chat with our live support anytime! Just send any message here to open the main menu.`;
+      
+      this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
+        this.logger.error(`Failed to send welcome WhatsApp message to ${user.phone}:`, err);
+      });
+    }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const permissions = await this.getPermissionsForRole(user.role);
@@ -372,10 +386,22 @@ export class AuthService {
       updateData.phone = normalizedPhone;
     }
 
+    const oldUser = await this.prisma.user.findUnique({ where: { id: userId } });
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: updateData,
     });
+
+    // Send WhatsApp notification if the phone number was updated/linked
+    if (user.phone && user.phone !== oldUser?.phone) {
+      const welcomeMsg = 
+        `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
+        `Your phone number has been updated/linked successfully to your account.\n\n` +
+        `Use this chat to query your active bookings, check wallet balance, or speak with customer service!`;
+      this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
+        this.logger.error(`Failed to send link WhatsApp message to ${user.phone}:`, err);
+      });
+    }
 
     const permissions = await this.getPermissionsForRole(user.role);
     const result = { ...user, _id: user.id };
