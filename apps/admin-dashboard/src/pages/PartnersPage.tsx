@@ -196,12 +196,12 @@ export function PartnersPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Handshake size={28} /> Brand Partners</h1>
           <p>Configure corporate cooperations and sponsors displayed on passenger landing page</p>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Search partner name..."
             value={searchTerm}

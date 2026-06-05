@@ -226,14 +226,14 @@ export function SupportTicketsPage() {
   return (
     <div style={{ padding: '2rem 0' }}>
       {/* Page Header */}
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <Title level={2} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Inbox size={28} /> Support Tickets
           </Title>
           <Paragraph>Manage customer issues, reply to tickets, and resolve passengers support logs.</Paragraph>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Search subject, user, ID..."
             value={searchTerm}

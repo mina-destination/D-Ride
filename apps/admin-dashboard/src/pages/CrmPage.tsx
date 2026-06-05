@@ -738,7 +738,7 @@ export function CrmPage() {
   return (
     <div style={{ padding: '2rem 0' }}>
       {/* Page Header */}
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '2rem' }}>
             <Users size={32} style={{ color: 'var(--primary-color)' }} /> Unified User CRM
@@ -866,7 +866,7 @@ export function CrmPage() {
                       <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
                         Selected {selectedUserKeys.length} user{selectedUserKeys.length > 1 ? 's' : ''}
                       </span>
-                      <Space>
+                      <Space wrap>
                         <Select 
                           placeholder="Bulk Assign Role" 
                           style={{ width: 160 }}
@@ -1004,7 +1004,7 @@ export function CrmPage() {
                       <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>
                         Selected {selectedTicketKeys.length} ticket{selectedTicketKeys.length > 1 ? 's' : ''}
                       </span>
-                      <Space>
+                      <Space wrap>
                         <Button 
                           onClick={handleExportSelectedTickets} 
                           icon={<Download size={14} />}

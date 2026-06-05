@@ -499,7 +499,7 @@ export function SettingsPage() {
         onFinish={handleSubmit}
         initialValues={getInitialValues()}
       >
-        <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
           <div>
             <Title level={2} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <SettingsIcon size={28} /> System Settings

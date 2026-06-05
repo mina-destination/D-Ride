@@ -242,7 +242,7 @@ export async function setupAdminMockAPI(page: Page) {
   });
 
   // Routes
-  await page.route('**/api/routes', async (route) => {
+  await page.route('**/api/routes*', async (route) => {
     const request = route.request();
     if (request.method() === 'POST') {
       await route.fulfill({
@@ -272,7 +272,7 @@ export async function setupAdminMockAPI(page: Page) {
   });
 
   // Trips
-  await page.route('**/api/trips', async (route) => {
+  await page.route('**/api/trips*', async (route) => {
     const request = route.request();
     if (request.method() === 'POST') {
       await route.fulfill({

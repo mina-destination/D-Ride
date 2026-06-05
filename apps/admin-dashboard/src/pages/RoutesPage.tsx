@@ -1077,12 +1077,12 @@ export function RoutesPage() {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Map size={28} /> Routes Management</h1>
           <p>Manage all transit routes across the network using a D-Ride Wizard</p>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Search routes..."
             value={searchTerm}

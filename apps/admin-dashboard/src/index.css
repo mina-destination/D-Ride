@@ -749,6 +749,7 @@ body {
 
 /* ── Responsive ────────────────────────────────────────────── */
 
+/* ── 1200px: Large Tablets / Small Laptops ────────────────── */
 @media (max-width: 1200px) {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -757,9 +758,66 @@ body {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+
+  /* Stack page headers: title on top, controls below */
+  .dashboard-welcome {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .dashboard-welcome > .ant-space,
+  .dashboard-welcome > div:last-child:not(:first-child) {
+    width: 100%;
+  }
+
+  /* Make Ant Design Space component wrap on smaller screens */
+  .ant-space {
+    flex-wrap: wrap !important;
+  }
+
+  /* Charts grid: 2-col at medium */
+  .charts-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
 }
 
+/* ── 1024px: Tablets ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Constrained table scroll for wide tables */
+  .table-scroll-container {
+    max-width: calc(100vw - 160px);
+  }
+
+  /* Stack 3-column charts into single column */
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Fleet map sidebar narrower */
+  .fleet-map-grid {
+    grid-template-columns: 220px 1fr !important;
+  }
+
+  /* Route wizard: stack columns */
+  .wizard-content {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ant Design Tabs: compact on tablet */
+  .ant-tabs-nav {
+    flex-wrap: wrap;
+  }
+
+  .ant-tabs-nav .ant-tabs-tab {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ── 768px: Mobile / Small Tablets ────────────────────────── */
 @media (max-width: 768px) {
+  /* Sidebar: off-canvas with slide-in */
   .sidebar {
     width: var(--sidebar-width) !important;
     position: fixed;
@@ -789,7 +847,7 @@ body {
     margin-left: 0 !important;
     padding: 0.5rem !important;
   }
-  
+
   .topbar {
     margin: 0.5rem 0 1rem 0 !important;
     width: 100% !important;
@@ -817,6 +875,44 @@ body {
 
   .dashboard-content {
     padding: 1rem 0.75rem;
+  }
+
+  /* ── Page Headers & Filter Toolbars ── */
+  .dashboard-welcome {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
+  }
+
+  .dashboard-welcome h1,
+  .dashboard-welcome h2,
+  .dashboard-welcome .ant-typography {
+    font-size: 1.15rem !important;
+  }
+
+  /* All Ant Design Space elements should wrap */
+  .ant-space {
+    flex-wrap: wrap !important;
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  .ant-space > .ant-space-item {
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
+
+  /* Make all inline Select, Input.Search, DatePicker full-width on mobile */
+  .ant-space .ant-select,
+  .ant-space .ant-input-search,
+  .ant-space .ant-picker {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Filter toggle button groups: wrap */
+  .ant-space .ant-btn {
+    flex-shrink: 0;
   }
 
   /* Fleet map card mobile */
@@ -852,8 +948,129 @@ body {
     overflow-x: auto;
     white-space: nowrap;
   }
+
+  /* Automatically stack inline 2-column or 3-column grids on mobile/tablet viewports */
+  div[style*="gridTemplateColumns"],
+  div[style*="grid-template-columns"][style*="1fr 1fr"],
+  div[style*="grid-template-columns"][style*="1fr 1fr 1fr"],
+  div[style*="grid-template-columns"][style*="1.2fr 1fr 1fr"],
+  div[style*="grid-template-columns"][style*="280px 1fr"],
+  div[style*="grid-template-columns"][style*="500px 1fr"],
+  div[style*="grid-template-columns"][style*="repeat("] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make grid spans full-width when stacked */
+  div[style*="grid-column"][style*="span 2"],
+  div[style*="grid-column"][style*="span 3"] {
+    grid-column: span 1 !important;
+  }
+
+  /* Automatically make all Ant Design tables scroll horizontally */
+  .ant-table-content {
+    overflow-x: auto !important;
+  }
+  .ant-table {
+    min-width: 600px !important;
+  }
+
+  /* Ant Design Drawer: full width on mobile */
+  .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+
+  /* Ant Design Tabs: scrollable on mobile */
+  .ant-tabs-nav-list {
+    gap: 0 !important;
+  }
+
+  .ant-tabs-tab {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .ant-tabs > .ant-tabs-nav .ant-tabs-nav-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ant Design Row gutter override for tighter spacing */
+  .ant-row {
+    margin-left: -6px !important;
+    margin-right: -6px !important;
+  }
+
+  .ant-row > .ant-col {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  /* Card padding reduction */
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  /* Inline flex containers: stack vertically */
+  div[style*="justifyContent"][style*="space-between"]:not(.kpi-header):not(.topbar):not(.activity-item) {
+    flex-wrap: wrap !important;
+    gap: 8px;
+  }
+
+  /* Date filter button groups: scrollable */
+  div[style*="borderRadius: '8px'"][style*="padding: '4px'"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    max-width: 100%;
+  }
+
+  /* Page content padding */
+  div[style*="padding: '2rem 0'"] {
+    padding: 1rem 0 !important;
+  }
+
+  /* KPI value font size reduction on mobile */
+  .kpi-value {
+    font-size: 1.35rem;
+  }
+
+  /* SVG charts: ensure they're visible and properly sized */
+  svg[viewBox] {
+    max-width: 100%;
+  }
+
+  /* Support ticket drawer timeline: tighter */
+  .ant-timeline {
+    padding-left: 12px !important;
+  }
+
+  /* Ant Design Statistic: compact on mobile */
+  .ant-statistic-content-value {
+    font-size: 1.25rem !important;
+  }
+
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+
+  /* Settings page / Tabs page spacing */
+  .ant-tabs-content {
+    padding: 0 !important;
+  }
+
+  /* Checkbox permission table: allow horizontal scrolling */
+  .ant-table-wrapper {
+    overflow-x: auto !important;
+  }
+
+  /* Popover width on mobile */
+  .ant-popover-inner {
+    max-width: calc(100vw - 32px) !important;
+  }
 }
 
+/* ── 480px: Small Phones ──────────────────────────────────── */
 @media (max-width: 480px) {
   .kpi-grid {
     grid-template-columns: 1fr;
@@ -881,6 +1098,106 @@ body {
 
   .ant-modal .ant-modal-body div[style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Page titles even smaller */
+  .dashboard-welcome h1,
+  .dashboard-welcome h2,
+  .dashboard-welcome .ant-typography {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-welcome p {
+    font-size: 0.8rem !important;
+  }
+
+  /* KPI cards: minimal padding */
+  .kpi-card {
+    padding: 1rem;
+  }
+
+  .kpi-value {
+    font-size: 1.2rem;
+  }
+
+  .kpi-label {
+    font-size: 0.7rem;
+  }
+
+  /* Ant Design buttons: compact */
+  .ant-btn {
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .ant-btn-lg {
+    padding: 6px 14px !important;
+    font-size: 14px !important;
+  }
+
+  /* Search inputs full width */
+  .ant-input-search {
+    width: 100% !important;
+  }
+
+  .ant-select {
+    min-width: 120px !important;
+  }
+
+  /* Profile dropdown: position fix */
+  .profile-dropdown {
+    right: -10px;
+    width: 220px;
+  }
+
+  /* Topbar height reduce */
+  .topbar {
+    height: 52px !important;
+  }
+
+  .topbar-left {
+    gap: 0.5rem;
+  }
+
+  .topbar-title {
+    font-size: 0.85rem !important;
+  }
+
+  /* Fleet map: taller on phone */
+  .fleet-map-grid > div:last-child {
+    height: 240px !important;
+  }
+
+  /* Dashboard welcome */
+  .dashboard-welcome h1 {
+    font-size: 1rem !important;
+  }
+
+  /* Ant table: narrower min-width */
+  .ant-table {
+    min-width: 480px !important;
+  }
+
+  /* Card radius reduce */
+  .card {
+    border-radius: var(--radius-md) !important;
+  }
+
+  /* Refund card glass: tighter */
+  .refund-card-glass {
+    padding: 1rem;
+  }
+
+  /* Bus cabin: scale down */
+  .bus-cabin {
+    max-width: 240px;
+    padding: 1rem 1rem 1rem;
+  }
+
+  .bus-seat {
+    width: 38px;
+    height: 38px;
+    font-size: 0.75rem;
   }
 }
 
