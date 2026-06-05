@@ -70,3 +70,9 @@ test-results/
 **_IGNORE_**
 dride-session/
 # end managed by open-wa
+
+# whatsapp-web.js session cache
+.wwebjs_auth/
+**/ .wwebjs_auth/
+.wwebjs_auth
+**/.wwebjs_auth/
