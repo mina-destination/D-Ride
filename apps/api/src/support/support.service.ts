@@ -3,12 +3,19 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class SupportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => WhatsappService))
+    private whatsappService: WhatsappService,
+  ) {}
 
   async submitTicket(
     userId: string,
@@ -96,6 +103,11 @@ export class SupportService {
         status: 'OPEN',
       },
     });
+
+    // If the ticket was initiated via WhatsApp, forward this response back to the customer
+    if (ticket.subject === 'WhatsApp Support Session' && ticket.phone) {
+      await this.whatsappService.sendWhatsAppMessage(ticket.phone, replyText);
+    }
 
     return { ...updated, _id: updated.id, user: updated.userId };
   }

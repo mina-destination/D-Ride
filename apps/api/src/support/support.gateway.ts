@@ -9,10 +9,11 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 export interface SendMessagePayload {
   ticketId: string;
@@ -51,6 +52,8 @@ export class SupportGateway
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    @Inject(forwardRef(() => WhatsappService))
+    private whatsappService: WhatsappService,
   ) {}
 
   afterInit(server: Server) {
@@ -168,6 +171,16 @@ export class SupportGateway
 
       // Broadcast to room
       this.server.to(`ticket_${data.ticketId}`).emit('newMessage', savedMsg);
+
+      // If the message is sent by an operator, and it's a WhatsApp session, forward it to the passenger's WhatsApp
+      if (senderRole !== 'PASSENGER') {
+        const ticket = await this.prisma.supportTicket.findUnique({
+          where: { id: data.ticketId },
+        });
+        if (ticket && ticket.subject === 'WhatsApp Support Session' && ticket.phone) {
+          await this.whatsappService.sendWhatsAppMessage(ticket.phone, data.message);
+        }
+      }
 
       // Broadcast live ticketActivity notification exclusively to the support_operators room
       this.server.to('support_operators').emit('ticketActivity', {

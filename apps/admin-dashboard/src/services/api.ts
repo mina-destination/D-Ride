@@ -203,3 +203,9 @@ export const settingsAPI = {
   save: (data: any): Promise<any> => api.put('/settings', data),
 };
 
+// ── WhatsApp API ────────────────────────────────────────────
+export const whatsappAPI = {
+  getStatus: (): Promise<any> => api.get('/whatsapp/status'),
+  restart: (): Promise<any> => api.post('/whatsapp/restart'),
+};
+
