@@ -52,7 +52,7 @@ test.describe('Authentication Flow', () => {
     await page.fill('#name', 'New Passenger');
     await page.fill('#email', 'new_passenger@dride.com');
     await page.fill('#phone', '01011112222');
-    await page.fill('#password', 'securepassword');
+    await page.fill('#password', 'Secure123!');
     await page.click('button[type="submit"]');
 
     // Redirect to home page
@@ -66,7 +66,7 @@ test.describe('Authentication Flow', () => {
     await page.fill('#name', 'Exist User');
     await page.fill('#email', 'exists@dride.com');
     await page.fill('#phone', '01011112222');
-    await page.fill('#password', 'securepassword');
+    await page.fill('#password', 'Secure123!');
     await page.click('button[type="submit"]');
 
     const errorAlert = page.locator('.auth-error');

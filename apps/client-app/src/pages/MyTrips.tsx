@@ -142,15 +142,43 @@ export default function MyTripsPage() {
   }, []);
 
   const handleCancel = async (id: string) => {
-    if (confirm('Are you sure you want to cancel this trip booking?')) {
+    const targetBooking = bookings.find(b => b._id === id);
+    const departureTime = targetBooking?.tripId?.departureTime ? new Date(targetBooking.tripId.departureTime) : null;
+    const now = new Date();
+    
+    let warningMessage = '';
+    if (departureTime) {
+      const diffMs = departureTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      
+      if (diffHours > 2) {
+        warningMessage = isAr 
+          ? 'إشعار استرداد الأموال: نظراً لأن موعد الرحلة بعد أكثر من ساعتين، فأنت مؤهل لاسترداد كامل قيمة التذكرة كرصيد في محفظتك الإلكترونية، أو استردادها لبطاقتك البنكية مع خصم رسوم إدارية بسيطة.\n\nهل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'
+          : 'Refund Notice: Since departure is more than 2 hours away, you are eligible for a full refund to your D-Ride wallet, or a credit card refund minus a small administrative fee.\n\nAre you sure you want to cancel this trip booking?';
+      } else {
+        warningMessage = isAr
+          ? 'تنبيه هام: متبقي أقل من ساعتين على انطلاق الرحلة. وفقاً لسياسة الإلغاء لدينا، فإن التذاكر غير قابلة للاسترداد أو التعديل إذا تم إلغاؤها خلال أقل من ساعتين من موعد الرحلة.\n\nهل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'
+          : 'IMPORTANT WARNING: Departure is in less than 2 hours. According to our policy, tickets are non-refundable and non-modifiable if cancelled within 2 hours of departure.\n\nAre you sure you want to cancel this trip booking?';
+      }
+    } else {
+      warningMessage = isAr
+        ? 'هل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'
+        : 'Are you sure you want to cancel this trip booking?';
+    }
+
+    if (confirm(warningMessage)) {
       try {
         await bookingsAPI.cancel(id);
-        const targetBooking = bookings.find(b => b._id === id);
         const routeName = targetBooking?.tripId?.routeId?.name || 'your D-Ride commute';
-        addNotification('Booking Cancelled ❌', `Your seat reservation for "${routeName}" was successfully cancelled.`);
+        addNotification(
+          isAr ? 'تم إلغاء الحجز ❌' : 'Booking Cancelled ❌', 
+          isAr 
+            ? `تم إلغاء حجز مقعدك لرحلة "${routeName}" بنجاح.` 
+            : `Your seat reservation for "${routeName}" was successfully cancelled.`
+        );
         fetchBookings();
       } catch {
-        alert('Failed to cancel');
+        alert(isAr ? 'عذراً، فشل إلغاء الحجز.' : 'Failed to cancel');
       }
     }
   };
