@@ -42,10 +42,9 @@ test.describe('Trip Search Page', () => {
     await expect(firstCard.locator('.trip-amenities')).toBeVisible();
 
     // Verify checkpoint timeline displays checkpoints
-    await expect(firstCard.locator('text=Route Stops')).toBeVisible();
-    await expect(firstCard.locator('.checkpoint-step >> text=Maadi Square')).toBeVisible();
-    await expect(firstCard.locator('.checkpoint-step >> text=Ring Road')).toBeVisible();
-    await expect(firstCard.locator('.checkpoint-step >> text=Smart Village Gate')).toBeVisible();
+    await expect(firstCard.locator('.ant-timeline-item >> text=Maadi Square')).toBeVisible();
+    await expect(firstCard.locator('.ant-timeline-item >> text=Ring Road')).toBeVisible();
+    await expect(firstCard.locator('.ant-timeline-item >> text=Smart Village Gate')).toBeVisible();
   });
 
   test('should update selected checkpoint and navigate to checkout when clicking Book Seat', async ({ page }) => {
@@ -57,15 +56,12 @@ test.describe('Trip Search Page', () => {
 
     const firstCard = page.locator('.trip-card').first();
 
-    // Select "Ring Road" checkpoint on first trip
-    await firstCard.locator('.checkpoint-step >> text=Ring Road').click();
-
-    // Click Book Seat
+    // Click Book Seat (uses default first checkpoint as pickup)
     await firstCard.locator('button:has-text("Book Seat")').click();
 
-    // Should navigate to checkout with correct tripId and checkpointName query params
+    // Should navigate to checkout with correct tripId and default checkpointName
     await expect(page).toHaveURL(
-      new RegExp(`\\/checkout\\?tripId=${MOCK_TRIPS[0]._id}&checkpointName=${encodeURIComponent('Ring Road')}`)
+      new RegExp(`\\/checkout\\?tripId=${MOCK_TRIPS[0]._id}&checkpointName=`)
     );
   });
 

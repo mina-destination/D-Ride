@@ -8,28 +8,10 @@ import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, Ar
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { cleanGoogleDriveLink } from '../utils/google-drive';
-
-// Fix default marker icon in Vite react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-
-function MapClickHandler({ onClick }: { onClick: (latlng: any) => void }) {
-  useMapEvents({
-    click(e) {
-      onClick(e.latlng);
-    },
-  });
-  return null;
-}
+import { useTheme } from '../context/ThemeContext';
 
 function PartnerImage({ src, alt }: { src: string; alt: string }) {
   const [failed, setFailed] = useState(false);
@@ -49,10 +31,11 @@ function PartnerImage({ src, alt }: { src: string; alt: string }) {
 }
 
 function RouteSearchForm() {
-  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
   const { t, isRtl } = useTranslation();
+  const { theme } = useTheme();
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
   const [routes, setRoutes] = useState<any[]>([]);
   const [fromStation, setFromStation] = useState<any>(null);
   const [toStation, setToStation] = useState<any>(null);
@@ -159,24 +142,9 @@ function RouteSearchForm() {
     await fetchNearestStationForCoords(initialCoords);
   };
 
-  const handleMapClick = async (latlng: any) => {
-    const coords: [number, number] = [latlng.lat, latlng.lng];
-    setMapPickerCoords(coords);
-    await fetchNearestStationForCoords(coords);
-  };
-
-  const handleMarkerDragEnd = async (e: any) => {
-    const marker = e.target;
-    if (marker != null) {
-      const latLng = marker.getLatLng();
-      const coords: [number, number] = [latLng.lat, latLng.lng];
-      setMapPickerCoords(coords);
-      await fetchNearestStationForCoords(coords);
-    }
-  };
 
   const handleConfirmMapSelection = () => {
-    if (nearestStationFromMap) {
+    if (nearestStationFromMap && mapPickerCoords) {
       const cp = nearestStationFromMap.checkpoint;
       const route = nearestStationFromMap.route;
       const parts = route.name.split(/\s+to\s+/i);
@@ -186,8 +154,8 @@ function RouteSearchForm() {
       const station = {
         name: cp.name,
         nameAr: cp.nameAr,
-        lat: cp.location.coordinates[1],
-        lng: cp.location.coordinates[0],
+        lat: mapPickerCoords[0],
+        lng: mapPickerCoords[1],
         city: city,
         routeId: route._id || route.id,
         order: cp.order
@@ -203,6 +171,69 @@ function RouteSearchForm() {
   useEffect(() => {
     routesAPI.getAll().then((data) => setRoutes(data)).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!isMapModalOpen || !mapPickerCoords || !mapContainerRef.current) return;
+
+    // MapLibre uses [lng, lat]
+    const centerCoords: [number, number] = [mapPickerCoords[1], mapPickerCoords[0]];
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      center: centerCoords,
+      zoom: 13,
+      attributionControl: false
+    });
+
+    mapRef.current = map;
+
+    // Create a custom draggable marker element
+    const el = document.createElement('div');
+    el.style.width = '20px';
+    el.style.height = '20px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = '#f5b731'; // D-Ride Amber
+    el.style.border = '3px solid white';
+    el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+    el.style.cursor = 'grab';
+
+    const marker = new maplibregl.Marker({
+      element: el,
+      draggable: true
+    })
+      .setLngLat(centerCoords)
+      .addTo(map);
+
+    markerRef.current = marker;
+
+    // Listen to dragend
+    marker.on('dragend', async () => {
+      const lngLat = marker.getLngLat();
+      const coords: [number, number] = [lngLat.lat, lngLat.lng];
+      setMapPickerCoords(coords);
+      await fetchNearestStationForCoords(coords);
+    });
+
+    // Listen to map click
+    map.on('click', async (e) => {
+      const coords: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+      marker.setLngLat(e.lngLat);
+      setMapPickerCoords(coords);
+      await fetchNearestStationForCoords(coords);
+    });
+
+    return () => {
+      map.remove();
+    };
+  }, [isMapModalOpen]);
+
+  // Handle dynamic map style updates when theme toggles
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setStyle(theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright');
+    }
+  }, [theme]);
 
   // Parse all checkpoints for autocomplete index
   const allCheckpoints = useMemo(() => {
@@ -385,7 +416,11 @@ function RouteSearchForm() {
         }
 
         // Set state
-        setFromStation(nearestStation);
+        setFromStation({
+          ...nearestStation,
+          lat: latitude,
+          lng: longitude
+        });
         setFromQuery(isRtl ? (nearestStation.nameAr || nearestStation.name) : nearestStation.name);
 
         const matchedMsg = t('matchedNearestStation', {
@@ -832,30 +867,7 @@ function RouteSearchForm() {
             </div>
             
             <div className="map-picker-container">
-              <MapContainer
-                center={mapPickerCoords}
-                zoom={13}
-                style={{ height: '100%', width: '100%' }}
-              >
-                <TileLayer
-                  attribution={mapTileAttribution}
-                  url={mapTileUrl}
-                />
-                
-                <Marker 
-                  position={mapPickerCoords}
-                  draggable={true}
-                  eventHandlers={{
-                    dragend: handleMarkerDragEnd
-                  }}
-                >
-                  <Popup>
-                    {t('dragPinToPickupPoint')}
-                  </Popup>
-                </Marker>
-
-                <MapClickHandler onClick={handleMapClick} />
-              </MapContainer>
+              <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
             </div>
 
             {nearestStationFromMap ? (

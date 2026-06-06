@@ -20,6 +20,11 @@ export class WhatsappService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    if (process.env.NODE_ENV === 'test') {
+      this.logger.log('Bypassing WhatsApp client initialization in test environment.');
+      this.status = 'CONNECTED';
+      return;
+    }
     this.initializeClient();
   }
 

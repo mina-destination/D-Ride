@@ -3303,15 +3303,6 @@
   margin: 0 auto !important;
 }
 
-/* Opaque style override for leaflet popup containers */
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-  background: var(--surface-elevated, var(--surface)) !important;
-  color: var(--text-primary) !important;
-  border: 1.5px solid var(--border) !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
-  opacity: 1 !important;
-}
 
 /* Opaque style overrides for sub-components in checkout to prevent transparency issues */
 .windshield-opaque {
@@ -3897,5 +3888,151 @@
     text-align: center;
     white-space: nowrap;
   }
+}
+
+/* ============================================================
+   MapLibre GL — Custom Map Marker Styles
+   ============================================================ */
+
+/* Start terminal pin (green) */
+.google-maps-start-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  background: #0f9d58;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(15, 157, 88, 0.5);
+  transform: rotate(-45deg);
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.google-maps-start-pin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+.google-maps-start-pin:hover,
+.google-maps-start-pin.hovered {
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 4px 14px rgba(15, 157, 88, 0.65);
+}
+
+/* Destination terminal pin (red) */
+.google-maps-dest-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  background: #ea4335;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(234, 67, 53, 0.5);
+  transform: rotate(-45deg);
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.google-maps-dest-pin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+.google-maps-dest-pin:hover,
+.google-maps-dest-pin.hovered {
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 4px 14px rgba(234, 67, 53, 0.65);
+}
+
+/* Intermediate stop pin (blue dot) */
+.google-maps-stop-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4285F4;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(66, 133, 244, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.google-maps-stop-pin:hover,
+.google-maps-stop-pin.hovered {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.6);
+}
+
+/* Live bus / shuttle pointer (golden amber pulse) */
+.google-maps-bus-pointer {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #F5B731;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 0 rgba(245, 183, 49, 0.6), 0 2px 8px rgba(0,0,0,0.3);
+  animation: bus-pulse 2s ease-in-out infinite;
+  cursor: pointer;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.google-maps-bus-pointer::after {
+  content: '🚐';
+  font-size: 14px;
+  line-height: 1;
+}
+
+@keyframes bus-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0.6), 0 2px 8px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 0 10px rgba(245, 183, 49, 0), 0 2px 8px rgba(0,0,0,0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0), 0 2px 8px rgba(0,0,0,0.3); }
+}
+
+/* MapLibre GL Popup Theme Overrides */
+.maplibregl-popup-content {
+  background: var(--surface-elevated, #1a1a2e) !important;
+  color: var(--text-primary, #f0f1f5) !important;
+  border: 1px solid var(--border, rgba(255,255,255,0.1)) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  padding: 10px 14px !important;
+  font-family: 'Roboto', 'Inter', sans-serif !important;
+  font-size: 12px !important;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--surface-elevated, #1a1a2e) !important;
+}
+
+.maplibregl-popup-close-button {
+  color: var(--text-secondary, #999) !important;
+  font-size: 16px !important;
+  padding: 2px 6px !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: var(--text-primary, #fff) !important;
+  background: transparent !important;
+}
+
+/* Ensure MapLibre canvas never gets clipped by parent overflow */
+.maplibregl-map {
+  position: relative !important;
 }
 

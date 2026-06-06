@@ -1,40 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { socketService } from '../services/socket';
 import api from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { Microscope, Square, Rocket } from 'lucide-react';
-
-// Fix for default marker icon in react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Create a custom bus icon
-const busIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40],
-});
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LiveTrackingPage() {
   const { t, isRtl, language } = useTranslation();
+  const { theme } = useTheme();
 
   const isAr = language === 'ar';
   const seoTitle = isAr ? 'تتبع الحافلة مباشرة | دي-رايد' : 'Live Shuttle Tracking | D-Ride';
   const seoDescription = isAr
     ? 'تتبع حافلة دي-رايد الخاصة بك مباشرة على الخريطة التفاعلية مع تحديثات الموقع الجغرافي الفورية.'
     : 'Track your D-Ride commuter minibus live on the interactive map with real-time GPS telemetry updates.';
-  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const busMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get('vehicleId');
@@ -51,9 +37,154 @@ export default function LiveTrackingPage() {
       .catch(console.error);
   }, [searchParams]);
 
-  const polylinePath = trip?.routeId?.path?.coordinates?.map(
-    (coord: number[]) => [coord[1], coord[0]] as [number, number]
-  ) || [];
+
+
+  // Initialize map and route line
+  useEffect(() => {
+    if (!mapContainerRef.current || !trip?.routeId) return;
+
+    const routeCoords: [number, number][] = trip.routeId.path?.coordinates || [];
+    const centerCoords: [number, number] = routeCoords[0] || [31.2357, 30.0444];
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      center: centerCoords,
+      zoom: 14,
+      attributionControl: false
+    });
+
+    mapRef.current = map;
+
+    map.on('load', () => {
+      // Draw route polyline
+      if (routeCoords.length > 0) {
+        map.addSource('route-path', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoords
+            }
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line-casing',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
+            'line-width': 8,
+            'line-opacity': 0.9
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
+            'line-width': 5,
+            'line-opacity': 0.95
+          }
+        });
+
+        // Add static markers for start and end terminals using Google Maps pins with wrappers
+        const startEl = document.createElement('div');
+        startEl.style.width = '32px';
+        startEl.style.height = '32px';
+        const startPin = document.createElement('div');
+        startPin.className = 'google-maps-start-pin';
+        startEl.appendChild(startPin);
+
+        const startPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🏁 ${t('departureTerminal')}</div>`);
+        new maplibregl.Marker({ element: startEl, anchor: 'bottom' })
+          .setLngLat(routeCoords[0])
+          .setPopup(startPopup)
+          .addTo(map);
+
+        const endEl = document.createElement('div');
+        endEl.style.width = '32px';
+        endEl.style.height = '32px';
+        const endPin = document.createElement('div');
+        endPin.className = 'google-maps-dest-pin';
+        endEl.appendChild(endPin);
+
+        const endPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🏁 ${t('destinationStation')}</div>`);
+        new maplibregl.Marker({ element: endEl, anchor: 'bottom' })
+          .setLngLat(routeCoords[routeCoords.length - 1])
+          .setPopup(endPopup)
+          .addTo(map);
+
+        // Fit bounds
+        const bounds = routeCoords.reduce(
+          (acc, coord) => {
+            return [
+              [Math.min(acc[0][0], coord[0]), Math.min(acc[0][1], coord[1])],
+              [Math.max(acc[1][0], coord[0]), Math.max(acc[1][1], coord[1])]
+            ];
+          },
+          [[routeCoords[0][0], routeCoords[0][1]], [routeCoords[0][0], routeCoords[0][1]]]
+        ) as [[number, number], [number, number]];
+
+        map.fitBounds(bounds, { padding: 50, duration: 1000 });
+      }
+    });
+
+    return () => {
+      map.remove();
+      busMarkerRef.current = null;
+    };
+  }, [trip, theme]);
+
+  // Update bus marker and center map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !location) return;
+
+    const busCoords: [number, number] = [location.lng, location.lat];
+
+    if (!busMarkerRef.current) {
+      // Create custom Google Maps bus marker HTML element with outer wrapper
+      const el = document.createElement('div');
+      el.style.width = '38px';
+      el.style.height = '38px';
+
+      const busEl = document.createElement('div');
+      busEl.className = 'google-maps-bus-pointer';
+      el.appendChild(busEl);
+
+      const busPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`
+        <div style="color:#000; font-family: Inter, sans-serif; font-size:11px; padding:4px;">
+          <h4 style="margin: 0 0 4px 0; color: #f5b731;">${t('shuttleActiveLocation')}</h4>
+          <span>Lat: ${location.lat.toFixed(5)}, Lng: ${location.lng.toFixed(5)}</span>
+        </div>
+      `);
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat(busCoords)
+        .setPopup(busPopup)
+        .addTo(map);
+
+      busMarkerRef.current = marker;
+    } else {
+      busMarkerRef.current.setLngLat(busCoords);
+    }
+
+    map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });
+  }, [location]);
 
   // Dev tools sandbox telemetry simulator
   const [isSimulating, setIsSimulating] = useState(false);
@@ -154,7 +285,7 @@ export default function LiveTrackingPage() {
   }
 
   // Default center (Cairo) if location is not yet received
-  const center = location ? [location.lat, location.lng] : [30.0444, 31.2357];
+
   const isSandboxEnabled = searchParams.get('sandbox') === 'true';
 
   return (
@@ -292,34 +423,7 @@ export default function LiveTrackingPage() {
           </div>
         </div>
 
-        <MapContainer center={center as [number, number]} zoom={14} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution={mapTileAttribution}
-            url={mapTileUrl}
-          />
-          {polylinePath.length > 0 && (
-            <>
-              <Polyline positions={polylinePath} color="var(--primary)" weight={5} opacity={0.8} />
-              <Marker position={polylinePath[0]}>
-                <Popup>🏁 {t('departureTerminal')}</Popup>
-              </Marker>
-              <Marker position={polylinePath[polylinePath.length - 1]}>
-                <Popup>🏁 {t('destinationStation')}</Popup>
-              </Marker>
-            </>
-          )}
-          {location && (
-            <Marker position={[location.lat, location.lng]} icon={busIcon}>
-              <Popup>
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', color: 'var(--primary)' }}>{t('shuttleActiveLocation')}</h4>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Lat: {location.lat.toFixed(5)}, Lng: {location.lng.toFixed(5)}</span>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-          {location && <MapUpdater location={location} />}
-        </MapContainer>
+        <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
 
         {/* Floating Developer Sandbox Controller (conditional) */}
         {isSandboxEnabled && (
@@ -356,14 +460,4 @@ export default function LiveTrackingPage() {
       </div>
     </div>
   );
-}
-
-// Helper component to center map when location changes
-import { useMap } from 'react-leaflet';
-function MapUpdater({ location }: { location: { lat: number; lng: number } }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([location.lat, location.lng], map.getZoom(), { animate: true });
-  }, [location.lat, location.lng, map]);
-  return null;
 }

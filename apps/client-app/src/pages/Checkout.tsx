@@ -5,51 +5,11 @@ import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Pho
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
+import { Steps, ConfigProvider } from 'antd';
 
-import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Define custom markers to bypass broken Leaflet default icon issues in bundler/test runtimes
-const blueIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [48, 78],
-  iconAnchor: [24, 78],
-  popupAnchor: [1, -70],
-  shadowSize: [78, 78],
-  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
-});
-
-const goldIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [48, 78],
-  iconAnchor: [24, 78],
-  popupAnchor: [1, -70],
-  shadowSize: [78, 78],
-  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
-});
-
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [48, 78],
-  iconAnchor: [24, 78],
-  popupAnchor: [1, -70],
-  shadowSize: [78, 78],
-  className: 'p-3 touch-manipulation min-w-[48px] min-h-[48px]'
-});
-
-function MapFocusController({ coords }: { coords: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (coords) {
-      map.flyTo(coords, 14, { animate: true, duration: 1.2 });
-    }
-  }, [coords, map]);
-  return null;
-}
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useTheme } from '../context/ThemeContext';
 
 export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
@@ -59,6 +19,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { t, isRtl, language } = useTranslation();
   const { user, updateProfile } = useAuth();
+  const { theme } = useTheme();
 
   const isAr = language === 'ar';
   const seoTitle = isAr ? 'اختيار المقاعد والدفع | دي-رايد' : 'Select Seats & Checkout | D-Ride';
@@ -74,6 +35,11 @@ export default function CheckoutPage() {
   const [occupiedSeats, setOccupiedSeats] = useState<number[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
   const [selectedPickupCheckpoint, setSelectedPickupCheckpoint] = useState<any>(null);
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
@@ -132,6 +98,180 @@ export default function CheckoutPage() {
       })
       .catch(console.error);
   }, [tripId, selectedPickupCheckpoint, selectedDropoffCheckpoint]);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !trip?.routeId) return;
+
+    // Center coordinates - MapLibre uses [lng, lat]
+    const routeCoords: [number, number][] = trip.routeId.path?.coordinates || [];
+    const centerCoords: [number, number] = routeCoords[0] || [31.2357, 30.0444];
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      center: centerCoords,
+      zoom: 11,
+      attributionControl: false
+    });
+
+    mapRef.current = map;
+    setMapLoaded(false);
+
+    map.on('load', () => {
+      setMapLoaded(true);
+
+      // Add polyline path
+      if (routeCoords.length > 0) {
+        map.addSource('route-path', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoords
+            }
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line-casing',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
+            'line-width': 8,
+            'line-opacity': 0.9
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
+            'line-width': 5,
+            'line-opacity': 0.95
+          }
+        });
+
+        // Fit bounds
+        const bounds = routeCoords.reduce(
+          (acc, coord) => {
+            return [
+              [Math.min(acc[0][0], coord[0]), Math.min(acc[0][1], coord[1])],
+              [Math.max(acc[1][0], coord[0]), Math.max(acc[1][1], coord[1])]
+            ];
+          },
+          [[routeCoords[0][0], routeCoords[0][1]], [routeCoords[0][0], routeCoords[0][1]]]
+        ) as [[number, number], [number, number]];
+
+        map.fitBounds(bounds, { padding: 40, duration: 1200 });
+      }
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      setMapLoaded(false);
+    };
+  }, [trip, theme]);
+
+  // Synchronize Checkpoint and User Location Markers dynamically without reloading map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || !trip?.routeId) return;
+
+    // Remove existing markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    // Add Checkpoint Markers
+    trip.routeId.checkpoints.forEach((cp: any, idx: number) => {
+      const cpCoords: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
+      const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
+      const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
+
+      const el = document.createElement('div');
+      const pinSize = isPickup || isDropoff ? '32px' : '22px';
+      el.style.width = pinSize;
+      el.style.height = pinSize;
+
+      const pinEl = document.createElement('div');
+      if (isPickup) {
+        pinEl.className = 'google-maps-start-pin';
+      } else if (isDropoff) {
+        pinEl.className = 'google-maps-dest-pin';
+      } else {
+        pinEl.className = 'google-maps-stop-pin';
+        pinEl.innerText = String(idx);
+      }
+      el.appendChild(pinEl);
+
+      // Popup HTML
+      let popupHtml = `<div style="color: var(--text-primary); font-family: 'Roboto', 'Inter', sans-serif; font-size: 12px; line-height: 1.4; padding: 4px;">`;
+      popupHtml += `<strong>${isRtl ? (cp.nameAr || cp.name) : cp.name}</strong>`;
+      if (isPickup) {
+        popupHtml += `<div style="font-size: 11px; color: #0f9d58; font-weight: bold; margin-top: 4px;">🚶 ${isRtl ? 'نقطة الركوب المحددة' : 'Selected Pickup'}</div>`;
+      }
+      if (isDropoff) {
+        popupHtml += `<div style="font-size: 11px; color: #ea4335; font-weight: bold; margin-top: 4px;">🏁 ${isRtl ? 'نقطة النزول المحددة' : 'Selected Dropoff'}</div>`;
+      }
+      if (cp.purpose === 'REST') {
+        popupHtml += `<div style="font-size: 11px; color: #ea4335; font-weight: bold; margin-top: 4px;">🛑 ${isRtl ? 'استراحة فقط - لا يمكن الحجز من/إلى هذا الموقف' : 'Rest Stop Only - Cannot book to/from here'}</div>`;
+      }
+      popupHtml += `</div>`;
+
+      const popup = new maplibregl.Popup({ offset: isPickup || isDropoff ? 15 : 10 }).setHTML(popupHtml);
+
+      const marker = new maplibregl.Marker({ element: el, anchor: isPickup || isDropoff ? 'bottom' : 'center' })
+        .setLngLat(cpCoords)
+        .setPopup(popup)
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+
+    // User location marker (Google style pulsating accuracy ring helper)
+    if (userLocation) {
+      const uEl = document.createElement('div');
+      uEl.style.width = '16px';
+      uEl.style.height = '16px';
+      uEl.style.borderRadius = '50%';
+      uEl.style.backgroundColor = '#4285F4';
+      uEl.style.border = '2px solid white';
+      uEl.style.boxShadow = '0 0 8px #4285F4';
+
+      const uPopup = new maplibregl.Popup({ offset: 10 }).setHTML(`<div style="color:#000; font-family: 'Roboto', 'Inter', sans-serif; font-size:11px; font-weight:bold; padding:2px;">You are here</div>`);
+
+      const uMarker = new maplibregl.Marker({ element: uEl })
+        .setLngLat([userLocation[1], userLocation[0]]) // convert [lat, lng] to [lng, lat]
+        .setPopup(uPopup)
+        .addTo(map);
+
+      markersRef.current.push(uMarker);
+    }
+  }, [mapLoaded, trip, userLocation, selectedPickupCheckpoint, selectedDropoffCheckpoint, isRtl]);
+
+
+  useEffect(() => {
+    if (mapRef.current && mapFocusCoords) {
+      mapRef.current.flyTo({
+        center: [mapFocusCoords[1], mapFocusCoords[0]], // convert [lat, lng] to [lng, lat]
+        zoom: 14,
+        speed: 1.2
+      });
+    }
+  }, [mapFocusCoords]);
 
 
   useEffect(() => {
@@ -384,9 +524,7 @@ export default function CheckoutPage() {
     );
   };
 
-  const polylinePath = trip?.routeId?.path?.coordinates?.map(
-    (coord: number[]) => [coord[1], coord[0]] as [number, number]
-  ) || [];
+
 
   if (!tripId) return <div className="auth-page"><SEO title={seoTitle} description={seoDescription} /><div className="premium-card">{t('noTripSelected')}</div></div>;
 
@@ -407,100 +545,22 @@ export default function CheckoutPage() {
 
         {/* Visual Stepper */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '3rem',
-          position: 'relative',
-          padding: '0 1.5rem',
           maxWidth: '600px',
-          margin: '0 auto 3rem auto'
+          margin: '0 auto 3.5rem auto',
+          padding: '0 1.5rem'
         }}>
-          {/* Progress Connecting Line */}
-          <div style={{
-            position: 'absolute',
-            top: '35%',
-            left: '15%',
-            right: '15%',
-            height: '2px',
-            background: 'var(--border)',
-            zIndex: 0,
-            transform: 'translateY(-50%)'
-          }} />
-          <div style={{
-            position: 'absolute',
-            top: '35%',
-            left: '15%',
-            width: selectedSeats.length > 0 ? (processing ? '70%' : '35%') : '0%',
-            height: '2px',
-            background: 'var(--primary)',
-            zIndex: 0,
-            transform: 'translateY(-50%)',
-            transition: 'all 0.3s ease'
-          }} />
-
-          {/* Step 1 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--primary)',
-              color: 'var(--text-on-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-              boxShadow: 'none'
-            }}>
-              1
-            </div>
-            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>{t('configureCommuteStepper')}</span>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--surface-elevated)',
-              color: selectedSeats.length > 0 ? 'var(--text-on-primary)' : 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-              transition: 'all 0.3s'
-            }}>
-              2
-            </div>
-            <span className="stepper-label" style={{ color: selectedSeats.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('selectPaymentStepper')}</span>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: processing ? 'var(--primary)' : 'var(--surface-elevated)',
-              color: processing ? 'var(--text-on-primary)' : 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-              transition: 'all 0.3s'
-            }}>
-              3
-            </div>
-            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('confirmSeatStepper')}</span>
-          </div>
+          <ConfigProvider direction={isRtl ? 'rtl' : 'ltr'}>
+            <Steps
+              current={processing ? 2 : (selectedSeats.length > 0 ? 1 : 0)}
+              titlePlacement="vertical"
+              className="premium-steps"
+              items={[
+                { title: t('configureCommuteStepper') },
+                { title: t('selectPaymentStepper') },
+                { title: t('confirmSeatStepper') }
+              ]}
+            />
+          </ConfigProvider>
         </div>
 
         {loading ? (
@@ -530,359 +590,140 @@ export default function CheckoutPage() {
                   </div>
 
                   <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem' }}>
-                    <MapContainer center={polylinePath[0] || [30.0444, 31.2357]} zoom={11} style={{ height: '100%', width: '100%' }}>
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                      />
-                      <MapFocusController coords={mapFocusCoords} />
-                      {polylinePath.length > 0 && (
-                        <Polyline positions={polylinePath} color="var(--primary)" weight={4} opacity={0.6} />
-                      )}
-                      {/* User Location */}
-                      {userLocation && (
-                        <CircleMarker center={userLocation} radius={8} pathOptions={{ fillColor: '#3b82f6', fillOpacity: 0.8, color: 'white', weight: 2 }}>
-                          <Popup>You are here</Popup>
-                        </CircleMarker>
-                      )}
-                      {/* Checkpoints */}
-                      {trip.routeId.checkpoints.map((cp: any, idx: number) => {
-                        const cpCoords: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
-                        const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
-                        const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
-                        
-                        return (
-                          <Marker 
-                            key={idx} 
-                            position={cpCoords}
-                            icon={isPickup ? goldIcon : (isDropoff ? redIcon : blueIcon)}
-                          >
-                            <Popup>
-                              <strong>{cp.name}</strong>
-                              {cp.nameAr && <><br />{cp.nameAr}</>}
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexDirection: 'column' }}>
-                                {cp.purpose === 'REST' && (
-                                  <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 'bold', marginBottom: '4px' }}>
-                                    {isRtl ? 'استراحة فقط - لا يمكن الحجز من/إلى هذا الموقف' : 'Rest Stop Only - Cannot book to/from here'}
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  {cp.purpose !== 'REST' && cp.purpose !== 'DROP_OFF' && (
-                                    <button 
-                                      onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        setSelectedPickupCheckpoint(cp); 
-                                        setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                      }}
-                                      style={{ fontSize: '11px', padding: '6px 12px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
-                                      Set Pickup
-                                    </button>
-                                  )}
-                                  {cp.purpose !== 'REST' && cp.purpose !== 'PICKUP' && (
-                                    <button 
-                                      onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        setSelectedDropoffCheckpoint(cp); 
-                                        setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                                      }}
-                                      style={{ fontSize: '11px', padding: '6px 12px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
-                                      Set Dropoff
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </Popup>
-                          </Marker>
-                        );
-                      })}
-                    </MapContainer>
+                    <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
                   </div>
 
                   {/* Checkpoint Stepper Progress bar */}
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    position: 'relative', 
-                    margin: '1.5rem 0 1rem 0',
-                    overflowX: 'auto',
-                    paddingBottom: '1rem',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                    zIndex: 2,
-                    background: 'rgba(255, 255, 255, 0.01)',
-                    padding: '1.25rem 0.5rem 1rem 0.5rem',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.03)',
-                    width: '100%',
-                    maxWidth: '100%',
-                    boxSizing: 'border-box'
-                  }} className="checkpoint-scrollbar">
-                    <style>{`
-                      @keyframes pulse-pickup {
-                        0% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0.4); }
-                        70% { box-shadow: 0 0 0 10px rgba(245, 183, 49, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0); }
-                      }
-                      @keyframes pulse-dropoff {
-                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                      }
-                      .checkpoint-scrollbar::-webkit-scrollbar {
-                        display: none;
-                      }
-                      .checkpoint-item {
-                        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-                      }
-                      .checkpoint-item:hover {
-                        transform: translateY(-2px);
-                      }
-                      .checkpoint-item:hover .checkpoint-dot-pulse {
-                        transform: scale(1.15);
-                      }
-                    `}</style>
+                  {/* Ant Design Timeline */}
+                  {(() => {
+                    const checkpoints = trip.routeId.checkpoints || [];
+                    const pickupIdx = selectedPickupCheckpoint
+                      ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
+                      : 0;
+                    const dropoffIdx = selectedDropoffCheckpoint
+                      ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
+                      : checkpoints.length - 1;
+                    const startIdx = pickupIdx >= 0 ? pickupIdx : 0;
+                    const endIdx = dropoffIdx >= 0 ? dropoffIdx : checkpoints.length - 1;
+                    const journeyCps = checkpoints.slice(startIdx, endIdx + 1);
 
-                    {/* Connecting Line (Inactive Background) */}
-                    <div style={{ 
-                      position: 'absolute', 
-                      top: '26px', 
-                      left: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
-                      right: `${100 / (trip.routeId.checkpoints.length * 2)}%`, 
-                      height: '5px', 
-                      background: 'rgba(255,255,255,0.08)', 
-                      borderRadius: '4px',
-                      zIndex: 0 
-                    }} />
-                    
-                    {/* Colored Active Progress Line */}
-                    {(() => {
-                      const checkpoints = trip.routeId.checkpoints || [];
-                      if (checkpoints.length < 2) return null;
-                      
-                      const pickupIdx = selectedPickupCheckpoint 
-                        ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
-                        : 0;
-                      const dropoffIdx = selectedDropoffCheckpoint 
-                        ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
-                        : checkpoints.length - 1;
-                        
-                      if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
-                        const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
-                        const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
-                        const widthPercent = endPercent - startPercent;
-                        
-                        return (
-                          <div style={{ 
-                            position: 'absolute', 
-                            top: '26px', 
-                            left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
-                            width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
-                            height: '5px', 
-                            background: 'linear-gradient(90deg, var(--primary) 0%, #EF4444 100%)', 
-                            borderRadius: '4px',
-                            boxShadow: '0 0 10px rgba(245, 183, 49, 0.25)',
-                            zIndex: 0,
-                            transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                          }} />
-                        );
-                      }
-                      return null;
-                    })()}
+                    const baseTripDepTime = new Date(trip.departureTime).getTime();
 
-                    {trip.routeId.checkpoints.map((cp: any, cpIdx: number) => {
-                      const isPickup = selectedPickupCheckpoint && selectedPickupCheckpoint.name === cp.name;
-                      const isDropoff = selectedDropoffCheckpoint && selectedDropoffCheckpoint.name === cp.name;
-                      
-                      const checkpoints = trip.routeId.checkpoints || [];
-                      const pickupIdx = selectedPickupCheckpoint 
-                        ? checkpoints.findIndex((item: any) => item.name === selectedPickupCheckpoint.name)
-                        : 0;
-                      const dropoffIdx = selectedDropoffCheckpoint 
-                        ? checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoint.name)
-                        : checkpoints.length - 1;
-                        
-                      const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
-                      
-                      let dotBg: string;
-                      let dotBorder: string;
-                      let dotShadow = 'none';
-                      let dotSize: string;
-                      let dotInnerSize: string;
-                      let dotInnerBg = 'transparent';
-                      let animName = 'none';
-                      
-                      if (isPickup) {
-                        dotBg = 'var(--primary)';
-                        dotBorder = '4px solid #1a1a1a';
-                        dotSize = '28px';
-                        dotInnerSize = '8px';
-                        dotInnerBg = '#000';
-                        animName = 'pulse-pickup 1.8s infinite';
-                        dotShadow = '0 0 15px rgba(245, 183, 49, 0.4)';
-                      } else if (isDropoff) {
-                        dotBg = '#EF4444';
-                        dotBorder = '4px solid #1a1a1a';
-                        dotSize = '28px';
-                        dotInnerSize = '8px';
-                        dotInnerBg = '#fff';
-                        animName = 'pulse-dropoff 1.8s infinite';
-                        dotShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
-                      } else if (isActiveRoute) {
-                        dotBg = '#1c1c1e';
-                        dotBorder = '3px solid var(--primary)';
-                        dotSize = '20px';
-                        dotInnerSize = '6px';
-                        dotInnerBg = 'var(--primary)';
-                      } else {
-                        if (cp.purpose === 'REST') {
-                          dotBg = '#242426';
-                          dotBorder = '2px dashed rgba(239, 68, 68, 0.4)';
-                          dotSize = '16px';
-                          dotInnerSize = '4px';
-                        } else {
-                          dotBg = '#141416';
-                          dotBorder = '2px solid rgba(255,255,255,0.08)';
-                          dotSize = '16px';
-                          dotInnerSize = '4px';
-                        }
-                      }
-                      
-                      return (
-                        <div 
-                          key={cpIdx} 
-                          onClick={() => {
-                            if (cp.purpose === 'REST') return;
-
-                            let targetType: 'pickup' | 'dropoff';
-                            if (cpIdx === pickupIdx) {
-                              targetType = 'pickup';
-                            } else if (cpIdx === dropoffIdx) {
-                              targetType = 'dropoff';
-                            } else if (cpIdx < pickupIdx) {
-                              targetType = 'pickup';
-                            } else if (cpIdx > dropoffIdx) {
-                              targetType = 'dropoff';
-                            } else {
-                              const distToPickup = cpIdx - pickupIdx;
-                              const distToDropoff = dropoffIdx - cpIdx;
-                              if (distToPickup < distToDropoff) {
-                                targetType = 'pickup';
-                              } else if (distToDropoff < distToPickup) {
-                                targetType = 'dropoff';
-                              } else {
-                                targetType = 'dropoff'; // equidistant default
-                              }
-                            }
-
-                            let updated = false;
-                            if (targetType === 'pickup') {
-                              if (cp.purpose !== 'DROP_OFF') {
-                                setSelectedPickupCheckpoint(cp);
-                                updated = true;
-                              }
-                            } else {
-                              if (cp.purpose !== 'PICKUP') {
-                                setSelectedDropoffCheckpoint(cp);
-                                updated = true;
-                              }
-                            }
-
-                            if (updated) {
-                              setMapFocusCoords([cp.location.coordinates[1], cp.location.coordinates[0]]);
-                            }
-                          }}
-                          style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center', 
-                            flex: 1, 
-                            minWidth: '110px',
-                            zIndex: 1, 
-                            position: 'relative', 
-                            cursor: cp.purpose === 'REST' ? 'not-allowed' : 'pointer',
-                            opacity: cp.purpose === 'REST' ? 0.4 : 1,
-                          }}
-                          className="p-3 touch-manipulation min-w-[48px] min-h-[48px] checkpoint-item"
-                        >
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '32px',
-                            width: '32px'
-                          }}>
-                            <div 
-                              className="checkpoint-dot-pulse"
-                              style={{
-                                width: dotSize,
-                                height: dotSize,
-                                borderRadius: '50%',
-                                background: dotBg,
-                                border: dotBorder,
-                                animation: animName,
-                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: dotShadow,
-                              }}
-                            >
-                              {dotInnerBg !== 'transparent' && (
-                                <div style={{
-                                  width: dotInnerSize,
-                                  height: dotInnerSize,
-                                  borderRadius: '50%',
-                                  background: dotInnerBg
-                                }} />
-                              )}
-                            </div>
-                          </div>
+                    return journeyCps.length > 0 ? (
+                      <div style={{ marginTop: '1.5rem', width: '100%' }}>
+                        <style>{`
+                          /* Ant Design Timeline Mock Style (Normal Timeline) */
+                          .ant-timeline {
+                            display: flex;
+                            width: 100%;
+                            position: relative;
+                            margin: 0;
+                            padding: 0;
+                            list-style: none;
+                          }
+                          .ant-timeline-item {
+                            flex: 1;
+                            position: relative;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            text-align: center;
+                          }
+                          .ant-timeline-item-tail {
+                            position: absolute;
+                            top: 5px;
+                            left: 50%;
+                            width: 100%;
+                            height: 2px;
+                            background: rgba(255, 255, 255, 0.15);
+                            z-index: 0;
+                          }
+                          .ant-timeline-item:last-child .ant-timeline-item-tail {
+                            display: none;
+                          }
+                          .ant-timeline-item-head {
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 50%;
+                            background: #141416;
+                            border: 2px solid var(--primary);
+                            z-index: 1;
+                            box-shadow: 0 0 6px var(--primary);
+                          }
+                          .ant-timeline-item-content {
+                            margin-top: 6px;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                          }
+                          .ant-timeline-item-title {
+                            font-size: 0.68rem;
+                            font-weight: 600;
+                            color: var(--text-primary);
+                          }
+                          .ant-timeline-item-time {
+                            font-size: 0.6rem;
+                            color: var(--text-muted);
+                            margin-top: 1px;
+                          }
                           
-                          <span style={{ 
-                            fontSize: '0.78rem', 
-                            fontWeight: (isPickup || isDropoff) ? 800 : 600, 
-                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : (isActiveRoute ? 'var(--text-primary)' : 'var(--text-muted)')), 
-                            marginTop: '8px', 
-                            textAlign: 'center',
-                            transition: 'all 0.2s',
-                            letterSpacing: '-0.01em'
-                          }}>
-                            {cp.name}
-                          </span>
-                          {cp.nameAr && (
-                            <span style={{ 
-                              fontSize: '0.68rem', 
-                              fontWeight: (isPickup || isDropoff) ? 700 : 500,
-                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
-                              textAlign: 'center',
-                              marginTop: '2px',
-                              opacity: isActiveRoute ? 0.9 : 0.6,
-                              transition: 'all 0.2s'
-                            }}>
-                              {cp.nameAr}
-                            </span>
-                          )}
-                          {cp.purpose && cp.purpose !== 'BOTH' && (
-                            <span style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 'bold',
-                              color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
-                              marginTop: '4px',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {cp.purpose === 'REST' 
-                                ? (isRtl ? 'استراحة فقط' : 'Rest Only') 
-                                : cp.purpose === 'DROP_OFF' 
-                                  ? (isRtl ? 'نزول فقط' : 'Drop Only') 
-                                  : (isRtl ? 'صعود فقط' : 'Pickup Only')}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                          /* RTL Layout Support */
+                          [dir="rtl"] .ant-timeline-item-tail {
+                            right: 50%;
+                            left: auto;
+                          }
+                        `}</style>
+
+                        <ul className="ant-timeline ant-timeline-horizontal">
+                          {journeyCps.map((cp: any, idx: number) => {
+                            const cpEstimatedTime = cp.minutesFromStart !== undefined
+                              ? new Date(baseTripDepTime + cp.minutesFromStart * 60 * 1000)
+                              : null;
+                            const cpTimeStr = cpEstimatedTime
+                              ? cpEstimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '';
+                            const cpDateStr = cpEstimatedTime
+                              ? cpEstimatedTime.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })
+                              : '';
+
+                            // Highlight pickup (first) and dropoff (last) checkpoints
+                            const isFirst = idx === 0;
+                            const isLast = idx === journeyCps.length - 1;
+
+                            return (
+                              <li key={cp.name} className="ant-timeline-item">
+                                <div className="ant-timeline-item-tail"></div>
+                                <div 
+                                  className="ant-timeline-item-head"
+                                  style={{
+                                    borderColor: isFirst ? 'var(--primary)' : (isLast ? '#EF4444' : 'rgba(255,255,255,0.4)'),
+                                    boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px #EF4444' : 'none'),
+                                  }}
+                                ></div>
+                                <div className="ant-timeline-item-content">
+                                  <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? '#EF4444' : 'var(--text-primary)') }}>
+                                    {isRtl ? (cp.nameAr || cp.name) : cp.name}
+                                  </div>
+                                  {(isFirst || isLast) && cpDateStr && (
+                                    <div className="ant-timeline-item-time" style={{ fontWeight: 650, color: 'var(--text-muted)', marginBottom: '1px' }}>
+                                      {cpDateStr}
+                                    </div>
+                                  )}
+                                  <div className="ant-timeline-item-time">
+                                    {cpTimeStr}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
@@ -1061,11 +902,20 @@ export default function CheckoutPage() {
                       <span className="checkpoint-timeline-label">{t('selectedPickup')}</span>
                       <span className="checkpoint-timeline-value">
                         {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('notSelectedLabel')) : (selectedPickupCheckpoint?.name || t('notSelectedLabel'))}
-                        {selectedPickupCheckpoint?.localizedDepartureTime && (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
-                            ({new Date(selectedPickupCheckpoint.localizedDepartureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
-                          </span>
-                        )}
+                        {(() => {
+                          const baseTime = new Date(trip.departureTime).getTime();
+                          const timeToUse = selectedPickupCheckpoint?.localizedDepartureTime 
+                            ? new Date(selectedPickupCheckpoint.localizedDepartureTime)
+                            : (selectedPickupCheckpoint?.minutesFromStart !== undefined
+                                ? new Date(baseTime + selectedPickupCheckpoint.minutesFromStart * 60000)
+                                : null);
+                          if (!timeToUse) return null;
+                          return (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
+                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                            </span>
+                          );
+                        })()}
                       </span>
                     </div>
                     
@@ -1074,11 +924,20 @@ export default function CheckoutPage() {
                       <span className="checkpoint-timeline-label">{t('selectedDropoff')}</span>
                       <span className="checkpoint-timeline-value">
                         {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('notSelectedLabel')) : (selectedDropoffCheckpoint?.name || t('notSelectedLabel'))}
-                        {selectedDropoffCheckpoint?.localizedArrivalTime && (
-                          <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
-                            ({new Date(selectedDropoffCheckpoint.localizedArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
-                          </span>
-                        )}
+                        {(() => {
+                          const baseTime = new Date(trip.departureTime).getTime();
+                          const timeToUse = selectedDropoffCheckpoint?.localizedArrivalTime 
+                            ? new Date(selectedDropoffCheckpoint.localizedArrivalTime)
+                            : (selectedDropoffCheckpoint?.minutesFromStart !== undefined
+                                ? new Date(baseTime + selectedDropoffCheckpoint.minutesFromStart * 60000)
+                                : null);
+                          if (!timeToUse) return null;
+                          return (
+                            <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
+                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                            </span>
+                          );
+                        })()}
                       </span>
                     </div>
                   </div>

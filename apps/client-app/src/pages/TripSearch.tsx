@@ -43,6 +43,22 @@ function cleanGoogleDriveLink(url: string): string {
   return url;
 }
 
+function haversineDistance(lng1: number, lat1: number, lng2: number, lat2: number): number {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) *
+    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return Math.round(R * c);
+}
+
 const getRelativeDateLabel = (groupDateStr: string, targetDateStr?: string, isRtl?: boolean) => {
   const [y, m, d] = groupDateStr.split('-').map(Number);
   const groupDate = new Date(y, m - 1, d);
@@ -129,95 +145,24 @@ export default function TripSearchPage() {
   const [selectedCheckpoints, setSelectedCheckpoints] = useState<Record<string, string>>({});
   const [selectedDropoffCheckpoints, setSelectedDropoffCheckpoints] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<'earliest' | 'cheapest' | 'walks'>('earliest');
-  const [draggingTrip, setDraggingTrip] = useState<{
-    tripId: string;
-    type: 'pickup' | 'dropoff';
-  } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  const handlePointerDown = (e: React.PointerEvent, tripId: string, cpIdx: number, checkpoints: any[]) => {
-    // Only allow drag using mouse pointers to prevent touch devices from hijacking page/horizontal scrolling
-    if (e.pointerType !== 'mouse') {
-      return;
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.warn('Geolocation permission denied or failed on search page:', error);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+      );
     }
-
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-
-    const pickupName = selectedCheckpoints[tripId] || checkpoints[0].name;
-    const dropoffName = selectedDropoffCheckpoints[tripId] || checkpoints[checkpoints.length - 1].name;
-
-    const pickupIdx = checkpoints.findIndex((c: any) => c.name === pickupName);
-    const dropoffIdx = checkpoints.findIndex((c: any) => c.name === dropoffName);
-
-    let type: 'pickup' | 'dropoff';
-    if (cpIdx === pickupIdx) {
-      type = 'pickup';
-    } else if (cpIdx === dropoffIdx) {
-      type = 'dropoff';
-    } else if (cpIdx < pickupIdx) {
-      type = 'pickup';
-    } else if (cpIdx > dropoffIdx) {
-      type = 'dropoff';
-    } else {
-      const distToPickup = cpIdx - pickupIdx;
-      const distToDropoff = dropoffIdx - cpIdx;
-      type = distToPickup <= distToDropoff ? 'pickup' : 'dropoff';
-    }
-
-    setDraggingTrip({ tripId, type });
-  };
-
-  const handlePointerMove = (e: React.PointerEvent, tripId: string, checkpoints: any[]) => {
-    if (!draggingTrip || draggingTrip.tripId !== tripId) return;
-
-    const container = document.getElementById(`stepper-container-${tripId}`);
-    if (!container) return;
-
-    const steps = Array.from(container.getElementsByClassName('checkpoint-step'));
-    let closestIdx = -1;
-    let minDiff = Infinity;
-
-    steps.forEach((step, idx) => {
-      const rect = step.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const diff = Math.abs(e.clientX - centerX);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIdx = idx;
-      }
-    });
-
-    if (closestIdx !== -1) {
-      const targetCp = checkpoints[closestIdx];
-      const pickupName = selectedCheckpoints[tripId] || checkpoints[0].name;
-      const dropoffName = selectedDropoffCheckpoints[tripId] || checkpoints[checkpoints.length - 1].name;
-
-      const pickupIdx = checkpoints.findIndex((c: any) => c.name === pickupName);
-      const dropoffIdx = checkpoints.findIndex((c: any) => c.name === dropoffName);
-
-      if (draggingTrip.type === 'pickup') {
-        if (closestIdx < dropoffIdx && targetCp.purpose !== 'REST' && targetCp.purpose !== 'DROP_OFF') {
-          setSelectedCheckpoints(prev => ({
-            ...prev,
-            [tripId]: targetCp.name
-          }));
-        }
-      } else if (draggingTrip.type === 'dropoff') {
-        if (closestIdx > pickupIdx && targetCp.purpose !== 'REST' && targetCp.purpose !== 'PICKUP') {
-          setSelectedDropoffCheckpoints(prev => ({
-            ...prev,
-            [tripId]: targetCp.name
-          }));
-        }
-      }
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    setDraggingTrip(null);
-  };
+  }, []);
 
   // Active trip state
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
@@ -230,13 +175,14 @@ export default function TripSearchPage() {
   const filteredTrips = useMemo(() => {
     if (!trips || trips.length === 0) return [];
     
+    const now = new Date();
     if (!date) {
       // Show trips for the next 5 days (today inclusive to today + 5 days exclusive)
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
+      const start = now;
       
-      const end = new Date(start);
-      end.setDate(start.getDate() + 5);
+      const end = new Date();
+      end.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() + 5);
       
       return trips.filter((trip) => {
         const tripDate = new Date(trip.departureTime);
@@ -255,7 +201,7 @@ export default function TripSearchPage() {
       
       return trips.filter((trip) => {
         const tripDate = new Date(trip.departureTime);
-        return tripDate >= start && tripDate < end;
+        return tripDate >= start && tripDate >= now && tripDate < end;
       });
     }
   }, [trips, date]);
@@ -334,12 +280,12 @@ export default function TripSearchPage() {
             ...sr.trip,
             route: sr.trip.routeId || sr.trip.route,
             pickupCheckpoint: {
-              ...sr.pickupCheckpoint,
               ...sr.trip?.pickupCheckpoint,
+              ...sr.pickupCheckpoint,
             },
             dropoffCheckpoint: {
-              ...sr.dropoffCheckpoint,
               ...sr.trip?.dropoffCheckpoint,
+              ...sr.dropoffCheckpoint,
             },
             totalWalkingDistance: sr.totalWalkingDistance,
           }));
@@ -436,6 +382,72 @@ export default function TripSearchPage() {
   return (
     <div className="trip-search-page-container">
       <SEO title={seoTitle} description={seoDescription} />
+      <style>{`
+         .checkpoint-scrollbar::-webkit-scrollbar {
+           display: none;
+         }
+         .checkpoint-item:hover {
+           transform: translateY(-2px);
+         }
+         
+         /* Ant Design Timeline Mock Style (Normal Timeline) */
+         .ant-timeline {
+           display: flex;
+           width: 100%;
+           position: relative;
+         }
+         .ant-timeline-item {
+           flex: 1;
+           position: relative;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           text-align: center;
+         }
+         .ant-timeline-item-tail {
+           position: absolute;
+           top: 5px;
+           left: 50%;
+           width: 100%;
+           height: 2px;
+           background: rgba(255, 255, 255, 0.15);
+           z-index: 0;
+         }
+         .ant-timeline-item:last-child .ant-timeline-item-tail {
+           display: none;
+         }
+         .ant-timeline-item-head {
+           width: 10px;
+           height: 10px;
+           border-radius: 50%;
+           background: #141416;
+           border: 2px solid var(--primary);
+           z-index: 1;
+           box-shadow: 0 0 6px var(--primary);
+         }
+         .ant-timeline-item-content {
+           margin-top: 6px;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+         }
+         .ant-timeline-item-title {
+           font-size: 0.68rem;
+           font-weight: 600;
+           color: var(--text-primary);
+         }
+         .ant-timeline-item-time {
+           font-size: 0.6rem;
+           color: var(--text-muted);
+           margin-top: 1px;
+         }
+         
+         /* RTL Layout Support */
+         [dir="rtl"] .ant-timeline-item-tail {
+           right: 50%;
+           left: auto;
+         }
+      `}</style>
       <div style={{ maxWidth: '950px', width: '100%', margin: '0 auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
         
         {/* Header */}
@@ -595,6 +607,17 @@ export default function TripSearchPage() {
                             ? new Date(dropoffCp.localizedArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                             : arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                          const pickupDateStr = depTime.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          });
+                          const dropoffDateStr = arrTime.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          });
+
                           const boardingDate = pickupCp?.localizedDepartureTime 
                             ? new Date(pickupCp.localizedDepartureTime) 
                             : depTime;
@@ -743,6 +766,9 @@ export default function TripSearchPage() {
 
                                   <div className="trip-timings-row">
                                     <div className="trip-time-block">
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 650, marginBottom: '2px' }}>
+                                        {pickupDateStr}
+                                      </span>
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{pickupTimeStr}</span>
                                       <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                         {isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop'))}
@@ -757,37 +783,123 @@ export default function TripSearchPage() {
                                     </div>
                                     
                                     <div className="trip-time-block" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 650, marginBottom: '2px' }}>
+                                        {dropoffDateStr}
+                                      </span>
                                       <span className="trip-time" style={{ fontSize: '1.3rem', fontWeight: 800 }}>{dropoffTimeStr}</span>
                                       <span className="trip-location" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                         {isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop'))}
                                       </span>
                                     </div>
                                   </div>
+                                  
+                                  {/* Static Non-Selective Checkpoints Timeline inside the Card */}
+                                  {isSmartMode && trip.totalWalkingDistance !== undefined ? (
+                                    (() => {
+                                      const searchPickupLat = pickupLat ? parseFloat(pickupLat) : null;
+                                      const searchPickupLng = pickupLng ? parseFloat(pickupLng) : null;
 
-                                  {isSmartMode && trip.totalWalkingDistance !== undefined && (
-                                    <div style={{
-                                      marginTop: '0.75rem',
-                                      fontSize: '0.7rem',
-                                      background: 'rgba(245, 183, 49, 0.06)',
-                                      color: 'var(--primary)',
-                                      padding: '4px 10px',
-                                      borderRadius: '8px',
-                                      border: '1px solid rgba(245, 183, 49, 0.15)',
-                                      fontWeight: 600,
-                                      alignSelf: 'center',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      flexWrap: 'wrap',
-                                      whiteSpace: 'normal',
-                                      wordBreak: 'break-word',
-                                      textAlign: 'center',
-                                      justifyContent: 'center',
-                                      maxWidth: '100%',
-                                      boxSizing: 'border-box'
-                                    }}>
-                                      🚶 {t('walksTotal', { total: trip.totalWalkingDistance, pickup: trip.pickupCheckpoint.distanceMeters, dropoff: trip.dropoffCheckpoint.distanceMeters })}
-                                    </div>
+                                      const pickupDist = (() => {
+                                        const coords = pickupCp.location?.coordinates || pickupCp.coordinates;
+                                        if (coords && coords.length >= 2) {
+                                          if (userLocation) {
+                                            return haversineDistance(userLocation.lng, userLocation.lat, coords[0], coords[1]);
+                                          }
+                                          if (searchPickupLat !== null && !isNaN(searchPickupLat) && searchPickupLng !== null && !isNaN(searchPickupLng)) {
+                                            return haversineDistance(searchPickupLng, searchPickupLat, coords[0], coords[1]);
+                                          }
+                                        }
+                                        return trip.pickupCheckpoint.distanceMeters || 0;
+                                      })();
+                                      
+                                      const firstMileTimeWalk = pickupDist > 0 ? Math.max(1, Math.round(pickupDist / 80)) : 0;
+                                      const firstMileTimeCar = pickupDist > 0 ? Math.max(1, Math.round(pickupDist / 350)) : 0;
+
+                                      const formatMinsCompact = (mins: number) => {
+                                        if (mins === 0) return isRtl ? '0 د' : '0m';
+                                        if (mins < 60) return isRtl ? `${mins} د` : `${mins}m`;
+                                        const hrs = Math.floor(mins / 60);
+                                        const remainingMins = mins % 60;
+                                        return remainingMins > 0 
+                                          ? (isRtl ? `${hrs} س ${remainingMins} د` : `${hrs}h ${remainingMins}m`) 
+                                          : (isRtl ? `${hrs} س` : `${hrs}h`);
+                                      };
+
+                                      return (
+                                        <div style={{
+                                          display: 'flex',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                          width: '100%',
+                                          marginTop: '0.75rem'
+                                        }}>
+                                          <div style={{
+                                            fontSize: '0.72rem',
+                                            background: 'rgba(255, 255, 255, 0.02)',
+                                            color: 'var(--primary)',
+                                            padding: '6px 14px',
+                                            borderRadius: '20px',
+                                            border: '1px solid rgba(245, 183, 49, 0.25)',
+                                            fontWeight: 650,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px',
+                                            textAlign: 'center',
+                                            flexWrap: 'wrap'
+                                          }}>
+                                            <span>
+                                              {isRtl 
+                                                ? 'نقطة الركوب على بعد دقائق فقط من موقعك:' 
+                                                : 'Pickup is just minutes away from your location:'}
+                                            </span>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                              🚶 {formatMinsCompact(firstMileTimeWalk)}
+                                            </span>
+                                            <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                              🚗 {formatMinsCompact(firstMileTimeCar)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()
+                                  ) : (
+                                    (() => {
+                                      const pickupIdx = routeCps.findIndex((cp: any) => cp.name === pickupCp?.name);
+                                      const dropoffIdx = routeCps.findIndex((cp: any) => cp.name === dropoffCp?.name);
+                                      const startIdx = pickupIdx >= 0 ? pickupIdx : 0;
+                                      const endIdx = dropoffIdx >= 0 ? dropoffIdx : routeCps.length - 1;
+                                      const journeyCps = routeCps.slice(startIdx, endIdx + 1);
+                                      
+                                      return journeyCps.length > 0 ? (
+                                        <ul className="ant-timeline ant-timeline-horizontal" style={{ margin: '1.25rem 0 0.5rem 0', padding: 0, listStyle: 'none' }}>
+                                          {journeyCps.map((cp: any) => {
+                                            const cpEstimatedTime = cp.minutesFromStart !== undefined
+                                              ? new Date(baseTripDepTime + cp.minutesFromStart * 60 * 1000)
+                                              : null;
+                                            const cpTimeStr = cpEstimatedTime
+                                              ? cpEstimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                              : '';
+
+                                            return (
+                                              <li key={cp.name} className="ant-timeline-item">
+                                                <div className="ant-timeline-item-tail"></div>
+                                                <div className="ant-timeline-item-head"></div>
+                                                <div className="ant-timeline-item-content">
+                                                  <div className="ant-timeline-item-title">
+                                                    {isRtl ? (cp.nameAr || cp.name) : cp.name}
+                                                  </div>
+                                                  <div className="ant-timeline-item-time">
+                                                    {cpTimeStr}
+                                                  </div>
+                                                </div>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      ) : null;
+                                    })()
                                   )}
                                 </div>
 
@@ -824,422 +936,7 @@ export default function TripSearchPage() {
                                 </div>
                               </div>
 
-                              {/* Bottom Part: Interactive Checkpoints Timeline */}
-                              {currentRoute?.checkpoints && currentRoute.checkpoints.length > 0 && (
-                                <div style={{ 
-                                  padding: '1rem 1.25rem', 
-                                  background: 'rgba(255, 255, 255, 0.02)', 
-                                  borderTop: '1px solid var(--border)',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '0.5rem',
-                                  width: '100%',
-                                  maxWidth: '100%',
-                                  boxSizing: 'border-box',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between',
-                                    flexWrap: 'wrap',
-                                    gap: '0.5rem'
-                                  }}>
-                                    <span style={{ 
-                                      fontSize: '0.75rem', 
-                                      fontWeight: 700, 
-                                      textTransform: 'uppercase', 
-                                      color: 'var(--text-secondary)',
-                                      letterSpacing: '0.05em',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px'
-                                    }}>
-                                      📍 {t('routeStopsSelect')}
-                                    </span>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                      {selectedCheckpoints[trip._id] && (
-                                        <span style={{ 
-                                          fontSize: '0.72rem', 
-                                          fontWeight: 600, 
-                                          color: 'var(--primary)',
-                                          background: 'rgba(245, 183, 49, 0.1)',
-                                          padding: '2px 8px',
-                                          borderRadius: '6px'
-                                        }}>
-                                          {t('pickup')}: {isRtl ? (routeCps.find((item: any) => item.name === selectedCheckpoints[trip._id])?.nameAr || selectedCheckpoints[trip._id]) : selectedCheckpoints[trip._id]}
-                                        </span>
-                                      )}
-                                      {selectedDropoffCheckpoints[trip._id] && (
-                                        <span style={{ 
-                                          fontSize: '0.72rem', 
-                                          fontWeight: 600, 
-                                          color: '#EF4444',
-                                          background: 'rgba(239, 68, 68, 0.1)',
-                                          padding: '2px 8px',
-                                          borderRadius: '6px'
-                                        }}>
-                                          {t('dropoff')}: {isRtl ? (routeCps.find((item: any) => item.name === selectedDropoffCheckpoints[trip._id])?.nameAr || selectedDropoffCheckpoints[trip._id]) : selectedDropoffCheckpoints[trip._id]}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Checkpoint Stepper Progress bar */}
-                                  <div 
-                                    id={`stepper-container-${trip._id}`}
-                                    style={{ 
-                                      display: 'flex', 
-                                      alignItems: 'flex-start', 
-                                      position: 'relative', 
-                                      margin: '1.5rem 0 1rem 0',
-                                      overflowX: 'auto',
-                                      paddingBottom: '1rem',
-                                      scrollbarWidth: 'none',
-                                      msOverflowStyle: 'none',
-                                      zIndex: 2,
-                                      background: 'rgba(255, 255, 255, 0.01)',
-                                      padding: '1.25rem 0.5rem 1rem 0.5rem',
-                                      borderRadius: '12px',
-                                      border: '1px solid rgba(255, 255, 255, 0.03)',
-                                      userSelect: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'auto',
-                                      width: '100%',
-                                      maxWidth: '100%',
-                                      boxSizing: 'border-box'
-                                    }} 
-                                    className="checkpoint-scrollbar"
-                                  >
-                                    <style>{`
-                                      @keyframes pulse-pickup {
-                                        0% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0.4); }
-                                        70% { box-shadow: 0 0 0 10px rgba(245, 183, 49, 0); }
-                                        100% { box-shadow: 0 0 0 0 rgba(245, 183, 49, 0); }
-                                      }
-                                      @keyframes pulse-dropoff {
-                                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-                                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-                                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                                      }
-                                      .checkpoint-scrollbar::-webkit-scrollbar {
-                                        display: none;
-                                      }
-                                      .checkpoint-item {
-                                        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-                                      }
-                                      .checkpoint-item:hover {
-                                        transform: translateY(-2px);
-                                      }
-                                      .checkpoint-item:hover .checkpoint-dot-pulse {
-                                        transform: scale(1.15);
-                                      }
-                                    `}</style>
 
-                                    {/* Connecting Line (Inactive Background) */}
-                                    <div style={{ 
-                                      position: 'absolute', 
-                                      top: '48px', 
-                                      left: `${100 / (currentRoute.checkpoints.length * 2)}%`, 
-                                      right: `${100 / (currentRoute.checkpoints.length * 2)}%`, 
-                                      height: '5px', 
-                                      background: 'rgba(255,255,255,0.08)', 
-                                      borderRadius: '4px',
-                                      zIndex: 0 
-                                    }} />
-                                    
-                                    {/* Colored Active Progress Line */}
-                                    {(() => {
-                                      const checkpoints = currentRoute.checkpoints || [];
-                                      if (checkpoints.length < 2) return null;
-                                      
-                                      const pickupName = selectedCheckpoints[trip._id];
-                                      const dropoffName = selectedDropoffCheckpoints[trip._id];
-                                      
-                                      const pickupIdx = checkpoints.findIndex((cp: any) => cp.name === pickupName);
-                                      const dropoffIdx = dropoffName 
-                                        ? checkpoints.findIndex((cp: any) => cp.name === dropoffName)
-                                        : checkpoints.length - 1;
-                                        
-                                      if (pickupIdx >= 0 && dropoffIdx >= pickupIdx) {
-                                        const startPercent = (pickupIdx / (checkpoints.length - 1)) * 100;
-                                        const endPercent = (dropoffIdx / (checkpoints.length - 1)) * 100;
-                                        const widthPercent = endPercent - startPercent;
-                                        
-                                        return (
-                                          <div style={{ 
-                                            position: 'absolute', 
-                                            top: '48px', 
-                                            left: `calc(${startPercent}% + ${100 / (checkpoints.length * 2)}% - ${startPercent / 100 * (100 / checkpoints.length)}%)`, 
-                                            width: `calc(${widthPercent}% - ${(widthPercent) / 100 * (100 / checkpoints.length)}%)`,
-                                            height: '5px', 
-                                            background: 'linear-gradient(90deg, var(--primary) 0%, #EF4444 100%)', 
-                                            borderRadius: '4px',
-                                            boxShadow: '0 0 10px rgba(245, 183, 49, 0.25)',
-                                            zIndex: 0,
-                                            transition: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                                          }} />
-                                        );
-                                      }
-                                      return null;
-                                    })()}
-
-                                    {currentRoute.checkpoints.map((cp: any, cpIdx: number) => {
-                                      const isPickup = selectedCheckpoints[trip._id] === cp.name;
-                                      const isDropoff = selectedDropoffCheckpoints[trip._id] === cp.name;
-                                      
-                                      const pickupIdx = currentRoute.checkpoints.findIndex((item: any) => item.name === selectedCheckpoints[trip._id]);
-                                      const dropoffIdx = selectedDropoffCheckpoints[trip._id] 
-                                        ? currentRoute.checkpoints.findIndex((item: any) => item.name === selectedDropoffCheckpoints[trip._id])
-                                        : currentRoute.checkpoints.length - 1;
-                                        
-                                      const isActiveRoute = cpIdx >= pickupIdx && cpIdx <= dropoffIdx;
-                                      
-                                      let dotBg: string;
-                                      let dotBorder: string;
-                                      let dotShadow = 'none';
-                                      let dotSize: string;
-                                      let dotInnerSize: string;
-                                      let dotInnerBg = 'transparent';
-                                      let animName = 'none';
-                                      
-                                      if (isPickup) {
-                                        dotBg = 'var(--primary)';
-                                        dotBorder = '4px solid #1a1a1a';
-                                        dotSize = '28px';
-                                        dotInnerSize = '8px';
-                                        dotInnerBg = '#000';
-                                        animName = 'pulse-pickup 1.8s infinite';
-                                        dotShadow = '0 0 15px rgba(245, 183, 49, 0.4)';
-                                      } else if (isDropoff) {
-                                        dotBg = '#EF4444';
-                                        dotBorder = '4px solid #1a1a1a';
-                                        dotSize = '28px';
-                                        dotInnerSize = '8px';
-                                        dotInnerBg = '#fff';
-                                        animName = 'pulse-dropoff 1.8s infinite';
-                                        dotShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
-                                      } else if (isActiveRoute) {
-                                        dotBg = '#1c1c1e';
-                                        dotBorder = '3px solid var(--primary)';
-                                        dotSize = '20px';
-                                        dotInnerSize = '6px';
-                                        dotInnerBg = 'var(--primary)';
-                                      } else {
-                                        if (cp.purpose === 'REST') {
-                                          dotBg = '#242426';
-                                          dotBorder = '2px dashed rgba(239, 68, 68, 0.4)';
-                                          dotSize = '16px';
-                                          dotInnerSize = '4px';
-                                        } else {
-                                          dotBg = '#141416';
-                                          dotBorder = '2px solid rgba(255,255,255,0.08)';
-                                          dotSize = '16px';
-                                          dotInnerSize = '4px';
-                                        }
-                                      }
-
-                                      const getPriceBetween = (pIdx: number, dIdx: number) => {
-                                        if (pIdx < 0 || dIdx < 0 || pIdx >= dIdx) return 0;
-                                        const pCp = currentRoute.checkpoints[pIdx];
-                                        const dCp = currentRoute.checkpoints[dIdx];
-                                        if (pCp.prices && pCp.prices[dCp.name] !== undefined) {
-                                          return Number(pCp.prices[dCp.name]);
-                                        }
-                                        return (dCp.priceFromStartEGP || 0) - (pCp.priceFromStartEGP || 0);
-                                      };
-
-                                      const currentPrice = getPriceBetween(pickupIdx, dropoffIdx);
-
-                                      let priceDeltaLabel = '';
-                                      if (cpIdx !== pickupIdx && cpIdx !== dropoffIdx) {
-                                        if (cpIdx < dropoffIdx) {
-                                          const nextPrice = getPriceBetween(cpIdx, dropoffIdx);
-                                          const delta = nextPrice - currentPrice;
-                                          if (delta !== 0) {
-                                            priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
-                                          }
-                                        } else if (cpIdx > pickupIdx) {
-                                          const nextPrice = getPriceBetween(pickupIdx, cpIdx);
-                                          const delta = nextPrice - currentPrice;
-                                          if (delta !== 0) {
-                                            priceDeltaLabel = delta > 0 ? `+${delta} EGP` : `${delta} EGP`;
-                                          }
-                                        }
-                                      }
-                                      
-                                      return (
-                                        <div 
-                                          key={cp.name}
-                                          onPointerDown={(e) => handlePointerDown(e, trip._id, cpIdx, currentRoute.checkpoints)}
-                                          onPointerMove={(e) => handlePointerMove(e, trip._id, currentRoute.checkpoints)}
-                                          onPointerUp={handlePointerUp}
-                                          onPointerCancel={handlePointerUp}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (cp.purpose === 'REST') return;
-
-                                            let targetType: 'pickup' | 'dropoff';
-                                            if (cpIdx === pickupIdx) {
-                                              targetType = 'pickup';
-                                            } else if (cpIdx === dropoffIdx) {
-                                              targetType = 'dropoff';
-                                            } else if (cpIdx < pickupIdx) {
-                                              targetType = 'pickup';
-                                            } else if (cpIdx > dropoffIdx) {
-                                              targetType = 'dropoff';
-                                            } else {
-                                              const distToPickup = cpIdx - pickupIdx;
-                                              const distToDropoff = dropoffIdx - cpIdx;
-                                              if (distToPickup < distToDropoff) {
-                                                targetType = 'pickup';
-                                              } else if (distToDropoff < distToPickup) {
-                                                targetType = 'dropoff';
-                                              } else {
-                                                targetType = 'dropoff'; // equidistant default
-                                              }
-                                            }
-
-                                            if (targetType === 'pickup') {
-                                              if (cp.purpose === 'DROP_OFF') return;
-                                              setSelectedCheckpoints(prev => ({
-                                                ...prev,
-                                                [trip._id]: cp.name
-                                              }));
-                                            } else {
-                                              if (cp.purpose === 'PICKUP') return;
-                                              setSelectedDropoffCheckpoints(prev => ({
-                                                ...prev,
-                                                [trip._id]: cp.name
-                                              }));
-                                            }
-                                          }}
-                                          style={{ 
-                                            display: 'flex', 
-                                            flexDirection: 'column', 
-                                            alignItems: 'center', 
-                                            flex: 1, 
-                                            minWidth: '110px',
-                                            zIndex: 1, 
-                                            position: 'relative', 
-                                            cursor: cp.purpose === 'REST' ? 'not-allowed' : (draggingTrip && draggingTrip.tripId === trip._id ? 'grabbing' : 'pointer'),
-                                            opacity: cp.purpose === 'REST' ? 0.4 : 1,
-                                            touchAction: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'auto'
-                                          }}
-                                          className="checkpoint-step p-3 min-w-[48px] min-h-[48px] checkpoint-item"
-                                        >
-                                          {/* City Legend Badge */}
-                                          {cp.city && (
-                                            <span style={{
-                                              position: 'absolute',
-                                              top: '-16px',
-                                              fontSize: '0.6rem',
-                                              fontWeight: 800,
-                                              background: 'rgba(245, 183, 49, 0.1)',
-                                              color: 'var(--primary)',
-                                              padding: '1px 5px',
-                                              borderRadius: '4px',
-                                              whiteSpace: 'nowrap',
-                                              zIndex: 2,
-                                              pointerEvents: 'none'
-                                            }}>
-                                              🏙️ {cp.city}
-                                            </span>
-                                          )}
-
-                                          <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            height: '32px',
-                                            width: '32px'
-                                          }}>
-                                            <div 
-                                              className="checkpoint-dot-pulse"
-                                              style={{
-                                                width: dotSize,
-                                                height: dotSize,
-                                                borderRadius: '50%',
-                                                background: dotBg,
-                                                border: dotBorder,
-                                                animation: animName,
-                                                transition: draggingTrip && draggingTrip.tripId === trip._id ? 'none' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: dotShadow,
-                                              }}
-                                            >
-                                              {dotInnerBg !== 'transparent' && (
-                                                <div style={{
-                                                  width: dotInnerSize,
-                                                  height: dotInnerSize,
-                                                  borderRadius: '50%',
-                                                  background: dotInnerBg
-                                                }} />
-                                              )}
-                                            </div>
-                                          </div>
-                                          
-                                          <span style={{ 
-                                            fontSize: '0.78rem', 
-                                            fontWeight: (isPickup || isDropoff) ? 800 : 600, 
-                                            color: isPickup ? 'var(--primary)' : (isDropoff ? '#EF4444' : (isActiveRoute ? 'var(--text-primary)' : 'var(--text-muted)')), 
-                                            marginTop: '8px', 
-                                            textAlign: 'center',
-                                            transition: 'all 0.2s',
-                                            letterSpacing: '-0.01em'
-                                          }}>
-                                            {cp.name}
-                                          </span>
-                                          {cp.nameAr && (
-                                            <span style={{ 
-                                              fontSize: '0.68rem', 
-                                              fontWeight: (isPickup || isDropoff) ? 700 : 500,
-                                              color: isPickup ? 'var(--primary-hover)' : (isDropoff ? '#F87171' : 'var(--text-muted)'),
-                                              textAlign: 'center',
-                                              marginTop: '2px',
-                                              opacity: isActiveRoute ? 0.9 : 0.6,
-                                              transition: 'all 0.2s'
-                                            }}>
-                                              {cp.nameAr}
-                                            </span>
-                                          )}
-
-                                          {cp.purpose && cp.purpose !== 'BOTH' && (
-                                            <span style={{
-                                              fontSize: '0.65rem',
-                                              fontWeight: 'bold',
-                                              color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
-                                              marginTop: '4px',
-                                              whiteSpace: 'nowrap'
-                                            }}>
-                                              {cp.purpose === 'REST' 
-                                                ? (isRtl ? 'استراحة فقط' : 'Rest Only') 
-                                                : cp.purpose === 'DROP_OFF' 
-                                                  ? (isRtl ? 'نزول فقط' : 'Drop Only') 
-                                                  : (isRtl ? 'صعود فقط' : 'Pickup Only')}
-                                            </span>
-                                          )}
-
-                                          {priceDeltaLabel && (
-                                            <span style={{
-                                              fontSize: '0.65rem',
-                                              fontWeight: 'bold',
-                                              color: priceDeltaLabel.startsWith('+') ? 'var(--danger)' : 'var(--success)',
-                                              background: priceDeltaLabel.startsWith('+') ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
-                                              padding: '2px 6px',
-                                              borderRadius: '4px',
-                                              marginTop: '4px',
-                                              whiteSpace: 'nowrap'
-                                            }}>
-                                              {priceDeltaLabel}
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}

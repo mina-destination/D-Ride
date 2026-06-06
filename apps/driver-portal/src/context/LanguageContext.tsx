@@ -31,6 +31,19 @@ const translations: Record<Language, Record<string, string>> = {
     myShifts: 'My Shifts',
     activeMap: 'Active Map',
     profile: 'Profile',
+    dashboard: 'Dashboard',
+    help: 'Help',
+    
+    // Unified Dashboard keys
+    selectTripPrompt: 'Select a trip from above to start your workflow',
+    offboardBtn: 'Offboard',
+    offboarded: '✓ Offboarded',
+    callPassenger: 'Call Passenger',
+    emergencyContact: 'Emergency Hotline',
+    supportContact: 'Fleet Support Contact',
+    activeTrip: 'Active Trip',
+    emergencyDesc: 'Call for immediate on-road assistance',
+    supportDesc: 'Call fleet manager for schedule/booking support',
     
     // My Trips (Shifts)
     helloDriver: 'Hello, {name}',
@@ -122,6 +135,19 @@ const translations: Record<Language, Record<string, string>> = {
     myShifts: 'وردياتي',
     activeMap: 'الخريطة النشطة',
     profile: 'الملف الشخصي',
+    dashboard: 'لوحة التحكم',
+    help: 'المساعدة',
+    
+    // Unified Dashboard keys
+    selectTripPrompt: 'اختر رحلة من الأعلى لبدء العمل عليها',
+    offboardBtn: 'إنزال الراكب',
+    offboarded: '✓ تم النزول',
+    callPassenger: 'اتصال بالراكب',
+    emergencyContact: 'الخط الساخن للطوارئ',
+    supportContact: 'اتصال بدعم الأسطول',
+    activeTrip: 'الرحلة النشطة',
+    emergencyDesc: 'اتصل للحصول على مساعدة فورية على الطريق',
+    supportDesc: 'اتصل بمدير الأسطول للحصول على دعم الجدول/الحجز',
     
     // My Trips (Shifts)
     helloDriver: 'مرحباً، {name}',

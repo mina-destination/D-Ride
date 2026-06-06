@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoutesService } from './routes.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('RoutesService', () => {
   let service: RoutesService;
@@ -19,6 +20,12 @@ describe('RoutesService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            sendCancellationNotification: jest.fn().mockResolvedValue(true),
+          },
         },
       ],
     }).compile();
