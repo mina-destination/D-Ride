@@ -3,11 +3,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/Login';
-import MyTripsPage from './pages/MyTrips';
-import TripDetailPage from './pages/TripDetail';
-import LiveDrivePage from './pages/LiveDrive';
+// Keep unused pages for backup/reference:
+// import MyTripsPage from './pages/MyTrips';
+// import TripDetailPage from './pages/TripDetail';
+// import LiveDrivePage from './pages/LiveDrive';
+import DashboardPage from './pages/Dashboard';
 import BottomNav from './components/BottomNav';
 import ProfilePage from './pages/ProfilePage';
+
 
 // Protected Route Guard
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -68,7 +71,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AnonymousRoute({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
   if (token && user && user.role?.toUpperCase() === 'DRIVER') {
-    return <Navigate to="/trips" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }
@@ -85,27 +88,29 @@ export default function App() {
 
               {/* Protected routes */}
               <Route
-                path="/trips"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <MyTripsPage />
+                    <DashboardPage />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/trips"
+                element={
+                  <Navigate to="/dashboard" replace />
                 }
               />
               <Route
                 path="/trips/:id"
                 element={
-                  <ProtectedRoute>
-                    <TripDetailPage />
-                  </ProtectedRoute>
+                  <Navigate to="/dashboard" replace />
                 }
               />
               <Route
                 path="/drive/:id"
                 element={
-                  <ProtectedRoute>
-                    <LiveDrivePage />
-                  </ProtectedRoute>
+                  <Navigate to="/dashboard" replace />
                 }
               />
               <Route
@@ -118,7 +123,7 @@ export default function App() {
               />
 
               {/* Catch all */}
-              <Route path="*" element={<Navigate to="/trips" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
             
             {/* Bottom tab navigation */}

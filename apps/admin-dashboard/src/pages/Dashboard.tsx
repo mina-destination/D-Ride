@@ -1,37 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { Bus, CarFront, Banknote, Users, CreditCard, Activity, Flame, Ticket } from 'lucide-react';
 import { bookingsAPI, tripsAPI, vehiclesAPI, usersAPI } from '../services/api';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
-
-function MapPanController({ panTo }: { panTo: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (panTo) {
-      map.flyTo(panTo, 13, { animate: true, duration: 1.2 });
-    }
-  }, [panTo, map]);
-  return null;
-}
-
-// Fix for default marker icon in react-leaflet inside Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Custom active shuttle marker icon
-const activeBusIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-  iconSize: [35, 35],
-  iconAnchor: [17, 35],
-  popupAnchor: [0, -35],
-});
+import { useTheme } from '../context/ThemeContext';
 
 const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
 
@@ -77,8 +51,11 @@ const getAreaPath = (points: { x: number; y: number }[]) => {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  const { theme } = useTheme();
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [map, setMap] = useState<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
 
   const [fleet, setFleet] = useState<ActiveBus[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
@@ -113,6 +90,168 @@ export default function DashboardPage() {
         setPassengersCount(12); // Fallback
       });
   }, []);
+
+  // Initialize MapLibre Map for Fleet tracking & Heatmap
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const mapObj = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      center: [31.2357, 30.0444],
+      zoom: 11,
+      attributionControl: false
+    });
+
+    mapRef.current = mapObj;
+    setMap(mapObj);
+    mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+    return () => {
+      mapObj.remove();
+      mapRef.current = null;
+      setMap(null);
+    };
+  }, [theme]);
+
+  // Synchronize Markers (Fleet Active Shuttles or Hotspot Heatmaps)
+  useEffect(() => {
+    if (!map) return;
+
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    if (mapViewMode === 'FLEET') {
+      fleet.forEach((bus) => {
+        const el = document.createElement('div');
+        el.className = 'google-maps-bus-pointer';
+
+        const popupHtml = `
+          <div style="min-width: 180px; padding: 0.25rem; font-family: Inter, sans-serif; color: var(--text-primary);">
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--primary-color, #F5B731); font-size: 0.95rem; font-weight: bold;">
+              Shuttle ${bus.plate}
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem;">
+              <span><strong>Driver:</strong> ${bus.driver}</span>
+              <span><strong>Route:</strong> ${bus.route}</span>
+              <span><strong>Speed:</strong> ${bus.speed} km/h</span>
+              <span><strong>Occupancy:</strong> ${bus.seats} booked</span>
+            </div>
+          </div>
+        `;
+
+        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([bus.lng, bus.lat])
+          .setPopup(popup)
+          .addTo(map);
+
+        markersRef.current.push(marker);
+      });
+    } else if (mapViewMode === 'HEATMAP') {
+      bookings
+        .filter((b) => b.pickupCheckpoint)
+        .forEach((booking) => {
+          const pickup = booking.pickupCheckpoint;
+          const coords = pickup.location?.coordinates || pickup.coordinates;
+          if (!coords || coords.length < 2) return;
+
+          const el = document.createElement('div');
+          el.className = 'demand-heatmap-marker';
+          el.innerHTML = `
+            <div style="
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              background: rgba(239, 68, 68, 0.4);
+              border: 1.5px solid #f59e0b;
+              box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            "></div>
+          `;
+
+          const popupHtml = `
+            <div style="padding: 0.15rem; font-family: Inter, sans-serif; color: var(--text-primary);">
+              <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #ef4444; font-weight: bold;">Demand Area Hotspot</h4>
+              <div style="font-size: 0.78rem;">
+                <strong>Station:</strong> ${pickup.name}<br />
+                <strong>Fare:</strong> ${booking.amountEGP} EGP<br />
+                <strong>Status:</strong> ${booking.status}
+              </div>
+            </div>
+          `;
+
+          const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([coords[0], coords[1]])
+            .setPopup(popup)
+            .addTo(map);
+
+          markersRef.current.push(marker);
+        });
+    }
+  }, [map, fleet, bookings, mapViewMode]);
+
+  // Synchronize Selected Bus Polyline
+  useEffect(() => {
+    if (!map) return;
+
+    const updatePath = () => {
+      const coords = selectedBusId && selectedRoutePath.length > 0
+        ? selectedRoutePath.map(p => [p[1], p[0]])
+        : [];
+
+      const geoJsonData: any = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: coords
+        }
+      };
+
+      const source = map.getSource('selected-bus-path') as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData(geoJsonData);
+      } else {
+        map.addSource('selected-bus-path', {
+          type: 'geojson',
+          data: geoJsonData
+        });
+
+        map.addLayer({
+          id: 'selected-bus-path-layer',
+          type: 'line',
+          source: 'selected-bus-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
+            'line-width': 5,
+            'line-opacity': 0.9,
+            'line-dasharray': [2, 2]
+          }
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      updatePath();
+    } else {
+      map.on('load', updatePath);
+      map.on('style.load', updatePath);
+    }
+  }, [map, selectedRoutePath, selectedBusId, theme]);
+
+  // Handle mapPanTo flight
+  useEffect(() => {
+    if (map && mapPanTo) {
+      map.panTo([mapPanTo[1], mapPanTo[0]]);
+    }
+  }, [map, mapPanTo]);
 
   // Format "time ago" string
   const formatTimeAgo = (dateStr: string) => {
@@ -687,84 +826,7 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <MapContainer center={[30.0444, 31.2357]} zoom={12} style={{ height: '100%', width: '100%' }}>
-              <TileLayer
-                attribution={mapTileAttribution}
-                url={mapTileUrl}
-              />
-
-              {/* FLEET VIEW */}
-              {mapViewMode === 'FLEET' && (
-                <>
-                  {fleet.map((bus) => (
-                    <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={activeBusIcon}>
-                      <Popup>
-                        <div style={{ minWidth: '180px', padding: '0.25rem' }}>
-                          <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)', fontSize: '0.95rem' }}>
-                            Shuttle {bus.plate}
-                          </h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
-                            <span><strong>Driver:</strong> {bus.driver}</span>
-                            <span><strong>Route:</strong> {bus.route}</span>
-                            <span><strong>Speed:</strong> {bus.speed} km/h</span>
-                            <span><strong>Occupancy:</strong> {bus.seats} booked</span>
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                  {selectedBusId && selectedRoutePath.length > 0 && (
-                    <Polyline
-                      positions={selectedRoutePath}
-                      color="var(--primary)"
-                      weight={4}
-                      opacity={0.85}
-                      dashArray="8, 8"
-                    />
-                  )}
-                </>
-              )}
-
-              {/* DEMAND HEATMAP VIEW */}
-              {mapViewMode === 'HEATMAP' && (
-                <>
-                  {bookings
-                    .filter((b) => b.pickupCheckpoint)
-                    .map((booking, idx) => {
-                      const pickup = booking.pickupCheckpoint;
-                      const coords = pickup.location?.coordinates || pickup.coordinates;
-                      if (!coords || coords.length < 2) return null;
-                      return (
-                        <CircleMarker
-                          key={idx}
-                          center={[coords[1], coords[0]]}
-                          radius={18}
-                          pathOptions={{
-                            fillColor: '#ef4444',
-                            fillOpacity: 0.28,
-                            color: '#f59e0b',
-                            weight: 1,
-                            opacity: 0.6,
-                          }}
-                        >
-                          <Popup>
-                            <div style={{ padding: '0.15rem' }}>
-                              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', color: '#ef4444' }}>Demand Area Hotspot</h4>
-                              <div style={{ fontSize: '0.78rem' }}>
-                                <strong>Station:</strong> {pickup.name}<br />
-                                <strong>Fare:</strong> {booking.amountEGP} EGP<br />
-                                <strong>Status:</strong> {booking.status}
-                              </div>
-                            </div>
-                          </Popup>
-                        </CircleMarker>
-                      );
-                    })}
-                </>
-              )}
-
-              {mapPanTo && <MapPanController panTo={mapPanTo} />}
-            </MapContainer>
+            <div ref={mapContainerRef} style={{ height: '100%', width: '100%', zIndex: 1 }} />
           </div>
         </div>
       </div>

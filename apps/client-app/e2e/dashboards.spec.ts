@@ -91,7 +91,7 @@ async function setupConsoleAndAPIMocks(page: any, role: 'OWNER' | 'DRIVER' | 'PA
     });
   });
 
-  await page.route('**/api/routes', async (route: any) => {
+  await page.route(/\/api\/routes(\?.*)?$/, async (route: any) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { routesAPI, tripsAPI } from '../services/api';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { 
@@ -11,87 +10,10 @@ import {
   Clock, 
   ChevronRight, 
   Navigation, 
-  Info,
   Layers
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
-// Utility to convert Google Drive share links to direct download URLs
-function cleanGoogleDriveLink(url: string): string {
-  if (!url) return '';
-  
-  let fileId = '';
-  
-  if (url.includes('drive.google.com')) {
-    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      fileId = match[1];
-    } else {
-      const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-      if (queryMatch && queryMatch[1]) {
-        fileId = queryMatch[1];
-      }
-    }
-  } else if (url.includes('lh3.googleusercontent.com')) {
-    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      fileId = match[1];
-    }
-  } else if (url.includes('docs.google.com')) {
-    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      fileId = match[1];
-    }
-  }
-
-  if (fileId) {
-    // Use direct static CDN link to bypass tracking/redirect blocks in browsers like Brave
-    return `https://lh3.googleusercontent.com/d/${fileId}`;
-  }
-  
-  return url;
-}
-
-// Fix default marker icon in Vite react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Custom circular markers for passenger route visualization
-const createGreenIcon = (text: string) => new L.DivIcon({
-  html: `<div style="background-color: #10B981; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 6px rgba(16,185,129,0.3); font-size: 10px;">${text}</div>`,
-  className: 'passenger-div-icon-green',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14]
-});
-
-const createRedIcon = (text: string) => new L.DivIcon({
-  html: `<div style="background-color: #EF4444; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 6px rgba(239,68,68,0.3); font-size: 10px;">${text}</div>`,
-  className: 'passenger-div-icon-red',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14]
-});
-
-const createCheckpointIcon = (num: number) => new L.DivIcon({
-  html: `<div style="background-color: #3B82F6; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 6px rgba(59,130,246,0.3); font-size: 11px;">${num}</div>`,
-  className: 'passenger-div-icon-blue',
-  iconSize: [26, 26],
-  iconAnchor: [13, 13]
-});
-
-// Autopan hook to fit the path
-function MapAutoFit({ path }: { path: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (path.length > 0) {
-      const bounds = L.latLngBounds(path);
-      map.fitBounds(bounds, { padding: [40, 40] });
-    }
-  }, [path, map]);
-  return null;
-}
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +21,10 @@ export default function RoutesPage() {
   const navigate = useNavigate();
   const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
   const { t, language } = useTranslation();
+  const { theme } = useTheme();
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
 
   useEffect(() => {
     routesAPI.getAll()
@@ -115,11 +41,11 @@ export default function RoutesPage() {
               .catch(() => ({ routeId: route._id, trips: [] }))
           );
           const resolved = await Promise.all(tripPromises);
-          const map: Record<string, any[]> = {};
+          const mapMapping: Record<string, any[]> = {};
           resolved.forEach((item) => {
-            map[item.routeId] = item.trips;
+            mapMapping[item.routeId] = item.trips;
           });
-          setTripsMap(map);
+          setTripsMap(mapMapping);
         } catch (err) {
           console.error('Error fetching trips for routes:', err);
         }
@@ -130,13 +56,126 @@ export default function RoutesPage() {
 
   const activeRoute = routes.find(r => r._id === activeRouteId);
 
-  const polylinePath = activeRoute?.path?.coordinates?.map(
-    (coord: number[]) => [coord[1], coord[0]] as [number, number]
-  ) || [];
-
   const handleBook = (routeId: string) => {
     navigate(`/search?routeId=${routeId}`);
   };
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !activeRoute) return;
+
+    const routeCoords: [number, number][] = activeRoute.path?.coordinates || [];
+    const centerCoords: [number, number] = routeCoords[0] || [31.2357, 30.0444];
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      center: centerCoords,
+      zoom: 12,
+      attributionControl: false
+    });
+
+    mapRef.current = map;
+
+    map.on('load', () => {
+      // Snapped roadway polyline path
+      if (routeCoords.length > 0) {
+        map.addSource('route-path', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoords
+            }
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line-casing',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
+            'line-width': 8,
+            'line-opacity': 0.9
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
+            'line-width': 5,
+            'line-opacity': 0.95
+          }
+        });
+
+        // Fit bounds
+        const bounds = routeCoords.reduce(
+          (acc, coord) => {
+            return [
+              [Math.min(acc[0][0], coord[0]), Math.min(acc[0][1], coord[1])],
+              [Math.max(acc[1][0], coord[0]), Math.max(acc[1][1], coord[1])]
+            ];
+          },
+          [[routeCoords[0][0], routeCoords[0][1]], [routeCoords[0][0], routeCoords[0][1]]]
+        ) as [[number, number], [number, number]];
+
+        map.fitBounds(bounds, { padding: 40, duration: 1000 });
+      }
+
+      // Checkpoints
+      activeRoute.checkpoints?.forEach((cp: any, idx: number) => {
+        const latLng: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
+        const isStart = cp.type === 'START';
+        const isEnd = cp.type === 'END';
+
+        const el = document.createElement('div');
+        const pinSize = isStart || isEnd ? '32px' : '22px';
+        el.style.width = pinSize;
+        el.style.height = pinSize;
+
+        const pinEl = document.createElement('div');
+        if (isStart) {
+          pinEl.className = 'google-maps-start-pin';
+        } else if (isEnd) {
+          pinEl.className = 'google-maps-dest-pin';
+        } else {
+          pinEl.className = 'google-maps-stop-pin';
+          pinEl.innerText = String(idx);
+        }
+        el.appendChild(pinEl);
+
+        const popupHtml = `
+          <div style="color:var(--text-primary); font-family: Inter, sans-serif; font-size:12px; font-weight:500; padding:6px; min-width:140px;">
+            <div style="font-weight:700; color:var(--primary); margin-bottom:2px;">${isStart ? t('departureTerminal') : isEnd ? t('destinationStation') : `${t('waypointStation')} ${idx}`}</div>
+            <div style="font-size:11px; opacity:0.9;">${cp.name}</div>
+          </div>
+        `;
+        const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
+
+        new maplibregl.Marker({ element: el, anchor: isStart || isEnd ? 'bottom' : 'center' })
+          .setLngLat(latLng)
+          .setPopup(popup)
+          .addTo(map);
+      });
+    });
+
+    return () => {
+      map.remove();
+    };
+  }, [activeRoute, theme, loading]);
 
   const seoTitle = language === 'ar' ? 'مستكشف مسارات النقل في مصر | دي-رايد' : 'Egypt Transit Routes Explorer | D-Ride';
   const seoDescription = language === 'ar'
@@ -218,104 +257,57 @@ export default function RoutesPage() {
                     background: isActive ? 'var(--surface-elevated)' : 'var(--surface)',
                     border: isActive ? '2px solid var(--primary)' : '1px solid var(--border)',
                     borderRadius: '16px',
-                    overflow: 'hidden',
+                    padding: '1.25rem',
                     cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: isActive ? '0 10px 30px rgba(245, 183, 49, 0.12)' : '0 4px 12px rgba(0,0,0,0.03)',
-                    transform: isActive ? 'translateY(-2px)' : 'none'
-                  }}
-                  onMouseEnter={e => {
-                    if (!isActive) {
-                      e.currentTarget.style.borderColor = 'rgba(245, 183, 49, 0.4)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.transform = 'none';
-                    }
+                    boxShadow: isActive ? '0 4px 20px rgba(245, 183, 49, 0.08)' : 'none',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                 >
-                  {/* Card Banner */}
-                  <div style={{
-                    height: '110px',
-                    backgroundImage: `url("${cleanGoogleDriveLink(route.coverImage) || 'https://images.unsplash.com/photo-1541462608141-2f58c6e68e98?auto=format&fit=crop&w=600&q=80'}")`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    position: 'relative'
-                  }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 100%)' }} />
-                    <span style={{
-                      position: 'absolute',
-                      top: '12px',
-                      right: '12px',
-                      background: 'rgba(255,255,255,0.2)',
-                      backdropFilter: 'blur(8px)',
-                      color: '#fff',
-                      padding: '4px 10px',
-                      borderRadius: '20px',
-                      fontSize: '10px',
-                      fontWeight: 700
-                    }}>
-                      {route.distanceKm ? `${route.distanceKm} km` : 'Commute'}
-                    </span>
-                    
-                    <h4 style={{
-                      position: 'absolute',
-                      bottom: '12px',
-                      left: '16px',
-                      margin: 0,
-                      color: '#fff',
-                      fontSize: '1.15rem',
-                      fontWeight: 800,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-                    }}>
-                      {route.name}
-                    </h4>
-                  </div>
-
-                  {/* Card Info */}
-                  <div style={{ padding: '1.25rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('routesStartPrefix')}</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {startStop ? (language === 'ar' && startStop.nameAr ? startStop.nameAr : startStop.name) : 'Origin'}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{t('routesEndPrefix')}</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {endStop ? (language === 'ar' && endStop.nameAr ? endStop.nameAr : endStop.name) : 'Destination'}
-                        </span>
-                      </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span style={{
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        color: '#3B82F6',
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em'
+                      }}>
+                        🚌 {route.routeCode || `LINE ${route.name.split(' ')[0] || ''}`}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>
+                        EGP {route.baseFareEGP || 45}
+                      </span>
                     </div>
 
-                    {/* Active Trips & Departure Times */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {language === 'ar' ? route.nameAr || route.name : route.name}
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        📍 {startStop?.name || 'Origin'} ➔ {endStop?.name || 'Destination'}
+                      </p>
+                    </div>
+
                     <div 
-                      onClick={(e) => {
-                        if (tripsMap[route._id]?.length > 0) {
-                          e.stopPropagation();
-                          handleBook(route._id);
-                        }
-                      }}
-                      style={{ 
-                        marginTop: '0.75rem', 
-                        marginBottom: '1.25rem',
-                        padding: '0.75rem 1rem',
-                        background: 'var(--surface-hover)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border)',
-                        cursor: tripsMap[route._id]?.length > 0 ? 'pointer' : 'default',
+                      style={{
+                        background: 'var(--background)',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        fontSize: '0.8rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        border: '1px solid var(--border)',
                         transition: 'border-color 0.2s'
                       }}
                       onMouseEnter={e => {
-                        if (tripsMap[route._id]?.length > 0) {
-                          e.currentTarget.style.borderColor = 'rgba(245, 183, 49, 0.4)';
+                        if (tripsMap[route._id] && tripsMap[route._id].length > 0) {
+                          e.currentTarget.style.borderColor = 'var(--primary)';
                         }
                       }}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
@@ -372,7 +364,7 @@ export default function RoutesPage() {
           {activeRoute && (
             <div className="routes-explorer-sidebar">
               
-              {/* INTERACTIVE LEAFLET MAP */}
+              {/* INTERACTIVE MAP */}
               <div style={{
                 background: 'var(--surface)',
                 border: '1px solid var(--border)',
@@ -390,56 +382,7 @@ export default function RoutesPage() {
                 </div>
                 
                 <div style={{ height: '320px', width: '100%' }}>
-                  <MapContainer 
-                    center={polylinePath[0] || [30.0444, 31.2357]} 
-                    zoom={12} 
-                    style={{ height: '100%', width: '100%', zIndex: 1 }}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                      url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                    />
-                    
-                    {polylinePath.length > 0 && <MapAutoFit path={polylinePath} />}
-                    
-                    {polylinePath.length > 0 && (
-                      <Polyline positions={polylinePath} color="var(--primary)" weight={5} opacity={0.8} />
-                    )}
-
-                    {activeRoute.checkpoints?.map((cp: any, idx: number) => {
-                      const latLng: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
-                      const isStart = cp.type === 'START';
-                      const isEnd = cp.type === 'END';
-                      
-                      let customIcon;
-                      if (isStart) customIcon = createGreenIcon('S');
-                      else if (isEnd) customIcon = createRedIcon('E');
-                      else customIcon = createCheckpointIcon(idx);
-
-                      return (
-                        <Marker 
-                          key={`map-cp-${idx}`}
-                          position={latLng}
-                          icon={customIcon}
-                        >
-                          <Popup>
-                            <div style={{ fontFamily: 'Inter, sans-serif' }}>
-                              <strong style={{ display: 'block', fontSize: '13px' }}>{language === 'ar' && cp.nameAr ? cp.nameAr : cp.name}</strong>
-                              {language !== 'ar' && cp.nameAr && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.nameAr}</span>}
-                              {language === 'ar' && cp.name && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.name}</span>}
-                              <hr style={{ margin: '6px 0', border: 'none', borderBottom: '1px solid #eee' }} />
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                                {language === 'ar' ? 'النوع:' : 'Type:'} {cp.type === 'START' ? t('routesOriginTerminal') : cp.type === 'END' ? t('routesFinalTerminal') : t('routesStopNum', { num: cp.order })}<br />
-                                {language === 'ar' ? 'الترتيب:' : 'Order:'} {cp.order}<br />
-                                {language === 'ar' ? 'وقت الانتظار:' : 'Wait Buffer:'} {cp.bufferTimeMinutes} {language === 'ar' ? 'دقائق' : 'mins'}<br />
-                                {language === 'ar' ? 'السياج الجغرافي:' : 'Geofence:'} {cp.geofenceRadiusMeters} {language === 'ar' ? 'متر' : 'meters'}
-                              </span>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      );
-                    })}
-                  </MapContainer>
+                  <div ref={mapContainerRef} style={{ height: '100%', width: '100%', zIndex: 1 }} />
                 </div>
               </div>
 
@@ -460,132 +403,67 @@ export default function RoutesPage() {
                   {/* Timeline Connecting Line */}
                   <div style={{
                     position: 'absolute',
-                    top: '15px',
-                    bottom: '15px',
-                    left: language === 'ar' ? 'auto' : '14px',
-                    right: language === 'ar' ? '14px' : 'auto',
-                    width: '3px',
-                    backgroundColor: 'var(--border)',
-                    zIndex: 0
+                    top: '12px',
+                    bottom: '12px',
+                    left: language === 'ar' ? 'auto' : '15px',
+                    right: language === 'ar' ? '15px' : 'auto',
+                    width: '2px',
+                    background: 'repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)'
                   }} />
 
-                  {/* Timeline Items */}
                   {activeRoute.checkpoints?.map((cp: any, idx: number) => {
                     const isStart = cp.type === 'START';
                     const isEnd = cp.type === 'END';
-                    const color = isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6';
-
+                    
                     return (
                       <div 
-                        key={idx} 
-                        style={{ 
-                          display: 'flex', 
-                          gap: '1.5rem', 
-                          marginBottom: idx < activeRoute.checkpoints.length - 1 ? '1.5rem' : 0, 
+                        key={`timeline-cp-${idx}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '1rem',
+                          marginBottom: idx === (activeRoute.checkpoints?.length - 1) ? 0 : '1.5rem',
                           position: 'relative',
-                          zIndex: 1,
-                          flexDirection: language === 'ar' ? 'row-reverse' : 'row'
+                          zIndex: 1
                         }}
                       >
-                        {/* Timeline Pin */}
+                        {/* Bullet indicator */}
                         <div style={{
-                          width: '30px',
-                          height: '30px',
+                          width: '32px',
+                          height: '32px',
                           borderRadius: '50%',
-                          backgroundColor: 'var(--surface)',
-                          border: `3px solid ${color}`,
+                          background: isStart 
+                            ? 'rgba(16, 185, 129, 0.15)' 
+                            : isEnd 
+                              ? 'rgba(239, 68, 68, 0.15)' 
+                              : 'rgba(59, 130, 246, 0.1)',
+                          border: `2px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
+                          color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          fontSize: '0.75rem',
                           fontWeight: 700,
-                          fontSize: '10px',
-                          color: color,
-                          boxShadow: '0 3px 8px rgba(0,0,0,0.05)',
                           flexShrink: 0
                         }}>
-                          {isStart ? 'S' : isEnd ? 'E' : idx}
+                          {isStart ? 'S' : isEnd ? 'E' : String(idx)}
                         </div>
 
-                        {/* Timeline Details */}
-                        <div style={{
-                          background: 'var(--surface-elevated)',
-                          borderRadius: '16px',
-                          padding: '1rem 1.25rem',
-                          flex: 1,
-                          border: '1px solid var(--border)',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          flexDirection: language === 'ar' ? 'row-reverse' : 'row',
-                          textAlign: language === 'ar' ? 'right' : 'left'
-                        }}>
-                          <div>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: color, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
-                              {isStart ? t('routesOriginTerminal') : isEnd ? t('routesFinalTerminal') : t('routesStopNum', { num: idx })}
-                            </span>
-                            <strong style={{ fontSize: '1rem', color: 'var(--text-primary)', display: 'block' }}>{language === 'ar' && cp.nameAr ? cp.nameAr : cp.name}</strong>
-                            {language === 'ar' && cp.name && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.name}</span>}
-                            {language !== 'ar' && cp.nameAr && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{cp.nameAr}</span>}
-                            {cp.purpose && cp.purpose !== 'BOTH' && (
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: '12px',
-                                fontSize: '0.7rem',
-                                fontWeight: 'bold',
-                                marginTop: '6px',
-                                backgroundColor: cp.purpose === 'REST' ? 'rgba(239, 68, 68, 0.15)' : cp.purpose === 'DROP_OFF' ? 'rgba(245, 183, 49, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                color: cp.purpose === 'REST' ? '#EF4444' : cp.purpose === 'DROP_OFF' ? '#F5B731' : '#3B82F6',
-                                border: `1px solid ${cp.purpose === 'REST' ? 'rgba(239, 68, 68, 0.25)' : cp.purpose === 'DROP_OFF' ? 'rgba(245, 183, 49, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`
-                              }}>
-                                {cp.purpose === 'REST' 
-                                  ? (language === 'ar' ? 'استراحة فقط' : 'Rest Stop Only') 
-                                  : cp.purpose === 'DROP_OFF' 
-                                    ? (language === 'ar' ? 'نزول فقط' : 'Drop-off Only') 
-                                    : (language === 'ar' ? 'صعود فقط' : 'Pickup Only')}
-                              </span>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: language === 'ar' ? 'left' : 'right', flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>{t('routesBuffer')}</span>
-                              <strong style={{ color: 'var(--text-primary)' }}>{cp.bufferTimeMinutes || 0} {language === 'ar' ? 'دقائق' : 'mins'}</strong>
-                            </div>
-                            <div style={{ width: '1px', backgroundColor: 'var(--border)', margin: '0 4px' }} />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>{t('routesGeofence')}</span>
-                              <strong style={{ color: 'var(--text-primary)' }}>{cp.geofenceRadiusMeters || 50}m</strong>
-                            </div>
+                        {/* Text info */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexGrow: 1 }}>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {language === 'ar' ? cp.nameAr || cp.name : cp.name}
+                          </span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            <span>⏱️ {cp.bufferTimeMinutes} {t('routesBufferMins')}</span>
+                            <span>•</span>
+                            <span>🌐 Radius: {cp.geofenceRadiusMeters}m</span>
                           </div>
                         </div>
-
                       </div>
                     );
                   })}
-
                 </div>
-
-                <div style={{
-                  marginTop: '1.5rem',
-                  padding: '1rem',
-                  background: 'rgba(245, 183, 49, 0.08)',
-                  border: '1px solid rgba(245, 183, 49, 0.15)',
-                  borderRadius: '16px',
-                  display: 'flex',
-                  alignItems: 'start',
-                  gap: '8px',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  flexDirection: language === 'ar' ? 'row-reverse' : 'row',
-                  textAlign: language === 'ar' ? 'right' : 'left'
-                }}>
-                  <Info size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <strong>{t('routesComplianceTitle')}</strong> {t('routesComplianceDesc')}
-                  </div>
-                </div>
-
               </div>
 
             </div>
@@ -593,7 +471,6 @@ export default function RoutesPage() {
 
         </div>
       )}
-
     </div>
   );
 }

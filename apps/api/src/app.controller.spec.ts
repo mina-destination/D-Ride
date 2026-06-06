@@ -15,8 +15,8 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return "D-Ride Central API Gateway"', () => {
+      expect(appController.getHello()).toBe('D-Ride Central API Gateway');
     });
   });
 });

@@ -67,6 +67,7 @@ export function getVirtualRoute(
     const coords = parentRoute.path.coordinates;
     const findClosestIdx = (cp: any) => {
       if (!cp.location || !cp.location.coordinates) return -1;
+      if (cp._closestIdx !== undefined) return cp._closestIdx;
       const [cpLng, cpLat] = cp.location.coordinates;
       let minD = Infinity;
       let closestIdx = -1;
@@ -78,6 +79,7 @@ export function getVirtualRoute(
           closestIdx = k;
         }
       }
+      cp._closestIdx = closestIdx;
       return closestIdx;
     };
 

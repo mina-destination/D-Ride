@@ -1,33 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Polyline, useMap, Tooltip } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { socketService } from '../services/socket';
 import { driverAPI } from '../services/api';
 import { ArrowLeft, Play, Square, AlertTriangle, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 
-// Fix for default marker icon in react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const driverBusIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-});
-
 export default function LiveDrivePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const busMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const checkpointMarkersRef = useRef<maplibregl.Marker[]>([]);
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +86,167 @@ export default function LiveDrivePage() {
     };
     loadStreetRoute();
   }, [trip]);
+
+  // Initialize MapLibre map
+  useEffect(() => {
+    if (!mapContainerRef.current || loading) return;
+    if (mapRef.current) return; // already initialized
+
+    const initCenter: [number, number] = currentCoords
+      ? [currentCoords.lng, currentCoords.lat]
+      : [31.2357, 30.0444]; // Cairo default
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: 'https://tiles.openfreemap.org/styles/dark',
+      center: initCenter,
+      zoom: 15,
+      attributionControl: false,
+    });
+
+    mapRef.current = map;
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [loading]);
+
+  // Draw route polyline on map when streetPath changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || streetPath.length === 0) return;
+
+    const addRoute = () => {
+      // Remove existing source/layer if present
+      if (map.getSource('route-path')) {
+        map.removeLayer('route-path-layer');
+        map.removeSource('route-path');
+      }
+
+      map.addSource('route-path', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: streetPath.map(([lat, lng]) => [lng, lat]),
+          },
+        },
+      });
+
+      map.addLayer({
+        id: 'route-path-layer-casing',
+        type: 'line',
+        source: 'route-path',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': '#174ea6',
+          'line-width': 8,
+          'line-opacity': 0.9,
+        },
+      });
+
+      map.addLayer({
+        id: 'route-path-layer',
+        type: 'line',
+        source: 'route-path',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': '#8ab4f8',
+          'line-width': 5,
+          'line-opacity': 0.95,
+        },
+      });
+    };
+
+    if (map.isStyleLoaded()) {
+      addRoute();
+    } else {
+      map.on('load', addRoute);
+    }
+  }, [streetPath]);
+
+  // Add checkpoint markers on the map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !trip?.routeId?.checkpoints) return;
+
+    // Clear old checkpoint markers
+    checkpointMarkersRef.current.forEach((m) => m.remove());
+    checkpointMarkersRef.current = [];
+
+    const addMarkers = () => {
+      trip.routeId.checkpoints.forEach((cp: any, idx: number) => {
+        const coords = cp.location?.coordinates || cp.coordinates;
+        if (!coords) return;
+
+        const el = document.createElement('div');
+        const isStart = cp.type === 'START';
+        const isEnd = cp.type === 'END';
+        if (isStart) {
+          el.className = 'google-maps-start-pin';
+        } else if (isEnd) {
+          el.className = 'google-maps-dest-pin';
+        } else {
+          el.className = 'google-maps-stop-pin';
+          el.innerText = String(idx);
+        }
+
+        const cpName = language === 'ar' ? (cp.nameAr || cp.name) : cp.name;
+        const popup = new maplibregl.Popup({ offset: isStart || isEnd ? 15 : 12, closeButton: false }).setHTML(
+          `<div style="color:#000; font-size:12px; font-weight:bold; padding:2px 4px;">${cpName}</div>`
+        );
+
+        const marker = new maplibregl.Marker({ element: el, anchor: isStart || isEnd ? 'bottom' : 'center' })
+          .setLngLat([coords[0], coords[1]])
+          .setPopup(popup)
+          .addTo(map);
+
+        // Show popup permanently
+        marker.togglePopup();
+
+        checkpointMarkersRef.current.push(marker);
+      });
+    };
+
+    if (map.isStyleLoaded()) {
+      addMarkers();
+    } else {
+      map.on('load', addMarkers);
+    }
+  }, [trip, language]);
+
+  // Update bus marker position when currentCoords changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !currentCoords) return;
+
+    if (!busMarkerRef.current) {
+      const el = document.createElement('div');
+      el.className = 'google-maps-bus-pointer';
+
+      busMarkerRef.current = new maplibregl.Marker({ element: el })
+        .setLngLat([currentCoords.lng, currentCoords.lat])
+        .addTo(map);
+    } else {
+      busMarkerRef.current.setLngLat([currentCoords.lng, currentCoords.lat]);
+    }
+
+    if (lockCenter) {
+      map.flyTo({ center: [currentCoords.lng, currentCoords.lat], duration: 500 });
+    }
+  }, [currentCoords, lockCenter]);
 
   const stopLocationStream = () => {
     if (geoWatchId.current !== null) {
@@ -217,8 +368,6 @@ export default function LiveDrivePage() {
     );
   }
 
-  const mapCenter = currentCoords ? [currentCoords.lat, currentCoords.lng] : [30.0444, 31.2357];
-
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       
@@ -285,38 +434,11 @@ export default function LiveDrivePage() {
         </button>
       </div>
 
-      {/* Map Element */}
-      <div style={{ flex: 1, height: '100%', width: '100%', zIndex: 0 }}>
-        <MapContainer center={mapCenter as [number, number]} zoom={15} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          />
-          {streetPath.length > 0 && (
-            <Polyline positions={streetPath} color="#f5b731" weight={5} opacity={0.8} />
-          )}
-          {trip?.routeId?.checkpoints?.map((cp: any, idx: number) => {
-            const coords = cp.location?.coordinates || cp.coordinates;
-            if (!coords) return null;
-            return (
-              <Marker 
-                key={cp._id || idx} 
-                position={[coords[1], coords[0]]}
-              >
-                <Tooltip permanent direction="top" offset={[0, -10]}>
-                  <span style={{ color: '#000', fontWeight: 'bold' }}>
-                    {language === 'ar' ? (cp.nameAr || cp.name) : cp.name}
-                  </span>
-                </Tooltip>
-              </Marker>
-            );
-          })}
-          {currentCoords && (
-            <Marker position={[currentCoords.lat, currentCoords.lng]} icon={driverBusIcon} />
-          )}
-          {currentCoords && lockCenter && <MapCenterUpdater coords={currentCoords} />}
-        </MapContainer>
-      </div>
+      {/* MapLibre Map Element */}
+      <div
+        ref={mapContainerRef}
+        style={{ flex: 1, height: '100%', width: '100%', zIndex: 0 }}
+      />
 
       {/* GPS Alert Warning Banner */}
       {gpsError && (
@@ -427,13 +549,4 @@ export default function LiveDrivePage() {
       `}</style>
     </div>
   );
-}
-
-// Map center tracking updates helper component
-function MapCenterUpdater({ coords }: { coords: { lat: number; lng: number } }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([coords.lat, coords.lng], map.getZoom());
-  }, [coords.lat, coords.lng, map]);
-  return null;
 }

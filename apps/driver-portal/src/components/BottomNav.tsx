@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, Navigation, User } from 'lucide-react';
+import { Calendar, User, Phone } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 
 export default function BottomNav() {
@@ -36,62 +36,71 @@ export default function BottomNav() {
       boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
       padding: '0 8px'
     }}>
-      {/* Shifts tab */}
+      {/* Dashboard tab */}
       <button
-        onClick={() => navigate('/trips')}
+        onClick={() => navigate('/dashboard')}
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '2px',
-          background: isActive('/trips') ? 'rgba(245, 183, 49, 0.12)' : 'none',
-          border: isActive('/trips') ? '1px solid rgba(245, 183, 49, 0.22)' : '1px solid transparent',
+          background: isActive('/dashboard') ? 'rgba(245, 183, 49, 0.12)' : 'none',
+          border: isActive('/dashboard') ? '1px solid rgba(245, 183, 49, 0.22)' : '1px solid transparent',
           borderRadius: '100px',
-          color: isActive('/trips') ? 'var(--primary)' : 'var(--text-secondary)',
-          fontWeight: isActive('/trips') ? 700 : 500,
+          color: isActive('/dashboard') ? 'var(--primary)' : 'var(--text-secondary)',
+          fontWeight: isActive('/dashboard') ? 700 : 500,
           fontSize: '11px',
           cursor: 'pointer',
           flex: 1,
           padding: '6px 0',
           margin: '4px',
-          transform: isActive('/trips') ? 'scale(1.03)' : 'scale(1)',
+          transform: isActive('/dashboard') ? 'scale(1.03)' : 'scale(1)',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-          boxShadow: isActive('/trips') ? '0 4px 12px rgba(245, 183, 49, 0.08)' : 'none',
+          boxShadow: isActive('/dashboard') ? '0 4px 12px rgba(245, 183, 49, 0.08)' : 'none',
           height: 'calc(100% - 8px)',
           justifyContent: 'center'
         }}
       >
-        <Calendar size={18} style={{ color: isActive('/trips') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
-        <span>{t('myShifts')}</span>
+        <Calendar size={18} style={{ color: isActive('/dashboard') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
+        <span>{t('dashboard')}</span>
       </button>
 
-      {/* active drive (hidden or inactive if not drive page) */}
+      {/* Help Tab */}
       <button
-        onClick={() => navigate('/trips')}
+        onClick={() => {
+          if (location.pathname !== '/dashboard') {
+            navigate('/dashboard');
+            setTimeout(() => {
+              const el = document.getElementById('help-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }, 200);
+          } else {
+            const el = document.getElementById('help-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '2px',
-          background: isActive('/drive') ? 'rgba(245, 183, 49, 0.12)' : 'none',
-          border: isActive('/drive') ? '1px solid rgba(245, 183, 49, 0.22)' : '1px solid transparent',
+          background: 'none',
+          border: '1px solid transparent',
           borderRadius: '100px',
-          color: isActive('/drive') ? 'var(--primary)' : 'var(--text-secondary)',
-          fontWeight: isActive('/drive') ? 700 : 500,
+          color: 'var(--text-secondary)',
+          fontWeight: 500,
           fontSize: '11px',
           cursor: 'pointer',
           flex: 1,
           padding: '6px 0',
           margin: '4px',
-          transform: isActive('/drive') ? 'scale(1.03)' : 'scale(1)',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-          boxShadow: isActive('/drive') ? '0 4px 12px rgba(245, 183, 49, 0.08)' : 'none',
           height: 'calc(100% - 8px)',
           justifyContent: 'center'
         }}
       >
-        <Navigation size={18} style={{ color: isActive('/drive') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
-        <span>{t('activeMap')}</span>
+        <Phone size={18} style={{ color: 'var(--text-muted)', transition: 'all 0.2s' }} />
+        <span>{t('help')}</span>
       </button>
 
       {/* Profile tab */}

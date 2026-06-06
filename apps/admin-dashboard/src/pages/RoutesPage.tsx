@@ -3,9 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Input, Space, Steps, Spin, Select, Switch } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { routesAPI } from '../services/api';
 import { 
   Map, 
@@ -24,63 +23,7 @@ import {
   Compass
 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
-
-// Fix for default marker icon in react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Custom Circular Markers styled like D-Ride
-const createGreenIcon = (text: string) => new L.DivIcon({
-  html: `<div style="background-color: #10B981; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2.5px solid white; box-shadow: 0 3px 8px rgba(16,185,129,0.4); font-size: 11px;">${text}</div>`,
-  className: 'custom-div-icon-green',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15]
-});
-
-const createRedIcon = (text: string) => new L.DivIcon({
-  html: `<div style="background-color: #EF4444; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2.5px solid white; box-shadow: 0 3px 8px rgba(239,68,68,0.4); font-size: 11px;">${text}</div>`,
-  className: 'custom-div-icon-red',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15]
-});
-
-const createCheckpointIcon = (num: number) => new L.DivIcon({
-  html: `<div style="background-color: #3B82F6; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2.5px solid white; box-shadow: 0 3px 8px rgba(59,130,246,0.4); font-size: 12px;">${num}</div>`,
-  className: 'custom-div-icon-blue',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14]
-});
-
-// Autopan hook to fit coordinates bounds
-function MapAutoCenter({ checkpoints }: { checkpoints: any[] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (checkpoints.length > 0) {
-      const coords = checkpoints.map(c => [c.location.coordinates[1], c.location.coordinates[0]] as [number, number]);
-      const bounds = L.latLngBounds(coords);
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-    }
-  }, [checkpoints, map]);
-  return null;
-}
-
-// Map Click Handler aware of Wizard Step
-function MapClickHandler({ 
-  onMapClick 
-}: { 
-  onMapClick: (lat: number, lng: number) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      onMapClick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
+import { useTheme } from '../context/ThemeContext';
 
 // Utility to convert Google Drive share links to direct download URLs
 function cleanGoogleDriveLink(url: string): string {
@@ -451,16 +394,7 @@ function SearchAutocomplete({
   );
 }
 
-// Custom controller to pan/fly to selected coordinates
-function MapPanController({ panTo }: { panTo: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (panTo) {
-      map.flyTo(panTo, 15, { animate: true, duration: 1.5 });
-    }
-  }, [panTo, map]);
-  return null;
-}
+
 
 // Helper: reverse geocode to extract city name from coordinates
 async function reverseGeocodeCity(lat: number, lng: number): Promise<string> {
@@ -485,8 +419,11 @@ function haversineDistance(lng1: number, lat1: number, lng2: number, lat2: numbe
 }
 
 export function RoutesPage() {
-  const mapTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const mapTileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  const { theme } = useTheme();
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [map, setMap] = useState<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
 
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -537,6 +474,204 @@ export function RoutesPage() {
   useEffect(() => {
     fetchRoutes();
   }, []);
+
+  // Initialize MapLibre Map
+  useEffect(() => {
+    if (!isModalOpen) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        setMap(null);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!mapContainerRef.current) return;
+      if (mapRef.current) return; // Already initialized
+
+      const firstCp = checkpoints[0];
+      const centerLngLat: [number, number] = firstCp?.location.coordinates
+        ? [firstCp.location.coordinates[0], firstCp.location.coordinates[1]]
+        : [31.2357, 30.0444];
+
+      const mapObj = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+        center: centerLngLat,
+        zoom: checkpoints.length > 0 ? 12 : 9,
+        attributionControl: false
+      });
+
+      mapRef.current = mapObj;
+      setMap(mapObj);
+
+      // Fit bounds if checkpoints already exist
+      if (checkpoints.length > 0) {
+        const bounds = new maplibregl.LngLatBounds();
+        checkpoints.forEach(cp => {
+          bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+        });
+        mapObj.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      }
+
+      mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+
+
+      mapObj.on('click', (e) => {
+        handleMapClick(e.lngLat.lat, e.lngLat.lng);
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        setMap(null);
+      }
+    };
+  }, [isModalOpen, theme]);
+
+  // Synchronize Markers
+  useEffect(() => {
+    if (!map) return;
+
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    checkpoints.forEach((cp, idx) => {
+      const lngLat: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
+      const isStart = cp.type === 'START';
+      const isEnd = cp.type === 'END';
+      const isHovered = activeHoverIndex === idx;
+
+      const el = document.createElement('div');
+      const textLabel = isStart ? 'S' : isEnd ? 'E' : `${idx}`;
+      if (isStart) {
+        el.className = 'google-maps-start-pin' + (isHovered ? ' hovered' : '');
+      } else if (isEnd) {
+        el.className = 'google-maps-dest-pin' + (isHovered ? ' hovered' : '');
+      } else {
+        el.className = 'google-maps-stop-pin' + (isHovered ? ' hovered' : '');
+        el.innerText = textLabel;
+      }
+
+      const popupHtml = `
+        <div style="font-family: Inter, sans-serif; padding: 4px; color: var(--text-primary);">
+          <strong style="display: block; font-size: 13px;">${cp.name}</strong>
+          ${cp.nameAr ? `<span style="color: var(--text-muted); font-size: 11px; display: block;">${cp.nameAr}</span>` : ''}
+          <hr style="margin: 6px 0; border: none; border-bottom: 1px solid var(--border);" />
+          <span style="font-size: 10px; color: var(--text-secondary);">
+            Order: #${cp.order} (${cp.type})<br />
+            Wait: ${cp.bufferTimeMinutes} mins<br />
+            Geofence: ${cp.geofenceRadiusMeters}m
+          </span>
+        </div>
+      `;
+
+      const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
+
+      const marker = new maplibregl.Marker({
+        element: el,
+        draggable: true,
+        anchor: isStart || isEnd ? 'bottom' : 'center'
+      })
+        .setLngLat(lngLat)
+        .setPopup(popup)
+        .addTo(map);
+
+      marker.on('dragend', () => {
+        const newLngLat = marker.getLngLat();
+        handleMarkerDragEnd(idx, newLngLat.lat, newLngLat.lng);
+      });
+
+      markersRef.current.push(marker);
+    });
+  }, [map, checkpoints, activeHoverIndex, isModalOpen]);
+
+  // Synchronize Snapped Path Layer
+  useEffect(() => {
+    if (!map) return;
+
+    const updatePath = () => {
+      const geoJsonCoords = points.map(p => [p[1], p[0]]);
+      const geoJsonData: any = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: geoJsonCoords
+        }
+      };
+
+      const source = map.getSource('route-path') as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData(geoJsonData);
+      } else {
+        map.addSource('route-path', {
+          type: 'geojson',
+          data: geoJsonData
+        });
+
+        map.addLayer({
+          id: 'route-path-layer-casing',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
+            'line-width': 10,
+            'line-opacity': 0.9
+          }
+        });
+
+        map.addLayer({
+          id: 'route-path-layer',
+          type: 'line',
+          source: 'route-path',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
+            'line-width': 6,
+            'line-opacity': 0.95
+          }
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      updatePath();
+    } else {
+      map.on('load', updatePath);
+      map.on('style.load', updatePath);
+    }
+  }, [map, points, isModalOpen, theme]);
+
+  // Handle mapPanTo trigger
+  useEffect(() => {
+    if (map && mapPanTo) {
+      map.panTo([mapPanTo[1], mapPanTo[0]]);
+    }
+  }, [map, mapPanTo]);
+
+  // Auto bounds adjustment on count changes
+  useEffect(() => {
+    if (map && checkpoints.length > 0) {
+      const bounds = new maplibregl.LngLatBounds();
+      checkpoints.forEach(cp => {
+        bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+      });
+      map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+    }
+  }, [map, checkpoints.length]);
 
   const handleOpenModal = (route?: any) => {
     setCurrentStep(0);
@@ -1706,7 +1841,7 @@ export function RoutesPage() {
 
           </div>
 
-          {/* RIGHT PANEL: INTERACTIVE LEAFLET MAP */}
+          {/* RIGHT PANEL: INTERACTIVE MAPLIBRE MAP */}
           {currentStep > 0 && (
             <div style={{ height: '680px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
               {snapping && (
@@ -1729,78 +1864,7 @@ export function RoutesPage() {
                   <Spin size="large" /> Snapping path to roadways...
                 </div>
               )}
-              <MapContainer 
-                center={checkpoints[0]?.location.coordinates ? [checkpoints[0].location.coordinates[1], checkpoints[0].location.coordinates[0]] : [30.0444, 31.2357]} 
-                zoom={12} 
-                style={{ height: '100%', width: '100%', zIndex: 1 }}
-              >
-                <TileLayer
-                  attribution={mapTileAttribution}
-                  url={mapTileUrl}
-                />
-                
-                <MapClickHandler onMapClick={handleMapClick} />
-                <MapAutoCenter checkpoints={checkpoints} />
-                <MapPanController panTo={mapPanTo} />
-
-                {/* Snapped polyline path */}
-                {points.length > 0 && (
-                  <Polyline positions={points} color="var(--primary-color)" weight={6} opacity={0.8} />
-                )}
-
-                {/* Custom circular markers with drag support */}
-                {checkpoints.map((cp, idx) => {
-                  const latLng: [number, number] = [cp.location.coordinates[1], cp.location.coordinates[0]];
-                  const isStart = cp.type === 'START';
-                  const isEnd = cp.type === 'END';
-                  
-                  const isHovered = activeHoverIndex === idx;
-                  let customIcon;
-                  if (isHovered) {
-                    const baseColor = isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6';
-                    const textLabel = isStart ? 'S' : isEnd ? 'E' : `${idx}`;
-                    customIcon = new L.DivIcon({
-                      html: `<div style="background-color: ${baseColor}; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid #F5B731; box-shadow: 0 0 15px #F5B731, 0 3px 8px rgba(0,0,0,0.3); font-size: 13px; transition: all 0.2s; animation: map-pulse 1.2s infinite alternate;">${textLabel}</div>`,
-                      className: 'custom-div-icon-highlighted',
-                      iconSize: [34, 34],
-                      iconAnchor: [17, 17]
-                    });
-                  } else {
-                    if (isStart) customIcon = createGreenIcon('S');
-                    else if (isEnd) customIcon = createRedIcon('E');
-                    else customIcon = createCheckpointIcon(idx);
-                  }
-
-                  return (
-                    <Marker
-                      key={`wizard-cp-${idx}`}
-                      position={latLng}
-                      icon={customIcon}
-                      draggable={true}
-                      eventHandlers={{
-                        dragend: (e) => {
-                          const marker = e.target;
-                          const pos = marker.getLatLng();
-                          handleMarkerDragEnd(idx, pos.lat, pos.lng);
-                        }
-                      }}
-                    >
-                      <Popup>
-                        <div style={{ fontFamily: 'Inter, sans-serif' }}>
-                          <strong style={{ display: 'block', fontSize: '13px' }}>{cp.name}</strong>
-                          {cp.nameAr && <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>{cp.nameAr}</span>}
-                          <hr style={{ margin: '6px 0', border: 'none', borderBottom: '1px solid #eee' }} />
-                          <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                            Order: #{cp.order} ({cp.type})<br />
-                            Wait: {cp.bufferTimeMinutes} mins<br />
-                            Geofence: {cp.geofenceRadiusMeters}m
-                          </span>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-              </MapContainer>
+              <div ref={mapContainerRef} style={{ height: '100%', width: '100%', zIndex: 1 }} />
             </div>
           )}
 

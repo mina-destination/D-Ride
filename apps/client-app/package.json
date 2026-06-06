@@ -13,25 +13,25 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.2.5",
     "@tanstack/react-query": "^5.0.0",
     "@transport/shared-theme": "*",
     "@transport/shared-types": "*",
     "@types/qrcode": "^1.5.6",
+    "antd": "^6.4.3",
     "axios": "^1.7.0",
     "jspdf": "^4.2.1",
-    "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
+    "maplibre-gl": "^5.24.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.6.0",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
-    "@types/leaflet": "^1.9.21",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

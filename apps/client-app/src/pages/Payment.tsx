@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
+import { Steps, ConfigProvider } from 'antd';
 
 import { Lock, Bus } from 'lucide-react';
 
@@ -123,99 +124,22 @@ export default function PaymentPage() {
 
         {/* Visual Stepper */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '3rem',
-          position: 'relative',
-          padding: '0 1.5rem',
           maxWidth: '600px',
-          margin: '0 auto 3rem auto'
+          margin: '0 auto 3.5rem auto',
+          padding: '0 1.5rem'
         }}>
-          {/* Progress Connecting Line */}
-          <div style={{
-            position: 'absolute',
-            top: '35%',
-            left: '15%',
-            right: '15%',
-            height: '2px',
-            background: 'var(--border)',
-            zIndex: 0,
-            transform: 'translateY(-50%)'
-          }} />
-          <div style={{
-            position: 'absolute',
-            top: '35%',
-            left: '15%',
-            width: processing ? '70%' : '35%',
-            height: '2px',
-            background: 'var(--primary)',
-            zIndex: 0,
-            transform: 'translateY(-50%)',
-            transition: 'all 0.3s ease'
-          }} />
-
-          {/* Step 1 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'rgba(46, 117, 89, 0.2)',
-              color: '#2e7559',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-            }}>
-              ✓
-            </div>
-            <span className="stepper-label" style={{ color: 'var(--text-secondary)' }}>{t('configureCommuteStepper')}</span>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--primary)',
-              color: 'var(--text-on-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-              boxShadow: '0 0 10px rgba(245, 183, 49, 0.2)'
-            }}>
-              2
-            </div>
-            <span className="stepper-label" style={{ color: 'var(--text-primary)' }}>{t('selectPaymentStepper')}</span>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: processing ? 'var(--primary)' : 'var(--surface-elevated)',
-              color: processing ? 'var(--text-on-primary)' : 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              border: '3px solid var(--background)',
-              transition: 'all 0.3s'
-            }}>
-              3
-            </div>
-            <span className="stepper-label" style={{ color: processing ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('confirmSeatStepper')}</span>
-          </div>
+          <ConfigProvider direction={isRtl ? 'rtl' : 'ltr'}>
+            <Steps
+              current={processing ? 2 : 1}
+              titlePlacement="vertical"
+              className="premium-steps"
+              items={[
+                { title: t('configureCommuteStepper') },
+                { title: t('selectPaymentStepper') },
+                { title: t('confirmSeatStepper') }
+              ]}
+            />
+          </ConfigProvider>
         </div>
 
         <div className="split-layout-container">
@@ -315,14 +239,46 @@ export default function PaymentPage() {
                     <div className="checkpoint-timeline-item pickup">
                       <div className="checkpoint-timeline-dot" />
                       <span className="checkpoint-timeline-label">{t('pickupHub')}</span>
-                      <span className="checkpoint-timeline-value">{isRtl ? (booking.pickupCheckpoint.nameAr || booking.pickupCheckpoint.name) : booking.pickupCheckpoint.name}</span>
+                      <span className="checkpoint-timeline-value">
+                        {isRtl ? (booking.pickupCheckpoint.nameAr || booking.pickupCheckpoint.name) : booking.pickupCheckpoint.name}
+                        {(() => {
+                          const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
+                          const timeToUse = booking.pickupCheckpoint.localizedDepartureTime 
+                            ? new Date(booking.pickupCheckpoint.localizedDepartureTime)
+                            : (booking.pickupCheckpoint.minutesFromStart !== undefined && baseTime
+                                ? new Date(baseTime + booking.pickupCheckpoint.minutesFromStart * 60000)
+                                : null);
+                          if (!timeToUse) return null;
+                          return (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
+                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                            </span>
+                          );
+                        })()}
+                      </span>
                     </div>
                   )}
                   {booking.dropoffCheckpoint && (
                     <div className="checkpoint-timeline-item dropoff">
                       <div className="checkpoint-timeline-dot" />
                       <span className="checkpoint-timeline-label">{t('dropoffHub')}</span>
-                      <span className="checkpoint-timeline-value">{isRtl ? (booking.dropoffCheckpoint.nameAr || booking.dropoffCheckpoint.name) : booking.dropoffCheckpoint.name}</span>
+                      <span className="checkpoint-timeline-value">
+                        {isRtl ? (booking.dropoffCheckpoint.nameAr || booking.dropoffCheckpoint.name) : booking.dropoffCheckpoint.name}
+                        {(() => {
+                          const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
+                          const timeToUse = booking.dropoffCheckpoint.localizedArrivalTime 
+                            ? new Date(booking.dropoffCheckpoint.localizedArrivalTime)
+                            : (booking.dropoffCheckpoint.minutesFromStart !== undefined && baseTime
+                                ? new Date(baseTime + booking.dropoffCheckpoint.minutesFromStart * 60000)
+                                : null);
+                          if (!timeToUse) return null;
+                          return (
+                            <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
+                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                            </span>
+                          );
+                        })()}
+                      </span>
                     </div>
                   )}
                 </div>
