@@ -186,6 +186,16 @@ function RouteSearchForm() {
       attributionControl: false
     });
 
+    // Suppress missing sprite image warnings by providing dummy transparent images
+    map.on('styleimagemissing', (e) => {
+      const width = 16;
+      const height = 16;
+      const data = new Uint8Array(width * height * 4); // transparent pixels
+      if (!map.hasImage(e.id)) {
+        map.addImage(e.id, { width, height, data });
+      }
+    });
+
     mapRef.current = map;
 
     // Create a custom draggable marker element
