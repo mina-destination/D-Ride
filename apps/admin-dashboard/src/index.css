@@ -2097,3 +2097,61 @@ a.sidebar-item {
   background: transparent !important;
 }
 
+/* ============================================================
+   CRM Data Table & Form Input Focus Theme Overrides
+   ============================================================ */
+
+/* Ant Design & Vanilla Data Table Container Override */
+.ant-table-wrapper {
+  background-color: var(--background) !important;
+}
+.ant-table {
+  background-color: var(--background) !important;
+}
+.ant-table-container {
+  background-color: var(--background) !important;
+}
+.ant-table-thead > tr > th {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+.ant-table-tbody > tr > td {
+  background-color: var(--surface) !important;
+}
+
+/* Alternating Row Styling */
+.ant-table-tbody > tr:nth-child(even) > td,
+.data-table tbody tr:nth-child(even) td {
+  background-color: var(--surface-elevated) !important;
+}
+.ant-table-tbody > tr:nth-child(odd) > td,
+.data-table tbody tr:nth-child(odd) td {
+  background-color: var(--surface) !important;
+}
+
+/* Crisp table borders and dividers: 60% slate in light mode */
+html[data-theme='light'] .ant-table,
+html[data-theme='light'] .ant-table-container,
+html[data-theme='light'] .ant-table-thead > tr > th,
+html[data-theme='light'] .ant-table-tbody > tr > td,
+html[data-theme='light'] .ant-table-cell,
+html[data-theme='light'] .data-table th,
+html[data-theme='light'] .data-table td {
+  border-color: rgba(226, 232, 240, 0.6) !important;
+}
+
+/* Interactive Input Golden Highlight Outline Focus Halo */
+input:focus,
+textarea:focus,
+select:focus,
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #F5B731 !important;
+  box-shadow: 0 0 0 3px rgba(245, 183, 49, 0.35) !important;
+  outline: none !important;
+}
+
+

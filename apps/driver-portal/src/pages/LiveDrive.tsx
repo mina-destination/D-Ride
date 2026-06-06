@@ -404,7 +404,18 @@ export default function LiveDrivePage() {
           <ArrowLeft size={20} style={{ transform: isRtl ? 'rotate(180deg)' : 'none' }} />
         </button>
 
-        <div className="glass-card" style={{ flex: 1, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+        <div style={{
+          flex: 1,
+          padding: '10px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          overflow: 'hidden',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          boxShadow: 'var(--shadow-md)'
+        }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
             {t('activeRouteLabel')}
           </span>
@@ -475,7 +486,16 @@ export default function LiveDrivePage() {
         flexDirection: 'column',
         gap: '12px'
       }}>
-        <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          boxShadow: 'var(--shadow-md)'
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{

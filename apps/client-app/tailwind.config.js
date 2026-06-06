@@ -9,12 +9,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: themeColors.primary,
-        success: themeColors.success,
-        danger: themeColors.danger,
-        warning: themeColors.warning,
-        info: themeColors.info,
-        sidebar: themeColors.sidebar,
+        ...themeColors,
       }
     },
   },

@@ -302,16 +302,19 @@ export default function LiveTrackingPage() {
           maxHeight: 'calc(100% - 40px)',
           overflowY: 'auto',
           zIndex: 1000,
-          background: 'var(--glass-bg)',
-          backdropFilter: 'blur(24px) saturate(1.2)',
-          border: '1px solid var(--border)',
+          background: 'var(--surface)',
+          border: theme === 'light'
+            ? '1px solid rgba(226, 232, 240, 0.7)'
+            : '1px solid var(--border)',
           borderRadius: 'var(--radius-xl)',
           padding: '1.25rem',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+          boxShadow: theme === 'light'
+            ? '0 12px 40px rgba(0, 0, 0, 0.05)'
+            : '0 20px 40px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px'
-        }} className="glass animate-fade-in-up">
+        }} className="animate-fade-in-up">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{
               fontSize: '10px',

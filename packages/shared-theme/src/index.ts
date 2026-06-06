@@ -142,21 +142,46 @@ export const designTokens = {
 // ── Tailwind Color Token Export ──────────────────────────────
 // Use this in tailwind.config.js: colors: { ...themeColors }
 export const themeColors = {
-  primary: lightPalette.primary,
-  success: semanticColors.success,
-  danger: semanticColors.danger,
-  warning: semanticColors.warning,
-  info: semanticColors.info,
+  primary: {
+    DEFAULT: 'var(--primary)',
+    hover: 'var(--primary-hover)',
+    light: 'var(--primary-light)',
+    dark: 'var(--primary-dark)',
+  },
+  success: {
+    DEFAULT: 'var(--success)',
+  },
+  danger: {
+    DEFAULT: 'var(--danger)',
+  },
+  warning: {
+    DEFAULT: 'var(--warning)',
+  },
+  info: {
+    DEFAULT: 'var(--info)',
+  },
   sidebar: {
-    bg: lightPalette.sidebar.bg,
-    text: lightPalette.sidebar.text,
-    active: lightPalette.sidebar.textActive,
-    hover: lightPalette.sidebar.itemHover,
+    bg: 'var(--sidebar-bg)',
+    text: 'var(--sidebar-text)',
+    active: 'var(--sidebar-text-active)',
+    hover: 'var(--sidebar-item-hover)',
+    border: 'var(--sidebar-border)',
   },
   surface: {
-    DEFAULT: lightPalette.surfaces.surface,
-    elevated: lightPalette.surfaces.surfaceElevated,
-    hover: lightPalette.surfaces.surfaceHover,
+    DEFAULT: 'var(--surface)',
+    elevated: 'var(--surface-elevated)',
+    hover: 'var(--surface-hover)',
+  },
+  background: 'var(--background)',
+  border: {
+    DEFAULT: 'var(--border)',
+    focus: 'var(--border-focus)',
+  },
+  text: {
+    primary: 'var(--text-primary)',
+    secondary: 'var(--text-secondary)',
+    muted: 'var(--text-muted)',
+    onPrimary: 'var(--text-on-primary)',
   },
   deepspace: {
     DEFAULT: '#1A1A2E',
