@@ -74,6 +74,16 @@ export default function RoutesPage() {
       attributionControl: false
     });
 
+    // Suppress missing sprite image warnings by providing dummy transparent images
+    map.on('styleimagemissing', (e) => {
+      const width = 16;
+      const height = 16;
+      const data = new Uint8Array(width * height * 4); // transparent pixels
+      if (!map.hasImage(e.id)) {
+        map.addImage(e.id, { width, height, data });
+      }
+    });
+
     mapRef.current = map;
 
     map.on('load', () => {
@@ -280,7 +290,10 @@ export default function RoutesPage() {
                         🚌 {route.routeCode || `LINE ${route.name.split(' ')[0] || ''}`}
                       </span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>
-                        EGP {route.baseFareEGP || 45}
+                        {language === 'ar' ? 'ج.م' : 'EGP'} {tripsMap[route._id] && tripsMap[route._id].length > 0
+                          ? Math.min(...tripsMap[route._id].map(t => t.priceEGP))
+                          : (route.baseFareEGP || 45)
+                        }
                       </span>
                     </div>
 

@@ -103,6 +103,16 @@ export default function DashboardPage() {
       attributionControl: false
     });
 
+    // Suppress missing sprite image warnings by providing dummy transparent images
+    mapObj.on('styleimagemissing', (e) => {
+      const width = 16;
+      const height = 16;
+      const data = new Uint8Array(width * height * 4); // transparent pixels
+      if (!mapObj.hasImage(e.id)) {
+        mapObj.addImage(e.id, { width, height, data });
+      }
+    });
+
     mapRef.current = mapObj;
     setMap(mapObj);
     mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
@@ -904,8 +914,8 @@ export default function DashboardPage() {
                   <g key={i}>
                     {/* Invisible larger hover trigger area */}
                     <circle
-                      cx={pt.x}
-                      cy={pt.y}
+                      cx={pt.x || 0}
+                      cy={pt.y || 0}
                       r="12"
                       fill="transparent"
                       style={{ cursor: 'pointer' }}
@@ -913,8 +923,8 @@ export default function DashboardPage() {
                       onMouseLeave={() => setHoveredBookingPoint(null)}
                     />
                     <circle 
-                      cx={pt.x} 
-                      cy={pt.y} 
+                      cx={pt.x || 0} 
+                      cy={pt.y || 0} 
                       r={isHovered ? 6 : 4} 
                       fill={isHovered ? 'var(--primary)' : '#000'} 
                       stroke="var(--primary)" 
