@@ -1428,31 +1428,55 @@
 
 @media (max-width: 768px) {
   .trip-card {
-    flex-direction: column;
+    flex-direction: row !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
   .trip-card-main-row {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    width: 100% !important;
+  }
+  .trip-card-left {
+    padding: 1rem 0.75rem !important;
   }
   .trip-card-divider {
-    width: 100% !important;
-    height: 1px !important;
-    border-left: none !important;
-    border-top: 2px dashed var(--border) !important;
-    margin: 0.75rem 0 !important;
+    width: 1px !important;
+    height: auto !important;
+    border-top: none !important;
+    border-left: 2px dashed var(--border) !important;
+    margin: 0.5rem 0 !important;
   }
   .trip-card-right {
-    width: 100% !important;
-    min-width: 100% !important;
+    width: 130px !important;
+    min-width: 130px !important;
     border-left: none !important;
-    border-top: 1px dashed var(--border) !important;
+    border-top: none !important;
     align-items: center !important;
-    padding: 1.5rem !important;
+    padding: 1rem 0.5rem !important;
+    background: var(--surface-hover) !important;
   }
   .ticket-punch-cutout {
-    display: none !important;
+    display: block !important;
+    right: 120px !important;
+  }
+  .trip-price {
+    font-size: 1.15rem !important;
+  }
+  .trip-seats {
+    font-size: 0.7rem !important;
+    margin-bottom: 0.25rem !important;
+    white-space: nowrap !important;
+  }
+  .trip-amenities {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.5rem !important;
+    gap: 0.25rem !important;
+  }
+  .trip-card-right .auth-button {
+    font-size: 0.75rem !important;
+    padding: 0.4rem !important;
+    min-height: 32px !important;
   }
 
   .boarding-pass {
@@ -3724,35 +3748,70 @@ html[data-theme='light'] .tracking-sandbox-panel {
 
 @media (max-width: 640px) {
   .trip-timings-row {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 0.75rem !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 4px !important;
   }
   .trip-time-block {
-    width: 100% !important;
+    width: 42% !important;
     align-items: flex-start !important;
     text-align: left !important;
   }
+  .trip-time-block:last-child {
+    align-items: flex-end !important;
+    text-align: right !important;
+  }
+  [dir="rtl"] .trip-time-block {
+    align-items: flex-end !important;
+    text-align: right !important;
+  }
+  [dir="rtl"] .trip-time-block:last-child {
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+  .trip-time {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+  }
+  .trip-location {
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    width: 100% !important;
+  }
   .trip-timeline {
     display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
     margin: 0 !important;
-    width: auto !important;
-    height: auto !important;
+    width: 16% !important;
     flex: none !important;
+    position: relative !important;
   }
-  .timeline-line, .timeline-dot {
+  .timeline-line {
+    display: block !important;
+    width: 100% !important;
+    height: 1px !important;
+    background: repeating-linear-gradient(90deg, var(--border), var(--border) 2px, transparent 2px, transparent 4px) !important;
+  }
+  .timeline-dot {
     display: none !important;
   }
   .trip-duration {
-    position: static !important;
-    transform: none !important;
-    font-size: 0.72rem !important;
+    position: absolute !important;
+    top: -14px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    font-size: 0.62rem !important;
     color: var(--primary) !important;
-    background: rgba(245, 183, 49, 0.1) !important;
-    padding: 3px 10px !important;
-    border-radius: 6px !important;
+    background: var(--surface) !important;
+    padding: 0 2px !important;
     font-weight: 700 !important;
-    display: inline-block !important;
+    white-space: nowrap !important;
   }
 }
 
