@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "premiumSeatSurcharge" DOUBLE PRECISION NOT NULL DEFAULT 0;
