@@ -943,19 +943,61 @@ export default function DashboardPage() {
             </div>
 
             {/* SECTION 3: Start Trip Button (Scheduled Status) */}
-            {activeTrip.status === 'SCHEDULED' && (
-              <div style={{ marginBottom: '20px' }}>
-                <button
-                  className="btn btn-primary btn-block"
-                  style={{ height: '52px', fontSize: '15px' }}
-                  onClick={() => setConfirmStatusModal('BOARDING')}
-                  disabled={actionLoading}
-                >
-                  <Play size={18} fill="currentColor" />
-                  {t('openBoardingGate')}
-                </button>
-              </div>
-            )}
+            {activeTrip.status === 'SCHEDULED' && (() => {
+              const depTime = new Date(activeTrip.departureTime).getTime();
+              const now = Date.now();
+              const diffMinutes = Math.ceil((depTime - now) / 60000);
+              const canStart = diffMinutes <= 30;
+
+              return (
+                <div style={{ marginBottom: '20px' }}>
+                  <button
+                    className="btn btn-primary btn-block"
+                    style={{ 
+                      height: '52px', 
+                      fontSize: '15px',
+                      opacity: canStart ? 1 : 0.6,
+                      cursor: canStart ? 'pointer' : 'not-allowed',
+                      background: canStart ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
+                      border: canStart ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: canStart ? '#000' : 'var(--text-muted)'
+                    }}
+                    onClick={() => {
+                      if (canStart) {
+                        setConfirmStatusModal('BOARDING');
+                      }
+                    }}
+                    disabled={actionLoading || !canStart}
+                  >
+                    <Play size={18} fill="currentColor" />
+                    {t('openBoardingGate')}
+                  </button>
+                  {!canStart && (
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '0.78rem',
+                      color: '#f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      justifyContent: 'center',
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(245, 158, 11, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <span>⚠️</span>
+                      <span>
+                        {isRtl 
+                          ? `يمكنك بدء الرحلة قبل موعدها بـ 30 دقيقة كحد أقصى (المتبقي: ${diffMinutes} دقيقة)` 
+                          : `You can only start the trip at most 30 minutes before departure (Scheduled in ${diffMinutes} mins)`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* SECTION 4: Boarding Gate - QR Scanner & Passenger Manifest (Scheduled/Boarding Status) */}
             {(activeTrip.status === 'SCHEDULED' || activeTrip.status === 'BOARDING') && (
