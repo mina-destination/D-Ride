@@ -507,9 +507,6 @@ export class TripsService {
       if (isNaN(depTime.getTime())) {
         throw new BadRequestException('Invalid departure time');
       }
-      if (depTime < new Date()) {
-        throw new BadRequestException('Departure time must be in the future');
-      }
       updateData.departureTime = depTime;
     }
 
