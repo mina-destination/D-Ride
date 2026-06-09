@@ -74,6 +74,22 @@ export default function RoutesPage() {
       attributionControl: false
     });
 
+    // Localize map labels to Arabic
+    map.on('styledata', () => {
+      const style = map.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((layer) => {
+          if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+            map.setLayoutProperty(layer.id, 'text-field', [
+              'coalesce',
+              ['get', 'name:ar'],
+              ['get', 'name']
+            ]);
+          }
+        });
+      }
+    });
+
     // Suppress missing sprite image warnings by providing dummy transparent images
     map.on('styleimagemissing', (e) => {
       const width = 16;
