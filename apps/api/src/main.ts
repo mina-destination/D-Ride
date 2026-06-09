@@ -90,7 +90,7 @@ async function bootstrap() {
     origins = allowedOriginsEnv.split(',').map((origin) => origin.trim());
     if (isProduction) {
       origins = origins.filter(
-        (o) => !o.includes('localhost') && !o.includes('127.0.0.1'),
+        (o) => (!o.includes('localhost') && !o.includes('127.0.0.1')) || o === 'https://localhost' || o === 'capacitor://localhost',
       );
     }
   } else {
@@ -99,6 +99,8 @@ async function bootstrap() {
           'https://passenger.dride.app',
           'https://driver.dride.app',
           'https://admin.dride.app',
+          'https://localhost',
+          'capacitor://localhost',
         ]
       : [
           'http://localhost:5173', // passenger client app
