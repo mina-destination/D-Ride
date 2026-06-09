@@ -41,14 +41,19 @@ export class WsJwtGuard implements CanActivate {
 @WebSocketGateway({
   path: '/api/socket.io',
   cors: {
-    origin: process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-      : [
-          'http://localhost:5173',
-          'http://localhost:5174',
-          'http://localhost:5175',
-          'http://localhost:3001',
-        ],
+    origin: (() => {
+      const origins = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+        : [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175',
+            'http://localhost:3001',
+          ];
+      if (!origins.includes('https://localhost')) origins.push('https://localhost');
+      if (!origins.includes('capacitor://localhost')) origins.push('capacitor://localhost');
+      return origins;
+    })(),
     credentials: true,
   },
   pingTimeout: 30000,
