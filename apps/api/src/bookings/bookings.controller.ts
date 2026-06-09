@@ -167,6 +167,17 @@ export class BookingsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('track-by-code/:code')
+  async trackByCode(@Request() req: any, @Param('code', ParseUUIDPipe) code: string) {
+    const trackingInfo = await this.bookingsService.trackByCode(code);
+    return {
+      success: true,
+      data: trackingInfo,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findById(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const booking = await this.bookingsService.findOne(id, req.user.sub);

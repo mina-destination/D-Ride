@@ -19,11 +19,15 @@ import {
   HelpCircle, 
   AlertTriangle,
   LifeBuoy,
-  Download
+  Download,
+  Bell,
+  Trash2,
+  Check
 } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
+import { useNotifications } from '../context/NotificationContext';
 import { Html5Qrcode } from 'html5-qrcode';
 import maplibregl from 'maplibre-gl';
 import { Capacitor } from '@capacitor/core';
@@ -77,6 +81,7 @@ function playChime(isSuccess: boolean) {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
+  const { notifications, markRead, markAllRead, clearNotifications, addNotification } = useNotifications();
 
   // Trips and calendar state
   const [trips, setTrips] = useState<any[]>([]);
@@ -97,6 +102,66 @@ export default function DashboardPage() {
   const [scanStatus, setScanStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [confirmStatusModal, setConfirmStatusModal] = useState<string | null>(null);
 
+  // Notifications & Permissions layout states
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+
+  // Checkpoint arrival state
+  const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
+
+  // Load arrived checkpoints for active trip
+  useEffect(() => {
+    if (activeTrip?._id) {
+      const stored = localStorage.getItem(`dride_arrived_checkpoints_${activeTrip._id}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setArrivedCheckpoints(parsed);
+          // Wait briefly for socket connect and broadcast
+          setTimeout(() => {
+            socketService.sendCheckpointUpdate({
+              vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || 'mock-vehicle-123',
+              arrivedCheckpoints: parsed,
+            });
+          }, 1000);
+        } catch {
+          setArrivedCheckpoints([]);
+        }
+      } else {
+        setArrivedCheckpoints([]);
+      }
+    } else {
+      setArrivedCheckpoints([]);
+    }
+  }, [activeTrip?._id]);
+
+  const toggleCheckpointArrived = (checkpointName: string) => {
+    if (!activeTrip) return;
+    const isArrived = arrivedCheckpoints.includes(checkpointName);
+    let updated: string[];
+    if (isArrived) {
+      updated = arrivedCheckpoints.filter(name => name !== checkpointName);
+    } else {
+      updated = [...arrivedCheckpoints, checkpointName];
+    }
+    setArrivedCheckpoints(updated);
+    localStorage.setItem(`dride_arrived_checkpoints_${activeTrip._id}`, JSON.stringify(updated));
+
+    // Emit socket update
+    socketService.sendCheckpointUpdate({
+      vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || 'mock-vehicle-123',
+      arrivedCheckpoints: updated,
+    });
+
+    // Add dashboard notification
+    addNotification(
+      isArrived ? `Checkpoint Cleared` : `Checkpoint Arrived 📍`,
+      isArrived 
+        ? `Driver marked "${checkpointName}" as not arrived.` 
+        : `Driver confirmed arrival at "${checkpointName}".`
+    );
+  };
+
   // Map & Telemetry states
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -115,6 +180,16 @@ export default function DashboardPage() {
 
   // Generate 7 days for the calendar strip (today +/- 3 days)
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
+
+  // Trigger notification when active trip changes
+  useEffect(() => {
+    if (activeTrip) {
+      addNotification(
+        `Active Shift Selected 🧭`,
+        `Route "${activeTrip.routeId?.name || 'Assigned Route'}" is set as active. Check passenger manifest.`
+      );
+    }
+  }, [activeTrip?._id]);
   
   useEffect(() => {
     const dates: Date[] = [];
@@ -470,8 +545,19 @@ export default function DashboardPage() {
   // Location Telemetry Broadcasting
   const startLocationStream = () => {
     if (isStreaming) return;
+    const gpsPermitted = localStorage.getItem('dride_gps_permitted') === 'true';
+    if (gpsPermitted) {
+      triggerRealGPS();
+    } else {
+      setPermissionModalVisible(true);
+    }
+  };
+
+  const triggerRealGPS = () => {
     setIsStreaming(true);
     setGpsError(null);
+    localStorage.setItem('dride_gps_permitted', 'true');
+    setPermissionModalVisible(false);
 
     let startLat = 30.0444;
     let startLng = 31.2357;
@@ -635,6 +721,32 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button
+            onClick={() => setNotificationDrawerOpen(true)}
+            style={{ position: 'relative', color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
+            title="Notifications"
+          >
+            <Bell size={18} />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-6px',
+                right: '-6px',
+                background: 'var(--primary)',
+                color: 'black',
+                borderRadius: '50%',
+                width: '14px',
+                height: '14px',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {notifications.filter(n => !n.read).length}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
             style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
@@ -1152,6 +1264,154 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* SECTION 6b: Route Checkpoints Timeline Checklist (In Transit Status) */}
+            {activeTrip.status === 'IN_TRANSIT' && activeTrip.routeId?.checkpoints && (
+              <div style={{ marginBottom: '24px' }}>
+                <h4 className="section-title">
+                  <MapPin size={16} style={{ color: 'var(--primary)' }} />
+                  Route Checkpoints Timeline
+                </h4>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 16px' }}>
+                  {activeTrip.routeId.checkpoints
+                    .slice()
+                    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                    .map((cp: any, index: number) => {
+                      const isArrived = arrivedCheckpoints.includes(cp.name);
+                      
+                      // Passengers to drop off at this stop
+                      const dropoffs = manifest.filter(b => 
+                        (b.dropoffStopId === cp.name || b.dropoffCheckpoint?.name === cp.name) && 
+                        (b.status === 'CONFIRMED' || b.status === 'BOARDED')
+                      );
+
+                      // Passengers to pick up at this stop
+                      const pickups = manifest.filter(b => 
+                        (b.pickupStopId === cp.name || b.pickupCheckpoint?.name === cp.name) && 
+                        b.status === 'CONFIRMED'
+                      );
+
+                      return (
+                        <div key={cp.name || index} style={{ 
+                          display: 'flex', 
+                          gap: '14px', 
+                          position: 'relative',
+                          paddingBottom: index === activeTrip.routeId.checkpoints.length - 1 ? 0 : '16px'
+                        }}>
+                          {/* Timeline vertical line */}
+                          {index !== activeTrip.routeId.checkpoints.length - 1 && (
+                            <div style={{
+                              position: 'absolute',
+                              left: '12px',
+                              top: '28px',
+                              bottom: 0,
+                              width: '2px',
+                              background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
+                              zIndex: 1
+                            }} />
+                          )}
+
+                          {/* Checkpoint order marker */}
+                          <div 
+                            onClick={() => toggleCheckpointArrived(cp.name)}
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
+                              border: `1.5px solid ${isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.2)'}`,
+                              color: isArrived ? 'black' : 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              zIndex: 2,
+                              cursor: 'pointer',
+                              boxShadow: isArrived ? '0 0 10px rgba(245, 183, 49, 0.4)' : 'none',
+                              transition: 'all 0.2s',
+                              flexShrink: 0
+                            }}
+                          >
+                            {isArrived ? '✓' : cp.order || (index + 1)}
+                          </div>
+
+                          {/* Checkpoint details */}
+                          <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                              <h5 style={{ 
+                                fontSize: '13.5px', 
+                                fontWeight: 700, 
+                                color: isArrived ? 'var(--primary)' : 'var(--text-primary)',
+                                margin: 0,
+                                textDecoration: isArrived ? 'line-through' : 'none',
+                                transition: 'all 0.2s'
+                              }}>
+                                {language === 'ar' ? (cp.nameAr || cp.name) : cp.name}
+                              </h5>
+
+                              {/* Arrived status badge button */}
+                              <button
+                                onClick={() => toggleCheckpointArrived(cp.name)}
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  background: isArrived ? 'rgba(245, 183, 49, 0.15)' : 'rgba(255,255,255,0.03)',
+                                  border: `1px solid ${isArrived ? 'var(--primary)' : 'var(--border)'}`,
+                                  borderRadius: '4px',
+                                  padding: '3px 8px',
+                                  color: isArrived ? 'var(--primary)' : 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                  flexShrink: 0
+                                }}
+                              >
+                                {isArrived ? 'Arrived ✓' : 'Mark Arrived'}
+                              </button>
+                            </div>
+
+                            {/* Drop-offs and Pick-ups detailed list */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                              {/* Drop-offs */}
+                              {dropoffs.length > 0 ? (
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                  <span style={{ color: 'var(--danger)', fontWeight: 600 }}>🛑 Drop-offs: </span>
+                                  {dropoffs.map((b, bIdx) => (
+                                    <span key={b._id} style={{ color: 'var(--text-primary)' }}>
+                                      {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'}){bIdx === dropoffs.length - 1 ? '' : ', '}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  <span style={{ fontWeight: 600 }}>🛑 Drop-offs: </span>None
+                                </div>
+                              )}
+
+                              {/* Pick-ups */}
+                              {pickups.length > 0 ? (
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                  <span style={{ color: 'var(--success)', fontWeight: 600 }}>🟢 Pick-ups: </span>
+                                  {pickups.map((b, bIdx) => (
+                                    <span key={b._id} style={{ color: 'var(--text-primary)' }}>
+                                      {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'}){bIdx === pickups.length - 1 ? '' : ', '}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  <span style={{ fontWeight: 600 }}>🟢 Pick-ups: </span>None
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {/* SECTION 7: Offboard Passengers (In Transit Status) */}
             {activeTrip.status === 'IN_TRANSIT' && (
               <div style={{ marginBottom: '24px' }}>
@@ -1370,6 +1630,177 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Notifications Drawer */}
+      {notificationDrawerOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(6, 6, 14, 0.75)',
+          backdropFilter: 'blur(10px)',
+          zIndex: 1500,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          animation: 'fade-in 0.2s ease'
+        }} onClick={() => setNotificationDrawerOpen(false)}>
+          <div style={{
+            width: '100%',
+            maxWidth: '360px',
+            background: 'var(--surface)',
+            borderLeft: '1px solid var(--border)',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 'var(--shadow-md)',
+            animation: 'slide-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          }} onClick={e => e.stopPropagation()}>
+            {/* Drawer Header */}
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="title-outfit" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+                <Bell size={18} style={{ color: 'var(--primary)' }} /> Notifications
+              </h3>
+              <button onClick={() => setNotificationDrawerOpen(false)} style={{ color: 'var(--text-secondary)', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+            </div>
+            {/* Actions Bar */}
+            {notifications.length > 0 && (
+              <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <button onClick={markAllRead} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={12} /> Mark all read
+                </button>
+                <button onClick={clearNotifications} style={{ color: 'var(--danger)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Trash2 size={12} /> Clear all
+                </button>
+              </div>
+            )}
+            {/* Notification List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
+              {notifications.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60%', color: 'var(--text-secondary)', padding: '24px', textAlign: 'center' }}>
+                  <Bell size={32} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
+                  <span style={{ fontSize: '13px' }}>All caught up! No notifications.</span>
+                </div>
+              ) : (
+                notifications.map(n => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => markRead(n.id)}
+                    style={{
+                      padding: '16px 20px',
+                      borderBottom: '1px solid rgba(255,255,255,0.03)',
+                      background: n.read ? 'transparent' : 'rgba(245, 183, 49, 0.03)',
+                      borderLeft: n.read ? '3px solid transparent' : '3px solid var(--primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: n.read ? 600 : 700, color: 'var(--text-primary)' }}>{n.title}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{n.time}</span>
+                    </div>
+                    <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{n.description}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GPS Permission Opt-In Modal */}
+      {permissionModalVisible && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(6, 6, 14, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2500,
+          padding: '24px',
+          animation: 'fade-in 0.25s ease'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '380px',
+            textAlign: 'center',
+            padding: '32px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid rgba(245, 183, 49, 0.2)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'rgba(245, 183, 49, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              border: '1.5px solid var(--primary)',
+              boxShadow: 'var(--shadow-glow)'
+            }}>
+              <Navigation size={28} style={{ color: 'var(--primary)' }} />
+            </div>
+
+            <div>
+              <h3 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                Allow Live Route Telemetry
+              </h3>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                To broadcast your live coordinates to D-Ride transit dispatch, guide commuters to your pickup terminals, and ensure passenger safety, please grant device location permission.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+              <button
+                onClick={triggerRealGPS}
+                className="btn btn-primary btn-block"
+                style={{ height: '46px', fontSize: '13.5px' }}
+              >
+                Allow & Share Location
+              </button>
+              <button
+                onClick={() => {
+                  setPermissionModalVisible(false);
+                  setIsStreaming(true);
+                  setIsMocking(true);
+                  let startLat = 30.0444;
+                  let startLng = 31.2357;
+                  if (activeTrip?.routeId?.path?.coordinates?.length > 0) {
+                    const firstCoord = activeTrip.routeId.path.coordinates[0];
+                    startLng = firstCoord[0];
+                    startLat = firstCoord[1];
+                  }
+                  setGpsError("Permission bypassed. Simulator running.");
+                  startMockSimulation(startLat, startLng);
+                }}
+                className="btn btn-secondary btn-block"
+                style={{ height: '46px', fontSize: '13.5px' }}
+              >
+                Run Route Simulation (Local Test)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Slide animations style tag */}
+      <style>{`
+        @keyframes slide-left {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

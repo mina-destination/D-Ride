@@ -146,7 +146,7 @@ export class VehiclesGateway
   @SubscribeMessage('subscribeToVehicle')
   async handleSubscribeToVehicle(
     @ConnectedSocket() client: any,
-    @MessageBody() vehicleId: string,
+    @MessageBody() payload: string | { vehicleId: string; ticketCode?: string },
   ) {
     const user = client.user;
     if (!user) {
@@ -159,10 +159,28 @@ export class VehiclesGateway
       };
     }
 
+    let vehicleId: string;
+    let ticketCode: string | undefined;
+
+    if (typeof payload === 'string') {
+      vehicleId = payload;
+    } else if (payload && typeof payload === 'object') {
+      vehicleId = payload.vehicleId;
+      ticketCode = payload.ticketCode;
+    } else {
+      return {
+        event: 'subscribed',
+        data: { success: false, error: 'Invalid payload format' },
+      };
+    }
+
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
 
     if (user.role === 'PASSENGER') {
-      const booking = await this.prisma.booking.findFirst({
+      let hasAccess = false;
+
+      // 1. Check if user has their own booking
+      const ownBooking = await this.prisma.booking.findFirst({
         where: {
           userId: user.id,
           status: {
@@ -174,15 +192,35 @@ export class VehiclesGateway
         },
       });
 
-      if (!booking && !isAdmin) {
+      if (ownBooking) {
+        hasAccess = true;
+      } else if (ticketCode) {
+        // 2. Check if shared ticketCode matches
+        const sharedBooking = await this.prisma.booking.findFirst({
+          where: {
+            id: ticketCode,
+            status: {
+              in: [BookingStatus.CONFIRMED, BookingStatus.BOARDED],
+            },
+            trip: {
+              vehicleId: vehicleId,
+            },
+          },
+        });
+        if (sharedBooking) {
+          hasAccess = true;
+        }
+      }
+
+      if (!hasAccess && !isAdmin) {
         this.logger.warn(
-          `Access Denied: Passenger user ${user.id} attempted to subscribe to vehicle ${vehicleId} telemetry without a confirmed/boarded booking`,
+          `Access Denied: Passenger user ${user.id} attempted to subscribe to vehicle ${vehicleId} telemetry without a confirmed/boarded booking or valid shared ticketCode`,
         );
         return {
           event: 'subscribed',
           data: {
             success: false,
-            error: 'Access Denied: No active booking for this vehicle',
+            error: 'Access Denied: No active booking or valid ticket code for this vehicle',
           },
         };
       }
@@ -200,6 +238,21 @@ export class VehiclesGateway
       `Client ${client.id} (User: ${user.id}, Role: ${user.role}) subscribed to vehicle ${vehicleId}`,
     );
     client.join(`vehicle_${vehicleId}`);
+
+    // Fetch and send current arrived checkpoints to the subscribing client
+    try {
+      const arrivedStr = await this.redisClient.get(`d-ride:arrived-checkpoints:${vehicleId}`);
+      if (arrivedStr) {
+        client.emit('checkpointUpdate', {
+          vehicleId,
+          arrivedCheckpoints: JSON.parse(arrivedStr),
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to fetch arrived checkpoints on subscribe: ${err.message}`);
+    }
+
     return { event: 'subscribed', data: vehicleId };
   }
 
@@ -301,4 +354,44 @@ export class VehiclesGateway
       };
     }
   }
+
+  @SubscribeMessage('driverCheckpointUpdate')
+  async handleDriverCheckpointUpdate(
+    @ConnectedSocket() client: any,
+    @MessageBody()
+    data: {
+      vehicleId: string;
+      arrivedCheckpoints: string[];
+    },
+  ) {
+    const user = client.user;
+    if (!user || user.role !== 'DRIVER') {
+      return {
+        event: 'checkpointUpdateAck',
+        data: { success: false, error: 'Unauthorized role' },
+      };
+    }
+
+    this.logger.log(
+      `Driver ${user.id} updated arrived checkpoints for vehicle ${data.vehicleId}: ${JSON.stringify(data.arrivedCheckpoints)}`,
+    );
+
+    try {
+      await this.redisClient.set(
+        `d-ride:arrived-checkpoints:${data.vehicleId}`,
+        JSON.stringify(data.arrivedCheckpoints),
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to save arrived checkpoints to Redis: ${err.message}`);
+    }
+
+    this.server.to(`vehicle_${data.vehicleId}`).emit('checkpointUpdate', {
+      vehicleId: data.vehicleId,
+      arrivedCheckpoints: data.arrivedCheckpoints,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { event: 'checkpointUpdateAck', data: { success: true } };
+  }
 }
+
