@@ -174,7 +174,7 @@ export class VehiclesGateway
       };
     }
 
-    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    const isAdmin = ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
 
     if (user.role === 'PASSENGER') {
       let hasAccess = false;
