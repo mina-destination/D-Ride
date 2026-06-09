@@ -33,9 +33,13 @@ class SocketService {
     }
   }
 
-  subscribeToVehicle(vehicleId: string) {
+  subscribeToVehicle(vehicleId: string, ticketCode?: string) {
     if (this.socket) {
-      this.socket.emit('subscribeToVehicle', vehicleId);
+      if (ticketCode) {
+        this.socket.emit('subscribeToVehicle', { vehicleId, ticketCode });
+      } else {
+        this.socket.emit('subscribeToVehicle', vehicleId);
+      }
     }
   }
 
@@ -57,6 +61,22 @@ class SocketService {
         this.socket.off('vehicleLocationUpdate', callback);
       } else {
         this.socket.off('vehicleLocationUpdate');
+      }
+    }
+  }
+
+  onCheckpointUpdate(callback: (data: any) => void) {
+    if (this.socket) {
+      this.socket.on('checkpointUpdate', callback);
+    }
+  }
+
+  offCheckpointUpdate(callback?: (data: any) => void) {
+    if (this.socket) {
+      if (callback) {
+        this.socket.off('checkpointUpdate', callback);
+      } else {
+        this.socket.off('checkpointUpdate');
       }
     }
   }

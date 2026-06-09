@@ -54,6 +54,15 @@ class SocketService {
       this.socket.emit('driverLocationPush', payload);
     }
   }
+
+  sendCheckpointUpdate(payload: {
+    vehicleId: string;
+    arrivedCheckpoints: string[];
+  }) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('driverCheckpointUpdate', payload);
+    }
+  }
 }
 
 export const socketService = new SocketService();

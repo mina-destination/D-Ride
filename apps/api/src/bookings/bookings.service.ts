@@ -1178,6 +1178,52 @@ export class BookingsService {
     return this.mapBooking(booking);
   }
 
+  async trackByCode(code: string): Promise<any> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: code },
+      include: {
+        trip: {
+          include: {
+            route: true,
+            vehicle: true,
+            driver: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found with this ticket code');
+    }
+
+    if (
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.REFUNDED
+    ) {
+      throw new BadRequestException('This ticket booking has been cancelled');
+    }
+
+    let liveLocation = null;
+    if (booking.trip?.vehicleId) {
+      try {
+        liveLocation = await this.prisma.liveVehicleLocation.findUnique({
+          where: { vehicleId: booking.trip.vehicleId },
+        });
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    const mapped = this.mapBooking(booking);
+    return {
+      booking: mapped,
+      liveLocation: liveLocation
+        ? { ...liveLocation, _id: liveLocation.id }
+        : null,
+    };
+  }
+
+
   async applyPromoCode(bookingId: string, userId: string, code: string | null): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },

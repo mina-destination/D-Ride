@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Bell, HelpCircle, Sparkles, Map, Handshake, Mail, ChevronRight } from 'lucide-react';
+import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Bell, HelpCircle, Sparkles, Map, Handshake, Mail, ChevronRight, Compass } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import logo from '../assets/d-ride-logo.jpeg';
@@ -238,6 +238,21 @@ export default function Navbar() {
                       <ChevronRight size={14} className="profile-menu-chevron" />
                     </Link>
                   </li>
+                  <li>
+                    <Link 
+                      to="/track-family" 
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsOpen(false);
+                      }}
+                      className="profile-menu-item"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Compass size={16} /> <span>Track Family</span>
+                      </div>
+                      <ChevronRight size={14} className="profile-menu-chevron" />
+                    </Link>
+                  </li>
 
                   <li>
                     <button 
@@ -277,6 +292,16 @@ export default function Navbar() {
               >
                 <User size={16} className="nav-mobile-icon" />
                 <span>{t('profile')}</span>
+              </Link>
+            </li>
+            <li className="mobile-only">
+              <Link 
+                to="/track-family" 
+                onClick={() => setIsOpen(false)}
+                className={isRouteActive('/track-family') ? 'nav-link-active' : ''}
+              >
+                <Compass size={16} className="nav-mobile-icon" />
+                <span>Track Family</span>
               </Link>
             </li>
             <li className="mobile-only">

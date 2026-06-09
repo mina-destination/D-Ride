@@ -350,23 +350,46 @@ export default function MyTripsPage() {
                         </div>
 
                         {booking.pickupCheckpoint && (
-                          <div className="pass-boarding-footer" style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px', 
-                            background: 'rgba(245, 183, 49, 0.05)', 
-                            border: '1px dashed rgba(245, 183, 49, 0.2)', 
-                            borderRadius: '8px', 
-                            padding: '8px 12px',
-                            marginTop: 'auto',
-                            alignSelf: 'stretch'
-                          }}>
+                          <div 
+                            className="pass-boarding-footer" 
+                            title={language === 'ar' ? "اضغط للملاحة عبر خرائط جوجل" : "Click to navigate via Google Maps"}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '8px', 
+                              background: 'rgba(245, 183, 49, 0.05)', 
+                              border: '1px dashed rgba(245, 183, 49, 0.2)', 
+                              borderRadius: '8px', 
+                              padding: '8px 12px',
+                              marginTop: 'auto',
+                              alignSelf: 'stretch',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates;
+                              if (coords && coords.length >= 2) {
+                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank');
+                              } else {
+                                alert("Station location coordinates are not available.");
+                              }
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.12)';
+                              e.currentTarget.style.borderColor = 'var(--primary)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.05)';
+                              e.currentTarget.style.borderColor = 'rgba(245, 183, 49, 0.2)';
+                            }}
+                          >
                             <MapPin size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                             <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
                               {t('boardingCPShort')}:
                             </span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {booking.pickupCheckpoint.name}
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'underline' }}>
+                              {booking.pickupCheckpoint.name} 📍
                             </span>
                           </div>
                         )}
@@ -494,6 +517,36 @@ export default function MyTripsPage() {
                               >
                                 {t('trackLive')}
                               </Link>
+                              {booking.pickupCheckpoint && (
+                                <button 
+                                  onClick={() => {
+                                    const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates;
+                                    if (coords && coords.length >= 2) {
+                                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank');
+                                    } else {
+                                      alert("Station location coordinates are not available.");
+                                    }
+                                  }}
+                                  className="auth-button"
+                                  style={{ 
+                                    background: 'var(--surface-hover)', 
+                                    color: 'var(--primary)',
+                                    border: '1px solid var(--primary)',
+                                    padding: '0.45rem 0.8rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 'bold',
+                                    textAlign: 'center',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  📍 Navigate to Station
+                                </button>
+                              )}
                               <button 
                                 onClick={() => shareTicketPdf(booking, user)}
                                 className="auth-button"
