@@ -695,6 +695,18 @@ export class TripsService {
       throw new BadRequestException('Invalid trip status');
     }
 
+    const targetStatus = status.toUpperCase();
+    if (!isAdmin && ['BOARDING', 'IN_TRANSIT'].includes(targetStatus) && trip.status === 'SCHEDULED') {
+      const maxLeadTimeMs = 30 * 60 * 1000; // 30 minutes
+      const scheduledTime = new Date(trip.departureTime).getTime();
+      const now = Date.now();
+      if (now < scheduledTime - maxLeadTimeMs) {
+        throw new BadRequestException(
+          'You can only start this trip at most 30 minutes before its scheduled departure time.',
+        );
+      }
+    }
+
     const data: any = { status: status.toUpperCase() as TripStatus };
     if (status.toUpperCase() === 'COMPLETED') {
       data.arrivalTime = new Date();
