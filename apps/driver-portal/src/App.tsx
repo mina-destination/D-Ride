@@ -10,6 +10,7 @@ import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import BottomNav from './components/BottomNav';
 import ProfilePage from './pages/ProfilePage';
+import HelpPage from './pages/Help';
 
 
 // Protected Route Guard
@@ -118,6 +119,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/help"
+                element={
+                  <ProtectedRoute>
+                    <HelpPage />
                   </ProtectedRoute>
                 }
               />

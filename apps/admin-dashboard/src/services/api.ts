@@ -42,35 +42,6 @@ function addIdMapping(data: any): any {
 api.interceptors.response.use(
   (response) => {
     const data = response.data?.data ?? response.data;
-    
-    // Check if mutating method to trigger success message
-    const method = response.config.method?.toUpperCase();
-    if (method && ['POST', 'PUT', 'DELETE'].includes(method)) {
-      const url = response.config.url;
-      const isAuth = url?.includes('/auth/');
-      const isLocation = url?.includes('/location');
-      const isSearch = url?.includes('/search') || url?.includes('/nearby');
-      
-      if (!isAuth && !isLocation && !isSearch) {
-        // Only use response.data.message as toast when it's clearly an API
-        // envelope message (has 'success' or 'statusCode' field), not a data
-        // record that happens to have a 'message' property (e.g. support tickets).
-        const raw = response.data;
-        const isEnvelopeMessage =
-          raw &&
-          typeof raw === 'object' &&
-          typeof raw.message === 'string' &&
-          ('success' in raw || 'statusCode' in raw);
-        let msg = 'Action completed successfully';
-        if (isEnvelopeMessage) {
-          msg = raw.message;
-        } else if (typeof raw === 'string') {
-          msg = raw;
-        }
-        message.success(msg);
-      }
-    }
-    
     return addIdMapping(data);
   },
   (error) => {
@@ -195,6 +166,15 @@ export const partnersAPI = {
   create: (data: any): Promise<any> => api.post('/partners', data),
   update: (id: string, data: any): Promise<any> => api.put(`/partners/${id}`, data),
   delete: (id: string): Promise<any> => api.delete(`/partners/${id}`),
+};
+
+// ── Promo Codes API ─────────────────────────────────────────
+export const promoCodesAPI = {
+  getAll: (): Promise<any> => api.get('/promo-codes'),
+  getById: (id: string): Promise<any> => api.get(`/promo-codes/${id}`),
+  create: (data: any): Promise<any> => api.post('/promo-codes', data),
+  update: (id: string, data: any): Promise<any> => api.put(`/promo-codes/${id}`, data),
+  delete: (id: string): Promise<any> => api.delete(`/promo-codes/${id}`),
 };
 
 // ── Settings API ────────────────────────────────────────────

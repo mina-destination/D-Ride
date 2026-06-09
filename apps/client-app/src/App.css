@@ -1219,6 +1219,7 @@
   align-items: flex-end;
   min-width: 200px;
   background: var(--surface-hover);
+  flex-shrink: 0;
 }
 
 .trip-price {
@@ -1428,55 +1429,89 @@
 
 @media (max-width: 768px) {
   .trip-card {
-    flex-direction: row !important;
+    flex-direction: column !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
   .trip-card-main-row {
-    flex-direction: row !important;
+    flex-direction: column !important;
     width: 100% !important;
   }
   .trip-card-left {
-    padding: 1rem 0.75rem !important;
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    box-sizing: border-box !important;
+  }
+  .trip-card-left > div:first-child {
+    margin-bottom: 0.35rem !important;
+  }
+  .trip-card-left > div:last-child {
+    margin-top: 0.35rem !important;
   }
   .trip-card-divider {
-    width: 1px !important;
-    height: auto !important;
-    border-top: none !important;
-    border-left: 2px dashed var(--border) !important;
-    margin: 0.5rem 0 !important;
+    width: 100% !important;
+    height: 1px !important;
+    border-top: 2px dashed var(--border) !important;
+    border-left: none !important;
+    margin: 0.15rem 0 !important;
   }
   .trip-card-right {
-    width: 130px !important;
-    min-width: 130px !important;
-    border-left: none !important;
-    border-top: none !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
     align-items: center !important;
-    padding: 1rem 0.5rem !important;
+    padding: 0.5rem 1rem !important;
     background: var(--surface-hover) !important;
+    flex-shrink: 0 !important;
+    height: 64px !important;
+    box-sizing: border-box !important;
+    border-top: none !important;
+    border-left: none !important;
+  }
+  .trip-price-seats-group {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
   }
   .ticket-punch-cutout {
     display: block !important;
-    right: 120px !important;
+  }
+  .ticket-cutout-top {
+    top: auto !important;
+    bottom: 54px !important;
+    left: -11px !important;
+    right: auto !important;
+  }
+  .ticket-cutout-bottom {
+    top: auto !important;
+    bottom: 54px !important;
+    right: -11px !important;
+    left: auto !important;
   }
   .trip-price {
-    font-size: 1.15rem !important;
+    font-size: 1.25rem !important;
+    margin-bottom: 0px !important;
   }
   .trip-seats {
-    font-size: 0.7rem !important;
-    margin-bottom: 0.25rem !important;
+    font-size: 0.72rem !important;
+    margin-bottom: 0px !important;
     white-space: nowrap !important;
   }
   .trip-amenities {
-    font-size: 0.85rem !important;
-    margin-bottom: 0.5rem !important;
-    gap: 0.25rem !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+    gap: 0.4rem !important;
+    display: flex !important;
   }
   .trip-card-right .auth-button {
-    font-size: 0.75rem !important;
-    padding: 0.4rem !important;
-    min-height: 32px !important;
+    font-size: 0.8rem !important;
+    padding: 0.5rem 1rem !important;
+    min-height: 36px !important;
+    width: auto !important;
+    margin-top: 0 !important;
   }
 
   .boarding-pass {

@@ -6,8 +6,14 @@ const SOCKET_URL = import.meta.env.VITE_API_URL
 
 class SocketService {
   public socket: Socket | null = null;
+  private disconnectTimeout: any = null;
 
   connect() {
+    if (this.disconnectTimeout) {
+      clearTimeout(this.disconnectTimeout);
+      this.disconnectTimeout = null;
+    }
+
     if (!this.socket) {
       const token = localStorage.getItem('dride_driver_token');
       this.socket = io(SOCKET_URL, {
@@ -27,10 +33,15 @@ class SocketService {
   }
 
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
+    if (this.disconnectTimeout) return;
+
+    this.disconnectTimeout = setTimeout(() => {
+      if (this.socket) {
+        this.socket.disconnect();
+        this.socket = null;
+      }
+      this.disconnectTimeout = null;
+    }, 1000);
   }
 
   sendLocation(payload: {

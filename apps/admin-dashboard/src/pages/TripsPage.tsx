@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, InputNumber } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
@@ -101,6 +101,8 @@ export function TripsPage() {
         departureTime: dayjs(trip.departureTime),
         status: trip.status,
         lockSeat14: trip.lockedSeats?.includes(14) ?? true,
+        priceEGP: trip.priceEGP,
+        premiumSeatSurcharge: trip.premiumSeatSurcharge,
       });
     } else {
       setEditingId(null);
@@ -899,6 +901,24 @@ export function TripsPage() {
                   <Select.Option value="COMPLETED">Completed</Select.Option>
                   <Select.Option value="CANCELLED">Cancelled</Select.Option>
                 </Select>
+              </Form.Item>
+
+              <Form.Item 
+                name="priceEGP" 
+                label="Standard Ticket Price (EGP)"
+                rules={[{ type: 'number', min: 0, message: 'Must be a positive number' }]}
+                style={{ marginBottom: '8px' }}
+              >
+                <InputNumber style={{ width: '100%' }} placeholder="Auto-computed if empty" />
+              </Form.Item>
+
+              <Form.Item 
+                name="premiumSeatSurcharge" 
+                label="VIP Seat 1 Surcharge (EGP)"
+                rules={[{ type: 'number', min: 0, message: 'Must be a positive number' }]}
+                style={{ marginBottom: '8px' }}
+              >
+                <InputNumber style={{ width: '100%' }} placeholder="Additional fee (e.g. 40)" />
               </Form.Item>
 
               {!editingId && (

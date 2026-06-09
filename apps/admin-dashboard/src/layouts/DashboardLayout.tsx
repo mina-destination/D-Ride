@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
@@ -24,6 +24,7 @@ const navItems = [
   { path: '/refunds', icon: <Undo2 size={18} />, label: 'Refund Requests' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
   { path: '/finance-calculator', icon: <Calculator size={18} />, label: 'Profit Simulator' },
+  { path: '/promo-codes', icon: <Percent size={18} />, label: 'Promo Codes' },
   
   { label: 'CRM & Support', type: 'section' as const },
   { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
@@ -53,6 +54,7 @@ const pageTitles: Record<string, string> = {
   '/administrators': 'Administrators',
   '/settings': 'Settings',
   '/partners': 'Partners',
+  '/promo-codes': 'Promo Codes',
   '/profile': 'My Profile',
 };
 
@@ -73,6 +75,7 @@ const pathPermissionMap: Record<string, string> = {
   '/administrators': 'settings',
   '/settings': 'settings',
   '/partners': 'partners',
+  '/promo-codes': 'promo-codes',
 };
 
 export default function DashboardLayout() {

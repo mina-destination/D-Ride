@@ -212,6 +212,9 @@ export interface Booking {
   paymentStatus: PaymentStatus;
   paymobOrderId?: number;
   amountEGP: number;
+  discountEGP: number;
+  promoCodeId?: string;
+  promoCode?: PromoCode;
   bookedAt: Date;
   boardingNumber?: number;
   createdAt: Date;
@@ -330,4 +333,32 @@ export interface DashboardStats {
   activePassengers: number;
   tripsToday: number;
   bookingsToday: number;
+}
+
+// ── Promo Code ──────────────────────────────────────────────
+
+export interface PromoCode {
+  _id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  maxDiscountEGP?: number;
+  minBookingAmountEGP: number;
+  expiryDate?: Date | string;
+  usageLimit?: number;
+  usageCount: number;
+  isActive: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface CreatePromoCodeDto {
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  maxDiscountEGP?: number;
+  minBookingAmountEGP?: number;
+  expiryDate?: Date | string | null;
+  usageLimit?: number | null;
+  isActive?: boolean;
 }

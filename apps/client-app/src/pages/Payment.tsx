@@ -25,6 +25,49 @@ export default function PaymentPage() {
   const [paymentMethod] = useState<'CARD'>('CARD');
   const isSubmitting = useRef(false);
 
+  // Promo Code States
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [promoStatus, setPromoStatus] = useState<'success' | 'error' | null>(null);
+
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim() || applyingPromo) return;
+    setApplyingPromo(true);
+    setPromoMessage(null);
+    setPromoStatus(null);
+    try {
+      const updated = await bookingsAPI.applyPromo(booking._id || booking.id, promoCodeInput);
+      const data = updated.data ?? updated;
+      setBooking(data);
+      setPromoCodeInput('');
+      setPromoStatus('success');
+      setPromoMessage(t('promoCodeApplied'));
+    } catch (err: any) {
+      setPromoStatus('error');
+      setPromoMessage(err?.message || t('promoCodeInvalid'));
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = async () => {
+    setApplyingPromo(true);
+    setPromoMessage(null);
+    setPromoStatus(null);
+    try {
+      const updated = await bookingsAPI.applyPromo(booking._id || booking.id, null);
+      const data = updated.data ?? updated;
+      setBooking(data);
+      setPromoStatus(null);
+      setPromoMessage(null);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to remove promo code');
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
   useEffect(() => {
     if (!bookingId) return;
 
@@ -285,33 +328,131 @@ export default function PaymentPage() {
               </div>
             </div>
 
+            {/* Promo Code Card */}
+            <div className="premium-card">
+              <div className="premium-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🏷️</span> {t('promoCodeLabel')}
+              </div>
+
+              {booking.promoCodeId ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(245, 183, 49, 0.08)', border: '1px dashed var(--primary)', padding: '10px 14px', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.1rem' }}>🎫</span>
+                    <div>
+                      <strong style={{ color: 'var(--primary)', letterSpacing: '0.5px' }}>{booking.promoCode?.code || 'APPLIED'}</strong>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        {t('promoCodeApplied')}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemovePromo}
+                    disabled={applyingPromo}
+                    className="btn-link"
+                    style={{ color: '#EF4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+                  >
+                    {applyingPromo ? '...' : t('removePromoCode')}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder={t('enterPromoCode')}
+                      value={promoCodeInput}
+                      onChange={(e) => {
+                        setPromoCodeInput(e.target.value.toUpperCase());
+                        setPromoMessage(null);
+                        setPromoStatus(null);
+                      }}
+                      disabled={applyingPromo}
+                      style={{
+                        flex: 1,
+                        background: 'var(--surface)',
+                        border: promoStatus === 'error' ? '1px solid #EF4444' : (promoStatus === 'success' ? '1px solid var(--success)' : '1px solid var(--border)'),
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        color: 'var(--text-primary)',
+                        textTransform: 'uppercase',
+                        outline: 'none',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                    <button
+                      onClick={handleApplyPromo}
+                      disabled={applyingPromo || !promoCodeInput.trim()}
+                      style={{
+                        background: 'var(--primary)',
+                        color: 'black',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontWeight: 'bold',
+                        cursor: (applyingPromo || !promoCodeInput.trim()) ? 'not-allowed' : 'pointer',
+                        opacity: (applyingPromo || !promoCodeInput.trim()) ? 0.6 : 1,
+                        transition: 'opacity 0.2s',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {applyingPromo ? '...' : t('applyPromoCode')}
+                    </button>
+                  </div>
+                  {promoMessage && (
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '0.78rem',
+                      color: promoStatus === 'error' ? '#EF4444' : 'var(--success)',
+                      fontWeight: 500
+                    }}>
+                      {promoMessage}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Cost breakdown */}
             <div className="premium-card">
               <div className="premium-card-title">
                 <span>🧾</span> {t('billingDetails')}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{t('seatReservationCost', { count: seatNumbers.length })}</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{Math.round(booking.amountEGP * 0.14)} {isRtl ? 'ج.م' : 'EGP'}</span>
-                </div>
+              {(() => {
+                const discount = booking.discountEGP || 0;
+                const originalAmount = booking.amountEGP + discount;
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{t('processingFee')}</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{t('freeProcessing')}</span>
-                </div>
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{t('seatReservationCost', { count: seatNumbers.length })}</span>
+                      <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{originalAmount} {isRtl ? 'ج.م' : 'EGP'}</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
+                      <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{Math.round(originalAmount * 0.14)} {isRtl ? 'ج.م' : 'EGP'}</span>
+                    </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
-                  <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>{booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}</span>
-                </div>
-              </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{t('processingFee')}</span>
+                      <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{t('freeProcessing')}</span>
+                    </div>
+
+                    {discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span style={{ color: 'var(--primary)' }}>{t('promoDiscount', { code: booking.promoCode?.code || 'PROMO' })}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>-{discount} {isRtl ? 'ج.م' : 'EGP'}</span>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
+                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>{booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Checkout Action Button */}

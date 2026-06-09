@@ -65,7 +65,14 @@ export default function CheckoutPage() {
   };
 
   const legPrice = getLegPrice();
-  const legSubTotalFare = legPrice * selectedSeats.length;
+  
+  const getLegSubTotalFare = () => {
+    const surcharge = Number(trip?.premiumSeatSurcharge || 0);
+    const hasSeat1 = selectedSeats.some(s => Number(s) === 1);
+    return legPrice * selectedSeats.length + (hasSeat1 ? surcharge : 0);
+  };
+  
+  const legSubTotalFare = getLegSubTotalFare();
 
 
 
@@ -447,7 +454,15 @@ export default function CheckoutPage() {
   };
 
   const getSeatLabel = (num: number) => {
-    if (num === 1) return { label: t('vipCockpitSeat'), desc: t('vipCockpitSeatDesc') };
+    if (num === 1) {
+      const surcharge = Number(trip?.premiumSeatSurcharge || 0);
+      return { 
+        label: t('vipCockpitSeat'), 
+        desc: surcharge > 0 
+          ? `${t('vipCockpitSeatDesc')} (VIP Surcharge: +${surcharge} EGP)` 
+          : t('vipCockpitSeatDesc') 
+      };
+    }
     if ([4, 7, 10].includes(num)) return { label: t('premiumWindowSeat'), desc: t('premiumWindowSeatDesc') };
     if ([11, 14].includes(num)) return { label: t('rearWindowSeat'), desc: t('rearWindowSeatDesc') };
     if ([2, 5, 8, 12, 13].includes(num)) return { label: t('spaciousAisleSeat'), desc: t('spaciousAisleSeatDesc') };
@@ -485,6 +500,8 @@ export default function CheckoutPage() {
     if (isSelected) className += " selected";
     if (isLocked) className += " locked-luggage";
 
+    const isPremiumSeat1 = num === 1 && trip?.premiumSeatSurcharge && trip.premiumSeatSurcharge > 0;
+
     return (
       <div 
         key={num}
@@ -506,7 +523,10 @@ export default function CheckoutPage() {
             justifyContent: 'center',
             transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             minWidth: '48px',
-            minHeight: '48px'
+            minHeight: '48px',
+            border: isPremiumSeat1 && !isSelected && !isOccupied ? '2px solid #f5b731' : undefined,
+            boxShadow: isPremiumSeat1 && !isSelected && !isOccupied ? '0 0 12px rgba(245, 183, 49, 0.45)' : undefined,
+            borderRadius: isPremiumSeat1 ? '10px' : undefined
           }}
           title={isLocked ? t('luggageHoldAreaLocked') : isOccupied ? t('seatOccupiedTitle', { num }) : t('seatTitle', { num })}
         >
@@ -524,7 +544,7 @@ export default function CheckoutPage() {
                   fontWeight: 'bold', 
                   color: isSelected ? 'black' : 'var(--text-secondary)'
                 }}>
-                  {num}
+                  {num}{isPremiumSeat1 && !isSelected && '👑'}
                 </span>
               </>
             )}

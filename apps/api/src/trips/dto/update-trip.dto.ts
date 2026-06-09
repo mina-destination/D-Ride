@@ -42,6 +42,11 @@ export class UpdateTripDto {
   @IsNumber()
   @Min(0)
   @IsOptional()
+  premiumSeatSurcharge?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
   availableSeats?: number;
 
   @IsNumber()

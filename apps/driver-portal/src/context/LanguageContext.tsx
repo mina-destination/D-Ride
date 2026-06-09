@@ -15,6 +15,9 @@ const translations: Record<Language, Record<string, string>> = {
     brandName: 'D-Ride',
     driverCommandCenter: 'Driver Command Center',
     authorizedPersonnelOnly: 'Authorized transit personnel only',
+    downloadDriverApp: 'D-Ride Driver Mobile App',
+    downloadDriverAppDesc: 'Download the official APK for real-time background GPS tracking and instant QR ticket scanning.',
+    downloadApkBtn: 'Download APK',
     
     // Auth / Login
     signIn: 'Sign In',
@@ -119,6 +122,9 @@ const translations: Record<Language, Record<string, string>> = {
     brandName: 'دي-رايد',
     driverCommandCenter: 'مركز التحكم للسائقين',
     authorizedPersonnelOnly: 'للموظفين المصرح لهم فقط',
+    downloadDriverApp: 'تطبيق سائق دي-رايد للهواتف',
+    downloadDriverAppDesc: 'قم بتحميل تطبيق APK الرسمي لتتبع الموقع الجغرافي (GPS) في الخلفية ومسح تذاكر QR فورياً.',
+    downloadApkBtn: 'تحميل تطبيق APK',
     
     // Auth / Login
     signIn: 'تسجيل الدخول',

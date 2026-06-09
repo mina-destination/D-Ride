@@ -678,27 +678,31 @@ export default function TripSearchPage() {
                                 {/* Ticket Punch Cutout Top */}
                                 <div style={{
                                   position: 'absolute',
-                                  top: '-10px',
+                                  top: '-11px',
                                   right: '170px',
                                   width: '20px',
                                   height: '20px',
                                   borderRadius: '50%',
                                   background: 'var(--background)',
-                                  border: '1px solid var(--border)',
+                                  border: activeTripId === trip._id 
+                                    ? '1px solid var(--primary)' 
+                                    : '1px solid var(--border)',
                                   zIndex: 5
-                                }} className="ticket-punch-cutout" />
+                                }} className="ticket-punch-cutout ticket-cutout-top" />
                                 {/* Ticket Punch Cutout Bottom */}
                                 <div style={{
                                   position: 'absolute',
-                                  bottom: '-10px',
+                                  bottom: '-11px',
                                   right: '170px',
                                   width: '20px',
                                   height: '20px',
                                   borderRadius: '50%',
                                   background: 'var(--background)',
-                                  border: '1px solid var(--border)',
+                                  border: activeTripId === trip._id 
+                                    ? '1px solid var(--primary)' 
+                                    : '1px solid var(--border)',
                                   zIndex: 5
-                                }} className="ticket-punch-cutout" />
+                                }} className="ticket-punch-cutout ticket-cutout-bottom" />
 
                                 {/* Left Column: Premium Route Cover Landscape Banner */}
                                 <div style={{
@@ -802,11 +806,11 @@ export default function TripSearchPage() {
                                       const pickupDist = (() => {
                                         const coords = pickupCp.location?.coordinates || pickupCp.coordinates;
                                         if (coords && coords.length >= 2) {
-                                          if (userLocation) {
-                                            return haversineDistance(userLocation.lng, userLocation.lat, coords[0], coords[1]);
-                                          }
                                           if (searchPickupLat !== null && !isNaN(searchPickupLat) && searchPickupLng !== null && !isNaN(searchPickupLng)) {
                                             return haversineDistance(searchPickupLng, searchPickupLat, coords[0], coords[1]);
+                                          }
+                                          if (userLocation) {
+                                            return haversineDistance(userLocation.lng, userLocation.lat, coords[0], coords[1]);
                                           }
                                         }
                                         return trip.pickupCheckpoint.distanceMeters || 0;
@@ -824,6 +828,10 @@ export default function TripSearchPage() {
                                           ? (isRtl ? `${hrs} س ${remainingMins} د` : `${hrs}h ${remainingMins}m`) 
                                           : (isRtl ? `${hrs} س` : `${hrs}h`);
                                       };
+
+                                      const distanceStr = pickupDist < 1000 
+                                        ? `${pickupDist}m` 
+                                        : `${(pickupDist / 1000).toFixed(1)} km`;
 
                                       return (
                                         <div style={{
@@ -849,12 +857,10 @@ export default function TripSearchPage() {
                                             flexWrap: 'wrap'
                                           }}>
                                             <span>
-                                              {isRtl 
-                                                ? 'نقطة الركوب على بعد دقائق فقط من موقعك:' 
-                                                : 'Pickup is just minutes away from your location:'}
+                                              {isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}
                                             </span>
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                              🚶 {formatMinsCompact(firstMileTimeWalk)}
+                                              🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})
                                             </span>
                                             <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -907,12 +913,14 @@ export default function TripSearchPage() {
                                 <div className="trip-card-divider" style={{ margin: '0.75rem 0', width: '2px', borderLeft: '2px dashed var(--border)', zIndex: 1 }}></div>
 
                                 {/* Right Column: Pricing & Booking */}
-                                <div className="trip-card-right" style={{ padding: '1.5rem 1.25rem', minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                                  <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
-                                    {dynamicLegPrice} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{isRtl ? 'ج.م' : 'EGP'}</span>
-                                  </div>
-                                  <div className="trip-seats" style={{ fontSize: '0.8rem', color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)' }}>
-                                    <span className="seat-icon">💺</span> {t('seatsLeft', { count: seatsLeft })}
+                                <div className="trip-card-right" style={{ padding: '1.5rem 1.25rem', minWidth: '180px', width: '180px', flex: '0 0 180px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                                  <div className="trip-price-seats-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                    <div className="trip-price" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+                                      {dynamicLegPrice} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{isRtl ? 'ج.م' : 'EGP'}</span>
+                                    </div>
+                                    <div className="trip-seats" style={{ fontSize: '0.8rem', color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)' }}>
+                                      <span className="seat-icon">💺</span> {t('seatsLeft', { count: seatsLeft })}
+                                    </div>
                                   </div>
                                   <div className="trip-amenities" style={{ margin: '6px 0' }}>
                                     <span title="Air Conditioned">❄️</span>

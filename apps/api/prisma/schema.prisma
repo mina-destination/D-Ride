@@ -87,6 +87,7 @@ model Trip {
   arrivalTime    DateTime?
   status         TripStatus @default(SCHEDULED)
   priceEGP       Float
+  premiumSeatSurcharge Float @default(0)
   availableSeats Int
   bookedSeats    Int        @default(0)
   lockedSeats    Json       @default("[14]")
@@ -114,6 +115,9 @@ model Booking {
   paymentStatus       PaymentStatus @default(PENDING)
   paymobOrderId       Int?          @unique
   amountEGP           Float
+  discountEGP         Float         @default(0)
+  promoCodeId         String?
+  promoCode           PromoCode?    @relation(fields: [promoCodeId], references: [id])
   bookedAt            DateTime      @default(now())
   qrVerificationToken String?
   createdAt           DateTime      @default(now())
@@ -264,4 +268,22 @@ enum StopType {
   START
   CHECKPOINT
   END
+}
+
+model PromoCode {
+  id                  String    @id @default(uuid())
+  code                String    @unique
+  discountType        String    // "PERCENTAGE" or "FIXED"
+  discountValue       Float
+  maxDiscountEGP      Float?    // Maximum EGP discount limit for percentage type
+  minBookingAmountEGP Float     @default(0) // Minimum booking fare needed to apply
+  expiryDate          DateTime?
+  usageLimit          Int?      // Maximum times this code can be used in total
+  usageCount          Int       @default(0) // Times used
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  bookings            Booking[]
+
+  @@map("promo_codes")
 }

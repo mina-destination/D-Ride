@@ -183,6 +183,7 @@ export const bookingsAPI = {
     api.get(`/bookings/occupied/${tripId}`, { params: { pickupCheckpointName, dropoffCheckpointName } }),
   create: (data: any): Promise<any> => api.post('/bookings', data),
   cancel: (id: string): Promise<any> => api.put(`/bookings/${id}/cancel`),
+  applyPromo: (id: string, code: string | null): Promise<any> => api.put(`/bookings/${id}/apply-promo`, { code }),
 };
 
 export const supportAPI = {
