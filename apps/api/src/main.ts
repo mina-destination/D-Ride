@@ -110,6 +110,14 @@ async function bootstrap() {
         ];
   }
 
+  // Always allow Capacitor mobile app localhost origins in production/development
+  if (!origins.includes('https://localhost')) {
+    origins.push('https://localhost');
+  }
+  if (!origins.includes('capacitor://localhost')) {
+    origins.push('capacitor://localhost');
+  }
+
   app.enableCors({
     origin: origins,
     credentials: true,
