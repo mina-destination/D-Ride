@@ -625,7 +625,7 @@ export class TripsService {
       }
     } catch (err: any) {
       console.error('DELETE TRIP ERROR:', err);
-      throw new NotFoundException(`Trip not found or delete failed: ${err.message || err}`);
+      throw new NotFoundException('Trip not found');
     }
   }
 
