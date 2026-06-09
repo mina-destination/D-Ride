@@ -99,6 +99,15 @@ export class BookingsService {
     });
     return bookings.map((b) => this.mapBooking(b));
   }
+  private calculateBasePrice(
+    trip: any,
+    segmentPrice: number,
+    seatNumbers: number[],
+  ): number {
+    const surcharge = Number(trip.premiumSeatSurcharge || 0);
+    const hasSeat1 = seatNumbers.some((s) => Number(s) === 1);
+    return segmentPrice * seatNumbers.length + (hasSeat1 ? surcharge : 0);
+  }
 
   async cleanupExpiredBookings(tripId: string, tx?: any): Promise<number> {
     const prismaClient = tx || this.prisma;
@@ -271,15 +280,13 @@ export class BookingsService {
       const routeCheckpoints = (currentTrip.route?.checkpoints as any[]) || [];
       const pickupCp = routeCheckpoints.find(
         (cp) =>
-          cp.id === data.pickupCheckpointId ||
-          cp.name === data.pickupCheckpointId ||
-          cp.name === data.pickupStopId,
+          (data.pickupCheckpointId && (cp.id === data.pickupCheckpointId || cp.name === data.pickupCheckpointId)) ||
+          (data.pickupStopId && cp.name === data.pickupStopId),
       );
       const dropoffCp = routeCheckpoints.find(
         (cp) =>
-          cp.id === data.dropoffCheckpointId ||
-          cp.name === data.dropoffCheckpointId ||
-          cp.name === data.dropoffStopId,
+          (data.dropoffCheckpointId && (cp.id === data.dropoffCheckpointId || cp.name === data.dropoffCheckpointId)) ||
+          (data.dropoffStopId && cp.name === data.dropoffStopId),
       );
 
       if (pickupCp) {
@@ -487,7 +494,39 @@ export class BookingsService {
       }
 
       const isReward = !!data.isReward;
-      const amountEGP = isReward ? 0 : segmentPrice * requestedSeats;
+      const basePrice = isReward ? 0 : this.calculateBasePrice(currentTrip, segmentPrice, requestedSeatsList);
+      
+      let discountEGP = 0;
+      let promoCodeId: string | null = null;
+      let amountEGP = basePrice;
+
+      if (data.promoCode && !isReward) {
+        const codeNormalized = data.promoCode.trim().toUpperCase();
+        const promo = await tx.promoCode.findUnique({
+          where: { code: codeNormalized },
+        });
+
+        if (promo && promo.isActive) {
+          const isNotExpired = !promo.expiryDate || new Date() <= new Date(promo.expiryDate);
+          const isUnderLimit = promo.usageLimit === null || promo.usageCount < promo.usageLimit;
+          const meetsMinAmount = basePrice >= promo.minBookingAmountEGP;
+
+          if (isNotExpired && isUnderLimit && meetsMinAmount) {
+            promoCodeId = promo.id;
+            if (promo.discountType === 'FIXED') {
+              discountEGP = promo.discountValue;
+            } else if (promo.discountType === 'PERCENTAGE') {
+              discountEGP = basePrice * (promo.discountValue / 100);
+              if (promo.maxDiscountEGP !== null) {
+                discountEGP = Math.min(discountEGP, promo.maxDiscountEGP);
+              }
+            }
+            discountEGP = Math.min(discountEGP, basePrice);
+            amountEGP = basePrice - discountEGP;
+          }
+        }
+      }
+
       let bookingStatus: BookingStatus = isReward
         ? BookingStatus.CONFIRMED
         : BookingStatus.PENDING_PAYMENT;
@@ -567,10 +606,20 @@ export class BookingsService {
           status: bookingStatus,
           paymentStatus: paymentStatus,
           amountEGP,
+          discountEGP,
+          promoCodeId,
           qrVerificationToken,
           boardingNumber,
         },
       });
+
+      // Update the promo code usage count if wallet payment instantly confirms it
+      if (bookingStatus === BookingStatus.CONFIRMED && promoCodeId) {
+        await tx.promoCode.update({
+          where: { id: promoCodeId },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
 
       // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
       await this.cleanupExpiredBookings(tripIdStr, tx);
@@ -646,6 +695,17 @@ export class BookingsService {
       data: { status: status.toUpperCase() as BookingStatus },
     });
 
+    if (status.toUpperCase() === 'CONFIRMED' && booking.status !== BookingStatus.CONFIRMED && booking.promoCodeId) {
+      try {
+        await this.prisma.promoCode.update({
+          where: { id: booking.promoCodeId },
+          data: { usageCount: { increment: 1 } },
+        });
+      } catch (err) {
+        console.error('Failed to increment promo code usage count:', err);
+      }
+    }
+
     if (status.toUpperCase() === 'CONFIRMED') {
       try {
         const populated = await this.prisma.booking.findUnique({
@@ -713,6 +773,13 @@ export class BookingsService {
           },
         },
       });
+
+      if (booking.status === BookingStatus.CONFIRMED && booking.promoCodeId) {
+        await tx.promoCode.update({
+          where: { id: booking.promoCodeId },
+          data: { usageCount: { decrement: 1 } },
+        });
+      }
 
       return result;
     });
@@ -1109,5 +1176,164 @@ export class BookingsService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
     return this.mapBooking(booking);
+  }
+
+  async applyPromoCode(bookingId: string, userId: string, code: string | null): Promise<any> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { trip: { include: { route: true } } },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.userId !== userId) {
+      throw new BadRequestException('Unauthorized to modify this booking');
+    }
+
+    if (booking.status !== BookingStatus.PENDING_PAYMENT && booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException('Can only apply promo codes to pending bookings');
+    }
+
+    const currentTrip = booking.trip;
+    if (!currentTrip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    // Recalculate original segment price
+    const routeCheckpoints = (currentTrip.route?.checkpoints as any[]) || [];
+    const pickupCp = routeCheckpoints.find(
+      (cp) =>
+        booking.pickupStopId &&
+        (cp.id === booking.pickupStopId || cp.name === booking.pickupStopId),
+    );
+    const dropoffCp = routeCheckpoints.find(
+      (cp) =>
+        booking.dropoffStopId &&
+        (cp.id === booking.dropoffStopId || cp.name === booking.dropoffStopId),
+    );
+
+    let segmentPrice = currentTrip.priceEGP || 0;
+    if (pickupCp && dropoffCp) {
+      if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
+        segmentPrice = Number(pickupCp.prices[dropoffCp.name]);
+      } else {
+        const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+        const dropoffPrice = Number(
+          dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
+        );
+        segmentPrice = dropoffPrice - pickupPrice;
+      }
+    }
+
+    const bookingSeatsList = Array.isArray(booking.seatNumbers) ? (booking.seatNumbers as number[]) : [1];
+    const baseAmount = this.calculateBasePrice(currentTrip, segmentPrice, bookingSeatsList);
+
+    return this.prisma.$transaction(async (tx) => {
+      if (!code || code.trim() === '') {
+        // Clear promo code
+        const updated = await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            discountEGP: 0,
+            promoCodeId: null,
+            amountEGP: baseAmount,
+          },
+          include: {
+            trip: {
+              include: {
+                route: true,
+              },
+            },
+            user: true,
+            transactions: true,
+          },
+        });
+
+        await tx.transaction.updateMany({
+          where: {
+            bookingId,
+            status: PaymentStatus.PENDING,
+          },
+          data: {
+            amountEGP: baseAmount,
+          },
+        });
+
+        return this.mapBooking(updated);
+      }
+
+      // Validate Promo Code
+      const promoCodeNormalized = code.trim().toUpperCase();
+      const promo = await tx.promoCode.findUnique({
+        where: { code: promoCodeNormalized },
+      });
+
+      if (!promo) {
+        throw new BadRequestException('Invalid promo code');
+      }
+
+      if (!promo.isActive) {
+        throw new BadRequestException('This promo code is inactive');
+      }
+
+      if (promo.expiryDate && new Date() > new Date(promo.expiryDate)) {
+        throw new BadRequestException('This promo code has expired');
+      }
+
+      if (promo.usageLimit !== null && promo.usageCount >= promo.usageLimit) {
+        throw new BadRequestException('This promo code has reached its usage limit');
+      }
+
+      if (baseAmount < promo.minBookingAmountEGP) {
+        throw new BadRequestException(
+          `Booking total (${baseAmount} EGP) must be at least ${promo.minBookingAmountEGP} EGP to use this promo code`,
+        );
+      }
+
+      let discount = 0;
+      if (promo.discountType === 'FIXED') {
+        discount = promo.discountValue;
+      } else if (promo.discountType === 'PERCENTAGE') {
+        discount = baseAmount * (promo.discountValue / 100);
+        if (promo.maxDiscountEGP !== null) {
+          discount = Math.min(discount, promo.maxDiscountEGP);
+        }
+      }
+
+      discount = Math.min(discount, baseAmount);
+      const finalAmount = baseAmount - discount;
+
+      const updated = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          discountEGP: discount,
+          promoCodeId: promo.id,
+          amountEGP: finalAmount,
+        },
+        include: {
+          trip: {
+            include: {
+              route: true,
+            },
+          },
+          user: true,
+          transactions: true,
+        },
+      });
+
+      await tx.transaction.updateMany({
+        where: {
+          bookingId,
+          status: PaymentStatus.PENDING,
+        },
+        data: {
+          amountEGP: finalAmount,
+        },
+      });
+
+      return this.mapBooking(updated);
+    });
   }
 }

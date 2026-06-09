@@ -67,39 +67,30 @@ export default function BottomNav() {
 
       {/* Help Tab */}
       <button
-        onClick={() => {
-          if (location.pathname !== '/dashboard') {
-            navigate('/dashboard');
-            setTimeout(() => {
-              const el = document.getElementById('help-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }, 200);
-          } else {
-            const el = document.getElementById('help-section');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          }
-        }}
+        onClick={() => navigate('/help')}
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '2px',
-          background: 'none',
-          border: '1px solid transparent',
+          background: isActive('/help') ? 'rgba(245, 183, 49, 0.12)' : 'none',
+          border: isActive('/help') ? '1px solid rgba(245, 183, 49, 0.22)' : '1px solid transparent',
           borderRadius: '100px',
-          color: 'var(--text-secondary)',
-          fontWeight: 500,
+          color: isActive('/help') ? 'var(--primary)' : 'var(--text-secondary)',
+          fontWeight: isActive('/help') ? 700 : 500,
           fontSize: '11px',
           cursor: 'pointer',
           flex: 1,
           padding: '6px 0',
           margin: '4px',
+          transform: isActive('/help') ? 'scale(1.03)' : 'scale(1)',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          boxShadow: isActive('/help') ? '0 4px 12px rgba(245, 183, 49, 0.08)' : 'none',
           height: 'calc(100% - 8px)',
           justifyContent: 'center'
         }}
       >
-        <Phone size={18} style={{ color: 'var(--text-muted)', transition: 'all 0.2s' }} />
+        <Phone size={18} style={{ color: isActive('/help') ? 'var(--primary)' : 'var(--text-muted)', transition: 'all 0.2s' }} />
         <span>{t('help')}</span>
       </button>
 

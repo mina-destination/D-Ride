@@ -567,3 +567,78 @@ button, input, select {
   background: transparent !important;
 }
 
+/* ── Calendar Strip (Driver Portal) ───────────────────────── */
+.calendar-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+  -ms-overflow-style: none;  /* Hide scrollbar IE/Edge */
+}
+
+.calendar-strip::-webkit-scrollbar {
+  display: none; /* Hide scrollbar Safari/Chrome */
+}
+
+.calendar-day-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  background: rgba(22, 22, 40, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.calendar-day-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.calendar-day-btn:active {
+  transform: translateY(0);
+}
+
+.calendar-day-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(245, 183, 49, 0.35);
+  transform: scale(1.03);
+}
+
+.calendar-day-btn .cal-day {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  transition: color 0.2s ease;
+}
+
+.calendar-day-btn.active .cal-day {
+  color: var(--text-on-primary);
+  font-weight: 700;
+}
+
+.calendar-day-btn .cal-num {
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: color 0.2s ease;
+}
+
+.calendar-day-btn.active .cal-num {
+  color: var(--text-on-primary);
+}
+
+

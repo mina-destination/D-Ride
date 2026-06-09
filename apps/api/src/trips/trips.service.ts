@@ -485,6 +485,7 @@ export class TripsService {
         arrivalTime: arrTime,
         status: (data.status || 'SCHEDULED').toUpperCase() as TripStatus,
         priceEGP: finalPrice,
+        premiumSeatSurcharge: data.premiumSeatSurcharge !== undefined && data.premiumSeatSurcharge !== null ? Number(data.premiumSeatSurcharge) : 0,
         availableSeats: finalSeats,
         bookedSeats: Number(data.bookedSeats || 0),
         lockedSeats: data.lockedSeats || [14],

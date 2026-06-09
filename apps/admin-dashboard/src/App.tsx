@@ -21,6 +21,7 @@ import { CrmPage } from './pages/CrmPage';
 import { SupportTicketsPage } from './pages/SupportTicketsPage';
 import { AdministratorsPage } from './pages/AdministratorsPage';
 import { PartnersPage } from './pages/PartnersPage';
+import { PromoCodesPage } from './pages/PromoCodesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RefundsPage } from './pages/RefundsPage';
@@ -171,7 +172,8 @@ function DashboardIndexRoute() {
     'crm',
     'support-tickets',
     'settings',
-    'partners'
+    'partners',
+    'promo-codes'
   ].find(p => user.permissions?.includes(p));
   
   if (allowedPermission) {
@@ -189,7 +191,8 @@ function DashboardIndexRoute() {
       crm: '/crm',
       'support-tickets': '/support-tickets',
       settings: '/settings',
-      partners: '/partners'
+      partners: '/partners',
+      'promo-codes': '/promo-codes'
     };
     return <Navigate to={pathMap[allowedPermission]} replace />;
   }
@@ -231,6 +234,7 @@ function AppRoutes() {
         <Route path="administrators" element={<ProtectedRoute permission="settings"><AdministratorsPage /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute permission="settings"><SettingsPage /></ProtectedRoute>} />
         <Route path="partners" element={<ProtectedRoute permission="partners"><PartnersPage /></ProtectedRoute>} />
+        <Route path="promo-codes" element={<ProtectedRoute permission="promo-codes"><PromoCodesPage /></ProtectedRoute>} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 

@@ -21,6 +21,7 @@ export default function MyTripsPage() {
     : 'Manage your active commutes, boarding passes, and rate your trips on D-Ride.';
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming');
 
   // WhatsApp Push Simulation Toast States
   const [showWhatsAppToast, setShowWhatsAppToast] = useState(false);
@@ -121,11 +122,21 @@ export default function MyTripsPage() {
     setLoading(true);
     bookingsAPI.getMyBookings()
       .then(data => {
-        setBookings(data);
+        // Exclude pending and unpaid bookings from My Trips page
+        const paidOrFinalized = data.filter(
+          (b: any) => b.status !== 'PENDING_PAYMENT' && b.status !== 'PENDING'
+        );
+        setBookings(paidOrFinalized);
+        
         // Find first confirmed booking to trigger simulation
-        const confirmed = data.find((b: any) => b.status === 'CONFIRMED');
-        if (confirmed) {
-          setRecentBooking(confirmed);
+        const now = new Date();
+        const upcomingConfirmed = paidOrFinalized.find((b: any) => {
+          const departureTime = b.tripId?.departureTime ? new Date(b.tripId.departureTime) : null;
+          const isPast = departureTime ? departureTime <= now : true;
+          return b.status === 'CONFIRMED' && b.tripId?.status !== 'CANCELLED' && !isPast;
+        });
+        if (upcomingConfirmed) {
+          setRecentBooking(upcomingConfirmed);
           // Show simulated push notification after 2 seconds
           const timer = setTimeout(() => {
             setShowWhatsAppToast(true);
@@ -183,6 +194,28 @@ export default function MyTripsPage() {
     }
   };
 
+  const now = new Date();
+
+  const upcomingBookings = bookings.filter((booking: any) => {
+    const departureTime = booking.tripId?.departureTime ? new Date(booking.tripId.departureTime) : null;
+    const isCancelled = booking.status === 'CANCELLED' || booking.status === 'REFUNDED' || booking.tripId?.status === 'CANCELLED';
+    const isPast = departureTime ? departureTime <= now : true;
+    const isCompletedOrBoarded = booking.status === 'BOARDED' || booking.status === 'COMPLETED' || booking.tripId?.status === 'COMPLETED';
+
+    return !isCancelled && !isPast && !isCompletedOrBoarded;
+  });
+
+  const previousBookings = bookings.filter((booking: any) => {
+    const departureTime = booking.tripId?.departureTime ? new Date(booking.tripId.departureTime) : null;
+    const isCancelled = booking.status === 'CANCELLED' || booking.status === 'REFUNDED' || booking.tripId?.status === 'CANCELLED';
+    const isPast = departureTime ? departureTime <= now : true;
+    const isCompletedOrBoarded = booking.status === 'BOARDED' || booking.status === 'COMPLETED' || booking.tripId?.status === 'COMPLETED';
+
+    return isCancelled || isPast || isCompletedOrBoarded;
+  });
+
+  const displayedBookings = activeTab === 'upcoming' ? upcomingBookings : previousBookings;
+
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} />
@@ -230,21 +263,43 @@ export default function MyTripsPage() {
           </p>
         </div>
 
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.5rem' }}>
+          <div className="sorting-tabs-container">
+            <button 
+              className={`sorting-tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
+              onClick={() => setActiveTab('upcoming')}
+            >
+              {t('upcomingTrips')} ({upcomingBookings.length})
+            </button>
+            <button 
+              className={`sorting-tab-btn ${activeTab === 'previous' ? 'active' : ''}`}
+              onClick={() => setActiveTab('previous')}
+            >
+              {t('previousTrips')} ({previousBookings.length})
+            </button>
+          </div>
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading tickets...</div>
-        ) : bookings.length === 0 ? (
-          <div className="features-grid">
-            <div className="feature-card glass" style={{ flexDirection: 'column', textAlign: 'center', padding: '2.5rem' }}>
+        ) : displayedBookings.length === 0 ? (
+          <div className="features-grid" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="feature-card glass" style={{ flexDirection: 'column', textAlign: 'center', padding: '2.5rem', width: '100%' }}>
               <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}><Ticket size={48} color="var(--text-muted)" /></div>
-              <h3 className="feature-title">{t('noTickets')}</h3>
+              <h3 className="feature-title">
+                {activeTab === 'upcoming' ? t('noUpcomingTrips') : t('noPreviousTrips')}
+              </h3>
               <p className="feature-desc">
-                {t('startBooking')}
+                {activeTab === 'upcoming' 
+                  ? t('startBooking') 
+                  : (isAr ? 'سيتم عرض تفاصيل رحلاتك المكتملة أو الملغاة هنا.' : 'Your completed, cancelled, or past trip bookings will be displayed here.')
+                }
               </p>
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
-            {bookings.map((booking: any) => {
+            {displayedBookings.map((booking: any) => {
               const dateObj = booking.tripId?.departureTime ? new Date(booking.tripId.departureTime) : null;
               const formattedDate = dateObj ? dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'N/A';
               const formattedTime = dateObj ? dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : 'N/A';

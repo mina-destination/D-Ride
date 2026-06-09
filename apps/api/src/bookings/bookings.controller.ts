@@ -79,6 +79,25 @@ export class BookingsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Put(':id/apply-promo')
+  async applyPromo(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('code') code: string | null,
+  ) {
+    const booking = await this.bookingsService.applyPromoCode(
+      id,
+      req.user.sub,
+      code,
+    );
+    return {
+      success: true,
+      data: booking,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('occupied/:tripId')
   async getOccupiedSeats(
     @Param('tripId', ParseUUIDPipe) tripId: string,

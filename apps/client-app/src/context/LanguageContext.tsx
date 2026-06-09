@@ -14,6 +14,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     searchRides: 'Search Rides',
     myTrips: 'My Trips',
+    upcomingTrips: 'Upcoming Trips',
+    previousTrips: 'Previous Trips',
+    noUpcomingTrips: 'No upcoming trips found',
+    noPreviousTrips: 'No previous trips found',
     myWallet: 'My Wallet',
     walletBalanceLabel: 'Prepaid Wallet Balance',
     topUpBtn: 'Top Up Wallet',
@@ -382,6 +386,13 @@ const translations: Record<Language, Record<string, string>> = {
     paymentFailedDesc: 'We could not process your payment. Please try again.',
     paymentSuccessNotificationTitle: 'Payment Successful ✅',
     paymentSuccessNotificationDesc: 'Your transaction was completed and your seat is secured.',
+    promoCodeLabel: 'Promo Code',
+    applyPromoCode: 'Apply',
+    removePromoCode: 'Remove',
+    promoCodeApplied: 'Promo code applied successfully!',
+    promoCodeInvalid: 'Invalid or expired promo code',
+    promoDiscount: 'Discount ({code})',
+    enterPromoCode: 'Enter promo code...',
     
     // LiveTracking Page
     noVehicleSelected: 'No Vehicle Selected',
@@ -460,6 +471,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     searchRides: 'البحث عن رحلات',
     myTrips: 'رحلاتي',
+    upcomingTrips: 'الرحلات القادمة',
+    previousTrips: 'الرحلات السابقة',
+    noUpcomingTrips: 'لا توجد رحلات قادمة حالياً',
+    noPreviousTrips: 'لا توجد رحلات سابقة',
     myWallet: 'محفظتي',
     walletBalanceLabel: 'رصيد المحفظة مسبقة الدفع',
     topUpBtn: 'شحن المحفظة',
@@ -828,6 +843,13 @@ const translations: Record<Language, Record<string, string>> = {
     paymentFailedDesc: 'لم نتمكن من معالجة عملية الدفع الخاصة بك. يرجى المحاولة مرة أخرى.',
     paymentSuccessNotificationTitle: 'تم الدفع بنجاح ✅',
     paymentSuccessNotificationDesc: 'اكتملت معاملتك وتم تأمين مقعدك.',
+    promoCodeLabel: 'الرمز الترويجي',
+    applyPromoCode: 'تطبيق',
+    removePromoCode: 'إزالة',
+    promoCodeApplied: 'تم تطبيق الرمز الترويجي بنجاح!',
+    promoCodeInvalid: 'رمز ترويجي غير صالح أو منتهي الصلاحية',
+    promoDiscount: 'خصم ({code})',
+    enterPromoCode: 'أدخل الرمز الترويجي...',
     
     // LiveTracking Page
     noVehicleSelected: 'لم يتم اختيار حافلة',

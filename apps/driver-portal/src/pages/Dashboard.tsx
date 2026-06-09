@@ -8,7 +8,6 @@ import {
   Users, 
   ChevronRight, 
   LogOut, 
-  RefreshCw, 
   Globe, 
   Play, 
   CheckCircle, 
@@ -19,13 +18,15 @@ import {
   Phone, 
   HelpCircle, 
   AlertTriangle,
-  LifeBuoy
+  LifeBuoy,
+  Download
 } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { Html5Qrcode } from 'html5-qrcode';
 import maplibregl from 'maplibre-gl';
+import { Capacitor } from '@capacitor/core';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Sound feedback helper
@@ -126,9 +127,9 @@ export default function DashboardPage() {
   }, []);
 
   // Fetch all driver trips
-  const fetchTrips = async (autoSelect = false) => {
+  const fetchTrips = async (autoSelect = false, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await driverAPI.getMyTrips();
       setTrips(data);
       
@@ -149,7 +150,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to load driver trips', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -176,27 +177,21 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Refresh active trip data and manifest on a regular basis when boarding or in transit
+  // Periodically refresh trips and active manifest silently (always refreshed)
   useEffect(() => {
-    let interval: any = null;
-    if (activeTrip && (activeTrip.status === 'BOARDING' || activeTrip.status === 'IN_TRANSIT')) {
-      interval = setInterval(() => {
-        // Refresh silently
-        driverAPI.getMyTrips().then((data) => {
-          const updated = data.find((x: any) => x._id === activeTrip._id);
-          if (updated) {
-            setActiveTrip(updated);
-          }
-        }).catch(console.error);
-        
+    const interval = setInterval(() => {
+      // 1. Refresh trips list silently
+      fetchTrips(false, true);
+      
+      // 2. If trip manifest is active, refresh manifest silently too
+      if (activeTrip && (activeTrip.status === 'BOARDING' || activeTrip.status === 'IN_TRANSIT')) {
         driverAPI.getTripManifest(activeTrip._id).then((data) => {
           setManifest(data);
         }).catch(console.error);
-      }, 10000); // every 10s
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+      }
+    }, 6000); // every 6s
+
+    return () => clearInterval(interval);
   }, [activeTrip?._id, activeTrip?.status]);
 
   // When active trip changes, load its manifest and reset states
@@ -648,13 +643,6 @@ export default function DashboardPage() {
             <Globe size={18} />
           </button>
           <button
-            onClick={() => fetchTrips()}
-            style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
-            title={t('refreshTrips')}
-          >
-            <RefreshCw size={18} className={loading ? 'spin-anim' : ''} />
-          </button>
-          <button
             onClick={logout}
             style={{ color: 'var(--danger)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
             title={t('signOut')}
@@ -665,6 +653,51 @@ export default function DashboardPage() {
       </div>
 
       <div className="content-container">
+        {/* Android App Download Banner */}
+        {!Capacitor.isNativePlatform() && (
+          <div className="glass-card" style={{
+            background: 'linear-gradient(135deg, rgba(245, 183, 49, 0.15) 0%, rgba(22, 22, 40, 0.95) 100%)',
+            borderColor: 'rgba(245, 183, 49, 0.3)',
+            padding: '16px',
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{ flex: 1 }}>
+              <h4 className="title-outfit" style={{ fontSize: '14px', margin: '0 0 4px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📱</span> {t('downloadDriverApp')}
+              </h4>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                {t('downloadDriverAppDesc')}
+              </p>
+            </div>
+            <a
+              href="/dride-driver.apk"
+              download="dride-driver.apk"
+              className="btn btn-primary"
+              style={{
+                fontSize: '12px',
+                height: '36px',
+                padding: '0 16px',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                background: 'var(--primary)',
+                color: 'var(--text-on-primary)',
+                borderRadius: '8px',
+                fontWeight: 700
+              }}
+            >
+              <Download size={14} />
+              {t('downloadApkBtn')}
+            </a>
+          </div>
+        )}
+
         {/* SECTION 1: Calendar Strip */}
         <div style={{ marginBottom: '12px' }}>
           <div className="calendar-strip">
