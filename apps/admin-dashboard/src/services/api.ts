@@ -38,6 +38,28 @@ function addIdMapping(data: any): any {
   return data;
 }
 
+let errorToastTimeout: any = null;
+let pendingErrors: string[] = [];
+
+function showDebouncedError(msg: string) {
+  if (!pendingErrors.includes(msg)) {
+    pendingErrors.push(msg);
+  }
+  if (!errorToastTimeout) {
+    errorToastTimeout = setTimeout(() => {
+      if (pendingErrors.length > 0) {
+        if (pendingErrors.length > 2) {
+          message.error(`Errors: ${pendingErrors.slice(0, 2).join(', ')} (+${pendingErrors.length - 2} more)`);
+        } else {
+          pendingErrors.forEach(err => message.error(err));
+        }
+      }
+      pendingErrors = [];
+      errorToastTimeout = null;
+    }, 100);
+  }
+}
+
 // Response interceptor — unwrap API response
 api.interceptors.response.use(
   (response) => {
@@ -67,7 +89,7 @@ api.interceptors.response.use(
       errorMsg = error.message;
     }
     
-    message.error(errorMsg);
+    showDebouncedError(errorMsg);
     
     return Promise.reject(error.response?.data || error);
   },

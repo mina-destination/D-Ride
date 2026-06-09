@@ -27,6 +27,38 @@ export const registerApiToastCallback = (cb: typeof apiToastCallback) => {
   apiToastCallback = cb;
 };
 
+let errorToastTimeout: any = null;
+let pendingErrors: string[] = [];
+
+function showDebouncedError(title: string, message: string) {
+  const errorKey = `${title}:${message}`;
+  if (!pendingErrors.includes(errorKey)) {
+    pendingErrors.push(errorKey);
+  }
+  if (!errorToastTimeout) {
+    errorToastTimeout = setTimeout(() => {
+      if (pendingErrors.length > 0) {
+        if (pendingErrors.length > 2) {
+          if (apiToastCallback) {
+            apiToastCallback('Error', 'Multiple operations failed', 'error');
+          }
+        } else {
+          pendingErrors.forEach(errKey => {
+            const idx = errKey.indexOf(':');
+            const t = errKey.slice(0, idx);
+            const m = errKey.slice(idx + 1);
+            if (apiToastCallback) {
+              apiToastCallback(t, m, 'error');
+            }
+          });
+        }
+      }
+      pendingErrors = [];
+      errorToastTimeout = null;
+    }, 100);
+  }
+}
+
 // Response helper for cleaning payload
 api.interceptors.response.use(
   (response) => {
@@ -73,9 +105,7 @@ api.interceptors.response.use(
       message = error.message;
     }
     
-    if (apiToastCallback) {
-      apiToastCallback(title, message, 'error');
-    }
+    showDebouncedError(title, message);
     
     return Promise.reject(new Error(message));
   }
