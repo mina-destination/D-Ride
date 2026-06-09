@@ -15,6 +15,7 @@ interface ActiveBus {
   plate: string;
   route: string;
   driver: string;
+  driverId?: string;
   lat: number;
   lng: number;
   seats: string;
@@ -61,6 +62,18 @@ export default function DashboardPage() {
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
 
+  // Sandbox live driving simulation states for admin testing
+  const [simulatingBusId, setSimulatingBusId] = useState<string | null>(null);
+  const simIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+      }
+    };
+  }, []);
+
   // OSRM street path and Heatmap states
   const [selectedRoutePath, setSelectedRoutePath] = useState<[number, number][]>([]);
   const [mapViewMode, setMapViewMode] = useState<'FLEET' | 'HEATMAP'>('FLEET');
@@ -101,6 +114,22 @@ export default function DashboardPage() {
       center: [31.2357, 30.0444],
       zoom: 11,
       attributionControl: false
+    });
+
+    // Localize map labels to Arabic
+    mapObj.on('styledata', () => {
+      const style = mapObj.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((layer) => {
+          if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+            mapObj.setLayoutProperty(layer.id, 'text-field', [
+              'coalesce',
+              ['get', 'name:ar'],
+              ['get', 'name']
+            ]);
+          }
+        });
+      }
     });
 
     // Suppress missing sprite image warnings by providing dummy transparent images
@@ -553,6 +582,7 @@ export default function DashboardPage() {
         model: vehicleModel,
         route: routeName,
         driver: driverName,
+        driverId: typeof d === 'object' && d !== null ? d._id || d.id : d || '',
         lat,
         lng,
         seats: `${trip.bookedSeats} / ${trip.availableSeats}`,
@@ -670,6 +700,55 @@ export default function DashboardPage() {
     };
     fetchRoute();
   }, [selectedBusId]);
+
+  const toggleSimulation = async (bus: ActiveBus) => {
+    if (simulatingBusId === bus.id) {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+      }
+      setSimulatingBusId(null);
+    } else {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+      }
+      setSimulatingBusId(bus.id);
+
+      let coords: [number, number][] = [];
+      try {
+        const fullTrip = await tripsAPI.getById(bus.id);
+        coords = fullTrip?.routeId?.path?.coordinates?.map(
+          (c: number[]) => [c[1], c[0]] as [number, number]
+        ) || [];
+      } catch (err) {
+        console.error('Failed to load trip coordinates for simulation', err);
+      }
+
+      if (coords.length === 0) {
+        setSimulatingBusId(null);
+        return;
+      }
+
+      let index = 0;
+      simIntervalRef.current = setInterval(async () => {
+        if (index >= coords.length) {
+          index = 0;
+        }
+        const [lat, lng] = coords[index];
+        try {
+          await vehiclesAPI.updateLocation(
+            bus.vehicleId || 'mock-vehicle-id',
+            bus.driverId || 'mock-driver-id',
+            lat,
+            lng
+          );
+        } catch (e) {
+          console.error('Failed live dashboard simulation location push', e);
+        }
+        index++;
+      }, 3000);
+    }
+  };
 
   return (
     <>
@@ -790,6 +869,30 @@ export default function DashboardPage() {
                     <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
                       {bus.driver.split(' ').slice(1).join(' ')} · {bus.seats}
                     </div>
+                    {isSelected && (
+                      <div style={{ marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSimulation(bus);
+                          }}
+                          style={{
+                            background: simulatingBusId === bus.id ? '#ef4444' : 'var(--primary-color, #F5B731)',
+                            color: simulatingBusId === bus.id ? 'white' : 'black',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            fontSize: '9.5px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          {simulatingBusId === bus.id ? '⏹ Stop Simulation' : '▶ Simulate Drive'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
