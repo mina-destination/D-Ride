@@ -905,7 +905,7 @@ export function TripsPage() {
 
               <Form.Item 
                 name="priceEGP" 
-                label="Standard Ticket Price (EGP)"
+                label={<span>Standard Ticket Price (EGP)</span>}
                 rules={[{ type: 'number', min: 0, message: 'Must be a positive number' }]}
                 style={{ marginBottom: '8px' }}
               >
