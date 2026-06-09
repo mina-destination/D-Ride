@@ -514,8 +514,13 @@ export default function DashboardPage() {
       const d = trip.driverId;
       const r = trip.routeId;
 
-      const vehicleDetail = allVehicles.find((vh) => vh._id === v?._id);
+      const vehicleIdStr = typeof v === 'object' && v !== null ? v._id || v.id : v;
+      const vehicleDetail = allVehicles.find((vh) => vh._id === vehicleIdStr || vh.id === vehicleIdStr);
       const liveLoc = vehicleDetail?.locations?.[0];
+
+      const routeName = typeof r === 'object' && r !== null ? r.name : 'Unassigned Route';
+      const routePath = typeof r === 'object' && r !== null ? r.path : null;
+      const driverName = typeof d === 'object' && d !== null ? d.name : 'Unassigned Driver';
 
       let lat = 30.0444;
       let lng = 31.2357;
@@ -523,19 +528,31 @@ export default function DashboardPage() {
       if (liveLoc && liveLoc.location?.coordinates) {
         lat = liveLoc.location.coordinates[1];
         lng = liveLoc.location.coordinates[0];
-      } else if (r?.path?.coordinates && r.path.coordinates.length > 0) {
-        lng = r.path.coordinates[0][0];
-        lat = r.path.coordinates[0][1];
+      } else if (routePath?.coordinates && routePath.coordinates.length > 0) {
+        lng = routePath.coordinates[0][0];
+        lat = routePath.coordinates[0][1];
       }
+
+      const vehiclePlate = typeof v === 'object' && v !== null
+        ? v.licensePlate || v.plateNumber || 'N/A'
+        : vehicleDetail?.licensePlate || vehicleDetail?.plateNumber || 'N/A';
+
+      const vehicleMake = typeof v === 'object' && v !== null
+        ? v.make || 'D-Ride'
+        : vehicleDetail?.make || 'D-Ride';
+
+      const vehicleModel = typeof v === 'object' && v !== null
+        ? v.model || 'Shuttle'
+        : vehicleDetail?.model || 'Shuttle';
 
       return {
         id: trip._id,
-        vehicleId: v?._id || '',
-        plate: v?.licensePlate || 'N/A',
-        make: v?.make || 'D-Ride',
-        model: v?.model || 'Shuttle',
-        route: r?.name || 'Unassigned Route',
-        driver: d?.name || 'Unassigned Driver',
+        vehicleId: vehicleIdStr || '',
+        plate: vehiclePlate,
+        make: vehicleMake,
+        model: vehicleModel,
+        route: routeName,
+        driver: driverName,
         lat,
         lng,
         seats: `${trip.bookedSeats} / ${trip.availableSeats}`,
@@ -577,7 +594,7 @@ export default function DashboardPage() {
     const token = localStorage.getItem('dride_token');
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       auth: { token },
     });
 

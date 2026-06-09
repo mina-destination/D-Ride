@@ -490,6 +490,11 @@ export class TripsService {
         bookedSeats: Number(data.bookedSeats || 0),
         lockedSeats: data.lockedSeats || [14],
       },
+      include: {
+        route: true,
+        vehicle: true,
+        driver: true,
+      },
     });
     return this.mapTrip(trip);
   }
