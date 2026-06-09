@@ -147,6 +147,34 @@ export default function TripSearchPage() {
   const [sortBy, setSortBy] = useState<'earliest' | 'cheapest' | 'walks'>('earliest');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  const requestGPS = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.warn('Geolocation permission denied or failed on search page:', error);
+          alert(
+            isRtl 
+              ? 'الرجاء تفعيل إذن الوصول للموقع الجغرافي لتحديد المسافة للمحطة.' 
+              : 'Please enable location permission in your browser to calculate distance to the station.'
+          );
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+      );
+    } else {
+      alert(
+        isRtl 
+          ? 'تحديد الموقع الجغرافي غير مدعوم في متصفحك.' 
+          : 'Geolocation is not supported by your browser.'
+      );
+    }
+  };
+
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -806,11 +834,11 @@ export default function TripSearchPage() {
                                       const pickupDist = (() => {
                                         const coords = pickupCp.location?.coordinates || pickupCp.coordinates;
                                         if (coords && coords.length >= 2) {
-                                          if (searchPickupLat !== null && !isNaN(searchPickupLat) && searchPickupLng !== null && !isNaN(searchPickupLng)) {
-                                            return haversineDistance(searchPickupLng, searchPickupLat, coords[0], coords[1]);
-                                          }
                                           if (userLocation) {
                                             return haversineDistance(userLocation.lng, userLocation.lat, coords[0], coords[1]);
+                                          }
+                                          if (searchPickupLat !== null && !isNaN(searchPickupLat) && searchPickupLng !== null && !isNaN(searchPickupLng)) {
+                                            return haversineDistance(searchPickupLng, searchPickupLat, coords[0], coords[1]);
                                           }
                                         }
                                         return trip.pickupCheckpoint.distanceMeters || 0;
@@ -833,6 +861,8 @@ export default function TripSearchPage() {
                                         ? `${pickupDist}m` 
                                         : `${(pickupDist / 1000).toFixed(1)} km`;
 
+                                      const showLocationPrompt = !userLocation;
+
                                       return (
                                         <div style={{
                                           display: 'flex',
@@ -841,32 +871,73 @@ export default function TripSearchPage() {
                                           width: '100%',
                                           marginTop: '0.75rem'
                                         }}>
-                                          <div style={{
-                                            fontSize: '0.72rem',
-                                            background: 'rgba(255, 255, 255, 0.02)',
-                                            color: 'var(--primary)',
-                                            padding: '6px 14px',
-                                            borderRadius: '20px',
-                                            border: '1px solid rgba(245, 183, 49, 0.25)',
-                                            fontWeight: 650,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '8px',
-                                            textAlign: 'center',
-                                            flexWrap: 'wrap'
-                                          }}>
-                                            <span>
-                                              {isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}
-                                            </span>
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                              🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})
-                                            </span>
-                                            <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                              🚗 {formatMinsCompact(firstMileTimeCar)}
-                                            </span>
-                                          </div>
+                                          {showLocationPrompt ? (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                requestGPS();
+                                              }}
+                                              style={{
+                                                fontSize: '0.72rem',
+                                                background: 'rgba(245, 183, 49, 0.06)',
+                                                color: 'var(--primary)',
+                                                padding: '6px 14px',
+                                                borderRadius: '20px',
+                                                border: '1px solid rgba(245, 183, 49, 0.35)',
+                                                fontWeight: 650,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '6px',
+                                                textAlign: 'center',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                outline: 'none'
+                                              }}
+                                              onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = 'rgba(245, 183, 49, 0.12)';
+                                                e.currentTarget.style.border = '1px solid var(--primary)';
+                                              }}
+                                              onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'rgba(245, 183, 49, 0.06)';
+                                                e.currentTarget.style.border = '1px solid rgba(245, 183, 49, 0.35)';
+                                              }}
+                                            >
+                                              <span>📍</span>
+                                              <span>
+                                                {isRtl 
+                                                  ? 'مشاركة موقعك لمعرفة مسافة ووقت المشي للمحطة' 
+                                                  : 'Share location for walking & driving times'}
+                                              </span>
+                                            </button>
+                                          ) : (
+                                            <div style={{
+                                              fontSize: '0.72rem',
+                                              background: 'rgba(255, 255, 255, 0.02)',
+                                              color: 'var(--primary)',
+                                              padding: '6px 14px',
+                                              borderRadius: '20px',
+                                              border: '1px solid rgba(245, 183, 49, 0.25)',
+                                              fontWeight: 650,
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              gap: '8px',
+                                              textAlign: 'center',
+                                              flexWrap: 'wrap'
+                                            }}>
+                                              <span>
+                                                {isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}
+                                              </span>
+                                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})
+                                              </span>
+                                              <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
+                                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                🚗 {formatMinsCompact(firstMileTimeCar)}
+                                              </span>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })()
