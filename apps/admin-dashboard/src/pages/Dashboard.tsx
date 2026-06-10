@@ -108,6 +108,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    if (maplibregl.getRTLTextPluginStatus() === 'unavailable') {
+      maplibregl.setRTLTextPlugin(
+        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/index.js',
+        true
+      );
+    }
+
     const mapObj = new maplibregl.Map({
       container: mapContainerRef.current,
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',

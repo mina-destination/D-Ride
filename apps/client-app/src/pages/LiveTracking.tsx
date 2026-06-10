@@ -46,6 +46,13 @@ export default function LiveTrackingPage() {
     const routeCoords: [number, number][] = trip.routeId.path?.coordinates || [];
     const centerCoords: [number, number] = routeCoords[0] || [31.2357, 30.0444];
 
+    if (maplibregl.getRTLTextPluginStatus() === 'unavailable') {
+      maplibregl.setRTLTextPlugin(
+        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/index.js',
+        true
+      );
+    }
+
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
