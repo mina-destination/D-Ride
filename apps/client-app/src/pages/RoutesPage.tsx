@@ -93,11 +93,48 @@ export default function RoutesPage() {
             !layer.id.includes('shield') &&
             !layer.id.includes('housenumber')
           ) {
-            map.setLayoutProperty(layer.id, 'text-field', [
-              'coalesce',
-              ['get', 'name:ar'],
-              ['get', 'name']
-            ]);
+            const isPointLabel =
+              layer.id.includes('country') ||
+              layer.id.includes('city') ||
+              layer.id.includes('town') ||
+              layer.id.includes('village');
+
+            if (isPointLabel) {
+              // Show Arabic on top, English below
+              map.setLayoutProperty(layer.id, 'text-field', [
+                'case',
+                ['has', 'name:ar'],
+                ['concat', ['get', 'name:ar'], '\n', ['coalesce', ['get', 'name:en'], ['get', 'name']]],
+                ['get', 'name']
+              ]);
+            } else {
+              // For street names, water bodies, etc., show Arabic if available, fallback to default name
+              map.setLayoutProperty(layer.id, 'text-field', [
+                'coalesce',
+                ['get', 'name:ar'],
+                ['get', 'name']
+              ]);
+            }
+
+            // Customize colors for Dark Mode to make labels stand out premium and readable
+            if (theme === 'dark') {
+              if (isPointLabel) {
+                map.setPaintProperty(layer.id, 'text-color', '#F5B731'); // Gold/Yellow matching D-Ride theme
+              } else {
+                map.setPaintProperty(layer.id, 'text-color', '#FFFFFF'); // Clean white for streets and features
+              }
+              map.setPaintProperty(layer.id, 'text-halo-color', '#1A1A1A'); // Near-black halo/glow for maximum legibility
+              map.setPaintProperty(layer.id, 'text-halo-width', 1.5);
+            } else {
+              // Reset/preserve default light theme colors
+              if (isPointLabel) {
+                map.setPaintProperty(layer.id, 'text-color', '#2d3748'); // Dark slate
+              } else {
+                map.setPaintProperty(layer.id, 'text-color', '#4a5568'); // Gray
+              }
+              map.setPaintProperty(layer.id, 'text-halo-color', '#ffffff'); // White halo
+              map.setPaintProperty(layer.id, 'text-halo-width', 1.5);
+            }
           }
         });
       }
