@@ -89,12 +89,18 @@ export default function FamilyTrackingPage() {
       attributionControl: false
     });
 
-    // Localize map labels to Arabic
     map.on('styledata', () => {
       const style = map.getStyle();
       if (style && style.layers) {
         style.layers.forEach((layer) => {
-          if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+          if (
+            layer.type === 'symbol' &&
+            layer.layout &&
+            layer.layout['text-field'] &&
+            (layer.id.includes('name') || layer.id.includes('label') || layer.id.includes('place')) &&
+            !layer.id.includes('shield') &&
+            !layer.id.includes('housenumber')
+          ) {
             map.setLayoutProperty(layer.id, 'text-field', [
               'coalesce',
               ['get', 'name:ar'],
