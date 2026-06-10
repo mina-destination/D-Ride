@@ -108,86 +108,12 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (maplibregl.getRTLTextPluginStatus() === 'unavailable') {
-      maplibregl.setRTLTextPlugin(
-        window.location.origin + '/mapbox-gl-rtl-text.js',
-        true
-      );
-    }
-
     const mapObj = new maplibregl.Map({
       container: mapContainerRef.current,
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
       center: [31.2357, 30.0444],
       zoom: 11,
       attributionControl: false
-    });
-
-    mapObj.on('styledata', () => {
-      const style = mapObj.getStyle();
-      if (style && style.layers) {
-        style.layers.forEach((layer) => {
-          if (
-            layer.type === 'symbol' &&
-            layer.layout &&
-            layer.layout['text-field'] &&
-            (layer.id.includes('name') || layer.id.includes('label') || layer.id.includes('place')) &&
-            !layer.id.includes('shield') &&
-            !layer.id.includes('housenumber')
-          ) {
-            const isPointLabel =
-              layer.id.includes('country') ||
-              layer.id.includes('city') ||
-              layer.id.includes('town') ||
-              layer.id.includes('village');
-
-            if (isPointLabel) {
-              // Show Arabic on top, English below safely
-              mapObj.setLayoutProperty(layer.id, 'text-field', [
-                'case',
-                ['all', ['has', 'name:ar'], ['any', ['has', 'name:en'], ['has', 'name']]],
-                [
-                  'case',
-                  ['==', ['get', 'name:ar'], ['coalesce', ['get', 'name:en'], ['get', 'name']]],
-                  ['get', 'name:ar'],
-                  ['concat', ['get', 'name:ar'], '\n', ['coalesce', ['get', 'name:en'], ['get', 'name']]]
-                ],
-                ['has', 'name:ar'],
-                ['get', 'name:ar'],
-                ['coalesce', ['get', 'name'], '']
-              ]);
-            } else {
-              // For street names, water bodies, etc., show Arabic if available, fallback to default name
-              mapObj.setLayoutProperty(layer.id, 'text-field', [
-                'coalesce',
-                ['get', 'name:ar'],
-                ['get', 'name'],
-                ''
-              ]);
-            }
-
-            // Customize colors for Dark Mode to make labels stand out premium and readable
-            if (theme === 'dark') {
-              if (isPointLabel) {
-                mapObj.setPaintProperty(layer.id, 'text-color', '#F5B731'); // Gold/Yellow matching D-Ride theme
-              } else {
-                mapObj.setPaintProperty(layer.id, 'text-color', '#FFFFFF'); // Clean white for streets and features
-              }
-              mapObj.setPaintProperty(layer.id, 'text-halo-color', '#1A1A1A'); // Near-black halo/glow for maximum legibility
-              mapObj.setPaintProperty(layer.id, 'text-halo-width', 1.5);
-            } else {
-              // Reset/preserve default light theme colors
-              if (isPointLabel) {
-                mapObj.setPaintProperty(layer.id, 'text-color', '#2d3748'); // Dark slate
-              } else {
-                mapObj.setPaintProperty(layer.id, 'text-color', '#4a5568'); // Gray
-              }
-              mapObj.setPaintProperty(layer.id, 'text-halo-color', '#ffffff'); // White halo
-              mapObj.setPaintProperty(layer.id, 'text-halo-width', 1.5);
-            }
-          }
-        });
-      }
     });
 
     // Suppress missing sprite image warnings by providing dummy transparent images
