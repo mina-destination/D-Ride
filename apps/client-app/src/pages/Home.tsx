@@ -180,7 +180,7 @@ function RouteSearchForm() {
 
     if (maplibregl.getRTLTextPluginStatus() === 'unavailable') {
       maplibregl.setRTLTextPlugin(
-        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/index.js',
+        window.location.origin + '/mapbox-gl-rtl-text.js',
         true
       );
     }
