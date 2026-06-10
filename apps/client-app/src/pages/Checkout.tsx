@@ -147,19 +147,27 @@ export default function CheckoutPage() {
               layer.id.includes('village');
 
             if (isPointLabel) {
-              // Show Arabic on top, English below
+              // Show Arabic on top, English below safely
               map.setLayoutProperty(layer.id, 'text-field', [
                 'case',
+                ['all', ['has', 'name:ar'], ['any', ['has', 'name:en'], ['has', 'name']]],
+                [
+                  'case',
+                  ['==', ['get', 'name:ar'], ['coalesce', ['get', 'name:en'], ['get', 'name']]],
+                  ['get', 'name:ar'],
+                  ['concat', ['get', 'name:ar'], '\n', ['coalesce', ['get', 'name:en'], ['get', 'name']]]
+                ],
                 ['has', 'name:ar'],
-                ['concat', ['get', 'name:ar'], '\n', ['coalesce', ['get', 'name:en'], ['get', 'name']]],
-                ['get', 'name']
+                ['get', 'name:ar'],
+                ['coalesce', ['get', 'name'], '']
               ]);
             } else {
               // For street names, water bodies, etc., show Arabic if available, fallback to default name
               map.setLayoutProperty(layer.id, 'text-field', [
                 'coalesce',
                 ['get', 'name:ar'],
-                ['get', 'name']
+                ['get', 'name'],
+                ''
               ]);
             }
 
