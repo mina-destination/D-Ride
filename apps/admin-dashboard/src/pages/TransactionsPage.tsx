@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, Tag, Card, Space, Select, DatePicker, Input, Button, Statistic, Row, Col, Typography, Tooltip, Drawer, Descriptions, Spin, Empty } from 'antd';
 import { transactionsAPI } from '../services/api';
-import { CreditCard, Eye, ChevronRight } from 'lucide-react';
+import { CreditCard, Eye, ChevronRight, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -21,11 +22,15 @@ export function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (paymentMethodFilter !== 'ALL') params.paymentMethod = paymentMethodFilter;
       if (dateRange?.[0]) params.startDate = dateRange[0].toISOString();
@@ -33,6 +38,7 @@ export function TransactionsPage() {
       if (userIdFilter) params.userId = userIdFilter;
       const res = await transactionsAPI.getAll(params);
       setTransactions(Array.isArray(res) ? res : []);
+      if (res.pagination) setTotal(res.pagination.total);
     } catch (err) {
       setError('Failed to load transactions');
       setTransactions([]);
@@ -43,6 +49,11 @@ export function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
+  }, [page, pageSize, statusFilter, paymentMethodFilter, dateRange, userIdFilter]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
   }, [statusFilter, paymentMethodFilter, dateRange, userIdFilter]);
 
   const totalRevenue = transactions
@@ -68,6 +79,22 @@ export function TransactionsPage() {
   const handleRowClick = (record: any) => {
     setSelectedTransaction(record);
     setDrawerOpen(true);
+  };
+
+  const csvHeaders = [
+    { key: '_id', label: 'ID' },
+    { key: 'user.name', label: 'User Name' },
+    { key: 'user.email', label: 'User Email' },
+    { key: 'amountEGP', label: 'Amount (EGP)' },
+    { key: 'status', label: 'Status' },
+    { key: 'paymentMethod', label: 'Payment Method' },
+    { key: 'bookingId', label: 'Booking ID' },
+    { key: 'paymobOrderId', label: 'Paymob Order ID' },
+    { key: 'createdAt', label: 'Date', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+  ];
+
+  const handleExportCSV = () => {
+    exportToCSV(filteredTransactions, csvHeaders, 'transactions_report');
   };
 
   const formatAmount = (val: number) =>
@@ -178,6 +205,11 @@ export function TransactionsPage() {
           </Title>
           <Paragraph style={{ color: 'var(--text-muted)', margin: 0 }}>Monitor all payment transactions, payment methods, and gateway statuses</Paragraph>
         </div>
+        <Space wrap>
+          <Button onClick={handleExportCSV} icon={<Download size={16} />} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            Export CSV
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={24} style={{ marginBottom: '2rem' }}>
@@ -279,7 +311,7 @@ export function TransactionsPage() {
             dataSource={filteredTransactions}
             columns={columns}
             rowKey="_id"
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            pagination={{ current: page, pageSize, total, showSizeChanger: true, onChange: (p: number, ps: number) => { setPage(p); setPageSize(ps); } }}
             style={{ padding: '0.5rem' }}
           />
         )}

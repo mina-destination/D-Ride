@@ -3,7 +3,8 @@ import { Table, Card, Space, Select, DatePicker, Button, Statistic, Row, Col, Ty
 import { Popconfirm as CustomPopconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { reviewsAPI } from '../services/api';
-import { Star, Trash2, TrendingUp, Users, Award, MessageSquare } from 'lucide-react';
+import { Star, Trash2, TrendingUp, Users, Award, MessageSquare, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -19,16 +20,21 @@ export function ReviewsPage() {
 
   const [stats, setStats] = useState<any>(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const fetchReviews = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (ratingFilter !== 'ALL') params.rating = parseInt(ratingFilter);
       if (dateRange?.[0]) params.startDate = dateRange[0].toISOString();
       if (dateRange?.[1]) params.endDate = dateRange[1].toISOString();
       const res = await reviewsAPI.getAll(params);
       setReviews(Array.isArray(res) ? res : []);
+      if (res.pagination) setTotal(res.pagination.total);
     } catch (err) {
       setError('Failed to load reviews');
       setReviews([]);
@@ -48,11 +54,16 @@ export function ReviewsPage() {
 
   useEffect(() => {
     fetchReviews();
-  }, [ratingFilter, dateRange]);
+  }, [page, pageSize, ratingFilter, dateRange]);
 
   useEffect(() => {
     fetchStats();
   }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [ratingFilter, dateRange]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -63,6 +74,18 @@ export function ReviewsPage() {
     } catch (err) {
       message.error('Failed to delete review');
     }
+  };
+
+  const csvHeaders = [
+    { key: 'user.name', label: 'User' },
+    { key: 'rating', label: 'Rating' },
+    { key: 'comment', label: 'Comment' },
+    { key: 'trip.routeId', label: 'Trip ID' },
+    { key: 'createdAt', label: 'Date', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+  ];
+
+  const handleExportCSV = () => {
+    exportToCSV(reviews, csvHeaders, 'reviews_report');
   };
 
   const distribution = stats?.ratingDistribution || stats?.distribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -157,6 +180,11 @@ export function ReviewsPage() {
           </Title>
           <Paragraph style={{ color: 'var(--text-muted)', margin: 0 }}>Monitor customer feedback, ratings, and manage reviews across all trips</Paragraph>
         </div>
+        <Space wrap>
+          <Button onClick={handleExportCSV} icon={<Download size={16} />} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            Export CSV
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={24} style={{ marginBottom: '2rem' }}>
@@ -276,7 +304,7 @@ export function ReviewsPage() {
             dataSource={reviews}
             columns={columns}
             rowKey="_id"
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            pagination={{ current: page, pageSize, total, showSizeChanger: true, onChange: (p: number, ps: number) => { setPage(p); setPageSize(ps); } }}
             style={{ padding: '0.5rem' }}
           />
         )}

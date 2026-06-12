@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Table, Button, Space, Tag, Typography, Input, Select, Card, DatePicker, Drawer, Form, Divider, Timeline, Modal } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
@@ -10,6 +11,7 @@ import dayjs from 'dayjs';
 const { Title, Paragraph } = Typography;
 
 export function BookingsPage() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -325,9 +327,21 @@ export function BookingsPage() {
       title: 'Route',
       key: 'route',
       sorter: (a: any, b: any) => (a.tripId?.routeId?.name || '').localeCompare(b.tripId?.routeId?.name || ''),
-      render: (_: any, record: any) => (
-        <strong>{record.tripId?.routeId?.name || 'N/A'}</strong>
-      ),
+      render: (_: any, record: any) => {
+        const tripId = record.tripId?._id || record.tripId;
+        return (
+          <Button
+            type="link"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/trips/${tripId}`);
+            }}
+            style={{ padding: 0, height: 'auto', fontWeight: 'bold', fontSize: '14px', textAlign: 'left' }}
+          >
+            {record.tripId?.routeId?.name || 'N/A'}
+          </Button>
+        );
+      },
     },
     {
       title: 'Seat(s)',

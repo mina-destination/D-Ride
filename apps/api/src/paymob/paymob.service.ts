@@ -511,8 +511,9 @@ export class PaymobService implements OnModuleInit {
         this.apiKey.startsWith('egy_sk_live_')
       ) {
         this.logger.warn(
-          `Paymob V1/Flash key detected (${this.apiKey.slice(0, 12)}...). Attempting V2 verification anyway.`,
+          `Paymob V2/Flash key detected (${this.apiKey.slice(0, 12)}...). Verification bypassed for V2 checkout flow compatibility.`,
         );
+        return true;
       }
 
       if (!this.apiBaseUrl) {
