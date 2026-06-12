@@ -145,6 +145,8 @@ export const vehiclesAPI = {
   findNearby: (lat: number, lng: number, maxDistance?: number): Promise<any> =>
     api.get('/vehicles/nearby', { params: { lat, lng, maxDistance } }),
   getLocation: (vehicleId: string): Promise<any> => api.get(`/vehicles/location/${vehicleId}`),
+  getAllLocations: (): Promise<any> => api.get('/vehicles/locations'),
+  getVehicleLocation: (vehicleId: string): Promise<any> => api.get(`/vehicles/locations/${vehicleId}`),
 };
 
 // ── Bookings API ──────────────────────────────────────────
@@ -160,6 +162,7 @@ export const bookingsAPI = {
   verifyTicket: (id: string, token: string): Promise<any> => api.put(`/bookings/${id}/verify-ticket`, { token }),
   getOccupiedSeats: (tripId: string, pickupCheckpointName?: string, dropoffCheckpointName?: string): Promise<any> =>
     api.get(`/bookings/occupied/${tripId}`, { params: { pickupCheckpointName, dropoffCheckpointName } }),
+  trackByCode: (code: string): Promise<any> => api.get(`/bookings/track-by-code/${code}`),
 };
 
 // ── Users API ─────────────────────────────────────────────
@@ -249,5 +252,11 @@ export const notificationsAPI = {
 export const whatsappAPI = {
   getStatus: (): Promise<any> => api.get('/whatsapp/status'),
   restart: (): Promise<any> => api.post('/whatsapp/restart'),
+  getScreenshot: (): Promise<any> => api.get('/whatsapp/screenshot'),
+};
+
+// ── Paymob API ─────────────────────────────────────────────
+export const paymobAPI = {
+  getFeatures: (): Promise<any> => api.get('/paymob/features'),
 };
 

@@ -2182,4 +2182,30 @@ select:focus,
   outline: none !important;
 }
 
+/* ── Bookings Row Status Colors ───────────────────────── */
+.booking-row-confirmed {
+  background: rgba(16, 185, 129, 0.04) !important;
+}
+.booking-row-confirmed:hover td {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+.booking-row-cancelled {
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+.booking-row-cancelled:hover td {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+.booking-row-boarded {
+  background: rgba(59, 130, 246, 0.04) !important;
+}
+.booking-row-boarded:hover td {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+.booking-row-completed {
+  background: rgba(156, 163, 175, 0.04) !important;
+}
+.booking-row-completed:hover td {
+  background: rgba(156, 163, 175, 0.08) !important;
+}
+
 

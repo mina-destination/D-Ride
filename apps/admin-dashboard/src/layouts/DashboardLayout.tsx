@@ -14,7 +14,7 @@ const navItems = [
   { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   
   { label: 'Operations', type: 'section' as const },
-  { path: '/live-tracking', icon: <Radio size={18} />, label: 'Live Fleet Map' },
+  { path: '/live-tracking', icon: <Radio size={18} />, label: 'Live Tracking' },
   { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
   { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
   { path: '/trip-history', icon: <History size={18} />, label: 'Trip Playbacks' },
@@ -44,7 +44,7 @@ const navItems = [
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/live-tracking': 'Live Fleet Tracking Map',
+  '/live-tracking': 'Live Vehicle Tracking',
   '/routes': 'Routes',
   '/trips': 'Trips',
   '/trip-history': 'Trip Playbacks',

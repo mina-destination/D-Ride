@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Space, Tag, Typography, Input, Select, Card, DatePicker, Modal, Form, Divider } from 'antd';
+import { Table, Button, Space, Tag, Typography, Input, Select, Card, DatePicker, Drawer, Form, Divider, Timeline, Modal } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { bookingsAPI, usersAPI, tripsAPI } from '../services/api';
-import { Ticket, Download, Eye, Plus, CheckCircle2, TicketPercent, ShieldCheck } from 'lucide-react';
+import { Ticket, Download, Eye, Plus, CheckCircle2, TicketPercent, ShieldCheck, UserCheck, XCircle, History } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 import dayjs from 'dayjs';
 
@@ -40,6 +40,32 @@ export function BookingsPage() {
   const [occupiedSeats, setOccupiedSeats] = useState<number[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [createLoading, setCreateLoading] = useState(false);
+
+  const getTimelineEvents = (booking: any) => {
+    const events: { color: string; children: string }[] = [];
+    if (booking.createdAt) {
+      events.push({ color: 'blue', children: `Booking created on ${dayjs(booking.createdAt).format('MMM D, YYYY h:mm A')}` });
+    }
+    if (booking.status === 'CONFIRMED' || booking.status === 'BOARDED' || booking.status === 'COMPLETED') {
+      events.push({ color: 'green', children: 'Booking confirmed' });
+    }
+    if (booking.checkedIn) {
+      events.push({ color: 'blue', children: `Passenger checked in${booking.checkedInAt ? ` on ${dayjs(booking.checkedInAt).format('MMM D, YYYY h:mm A')}` : ''}` });
+    }
+    if (booking.status === 'COMPLETED') {
+      events.push({ color: 'gray', children: 'Trip completed' });
+    }
+    if (booking.status === 'CANCELLED') {
+      events.push({ color: 'red', children: `Booking cancelled${booking.cancelledAt ? ` on ${dayjs(booking.cancelledAt).format('MMM D, YYYY h:mm A')}` : ''}` });
+    }
+    if (booking.paymentStatus === 'SUCCESS') {
+      events.push({ color: 'green', children: 'Payment received' });
+    }
+    if (booking.qrVerificationToken && booking.verified) {
+      events.push({ color: 'purple', children: 'QR ticket verified' });
+    }
+    return events;
+  };
 
   const fetchBookings = async () => {
     try {
@@ -321,6 +347,15 @@ export function BookingsPage() {
       }
     },
     {
+      title: 'Boarding No.',
+      key: 'boardingNumber',
+      width: 110,
+      render: (_: any, record: any) => {
+        const bn = record.boardingNumber;
+        return bn ? <Tag color="purple" style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>#{bn}</Tag> : <span style={{ color: '#556987' }}>—</span>;
+      },
+    },
+    {
       title: 'Fare',
       dataIndex: 'amountEGP',
       key: 'amountEGP',
@@ -335,7 +370,9 @@ export function BookingsPage() {
       render: (status: string) => {
         let color = 'gold';
         const s = status || 'PENDING';
-        if (s === 'CONFIRMED' || s === 'SUCCESS') color = 'green';
+        if (s === 'CONFIRMED') color = 'green';
+        if (s === 'BOARDED') color = 'blue';
+        if (s === 'COMPLETED') color = 'default';
         if (s === 'CANCELLED') color = 'red';
         return <Tag color={color} style={{ fontWeight: 'bold' }}>{s}</Tag>;
       },
@@ -356,11 +393,36 @@ export function BookingsPage() {
     {
       title: 'Actions',
       key: 'actions',
+      width: 260,
       render: (_: any, record: any) => (
-        <Space>
-          <Button type="text" icon={<Eye size={15} />} onClick={() => handleOpenDetails(record)}>
+        <Space size="small">
+          <Button type="text" size="small" icon={<Eye size={14} />} onClick={() => handleOpenDetails(record)}>
             Details
           </Button>
+          {record.status === 'CONFIRMED' && !record.checkedIn && (
+            <Button type="text" size="small" icon={<UserCheck size={14} />} style={{ color: '#10b981' }} onClick={async () => {
+              try {
+                await bookingsAPI.checkIn(record._id);
+                message.success('Passenger checked in successfully');
+                fetchBookings();
+              } catch { message.error('Check-in failed'); }
+            }}>
+              Check In
+            </Button>
+          )}
+          {record.status === 'CONFIRMED' && (
+            <Button type="text" size="small" icon={<ShieldCheck size={14} />} style={{ color: '#8b5cf6' }} onClick={async () => {
+              const token = record.qrVerificationToken;
+              if (!token) { message.warning('No verification token available'); return; }
+              try {
+                await bookingsAPI.verifyTicket(record._id, token);
+                message.success('Ticket verified');
+                fetchBookings();
+              } catch { message.error('Verification failed'); }
+            }}>
+              Verify
+            </Button>
+          )}
           {record.status !== 'CANCELLED' ? (
             <Popconfirm
               title="Cancel booking?"
@@ -369,8 +431,8 @@ export function BookingsPage() {
               okText="Yes, Cancel"
               cancelText="No"
             >
-              <Button type="link" danger style={{ padding: 0 }}>
-                Cancel
+              <Button type="link" size="small" danger style={{ padding: 0 }}>
+                <XCircle size={14} style={{ marginRight: 2 }} /> Cancel
               </Button>
             </Popconfirm>
           ) : null}
@@ -412,6 +474,8 @@ export function BookingsPage() {
             <Select.Option value="ALL">All Statuses</Select.Option>
             <Select.Option value="CONFIRMED">Confirmed</Select.Option>
             <Select.Option value="PENDING">Pending</Select.Option>
+            <Select.Option value="BOARDED">Boarded</Select.Option>
+            <Select.Option value="COMPLETED">Completed</Select.Option>
             <Select.Option value="CANCELLED">Cancelled</Select.Option>
           </Select>
           <Select
@@ -466,32 +530,40 @@ export function BookingsPage() {
         </Card>
       )}
 
-      <Table 
-        rowSelection={isSelectionMode ? {
-          selectedRowKeys,
-          onChange: (keys: any[]) => setSelectedRowKeys(keys)
-        } : undefined}
-        dataSource={filteredBookings} 
-        columns={columns} 
-        rowKey="_id" 
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-        style={{ marginTop: '1rem' }}
-      />
+      <div className="card glass" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <Table 
+          rowSelection={isSelectionMode ? {
+            selectedRowKeys,
+            onChange: (keys: any[]) => setSelectedRowKeys(keys)
+          } : undefined}
+          dataSource={filteredBookings} 
+          columns={columns} 
+          rowKey="_id" 
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          rowClassName={(record: any) => {
+            const status = record.status || '';
+            if (status === 'CONFIRMED') return 'booking-row-confirmed';
+            if (status === 'CANCELLED') return 'booking-row-cancelled';
+            if (status === 'BOARDED') return 'booking-row-boarded';
+            if (status === 'COMPLETED') return 'booking-row-completed';
+            return '';
+          }}
+        />
+      </div>
 
-      {/* Booking Details Drawer / Modal */}
-      <Modal
+      {/* Booking Details Drawer */}
+      <Drawer
         title={<div style={{ color: 'white', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '6px' }}><Ticket size={20} color="var(--primary-color)" /> Booking Information</div>}
         open={isDetailsOpen}
-        onCancel={() => setIsDetailsOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsDetailsOpen(false)}>Close</Button>
-        ]}
-        width={650}
+        onClose={() => setIsDetailsOpen(false)}
+        width={560}
         destroyOnClose={true}
+        styles={{ body: { background: 'var(--surface)', padding: '24px' } }}
+        extra={<Button onClick={() => setIsDetailsOpen(false)}>Close</Button>}
       >
         {activeBooking && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: '#8f9cae', padding: '10px 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: '#8f9cae' }}>
             
             {/* Row 1: ID & Status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -500,8 +572,8 @@ export function BookingsPage() {
                 <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: 'white', fontWeight: 'bold' }}>{activeBooking._id.toUpperCase()}</div>
               </div>
               <Space>
-                <Tag color={activeBooking.status === 'CONFIRMED' ? 'green' : 'red'}>{activeBooking.status}</Tag>
-                <Tag color={activeBooking.paymentStatus === 'SUCCESS' ? 'green' : 'orange'}>Payment: {activeBooking.paymentStatus}</Tag>
+                <Tag color={activeBooking.status === 'CONFIRMED' ? 'green' : activeBooking.status === 'CANCELLED' ? 'red' : activeBooking.status === 'BOARDED' ? 'blue' : activeBooking.status === 'COMPLETED' ? 'default' : 'gold'} style={{ fontWeight: 'bold' }}>{activeBooking.status}</Tag>
+                <Tag color={activeBooking.paymentStatus === 'SUCCESS' ? 'green' : 'orange'} style={{ fontWeight: 'bold' }}>{activeBooking.paymentStatus}</Tag>
               </Space>
             </div>
 
@@ -513,7 +585,7 @@ export function BookingsPage() {
               <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <span><strong>Name:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.name || 'N/A'}</span></span>
                 <span><strong>Phone:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.phone || 'N/A'}</span></span>
-                <span><strong>Email:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.email || 'N/A'}</span></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>Email:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.email || 'N/A'}</span></span>
               </div>
             </div>
 
@@ -526,7 +598,38 @@ export function BookingsPage() {
                 <span><strong>Seats:</strong> <span style={{ color: 'white' }}>{activeBooking.seatNumbers?.join(', ') || 'N/A'}</span></span>
                 <span><strong>Pickup Stop:</strong> <span style={{ color: 'white' }}>{activeBooking.pickupCheckpoint?.name || 'N/A'}</span></span>
                 <span><strong>Dropoff Stop:</strong> <span style={{ color: 'white' }}>{activeBooking.dropoffCheckpoint?.name || 'N/A'}</span></span>
-                <span><strong>Boarding Code:</strong> <span style={{ color: 'white', fontFamily: 'monospace' }}>#{activeBooking.boardingNumber || 'N/A'}</span></span>
+              </div>
+            </div>
+
+            {/* Payment info */}
+            <div>
+              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Payment Information</Title>
+              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <span><strong>Amount:</strong> <span style={{ color: 'white' }}>{activeBooking.amountEGP || 0} EGP</span></span>
+                <span><strong>Discount:</strong> <span style={{ color: 'white' }}>{activeBooking.discountEGP ? `${activeBooking.discountEGP} EGP` : 'None'}</span></span>
+                <span><strong>Promo Code:</strong> <span style={{ color: 'white' }}>{activeBooking.promoCode || 'None'}</span></span>
+                <span><strong>Payment Status:</strong> <Tag color={activeBooking.paymentStatus === 'SUCCESS' ? 'green' : 'gold'}>{activeBooking.paymentStatus || 'PENDING'}</Tag></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>Refund Status:</strong> <span style={{ color: 'white' }}>{activeBooking.refundStatus || 'N/A'}</span></span>
+              </div>
+            </div>
+
+            {/* Check-in & Boarding Info */}
+            <div>
+              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Check-in & Boarding</Title>
+              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <span><strong>Checked In:</strong> {activeBooking.checkedIn ? <Tag color="green">Yes</Tag> : <Tag color="default">No</Tag>}</span>
+                <span><strong>Boarding Number:</strong> <span style={{ color: 'white', fontFamily: 'monospace' }}>#{activeBooking.boardingNumber || 'N/A'}</span></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>QR Verification Token:</strong> <span style={{ color: 'white', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>{activeBooking.qrVerificationToken || 'N/A'}</span></span>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div>
+              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <History size={16} /> Booking Timeline
+              </Title>
+              <div style={{ background: '#161922', padding: '12px 16px', borderRadius: '8px' }}>
+                <Timeline items={getTimelineEvents(activeBooking)} />
               </div>
             </div>
 
@@ -597,7 +700,7 @@ export function BookingsPage() {
 
           </div>
         )}
-      </Modal>
+      </Drawer>
 
       {/* Booking Creator Modal */}
       <Modal
