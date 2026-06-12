@@ -185,6 +185,12 @@ export class TripsService {
 
   private async cleanupExpiredBookings(tripId: string): Promise<number> {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+    const tripExists = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+    });
+    if (!tripExists) return 0;
+
     const expiredBookings = await this.prisma.booking.findMany({
       where: {
         tripId,

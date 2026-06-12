@@ -712,6 +712,12 @@ export default function DashboardPage() {
       return;
     }
 
+    const selectedBus = fleet.find((b) => b.id === selectedBusId);
+    if (selectedBus?.route === 'Standalone') {
+      setSelectedRoutePath([]);
+      return;
+    }
+
     const fetchRoute = async () => {
       try {
         // Fetch full trip details on-demand since coordinates are excluded in the list payload
@@ -744,7 +750,7 @@ export default function DashboardPage() {
       }
     };
     fetchRoute();
-  }, [selectedBusId]);
+  }, [selectedBusId, fleet]);
 
   const toggleSimulation = async (bus: ActiveBus) => {
     if (simulatingBusId === bus.id) {
@@ -761,10 +767,24 @@ export default function DashboardPage() {
 
       let coords: [number, number][] = [];
       try {
-        const fullTrip = await tripsAPI.getById(bus.id);
-        coords = fullTrip?.routeId?.path?.coordinates?.map(
-          (c: number[]) => [c[1], c[0]] as [number, number]
-        ) || [];
+        if (bus.route !== 'Standalone') {
+          const fullTrip = await tripsAPI.getById(bus.id);
+          coords = fullTrip?.routeId?.path?.coordinates?.map(
+            (c: number[]) => [c[1], c[0]] as [number, number]
+          ) || [];
+        } else {
+          // Standalone fallback: generate a small simulation route around current coordinates
+          const startLat = bus.lat || 30.0444;
+          const startLng = bus.lng || 31.2357;
+          coords = [
+            [startLat, startLng],
+            [startLat + 0.0005, startLng + 0.0005],
+            [startLat + 0.0010, startLng + 0.0010],
+            [startLat + 0.0005, startLng + 0.0015],
+            [startLat, startLng + 0.0010],
+            [startLat - 0.0005, startLng + 0.0005],
+          ];
+        }
       } catch (err) {
         console.error('Failed to load trip coordinates for simulation', err);
       }
