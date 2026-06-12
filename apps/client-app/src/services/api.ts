@@ -193,17 +193,10 @@ export const paymobAPI = {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'WALLET_BALANCE';
-    walletNumber?: string;
-  }): Promise<any> =>
-    api.post('/paymob/checkout', data),
-  getWallet: (): Promise<any> => api.get('/paymob/wallet'),
-  initializeWalletTopup: (data: {
-    amountEGP: number;
     paymentMethod?: 'CARD' | 'WALLET';
     walletNumber?: string;
   }): Promise<any> =>
-    api.post('/paymob/wallet/topup', data),
+    api.post('/paymob/checkout', data),
 };
 
 export const bookingsAPI = {

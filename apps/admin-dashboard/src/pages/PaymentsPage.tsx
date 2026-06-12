@@ -208,7 +208,7 @@ export function PaymentsPage() {
           <Title level={2} style={{ color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CreditCard size={28} /> Payments & Transactions
           </Title>
-          <Paragraph style={{ color: 'var(--text-muted)', margin: 0 }}>Monitor live Paymob card/wallet transaction statuses and revenue growth</Paragraph>
+          <Paragraph style={{ color: 'var(--text-muted)', margin: 0 }}>Monitor live Paymob card transaction statuses and revenue growth</Paragraph>
         </div>
         <Space wrap>
           <Input.Search

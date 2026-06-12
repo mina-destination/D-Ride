@@ -104,6 +104,12 @@ export const authAPI = {
   register: (data: { name: string; email: string; phone: string; password: string }): Promise<any> =>
     api.post('/auth/register', data),
   getProfile: (): Promise<any> => api.get('/auth/profile'),
+  updateProfile: (data: { name?: string; phone?: string }): Promise<any> =>
+    api.put('/auth/profile', data),
+  changePasswordRequest: (): Promise<any> =>
+    api.post('/auth/change-password-request'),
+  changePassword: (data: { otp: string; newPassword: string }): Promise<any> =>
+    api.post('/auth/change-password', data),
 };
 
 // ── Routes API ────────────────────────────────────────────
@@ -180,6 +186,12 @@ export const reviewsAPI = {
     api.get(`/reviews/driver/${driverId}`),
   getDriverReviews: (driverId: string): Promise<any> =>
     api.get(`/reviews/driver/${driverId}/list`),
+  getAll: (params?: { page?: number; limit?: number; rating?: number; startDate?: string; endDate?: string }): Promise<any> =>
+    api.get('/reviews', { params }),
+  delete: (id: string): Promise<any> =>
+    api.delete(`/reviews/${id}`),
+  getStats: (): Promise<any> =>
+    api.get('/reviews/stats'),
 };
 
 // ── Partners API ────────────────────────────────────────────
@@ -203,6 +215,26 @@ export const promoCodesAPI = {
 export const settingsAPI = {
   get: (): Promise<any> => api.get('/settings'),
   save: (data: any): Promise<any> => api.put('/settings', data),
+};
+
+// ── Transactions API ─────────────────────────────────────────
+export const transactionsAPI = {
+  getAll: (params?: { page?: number; limit?: number; status?: string; paymentMethod?: string; startDate?: string; endDate?: string; userId?: string; bookingId?: string }): Promise<any> =>
+    api.get('/transactions', { params }),
+  getById: (id: string): Promise<any> =>
+    api.get(`/transactions/${id}`),
+};
+
+// ── Notifications API ────────────────────────────────────────
+export const notificationsAPI = {
+  getAll: (params?: { page?: number; limit?: number; type?: string; status?: string; startDate?: string; endDate?: string }): Promise<any> =>
+    api.get('/notifications', { params }),
+  getById: (id: string): Promise<any> =>
+    api.get(`/notifications/${id}`),
+  send: (data: { userId: string; title: string; message: string; channel: string }): Promise<any> =>
+    api.post('/notifications/send', data),
+  broadcast: (data: { title: string; message: string; channel: string; role?: string }): Promise<any> =>
+    api.post('/notifications/broadcast', { ...data, userRole: data.role }),
 };
 
 // ── WhatsApp API ────────────────────────────────────────────

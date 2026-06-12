@@ -27,7 +27,7 @@ describe('AuthService', () => {
     phone: '+201001234567',
     password: 'hashed_password',
     role: 'PASSENGER',
-    walletBalance: 0,
+
     resetPasswordOtp: null,
     resetPasswordOtpExpires: null,
     createdAt: new Date(),

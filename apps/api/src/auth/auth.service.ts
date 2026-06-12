@@ -94,7 +94,7 @@ export class AuthService {
       const welcomeMsg = 
         `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
         `Your account has been registered successfully with your phone number.\n\n` +
-        `You can now use this chat to query your active bookings, check wallet balance, or chat with our live support anytime! Just send any message here to open the main menu.`;
+        `You can now use this chat to query your active bookings or chat with our live support anytime! Just send any message here to open the main menu.`;
       
       this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
         this.logger.error(`Failed to send welcome WhatsApp message to ${user.phone}:`, err);
@@ -401,7 +401,7 @@ export class AuthService {
       const welcomeMsg = 
         `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
         `Your phone number has been updated/linked successfully to your account.\n\n` +
-        `Use this chat to query your active bookings, check wallet balance, or speak with customer service!`;
+        `Use this chat to query your active bookings or speak with customer service!`;
       this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
         this.logger.error(`Failed to send link WhatsApp message to ${user.phone}:`, err);
       });

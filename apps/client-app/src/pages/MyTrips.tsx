@@ -164,8 +164,8 @@ export default function MyTripsPage() {
       
       if (diffHours > 2) {
         warningMessage = isAr 
-          ? 'إشعار استرداد الأموال: نظراً لأن موعد الرحلة بعد أكثر من ساعتين، فأنت مؤهل لاسترداد كامل قيمة التذكرة كرصيد في محفظتك الإلكترونية، أو استردادها لبطاقتك البنكية مع خصم رسوم إدارية بسيطة.\n\nهل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'
-          : 'Refund Notice: Since departure is more than 2 hours away, you are eligible for a full refund to your D-Ride wallet, or a credit card refund minus a small administrative fee.\n\nAre you sure you want to cancel this trip booking?';
+          ? 'إشعار استرداد الأموال: نظراً لأن موعد الرحلة بعد أكثر من ساعتين، فأنت مؤهل لاسترداد كامل قيمة التذكرة إلى وسيلة الدفع الأصلية مع خصم رسوم إدارية بسيطة.\n\nهل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'
+          : 'Refund Notice: Since departure is more than 2 hours away, you are eligible for a full refund to your original payment method minus a small administrative fee.\n\nAre you sure you want to cancel this trip booking?';
       } else {
         warningMessage = isAr
           ? 'تنبيه هام: متبقي أقل من ساعتين على انطلاق الرحلة. وفقاً لسياسة الإلغاء لدينا، فإن التذاكر غير قابلة للاسترداد أو التعديل إذا تم إلغاؤها خلال أقل من ساعتين من موعد الرحلة.\n\nهل أنت متأكد من رغبتك في إلغاء حجز هذه الرحلة؟'

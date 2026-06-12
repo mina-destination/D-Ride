@@ -446,6 +446,8 @@ export function RoutesPage() {
   const [isRouteActive, setIsRouteActive] = useState(true);
   const [distanceKm, setDistanceKm] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(0);
+  const [priceEGP, setPriceEGP] = useState<number>(0);
+  const [premiumSeatSurcharge, setPremiumSeatSurcharge] = useState<number>(0);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [points, setPoints] = useState<[number, number][]>([]); // Snapped route polyline coordinates
   const [snapping, setSnapping] = useState(false);
@@ -696,6 +698,8 @@ export function RoutesPage() {
       setCoverImage(route.coverImage || '');
       setDistanceKm(route.distanceKm || 0);
       setDurationMinutes(route.estimatedDurationMinutes || 0);
+      setPriceEGP(route.priceEGP || 0);
+      setPremiumSeatSurcharge(route.premiumSeatSurcharge || 0);
       setCheckpoints(route.checkpoints || []);
       setIsRouteActive(route.isActive !== false);
       
@@ -710,6 +714,8 @@ export function RoutesPage() {
       setCoverImage('');
       setDistanceKm(0);
       setDurationMinutes(0);
+      setPriceEGP(0);
+      setPremiumSeatSurcharge(0);
       setPoints([]);
       setCheckpoints([]);
       setIsRouteActive(true);
@@ -961,6 +967,24 @@ export function RoutesPage() {
     });
   };
 
+  const handleCustomSegmentPremiumSurchargeChange = (pickupIdx: number, dropoffName: string, valueStr: string) => {
+    const val = parseFloat(valueStr);
+    setCheckpoints(prev => {
+      return prev.map((cp, idx) => {
+        if (idx === pickupIdx) {
+          const premiumSurcharges = { ...(cp.premiumSurcharges || {}) };
+          if (valueStr === '' || isNaN(val)) {
+            delete premiumSurcharges[dropoffName];
+          } else {
+            premiumSurcharges[dropoffName] = Math.max(0, val);
+          }
+          return { ...cp, premiumSurcharges };
+        }
+        return cp;
+      });
+    });
+  };
+
 
   // OSRM snapped roadway router
   const generateSnappedRoute = async (stops: any[]) => {
@@ -1046,7 +1070,9 @@ export function RoutesPage() {
         checkpoints: checkpoints,
         distanceKm: distanceKm,
         estimatedDurationMinutes: finalDuration,
-        isActive: isRouteActive
+        isActive: isRouteActive,
+        priceEGP: priceEGP || 0,
+        premiumSeatSurcharge: premiumSeatSurcharge || 0,
       };
 
       if (editingId) {
@@ -1351,6 +1377,30 @@ export function RoutesPage() {
                       }} />
                     </div>
                   )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Default Ticket Price (EGP)</label>
+                    <Input 
+                      type="number"
+                      placeholder="e.g. 150" 
+                      value={priceEGP || ''} 
+                      onChange={e => setPriceEGP(Math.max(0, parseFloat(e.target.value) || 0))} 
+                      size="large"
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Default VIP Seat Surcharge (EGP)</label>
+                    <Input 
+                      type="number"
+                      placeholder="e.g. 40" 
+                      value={premiumSeatSurcharge || ''} 
+                      onChange={e => setPremiumSeatSurcharge(Math.max(0, parseFloat(e.target.value) || 0))} 
+                      size="large"
+                      min={0}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1695,21 +1745,39 @@ export function RoutesPage() {
                         );
                       })}
                     </div>
-                    {checkpoints.some(cp => cp.prices && Object.keys(cp.prices).length > 0) && (
+                    {checkpoints.some(cp => 
+                      (cp.prices && Object.keys(cp.prices).length > 0) || 
+                      (cp.premiumSurcharges && Object.keys(cp.premiumSurcharges).length > 0)
+                    ) && (
                       <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', marginBottom: '4px' }}>
-                          ⚡ Active Custom Price Overrides:
+                          ⚡ Active Custom Price & VIP Overrides:
                         </div>
                         {checkpoints.map((pickupCp, pIdx) => {
-                          if (!pickupCp.prices) return null;
                           if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') return null;
-                          return Object.entries(pickupCp.prices).map(([dropoffName, price]) => {
+                          
+                          // Get unique dropoff names from both prices and premiumSurcharges
+                          const dropoffNames = Array.from(new Set([
+                            ...Object.keys(pickupCp.prices || {}),
+                            ...Object.keys(pickupCp.premiumSurcharges || {})
+                          ]));
+                          
+                          if (dropoffNames.length === 0) return null;
+                          
+                          return dropoffNames.map((dropoffName) => {
                             const dropoffCp = checkpoints.find(c => c.name === dropoffName);
                             if (dropoffCp && (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP')) return null;
+                            
+                            const price = pickupCp.prices?.[dropoffName];
+                            const surcharge = pickupCp.premiumSurcharges?.[dropoffName];
+                            
                             return (
-                              <div key={`${pIdx}-${dropoffName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-primary)' }}>
+                              <div key={`${pIdx}-${dropoffName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-primary)', marginBottom: '2px' }}>
                                 <span>✨ {pickupCp.name} ➔ {dropoffName}</span>
-                                <strong style={{ color: '#10B981' }}>{price as number} EGP</strong>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  {price !== undefined && <span style={{ color: '#10B981', fontWeight: 700 }}>{price} EGP</span>}
+                                  {surcharge !== undefined && <span style={{ color: '#F5B731', fontWeight: 700 }}>+{surcharge} VIP</span>}
+                                </div>
                               </div>
                             );
                           });
@@ -1741,6 +1809,7 @@ export function RoutesPage() {
                           if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') return null;
                           const dropoffName = dropoffCp.name;
                           const customPrice = pickupCp.prices?.[dropoffName];
+                          const customSurcharge = pickupCp.premiumSurcharges?.[dropoffName];
                           
                           return (
                             <div key={`${pIdx}-${dropoffName}`} style={{ 
@@ -1758,17 +1827,36 @@ export function RoutesPage() {
                                   {pickupCp.name} ➔ {dropoffName}
                                 </span>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Input 
-                                  type="number"
-                                  placeholder="0"
-                                  value={customPrice !== undefined ? customPrice : ''}
-                                  onChange={e => handleCustomSegmentPriceChange(pIdx, dropoffName, e.target.value)}
-                                  size="small"
-                                  style={{ width: '80px', textAlign: 'center', borderColor: customPrice !== undefined ? 'var(--primary-color)' : undefined }}
-                                  min={0}
-                                />
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {/* Standard Fare */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Fare:</span>
+                                  <Input 
+                                    type="number"
+                                    placeholder="0"
+                                    value={customPrice !== undefined ? customPrice : ''}
+                                    onChange={e => handleCustomSegmentPriceChange(pIdx, dropoffName, e.target.value)}
+                                    size="small"
+                                    style={{ width: '85px', textAlign: 'center', borderColor: customPrice !== undefined ? 'var(--primary-color)' : undefined }}
+                                    min={0}
+                                  />
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                                </div>
+                                
+                                {/* VIP Surcharge */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>VIP Extra:</span>
+                                  <Input 
+                                    type="number"
+                                    placeholder="0"
+                                    value={customSurcharge !== undefined ? customSurcharge : ''}
+                                    onChange={e => handleCustomSegmentPremiumSurchargeChange(pIdx, dropoffName, e.target.value)}
+                                    size="small"
+                                    style={{ width: '85px', textAlign: 'center', borderColor: customSurcharge !== undefined ? '#F5B731' : undefined }}
+                                    min={0}
+                                  />
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                                </div>
                               </div>
                             </div>
                           );

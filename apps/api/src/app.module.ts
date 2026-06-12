@@ -16,6 +16,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { PartnersModule } from './partners/partners.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { TransactionsModule } from './transactions/transactions.module';
 import configuration from './config/configuration';
 import { ThrottlerModule } from '@nestjs/throttler';
 import {
@@ -56,6 +57,7 @@ import {
     PartnersModule,
     WhatsappModule,
     PromoCodesModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

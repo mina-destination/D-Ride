@@ -217,20 +217,14 @@ export function AnalyticsPage() {
   // Payment Breakdown for Donut Chart
   const getPaymentBreakdown = () => {
     let cardCount = 0;
-    let walletCount = 0;
 
     filteredBookings.forEach(b => {
-      const isCard = b.paymobOrderId != null;
-      // Mock wallet split if phone matches typical pattern or standard distribution
-      const isWallet = !isCard && b.userId?.phone && b.userId.phone.startsWith('+201');
-      if (isCard) cardCount += b.amountEGP || 0;
-      else if (isWallet) walletCount += b.amountEGP || 0;
+      if (b.paymobOrderId != null) cardCount += b.amountEGP || 0;
     });
 
-    const total = cardCount + walletCount || 1;
+    const total = cardCount || 1;
     return [
       { name: 'Credit Card (Paymob)', value: cardCount, percentage: Math.round((cardCount / total) * 100), color: '#3b82f6' },
-      { name: 'Mobile Wallet', value: walletCount, percentage: Math.round((walletCount / total) * 100), color: '#10b981' }
     ];
   };
 

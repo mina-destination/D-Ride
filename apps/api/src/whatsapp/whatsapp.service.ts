@@ -257,11 +257,10 @@ export class WhatsappService implements OnModuleInit {
         await this.client.sendMessage(
           message.from,
           `🚪 *Live Chat Ended*\n\n` +
-          `Your support session has been resolved. You are back in the main menu.\n\n` +
-          `How else can we help you today? Please reply with a number:\n` +
-          `1️⃣  *Active Bookings*\n` +
-          `2️⃣  *Wallet Balance*\n` +
-          `3️⃣  *Live Chat with Support*`
+      `Your support session has been resolved. You are back in the main menu.\n\n` +
+      `How else can we help you today? Please reply with a number:\n` +
+      `1️⃣  *Active Bookings*\n` +
+      `2️⃣  *Live Chat with Support*`
         );
         return;
       }
@@ -315,7 +314,7 @@ export class WhatsappService implements OnModuleInit {
       if (bookings.length === 0) {
         await this.client.sendMessage(
           message.from,
-          `🎫 *Your Active Bookings*\n\nYou have no active bookings at the moment. Reply with *3* to talk to support.`,
+          `🎫 *Your Active Bookings*\n\nYou have no active bookings at the moment. Reply with *2* to talk to support.`,
         );
       } else {
         let bookingText = `🎫 *Your Active Bookings (Latest ${bookings.length})*:\n\n`;
@@ -341,16 +340,6 @@ export class WhatsappService implements OnModuleInit {
     }
 
     if (text === '2') {
-      await this.client.sendMessage(
-        message.from,
-        `💵 *Your Wallet Balance*\n\n` +
-        `Current Balance: *EGP ${user.walletBalance.toFixed(2)}*\n\n` +
-        `Reply with *M* to show the main menu.`,
-      );
-      return;
-    }
-
-    if (text === '3') {
       const openTicketsCount = await this.prisma.supportTicket.count({
         where: {
           userId: user.id,
@@ -417,8 +406,7 @@ export class WhatsappService implements OnModuleInit {
       `Welcome to D-Ride, *${user.name}*! 🚌 👋\n\n` +
       `How can we help you today? Please reply with one of the numbers below:\n\n` +
       `1️⃣  *Active Bookings* (Query your upcoming rides)\n` +
-      `2️⃣  *Wallet Balance* (Check your account funds)\n` +
-      `3️⃣  *Live Chat with Support* (Speak to customer service)`;
+      `2️⃣  *Live Chat with Support* (Speak to customer service)`;
 
     await this.client.sendMessage(message.from, menuMsg);
   }

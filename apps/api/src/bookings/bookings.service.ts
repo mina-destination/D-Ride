@@ -105,8 +105,9 @@ export class BookingsService {
     trip: any,
     segmentPrice: number,
     seatNumbers: number[],
+    customSurcharge?: number,
   ): number {
-    const surcharge = Number(trip.premiumSeatSurcharge || 0);
+    const surcharge = customSurcharge !== undefined ? customSurcharge : Number(trip.premiumSeatSurcharge || 0);
     const hasSeat1 = seatNumbers.some((s) => Number(s) === 1);
     return segmentPrice * seatNumbers.length + (hasSeat1 ? surcharge : 0);
   }
@@ -310,6 +311,7 @@ export class BookingsService {
       }
 
       let segmentPrice = currentTrip.priceEGP || 0;
+      let customSurcharge: number | undefined;
       let pickupCheckpointData = data.pickupCheckpoint || null;
       let dropoffCheckpointData = data.dropoffCheckpoint || null;
 
@@ -343,6 +345,10 @@ export class BookingsService {
             dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
           );
           segmentPrice = dropoffPrice - pickupPrice;
+        }
+
+        if (pickupCp.premiumSurcharges && pickupCp.premiumSurcharges[dropoffCp.name] !== undefined) {
+          customSurcharge = Number(pickupCp.premiumSurcharges[dropoffCp.name]);
         }
 
         pickupCheckpointData = {
@@ -499,7 +505,7 @@ export class BookingsService {
       }
 
       const isReward = !!data.isReward;
-      const basePrice = isReward ? 0 : this.calculateBasePrice(currentTrip, segmentPrice, requestedSeatsList);
+      const basePrice = isReward ? 0 : this.calculateBasePrice(currentTrip, segmentPrice, requestedSeatsList, customSurcharge);
       
       let discountEGP = 0;
       let promoCodeId: string | null = null;
@@ -538,35 +544,6 @@ export class BookingsService {
       let paymentStatus: PaymentStatus = isReward
         ? PaymentStatus.SUCCESS
         : PaymentStatus.PENDING;
-
-      const isWallet =
-        !isReward &&
-        (data.paymentMethod === 'WALLET' ||
-          data.paymentMethod === 'WALLET_BALANCE');
-
-      if (isWallet) {
-        const userId = data.userId?.toString();
-        if (!userId) throw new BadRequestException('User ID is required for wallet payment');
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-        });
-        if (!user) throw new NotFoundException('User not found');
-
-        if (user.walletBalance < amountEGP) {
-          throw new BadRequestException('Insufficient wallet balance');
-        }
-
-        // Atomically decrement the balance field using database-level operations (decrement: totalCostEGP)
-        await tx.user.update({
-          where: { id: user.id },
-          data: {
-            walletBalance: { decrement: amountEGP },
-          },
-        });
-
-        bookingStatus = BookingStatus.CONFIRMED;
-        paymentStatus = PaymentStatus.SUCCESS;
-      }
 
       // Generate a unique random boarding number from 1 to 99 for this trip
       const activeTripBookings = await tx.booking.findMany({
@@ -632,17 +609,15 @@ export class BookingsService {
       // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
       await this.cleanupExpiredBookings(tripIdStr, tx);
 
-      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if WALLET or REWARD payment
-      if (isWallet || isReward) {
+      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD payment
+      if (isReward) {
         await tx.transaction.create({
           data: {
             bookingId: newBooking.id,
             userId: data.userId?.toString() || '',
             amountEGP,
             status: PaymentStatus.SUCCESS,
-            paymentMethod: isReward
-              ? data.paymentMethod || 'ADMIN_REWARD'
-              : data.paymentMethod || 'WALLET',
+            paymentMethod: data.paymentMethod || 'ADMIN_REWARD',
           },
         });
       }
@@ -843,15 +818,6 @@ export class BookingsService {
     return this.mapBooking(updated);
   }
 
-  /**
-   * Admin-only: Refund a cancelled wallet-paid booking.
-   * Credits the wallet balance back to the user and marks booking as REFUNDED.
-   */
-  /**
-   * Admin-only: Process a refund request for a cancelled booking.
-   * Credits the wallet balance back to the user based on refund policies/actions
-   * and marks the booking as REFUNDED or FAILED (rejected).
-   */
   async refundBooking(
     bookingId: string,
     action?: 'FULL' | 'HALF' | 'REJECT',
@@ -1306,6 +1272,7 @@ export class BookingsService {
     );
 
     let segmentPrice = currentTrip.priceEGP || 0;
+    let customSurcharge: number | undefined;
     if (pickupCp && dropoffCp) {
       if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
         segmentPrice = Number(pickupCp.prices[dropoffCp.name]);
@@ -1316,10 +1283,13 @@ export class BookingsService {
         );
         segmentPrice = dropoffPrice - pickupPrice;
       }
+      if (pickupCp.premiumSurcharges && pickupCp.premiumSurcharges[dropoffCp.name] !== undefined) {
+        customSurcharge = Number(pickupCp.premiumSurcharges[dropoffCp.name]);
+      }
     }
 
     const bookingSeatsList = Array.isArray(booking.seatNumbers) ? (booking.seatNumbers as number[]) : [1];
-    const baseAmount = this.calculateBasePrice(currentTrip, segmentPrice, bookingSeatsList);
+    const baseAmount = this.calculateBasePrice(currentTrip, segmentPrice, bookingSeatsList, customSurcharge);
 
         return this.prisma.$transaction(async (tx) => {
           if (!code || code.trim() === '') {

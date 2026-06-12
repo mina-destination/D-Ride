@@ -14,6 +14,9 @@ import { DriversPage } from './pages/DriversPage';
 import { PassengersPage } from './pages/PassengersPage';
 import { BookingsPage } from './pages/BookingsPage';
 import { PaymentsPage } from './pages/PaymentsPage';
+import { TransactionsPage } from './pages/TransactionsPage';
+import { ReviewsPage } from './pages/ReviewsPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { RoutesPage } from './pages/RoutesPage';
 import { TripsPage } from './pages/TripsPage';
@@ -27,6 +30,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { RefundsPage } from './pages/RefundsPage';
 import { TripDetailsPage } from './pages/TripDetailsPage';
 import { RouteFinancePage } from './pages/RouteFinancePage';
+import { TripHistoryPage } from './pages/TripHistoryPage';
 import { ConfirmProvider } from './context/ConfirmContext';
 import './App.css';
 
@@ -166,12 +170,15 @@ function DashboardIndexRoute() {
     'bookings',
     'refunds',
     'payments',
+    'transactions',
     'analytics',
     'finance-calculator',
     'passengers',
     'crm',
+    'reviews',
     'support-tickets',
     'settings',
+    'notifications',
     'partners',
     'promo-codes'
   ].find(p => user.permissions?.includes(p));
@@ -185,12 +192,15 @@ function DashboardIndexRoute() {
       bookings: '/bookings',
       refunds: '/refunds',
       payments: '/payments',
+      transactions: '/transactions',
       analytics: '/analytics',
       'finance-calculator': '/finance-calculator',
       passengers: '/passengers',
       crm: '/crm',
+      reviews: '/reviews',
       'support-tickets': '/support-tickets',
       settings: '/settings',
+      notifications: '/notifications',
       partners: '/partners',
       'promo-codes': '/promo-codes'
     };
@@ -221,11 +231,15 @@ function AppRoutes() {
         <Route path="routes" element={<ProtectedRoute permission="routes"><RoutesPage /></ProtectedRoute>} />
         <Route path="trips" element={<ProtectedRoute permission="trips"><TripsPage /></ProtectedRoute>} />
         <Route path="trips/:id" element={<ProtectedRoute permission="trips"><TripDetailsPage /></ProtectedRoute>} />
+        <Route path="trip-history" element={<ProtectedRoute permission="trips"><TripHistoryPage /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute permission="vehicles"><VehiclesPage /></ProtectedRoute>} />
         <Route path="drivers" element={<ProtectedRoute permission="drivers"><DriversPage /></ProtectedRoute>} />
         <Route path="bookings" element={<ProtectedRoute permission="bookings"><BookingsPage /></ProtectedRoute>} />
         <Route path="refunds" element={<ProtectedRoute permission="refunds"><RefundsPage /></ProtectedRoute>} />
         <Route path="payments" element={<ProtectedRoute permission="payments"><PaymentsPage /></ProtectedRoute>} />
+        <Route path="transactions" element={<ProtectedRoute permission="payments"><TransactionsPage /></ProtectedRoute>} />
+        <Route path="reviews" element={<ProtectedRoute permission="crm"><ReviewsPage /></ProtectedRoute>} />
+        <Route path="notifications" element={<ProtectedRoute permission="settings"><NotificationsPage /></ProtectedRoute>} />
         <Route path="analytics" element={<ProtectedRoute permission="analytics"><AnalyticsPage /></ProtectedRoute>} />
         <Route path="finance-calculator" element={<ProtectedRoute permission="finance-calculator"><RouteFinancePage /></ProtectedRoute>} />
         <Route path="passengers" element={<ProtectedRoute permission="passengers"><PassengersPage /></ProtectedRoute>} />

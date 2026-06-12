@@ -107,6 +107,8 @@ export class RoutesService {
         estimatedDurationMinutes: data.estimatedDurationMinutes || 0,
         isActive: data.isActive !== undefined ? data.isActive : true,
         isDeleted: false,
+        priceEGP: data.priceEGP || 0,
+        premiumSeatSurcharge: data.premiumSeatSurcharge || 0,
       },
     });
     return { ...route, _id: route.id };
@@ -127,6 +129,12 @@ export class RoutesService {
       }
       if (data.isDeleted !== undefined) {
         updateData.isDeleted = data.isDeleted;
+      }
+      if (data.priceEGP !== undefined) {
+        updateData.priceEGP = data.priceEGP;
+      }
+      if (data.premiumSeatSurcharge !== undefined) {
+        updateData.premiumSeatSurcharge = data.premiumSeatSurcharge;
       }
       const route = await this.prisma.route.update({
         where: { id },

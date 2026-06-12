@@ -229,7 +229,7 @@ export class UsersService implements OnModuleInit {
   }
 
   async updateUser(id: string, data: UpdateUserDto): Promise<any> {
-    // Allowlist only safe fields to prevent mass assignment of walletBalance, crmNotes, etc.
+    // Allowlist only safe fields to prevent mass assignment of crmNotes, etc.
     const allowedFields = [
       'name',
       'email',

@@ -419,17 +419,18 @@ export class TripsService {
   }
 
   async create(data: CreateTripDto): Promise<any> {
+    const route = await this.prisma.route.findUnique({
+      where: { id: data.routeId },
+    });
+
     let finalPrice = Number(data.priceEGP);
     if (
       data.priceEGP === undefined ||
       data.priceEGP === null ||
       isNaN(finalPrice)
     ) {
-      const route = await this.prisma.route.findUnique({
-        where: { id: data.routeId },
-      });
-      let calculatedPrice = 0;
-      if (route && route.checkpoints && Array.isArray(route.checkpoints)) {
+      let calculatedPrice = (route && route.priceEGP) ? route.priceEGP : 0;
+      if (!calculatedPrice && route && route.checkpoints && Array.isArray(route.checkpoints)) {
         const checkpoints = route.checkpoints as any[];
         if (checkpoints.length >= 2) {
           const startCp = checkpoints[0];
@@ -447,6 +448,15 @@ export class TripsService {
         }
       }
       finalPrice = calculatedPrice;
+    }
+
+    let finalPremiumSurcharge = Number(data.premiumSeatSurcharge);
+    if (
+      data.premiumSeatSurcharge === undefined ||
+      data.premiumSeatSurcharge === null ||
+      isNaN(finalPremiumSurcharge)
+    ) {
+      finalPremiumSurcharge = (route && route.premiumSeatSurcharge) ? route.premiumSeatSurcharge : 0;
     }
 
     let finalSeats = Number(data.availableSeats);
@@ -496,7 +506,7 @@ export class TripsService {
         arrivalTime: arrTime,
         status: (data.status || 'SCHEDULED').toUpperCase() as TripStatus,
         priceEGP: finalPrice,
-        premiumSeatSurcharge: data.premiumSeatSurcharge !== undefined && data.premiumSeatSurcharge !== null ? Number(data.premiumSeatSurcharge) : 0,
+        premiumSeatSurcharge: finalPremiumSurcharge,
         availableSeats: finalSeats,
         bookedSeats: Number(data.bookedSeats || 0),
         lockedSeats: data.lockedSeats || [14],

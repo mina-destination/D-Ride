@@ -208,7 +208,7 @@ export function SettingsPage() {
         <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <Text type="secondary">
-              Configure the connection keys to your Paymob merchant account for credit cards and mobile wallet processing.
+              Configure the connection keys to your Paymob merchant account for credit card processing.
             </Text>
           </div>
           <Row gutter={24}>

@@ -70,8 +70,18 @@ export default function CheckoutPage() {
 
   const legPrice = getLegPrice();
   
+  const getLegPremiumSurcharge = () => {
+    if (!trip) return 0;
+    if (selectedPickupCheckpoint && selectedDropoffCheckpoint) {
+      if (selectedPickupCheckpoint.premiumSurcharges && selectedPickupCheckpoint.premiumSurcharges[selectedDropoffCheckpoint.name] !== undefined) {
+        return Number(selectedPickupCheckpoint.premiumSurcharges[selectedDropoffCheckpoint.name]);
+      }
+    }
+    return Number(trip.premiumSeatSurcharge || 0);
+  };
+
   const getLegSubTotalFare = () => {
-    const surcharge = Number(trip?.premiumSeatSurcharge || 0);
+    const surcharge = getLegPremiumSurcharge();
     const hasSeat1 = selectedSeats.some(s => Number(s) === 1);
     return legPrice * selectedSeats.length + (hasSeat1 ? surcharge : 0);
   };
@@ -516,7 +526,7 @@ export default function CheckoutPage() {
 
   const getSeatLabel = (num: number) => {
     if (num === 1) {
-      const surcharge = Number(trip?.premiumSeatSurcharge || 0);
+      const surcharge = getLegPremiumSurcharge();
       return { 
         label: t('vipCockpitSeat'), 
         desc: surcharge > 0 
@@ -561,7 +571,8 @@ export default function CheckoutPage() {
     if (isSelected) className += " selected";
     if (isLocked) className += " locked-luggage";
 
-    const isPremiumSeat1 = num === 1 && trip?.premiumSeatSurcharge && trip.premiumSeatSurcharge > 0;
+    const currentSurcharge = getLegPremiumSurcharge();
+    const isPremiumSeat1 = num === 1 && currentSurcharge > 0;
 
     return (
       <div 

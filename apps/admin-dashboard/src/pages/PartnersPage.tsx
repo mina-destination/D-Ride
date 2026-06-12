@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Space, Tag, Switch } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, Tag, Switch, Image, Typography } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { partnersAPI } from '../services/api';
 import { Handshake } from 'lucide-react';
 import { cleanGoogleDriveLink } from '../utils/google-drive';
+
+const { Text } = Typography;
 
 export function PartnersPage() {
   const [partners, setPartners] = useState<any[]>([]);
@@ -245,8 +247,32 @@ export function PartnersPage() {
             name="logoUrl"
             label="Logo URL"
             rules={[{ required: true, message: 'Please enter logo image URL' }]}
+            extra={
+              <Text style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                Paste an image URL or a Google Drive sharing link — it will be converted automatically
+              </Text>
+            }
           >
-            <Input placeholder="e.g. https://domain.com/logo.png" />
+            <Input placeholder="https://drive.google.com/file/d/... or https://example.com/logo.png" />
+          </Form.Item>
+
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.logoUrl !== cur.logoUrl}>
+            {({ getFieldValue }) => {
+              const raw = getFieldValue('logoUrl');
+              if (!raw) return null;
+              const src = cleanGoogleDriveLink(raw);
+              return (
+                <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                  <Image
+                    src={src}
+                    alt="logo preview"
+                    width={120}
+                    fallback="https://placehold.co/120x48/26272b/666?text=Invalid+URL"
+                    style={{ borderRadius: 8, border: '1px solid var(--border)', padding: 8, background: 'rgba(255,255,255,0.05)' }}
+                  />
+                </div>
+              );
+            }}
           </Form.Item>
 
           <Form.Item
