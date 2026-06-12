@@ -3,12 +3,13 @@ import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Form, Input, Space, Select, Tag, List, Rate, Avatar } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
-import { usersAPI, reviewsAPI } from '../services/api';
+import { usersAPI, reviewsAPI, vehiclesAPI } from '../services/api';
 import { UserCog, Download } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 export function DriversPage() {
   const [drivers, setDrivers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -48,16 +49,20 @@ export function DriversPage() {
     setActiveDriverForReviews(null);
   };
 
-  const fetchDrivers = async () => {
+  const fetchDriversAndVehicles = async () => {
     try {
       setLoading(true);
-      const res = await usersAPI.getByRole('DRIVER');
-      setDrivers(res);
+      const [driversRes, vehiclesRes] = await Promise.all([
+        usersAPI.getByRole('DRIVER'),
+        vehiclesAPI.getAll(),
+      ]);
+      setDrivers(driversRes);
+      setVehicles(vehiclesRes);
 
       // Fetch rating stats for each driver
       const ratingsData: Record<string, any> = {};
       await Promise.all(
-        res.map(async (driver: any) => {
+        driversRes.map(async (driver: any) => {
           try {
             const ratingRes = await reviewsAPI.getDriverRating(driver._id);
             ratingsData[driver._id] = ratingRes;
@@ -68,24 +73,26 @@ export function DriversPage() {
       );
       setRatings(ratingsData);
     } catch (error) {
-      message.error('Failed to fetch drivers');
+      message.error('Failed to fetch fleet operator data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDrivers();
+    fetchDriversAndVehicles();
   }, []);
 
   const handleOpenModal = (driver?: any) => {
     if (driver) {
       setEditingId(driver._id);
+      const assigned = vehicles.find(v => v.driverId === driver._id || (v.driver && (v.driver._id === driver._id || v.driver.id === driver._id)));
       form.setFieldsValue({
         name: driver.name,
         email: driver.email,
         phone: driver.phone,
         status: driver.status || 'ACTIVE',
+        vehicleId: assigned ? assigned._id : undefined,
       });
     } else {
       setEditingId(null);
@@ -102,15 +109,37 @@ export function DriversPage() {
 
   const handleSubmit = async (values: any) => {
     try {
+      const { name, email, phone, status, vehicleId } = values;
+
       if (editingId) {
-        await usersAPI.update(editingId, values);
+        await usersAPI.update(editingId, { name, email, phone, status });
+        
+        // Bi-directional Vehicle-Driver assignment sync
+        const currentAssigned = vehicles.find(v => v.driverId === editingId || (v.driver && (v.driver._id === editingId || v.driver.id === editingId)));
+        
+        if (vehicleId) {
+          if (!currentAssigned || currentAssigned._id !== vehicleId) {
+            if (currentAssigned) {
+              await vehiclesAPI.update(currentAssigned._id, { driverId: null });
+            }
+            await vehiclesAPI.update(vehicleId, { driverId: editingId });
+          }
+        } else {
+          if (currentAssigned) {
+            await vehiclesAPI.update(currentAssigned._id, { driverId: null });
+          }
+        }
         message.success('Driver updated successfully');
       } else {
-        await usersAPI.create({ ...values, role: 'DRIVER' });
+        const newDriver = await usersAPI.create({ name, email, phone, status, role: 'DRIVER', password: values.password });
+        if (vehicleId && newDriver) {
+          const newDriverId = newDriver._id || newDriver.id;
+          await vehiclesAPI.update(vehicleId, { driverId: newDriverId });
+        }
         message.success('Driver registered successfully.');
       }
       setIsModalOpen(false);
-      fetchDrivers();
+      fetchDriversAndVehicles();
     } catch (error: any) {
       message.error(error.message || 'Operation failed');
     }
@@ -120,7 +149,7 @@ export function DriversPage() {
     try {
       await usersAPI.delete(id);
       message.success('Driver deleted successfully');
-      fetchDrivers();
+      fetchDriversAndVehicles();
     } catch (error) {
       message.error('Failed to delete driver');
     }
@@ -173,6 +202,21 @@ export function DriversPage() {
       title: 'Phone',
       dataIndex: 'phone',
       key: 'phone',
+    },
+    {
+      title: 'Assigned Vehicle',
+      key: 'vehicle',
+      render: (_: any, record: any) => {
+        const assignedVehicle = vehicles.find(v => v.driverId === record._id || (v.driver && (v.driver._id === record._id || v.driver.id === record._id)));
+        return assignedVehicle ? (
+          <div>
+            <strong>{assignedVehicle.make} {assignedVehicle.model}</strong>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{assignedVehicle.licensePlate}</div>
+          </div>
+        ) : (
+          <Tag color="default">Unassigned</Tag>
+        );
+      }
     },
     {
       title: 'Status',
@@ -311,6 +355,19 @@ export function DriversPage() {
               <Select.Option value="ACTIVE">Active</Select.Option>
               <Select.Option value="INACTIVE">Inactive</Select.Option>
               <Select.Option value="SUSPENDED">Suspended</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item 
+            name="vehicleId" 
+            label="Assigned Vehicle"
+          >
+            <Select placeholder="Select a vehicle" allowClear>
+              {vehicles.map(v => (
+                <Select.Option key={v._id} value={v._id}>
+                  {v.make} {v.model} ({v.licensePlate})
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
         </Form>

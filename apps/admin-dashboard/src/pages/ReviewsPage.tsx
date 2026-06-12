@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Card, Space, Select, DatePicker, Input, Button, Statistic, Row, Col, Typography, Spin, Empty, Rate, Popconfirm } from 'antd';
+import { Table, Card, Space, Select, DatePicker, Button, Statistic, Row, Col, Typography, Spin, Empty, Rate } from 'antd';
 import { Popconfirm as CustomPopconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { reviewsAPI } from '../services/api';
@@ -18,7 +18,6 @@ export function ReviewsPage() {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
   const [stats, setStats] = useState<any>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
 
   const fetchReviews = async () => {
     try {
@@ -40,13 +39,10 @@ export function ReviewsPage() {
 
   const fetchStats = async () => {
     try {
-      setStatsLoading(true);
       const res = await reviewsAPI.getStats();
       setStats(res);
     } catch (err) {
       console.error('Failed to load review stats', err);
-    } finally {
-      setStatsLoading(false);
     }
   };
 
@@ -70,7 +66,7 @@ export function ReviewsPage() {
   };
 
   const distribution = stats?.ratingDistribution || stats?.distribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  const maxDistCount = Math.max(...Object.values(distribution), 1);
+  const maxDistCount = Math.max(...(Object.values(distribution) as number[]), 1);
 
   const columns = [
     {

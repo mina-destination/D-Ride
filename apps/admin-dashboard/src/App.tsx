@@ -31,6 +31,7 @@ import { RefundsPage } from './pages/RefundsPage';
 import { TripDetailsPage } from './pages/TripDetailsPage';
 import { RouteFinancePage } from './pages/RouteFinancePage';
 import { TripHistoryPage } from './pages/TripHistoryPage';
+import { LiveTrackingPage } from './pages/LiveTrackingPage';
 import { ConfirmProvider } from './context/ConfirmContext';
 import './App.css';
 
@@ -232,6 +233,7 @@ function AppRoutes() {
         <Route path="trips" element={<ProtectedRoute permission="trips"><TripsPage /></ProtectedRoute>} />
         <Route path="trips/:id" element={<ProtectedRoute permission="trips"><TripDetailsPage /></ProtectedRoute>} />
         <Route path="trip-history" element={<ProtectedRoute permission="trips"><TripHistoryPage /></ProtectedRoute>} />
+        <Route path="live-tracking" element={<ProtectedRoute permission="vehicles"><LiveTrackingPage /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute permission="vehicles"><VehiclesPage /></ProtectedRoute>} />
         <Route path="drivers" element={<ProtectedRoute permission="drivers"><DriversPage /></ProtectedRoute>} />
         <Route path="bookings" element={<ProtectedRoute permission="bookings"><BookingsPage /></ProtectedRoute>} />

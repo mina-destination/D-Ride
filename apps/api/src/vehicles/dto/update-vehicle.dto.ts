@@ -22,4 +22,8 @@ export class UpdateVehicleDto {
   @IsEnum(VehicleStatus)
   @IsOptional()
   status?: VehicleStatus;
+
+  @IsString()
+  @IsOptional()
+  driverId?: string;
 }
