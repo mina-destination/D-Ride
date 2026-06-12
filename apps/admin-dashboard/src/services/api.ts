@@ -60,11 +60,16 @@ function showDebouncedError(msg: string) {
   }
 }
 
-// Response interceptor — unwrap API response
+// Response interceptor — unwrap API response, attach pagination if present
 api.interceptors.response.use(
   (response) => {
     const data = response.data?.data ?? response.data;
-    return addIdMapping(data);
+    const pagination = response.data?.pagination;
+    const mapped = addIdMapping(data);
+    if (pagination && Array.isArray(mapped)) {
+      (mapped as any).pagination = pagination;
+    }
+    return mapped;
   },
   (error) => {
     if (error.response?.status === 401) {

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Table, Tag, Card, Space, Select, DatePicker, Input, Button, Typography, Tabs, Form, Radio, Spin, Empty, Divider } from 'antd';
 import { message } from '../utils/antdGlobal';
 import { notificationsAPI } from '../services/api';
-import { Bell, Send, RadioTower, MessageSquare, Mail, Smartphone, Globe } from 'lucide-react';
+import { Bell, Send, RadioTower, MessageSquare, Mail, Smartphone, Globe, Download } from 'lucide-react';
+import { exportToCSV } from '../utils/csv';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -52,17 +53,22 @@ function SentNotificationsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (typeFilter !== 'ALL') params.type = typeFilter;
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (dateRange?.[0]) params.startDate = dateRange[0].toISOString();
       if (dateRange?.[1]) params.endDate = dateRange[1].toISOString();
       const res = await notificationsAPI.getAll(params);
       setNotifications(Array.isArray(res) ? res : []);
+      if (res.pagination) setTotal(res.pagination.total);
     } catch (err) {
       setError('Failed to load notifications');
       setNotifications([]);
@@ -73,6 +79,11 @@ function SentNotificationsTab() {
 
   useEffect(() => {
     fetchNotifications();
+  }, [page, pageSize, typeFilter, statusFilter, dateRange]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
   }, [typeFilter, statusFilter, dateRange]);
 
   const channelIcon: Record<string, React.ReactNode> = {
@@ -80,6 +91,20 @@ function SentNotificationsTab() {
     EMAIL: <Mail size={12} />,
     WHATSAPP: <Globe size={12} />,
     IN_APP: <Bell size={12} />,
+  };
+
+  const csvHeaders = [
+    { key: 'type', label: 'Type' },
+    { key: 'title', label: 'Title' },
+    { key: 'message', label: 'Message' },
+    { key: 'channel', label: 'Channel' },
+    { key: 'status', label: 'Status' },
+    { key: 'user.name', label: 'Recipient', transform: (_: string, record: any) => record.user ? `${record.user.name} (${record.user.email})` : 'Broadcast' },
+    { key: 'createdAt', label: 'Sent Date', transform: (val: string) => val ? new Date(val).toLocaleString() : '' },
+  ];
+
+  const handleExportCSV = () => {
+    exportToCSV(notifications, csvHeaders, 'notifications_report');
   };
 
   const columns = [
@@ -186,6 +211,9 @@ function SentNotificationsTab() {
             style={{ width: 260 }}
             allowClear
           />
+          <Button onClick={handleExportCSV} icon={<Download size={16} />} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            Export CSV
+          </Button>
         </Space>
       </div>
 
@@ -207,7 +235,7 @@ function SentNotificationsTab() {
             dataSource={notifications}
             columns={columns}
             rowKey="_id"
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            pagination={{ current: page, pageSize, total, showSizeChanger: true, onChange: (p: number, ps: number) => { setPage(p); setPageSize(ps); } }}
             style={{ padding: '0.5rem' }}
           />
         )}
