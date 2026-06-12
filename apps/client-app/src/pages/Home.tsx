@@ -94,7 +94,7 @@ function RouteSearchForm() {
         setIsFetchingLimit(true);
         tripsAPI.search(routeId, travelDate)
           .then((tripsList: any[]) => {
-            if (tripsList && tripsList.length > 0) {
+            if (Array.isArray(tripsList) && tripsList.length > 0) {
               const maxSeats = Math.max(...tripsList.map(trip => {
                 const lockedCount = trip.lockedSeats ? trip.lockedSeats.length : 0;
                 const seatsLeft = trip.availableSeats - trip.bookedSeats - lockedCount;
@@ -132,7 +132,7 @@ function RouteSearchForm() {
     try {
       setMapLoading(true);
       const results = await routesAPI.getNearestStation(coords[0], coords[1], 1);
-      if (results && results.length > 0) {
+      if (Array.isArray(results) && results.length > 0) {
         setNearestStationFromMap(results[0]);
       } else {
         setNearestStationFromMap(null);
@@ -181,7 +181,18 @@ function RouteSearchForm() {
 
   // Load all routes to extract cities and stations
   useEffect(() => {
-    routesAPI.getAll().then((data) => setRoutes(data)).catch(console.error);
+    routesAPI.getAll()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setRoutes(data);
+        } else {
+          setRoutes([]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load routes:', err);
+        setRoutes([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -606,7 +617,7 @@ function RouteSearchForm() {
       try {
         setFromQuery(r.name || r.display_name.split(',')[0]);
         const results = await routesAPI.getNearestStation(lat, lng, 1);
-        if (results && results.length > 0) {
+        if (Array.isArray(results) && results.length > 0) {
           const nearest = results[0];
           const cp = nearest.checkpoint;
           const route = nearest.route;
@@ -646,7 +657,7 @@ function RouteSearchForm() {
       try {
         setToQuery(r.name || r.display_name.split(',')[0]);
         const results = await routesAPI.getNearestStation(lat, lng, 1);
-        if (results && results.length > 0) {
+        if (Array.isArray(results) && results.length > 0) {
           const nearest = results[0];
           const cp = nearest.checkpoint;
           const route = nearest.route;
@@ -926,7 +937,7 @@ function RouteSearchForm() {
                             🏙️ {city}
                           </div>
                         )}
-                        {items.map((item: any, idx: number) => {
+                        {items.map((item: any, _idx: number) => {
                           const globalIdx = Object.values(groupedFrom).flat().indexOf(item);
                           if (item.type === 'address') {
                             const r = item.data;
@@ -1076,7 +1087,7 @@ function RouteSearchForm() {
                             🏙️ {city}
                           </div>
                         )}
-                        {items.map((item: any, idx: number) => {
+                        {items.map((item: any, _idx: number) => {
                           const globalIdx = Object.values(groupedTo).flat().indexOf(item);
                           if (item.type === 'address') {
                             const r = item.data;
@@ -1295,8 +1306,17 @@ export default function HomePage() {
 
   useEffect(() => {
     partnersAPI.getActive()
-      .then(data => setPartners(data))
-      .catch(console.error);
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPartners(data);
+        } else {
+          setPartners([]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load partners:', err);
+        setPartners([]);
+      });
   }, []);
 
   const seoTitle = language === 'ar'
