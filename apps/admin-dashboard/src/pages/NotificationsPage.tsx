@@ -79,6 +79,7 @@ function SentNotificationsTab() {
 
   useEffect(() => {
     fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, typeFilter, statusFilter, dateRange]);
 
   // Reset to page 1 when filters change

@@ -103,22 +103,26 @@ export function LiveTrackingPage() {
         return {
           id: v._id || v.id,
           _id: v._id || v.id,
-          make: v.make || 'D-Ride',
-          model: v.model || 'Vehicle',
-          licensePlate: v.licensePlate || v.plateNumber || 'N/A',
+          make: v.make || v.vehicle?.make || 'D-Ride',
+          model: v.model || v.vehicle?.model || 'Vehicle',
+          licensePlate: v.licensePlate || v.vehicle?.plateNumber || v.plateNumber || 'N/A',
           status: v.status || (v.isActive ? 'ACTIVE' : 'OFFLINE'),
-          capacity: v.capacity || 14,
-          driver: v.driver
-            ? { name: v.driver.name, phone: v.driver.phone, _id: v.driver._id || v.driver.id }
+          capacity: v.capacity || v.vehicle?.capacity || 14,
+          driver: v.driver || v.vehicle?.driver
+            ? { name: (v.driver || v.vehicle?.driver)?.name, phone: (v.driver || v.vehicle?.driver)?.phone, _id: (v.driver || v.vehicle?.driver)?._id || (v.driver || v.vehicle?.driver)?.id }
             : undefined,
           location: loc,
         };
       });
       setVehicles(mapped);
     } catch (err: any) {
-      if (!vehicles.length) {
-        setError(err?.message || 'Failed to load vehicle locations');
-      }
+      // Only show error if there's no cached data to display
+      setVehicles(prev => {
+        if (prev.length === 0) {
+          setError(err?.message || 'Failed to load vehicle locations');
+        }
+        return prev;
+      });
     } finally {
       setLoading(false);
     }
@@ -130,18 +134,19 @@ export function LiveTrackingPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Connect WebSocket once on mount
   useEffect(() => {
     const token = localStorage.getItem('dride_token');
+    if (!token) return;
+
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
       transports: ['polling', 'websocket'],
       auth: { token },
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
     });
     socketRef.current = socket;
-
-    socket.on('connect', () => {
-      vehicles.forEach(v => { if (v.id) socket.emit('subscribeToVehicle', v.id); });
-    });
 
     socket.on('vehicleLocationUpdate', (data: any) => {
       if (!data?.vehicleId || !data?.location) return;
@@ -169,6 +174,13 @@ export function LiveTrackingPage() {
     });
 
     return () => { socket.disconnect(); socketRef.current = null; };
+  }, []);
+
+  // Subscribe to vehicles when the list changes (without reconnecting the socket)
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    vehicles.forEach(v => { if (v.id) socket.emit('subscribeToVehicle', v.id); });
   }, [vehicles.length]);
 
   useEffect(() => {

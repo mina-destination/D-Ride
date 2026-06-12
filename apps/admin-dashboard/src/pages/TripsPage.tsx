@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, List, Tooltip } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
@@ -43,6 +43,12 @@ export function TripsPage() {
 
   // Real-time trip simulation state
   const [activeSims, setActiveSims] = useState<Record<string, ActiveSimulation>>({});
+  const activeSimsRef = useRef(activeSims);
+  
+  useEffect(() => {
+    activeSimsRef.current = activeSims;
+  }, [activeSims]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
@@ -100,8 +106,8 @@ export function TripsPage() {
   useEffect(() => {
     fetchData();
     return () => {
-      // Cleanup all simulation intervals on unmount
-      Object.values(activeSims).forEach(sim => clearInterval(sim.intervalId));
+      // Cleanup all simulation intervals on unmount using the ref to avoid stale closure
+      Object.values(activeSimsRef.current).forEach(sim => clearInterval(sim.intervalId));
     };
   }, []);
 
@@ -145,11 +151,19 @@ export function TripsPage() {
 
     try {
       const { lockSeat14, ...rest } = values;
-      const payload = {
+      const rawPayload = {
         ...rest,
         departureTime: values.departureTime.toISOString(),
         lockedSeats: lockSeat14 ? [14] : [],
       };
+
+      // Strip null/undefined values to prevent backend validation errors
+      const payload: Record<string, any> = {};
+      for (const [key, value] of Object.entries(rawPayload)) {
+        if (value !== null && value !== undefined) {
+          payload[key] = value;
+        }
+      }
 
       // Ensure departure time is in the future when creating new trips
       if (!editingId && dayjs(values.departureTime).isBefore(dayjs())) {

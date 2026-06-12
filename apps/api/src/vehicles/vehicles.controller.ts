@@ -32,6 +32,64 @@ export class VehiclesController {
     return this.vehiclesService.findAllVehicles();
   }
 
+  // --- Live Location Tracking (specific paths BEFORE parameterized :id routes) ---
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('DRIVER', 'ADMIN')
+  @Post('location')
+  async updateLocation(@Request() req: any, @Body() data: UpdateLocationDto) {
+    const location = await this.vehiclesService.upsertLocation(data, req.user);
+    return {
+      success: true,
+      data: location,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
+  @Get('locations')
+  async getAllLocations() {
+    return this.vehiclesService.getAllLocations();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
+  @Get('locations/:vehicleId')
+  async getVehicleLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
+    return this.vehiclesService.getLocationWithDetails(vehicleId);
+  }
+
+  @Get('location/:vehicleId')
+  async getLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
+    const location = await this.vehiclesService.getLocation(vehicleId);
+    return {
+      success: true,
+      data: location,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('nearby')
+  async getNearby(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+    @Query('radius') radius?: string,
+  ) {
+    const vehicles = await this.vehiclesService.getNearbyVehicles(
+      parseFloat(lng),
+      parseFloat(lat),
+      radius ? parseInt(radius, 10) : 3000,
+    );
+    return {
+      success: true,
+      data: vehicles,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // --- Parameterized routes AFTER specific paths ---
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post()
@@ -54,61 +112,5 @@ export class VehiclesController {
   @Delete(':id')
   async deleteVehicle(@Param('id', ParseUUIDPipe) id: string) {
     return this.vehiclesService.deleteVehicle(id);
-  }
-
-  // --- Live Location Tracking ---
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('DRIVER', 'ADMIN')
-  @Post('location')
-  async updateLocation(@Request() req: any, @Body() data: UpdateLocationDto) {
-    const location = await this.vehiclesService.upsertLocation(data, req.user);
-    return {
-      success: true,
-      data: location,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  @Get('location/:vehicleId')
-  async getLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
-    const location = await this.vehiclesService.getLocation(vehicleId);
-    return {
-      success: true,
-      data: location,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
-  @Get('locations')
-  async getAllLocations() {
-    return this.vehiclesService.getAllLocations();
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
-  @Get('locations/:vehicleId')
-  async getVehicleLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
-    return this.vehiclesService.getLocationWithDetails(vehicleId);
-  }
-
-  @Get('nearby')
-  async getNearby(
-    @Query('lat') lat: string,
-    @Query('lng') lng: string,
-    @Query('radius') radius?: string,
-  ) {
-    const vehicles = await this.vehiclesService.getNearbyVehicles(
-      parseFloat(lng),
-      parseFloat(lat),
-      radius ? parseInt(radius, 10) : 3000,
-    );
-    return {
-      success: true,
-      data: vehicles,
-      timestamp: new Date().toISOString(),
-    };
   }
 }
