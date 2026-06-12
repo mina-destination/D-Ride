@@ -57,6 +57,9 @@ export default function DashboardPage() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const fleetRef = useRef<ActiveBus[]>([]);
+  const bookingsRef = useRef<any[]>([]);
+  const mapViewModeRef = useRef<'FLEET' | 'HEATMAP'>('FLEET');
 
   const [fleet, setFleet] = useState<ActiveBus[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
@@ -89,6 +92,7 @@ export default function DashboardPage() {
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [allVehicles, setAllVehicles] = useState<any[]>([]);
   const [passengersCount, setPassengersCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
   // Fetch bookings and passenger count
   useEffect(() => {
@@ -98,10 +102,17 @@ export default function DashboardPage() {
 
     usersAPI.getByRole('PASSENGER')
       .then(data => setPassengersCount(data.length))
-      .catch((err) => {
-        console.error(err);
-        setPassengersCount(12); // Fallback
-      });
+      .catch(console.error);
+  }, []);
+
+  // Suppress the harmless "Too many glyphs" console warning from map tile rendering
+  useEffect(() => {
+    const origWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('Too many glyphs')) return;
+      origWarn.apply(console, args);
+    };
+    return () => { console.warn = origWarn; };
   }, []);
 
   // Initialize MapLibre Map for Fleet tracking & Heatmap
@@ -136,85 +147,6 @@ export default function DashboardPage() {
       setMap(null);
     };
   }, [theme]);
-
-  // Synchronize Markers (Fleet Active Shuttles or Hotspot Heatmaps)
-  useEffect(() => {
-    if (!map) return;
-
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-
-    if (mapViewMode === 'FLEET') {
-      fleet.forEach((bus) => {
-        const el = document.createElement('div');
-        el.className = 'google-maps-bus-pointer';
-
-        const popupHtml = `
-          <div style="min-width: 180px; padding: 0.25rem; font-family: Inter, sans-serif; color: var(--text-primary);">
-            <h4 style="margin: 0 0 0.5rem 0; color: var(--primary-color, #F5B731); font-size: 0.95rem; font-weight: bold;">
-              Shuttle ${bus.plate}
-            </h4>
-            <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem;">
-              <span><strong>Driver:</strong> ${bus.driver}</span>
-              <span><strong>Route:</strong> ${bus.route}</span>
-              <span><strong>Speed:</strong> ${bus.speed} km/h</span>
-              <span><strong>Occupancy:</strong> ${bus.seats} booked</span>
-            </div>
-          </div>
-        `;
-
-        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([bus.lng, bus.lat])
-          .setPopup(popup)
-          .addTo(map);
-
-        markersRef.current.push(marker);
-      });
-    } else if (mapViewMode === 'HEATMAP') {
-      bookings
-        .filter((b) => b.pickupCheckpoint)
-        .forEach((booking) => {
-          const pickup = booking.pickupCheckpoint;
-          const coords = pickup.location?.coordinates || pickup.coordinates;
-          if (!coords || coords.length < 2) return;
-
-          const el = document.createElement('div');
-          el.className = 'demand-heatmap-marker';
-          el.innerHTML = `
-            <div style="
-              width: 24px;
-              height: 24px;
-              border-radius: 50%;
-              background: rgba(239, 68, 68, 0.4);
-              border: 1.5px solid #f59e0b;
-              box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-            "></div>
-          `;
-
-          const popupHtml = `
-            <div style="padding: 0.15rem; font-family: Inter, sans-serif; color: var(--text-primary);">
-              <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #ef4444; font-weight: bold;">Demand Area Hotspot</h4>
-              <div style="font-size: 0.78rem;">
-                <strong>Station:</strong> ${pickup.name}<br />
-                <strong>Fare:</strong> ${booking.amountEGP} EGP<br />
-                <strong>Status:</strong> ${booking.status}
-              </div>
-            </div>
-          `;
-
-          const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
-
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([coords[0], coords[1]])
-            .setPopup(popup)
-            .addTo(map);
-
-          markersRef.current.push(marker);
-        });
-    }
-  }, [map, fleet, bookings, mapViewMode]);
 
   // Synchronize Selected Bus Polyline
   useEffect(() => {
@@ -308,10 +240,10 @@ export default function DashboardPage() {
     
     tripsToCalculate.forEach(t => {
       totalBooked += t.bookedSeats || 0;
-      totalAvailable += t.availableSeats || 14;
+      totalAvailable += t.availableSeats || 0;
     });
 
-    if (totalAvailable === 0) totalAvailable = 14;
+    if (totalAvailable === 0 && allTrips.length > 0) totalAvailable = totalBooked || 1;
 
     const bookedPercentage = Math.round((totalBooked / totalAvailable) * 100) || 0;
     const freeSeats = Math.max(0, totalAvailable - totalBooked);
@@ -522,12 +454,15 @@ export default function DashboardPage() {
       (t) => t.status === 'BOARDING' || t.status === 'IN_TRANSIT' || t.status === 'SCHEDULED'
     );
 
+    const usedVehicleIds = new Set<string>();
+
     const activeBuses: ActiveBus[] = activeTrips.map((trip) => {
       const v = trip.vehicleId;
       const d = trip.driverId;
       const r = trip.routeId;
 
       const vehicleIdStr = typeof v === 'object' && v !== null ? v._id || v.id : v;
+      if (vehicleIdStr) usedVehicleIds.add(vehicleIdStr);
       const vehicleDetail = allVehicles.find((vh) => vh._id === vehicleIdStr || vh.id === vehicleIdStr);
       const liveLoc = vehicleDetail?.locations?.[0];
 
@@ -550,20 +485,10 @@ export default function DashboardPage() {
         ? v.licensePlate || v.plateNumber || 'N/A'
         : vehicleDetail?.licensePlate || vehicleDetail?.plateNumber || 'N/A';
 
-      const vehicleMake = typeof v === 'object' && v !== null
-        ? v.make || 'D-Ride'
-        : vehicleDetail?.make || 'D-Ride';
-
-      const vehicleModel = typeof v === 'object' && v !== null
-        ? v.model || 'Shuttle'
-        : vehicleDetail?.model || 'Shuttle';
-
       return {
         id: trip._id,
         vehicleId: vehicleIdStr || '',
         plate: vehiclePlate,
-        make: vehicleMake,
-        model: vehicleModel,
         route: routeName,
         driver: driverName,
         driverId: typeof d === 'object' && d !== null ? d._id || d.id : d || '',
@@ -573,6 +498,28 @@ export default function DashboardPage() {
         speed: liveLoc?.speedKmh || (trip.status === 'IN_TRANSIT' ? 50 : 0),
         status: trip.status,
       };
+    });
+
+    // Also include vehicles with live location data not linked to an active trip
+    allVehicles.forEach((vh) => {
+      const vId = vh._id || vh.id;
+      if (!vId || usedVehicleIds.has(vId)) return;
+      const liveLoc = vh.locations?.[0];
+      if (!liveLoc?.location?.coordinates) return;
+
+      activeBuses.push({
+        id: vId,
+        vehicleId: vId,
+        plate: vh.licensePlate || vh.plateNumber || 'N/A',
+        route: 'Standalone',
+        driver: vh.driver?.name || 'Unknown',
+        driverId: vh.driverId || '',
+        lat: liveLoc.location.coordinates[1],
+        lng: liveLoc.location.coordinates[0],
+        seats: 'N/A',
+        speed: liveLoc.speedKmh || 0,
+        status: 'ONLINE',
+      });
     });
 
     return activeBuses;
@@ -592,6 +539,8 @@ export default function DashboardPage() {
         setFleet(builtFleet);
       } catch (err) {
         console.error('Failed to load dashboard data', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -603,8 +552,6 @@ export default function DashboardPage() {
 
   // WebSockets live vehicle location tracking updates
   useEffect(() => {
-    if (fleet.length === 0) return;
-
     const token = localStorage.getItem('dride_token');
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
@@ -612,11 +559,14 @@ export default function DashboardPage() {
       auth: { token },
     });
 
+    const subscribed = new Set<string>();
+
     socket.on('connect', () => {
       console.log('Dashboard connected to WebSocket server');
-      fleet.forEach((bus) => {
-        if (bus.vehicleId) {
+      fleetRef.current.forEach((bus) => {
+        if (bus.vehicleId && !subscribed.has(bus.vehicleId)) {
           socket.emit('subscribeToVehicle', bus.vehicleId);
+          subscribed.add(bus.vehicleId);
         }
       });
     });
@@ -639,12 +589,123 @@ export default function DashboardPage() {
       }
     });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [fleet.map(b => b.vehicleId).join(',')]);
+    // Re-subscribe when fleet vehicle IDs change
+    const interval = setInterval(() => {
+      if (!socket.connected) return;
+      fleetRef.current.forEach((bus) => {
+        if (bus.vehicleId && !subscribed.has(bus.vehicleId)) {
+          socket.emit('subscribeToVehicle', bus.vehicleId);
+          subscribed.add(bus.vehicleId);
+        }
+      });
+    }, 5000);
 
-  // Fetch OSRM route curves for selected vehicle route
+    return () => {
+      clearInterval(interval);
+      socket.off('connect');
+      socket.off('vehicleLocationUpdate');
+      socket.disconnect();
+      subscribed.clear();
+    };
+  }, []);
+
+  // Separate effect for updating markers when fleet/bookings actually change
+  // Uses refs to track previous values and only re-renders on significant changes
+  useEffect(() => {
+    if (!map) return;
+
+    // Check if fleet, bookings, or mapViewMode actually changed
+    const fleetChanged = fleet.length !== fleetRef.current.length || 
+      fleet.some((bus, i) => bus.vehicleId !== fleetRef.current[i]?.vehicleId ||
+        bus.lat !== fleetRef.current[i]?.lat || bus.lng !== fleetRef.current[i]?.lng);
+    const bookingsChanged = bookings.length !== bookingsRef.current.length;
+    const modeChanged = mapViewMode !== mapViewModeRef.current;
+
+    if (!fleetChanged && !bookingsChanged && !modeChanged) return;
+
+    // Update refs
+    fleetRef.current = fleet;
+    bookingsRef.current = bookings;
+    mapViewModeRef.current = mapViewMode;
+
+    // Re-render markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    if (mapViewMode === 'FLEET') {
+      fleet.forEach((bus) => {
+        const el = document.createElement('div');
+        el.className = 'google-maps-bus-pointer';
+
+        const popupHtml = `
+          <div style="min-width: 180px; padding: 0.25rem; font-family: Inter, sans-serif; color: var(--text-primary);">
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--primary-color, #F5B731); font-size: 0.95rem; font-weight: bold;">
+              Shuttle ${bus.plate}
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem;">
+              <span><strong>Driver:</strong> ${bus.driver}</span>
+              <span><strong>Route:</strong> ${bus.route}</span>
+              <span><strong>Speed:</strong> ${bus.speed} km/h</span>
+              <span><strong>Occupancy:</strong> ${bus.seats} booked</span>
+            </div>
+          </div>
+        `;
+
+        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([bus.lng, bus.lat])
+          .setPopup(popup)
+          .addTo(map);
+
+        markersRef.current.push(marker);
+      });
+    } else if (mapViewMode === 'HEATMAP') {
+      bookings
+        .filter((b) => b.pickupCheckpoint)
+        .forEach((booking) => {
+          const pickup = booking.pickupCheckpoint;
+          const coords = pickup.location?.coordinates || pickup.coordinates;
+          if (!coords || coords.length < 2) return;
+
+          const el = document.createElement('div');
+          el.className = 'demand-heatmap-marker';
+          el.innerHTML = `
+            <div style="
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              background: rgba(239, 68, 68, 0.4);
+              border: 1.5px solid #f59e0b;
+              box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            "></div>
+          `;
+
+          const escapeHtml = (s: any) =>
+            String(s).replace(/[&<>"']/g, (c: string) =>
+              ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || ''),
+            );
+
+          const popup = new maplibregl.Popup({ offset: 10 }).setHTML(`
+            <div style="padding: 0.15rem; font-family: Inter, sans-serif; color: var(--text-primary);">
+              <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #ef4444; font-weight: bold;">Demand Area Hotspot</h4>
+              <div style="font-size: 0.78rem;">
+                <strong>Station:</strong> ${escapeHtml(pickup.name)}<br />
+                <strong>Fare:</strong> ${escapeHtml(booking.amountEGP)} EGP<br />
+                <strong>Status:</strong> ${escapeHtml(booking.status)}
+              </div>
+            </div>
+          `);
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([coords[0], coords[1]])
+            .setPopup(popup)
+            .addTo(map);
+
+          markersRef.current.push(marker);
+        });
+    }
+  }, [map, fleet, bookings, mapViewMode]); // Now safe - only updates when actual changes detected via refs
   useEffect(() => {
     if (!selectedBusId) {
       setSelectedRoutePath([]);
@@ -734,41 +795,69 @@ export default function DashboardPage() {
     }
   };
 
+const getTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? { direction: 'up', value: '+100%' } : { direction: 'neutral', value: '0%' };
+    const pct = Math.round(((current - previous) / previous) * 100);
+    if (pct > 0) return { direction: 'up', value: `↑ ${pct}%` };
+    if (pct < 0) return { direction: 'down', value: `↓ ${Math.abs(pct)}%` };
+    return { direction: 'neutral', value: '0%' };
+  };
+
   return (
     <>
       {(() => {
         const todayStr = new Date().toDateString();
-        const tripsTodayCount = allTrips.filter(t => t.departureTime && new Date(t.departureTime).toDateString() === todayStr).length || allTrips.length;
-        const activeVehiclesCount = allVehicles.filter(v => v.isActive).length || allVehicles.length;
-        const revenueTodayVal = bookings
-          .filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS')
-          .filter(b => b.createdAt && new Date(b.createdAt).toDateString() === todayStr)
-          .reduce((sum, b) => sum + (b.amountEGP || 0), 0)
-          || bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS').reduce((sum, b) => sum + (b.amountEGP || 0), 0);
-        const activePassengersCount = passengersCount || 12;
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
 
-        return (
-          <>
+        // Today's data
+        const tripsTodayCount = allTrips.filter(t => t.departureTime && new Date(t.departureTime).toDateString() === todayStr).length;
+        const activeVehiclesCount = allVehicles.filter(v => v.isActive).length;
+        const revenueTodayVal = bookings
+          .filter(b => (b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS'))
+          .filter(b => b.createdAt && new Date(b.createdAt).toDateString() === todayStr)
+          .reduce((sum, b) => sum + (b.amountEGP || 0), 0);
+
+        // Yesterday's data for trends
+        const tripsYesterdayCount = allTrips.filter(t => t.departureTime && new Date(t.departureTime).toDateString() === yesterday).length;
+        const revenueYesterdayVal = bookings
+          .filter(b => (b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.paymentStatus === 'SUCCESS'))
+          .filter(b => b.createdAt && new Date(b.createdAt).toDateString() === yesterday)
+          .reduce((sum, b) => sum + (b.amountEGP || 0), 0);
+
+        const tripTrend = getTrend(tripsTodayCount, tripsYesterdayCount);
+        const vehicleTrend = getTrend(activeVehiclesCount, allVehicles.length || 1);
+        const revenueTrend = getTrend(revenueTodayVal, revenueYesterdayVal);
+        const passengerTrend = getTrend(passengersCount, 0);
+
+        const activePassengersCount = passengersCount;
+
+          return (
+            <>
+            {loading && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                Loading dashboard data...
+              </div>
+            )}
             <div className="dashboard-welcome">
-              <h1>Good evening, Admin 👋</h1>
+              <h1>Admin Dashboard</h1>
               <p>Here's what's happening with D-Ride today.</p>
             </div>
 
             {/* KPI Cards */}
-            <div className="kpi-grid" style={{ marginBottom: '2rem' }}>
+            <div className="kpi-grid">
               <div className="kpi-card amber">
                 <div className="kpi-header">
-                  <div className="kpi-icon amber" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bus size={20} /></div>
-                  <span className="kpi-trend up">↑ 12%</span>
+                  <div className="kpi-icon amber"><Bus size={20} /></div>
+                  <span className={`kpi-trend ${tripTrend.direction}`}>{tripTrend.value}</span>
                 </div>
-                <div className="kpi-value">{tripsTodayCount}</div>
+                <div className="kpi-value">{tripsTodayCount || allTrips.length}</div>
                 <div className="kpi-label">Total Trips Today</div>
               </div>
 
               <div className="kpi-card green">
                 <div className="kpi-header">
-                  <div className="kpi-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CarFront size={20} /></div>
-                  <span className="kpi-trend up">↑ 4%</span>
+                  <div className="kpi-icon green"><CarFront size={20} /></div>
+                  <span className={`kpi-trend ${vehicleTrend.direction}`}>{vehicleTrend.value}</span>
                 </div>
                 <div className="kpi-value">{activeVehiclesCount}</div>
                 <div className="kpi-label">Active Vehicles</div>
@@ -776,8 +865,8 @@ export default function DashboardPage() {
 
               <div className="kpi-card blue">
                 <div className="kpi-header">
-                  <div className="kpi-icon blue" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Banknote size={20} /></div>
-                  <span className="kpi-trend up">↑ 18%</span>
+                  <div className="kpi-icon blue"><Banknote size={20} /></div>
+                  <span className={`kpi-trend ${revenueTrend.direction}`}>{revenueTrend.value}</span>
                 </div>
                 <div className="kpi-value">EGP {revenueTodayVal.toLocaleString()}</div>
                 <div className="kpi-label">Revenue Today</div>
@@ -785,8 +874,8 @@ export default function DashboardPage() {
 
               <div className="kpi-card red">
                 <div className="kpi-header">
-                  <div className="kpi-icon red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>
-                  <span className="kpi-trend down">↓ 2%</span>
+                  <div className="kpi-icon red"><Users size={20} /></div>
+                  <span className={`kpi-trend ${passengerTrend.direction}`}>{passengerTrend.value}</span>
                 </div>
                 <div className="kpi-value">{activePassengersCount}</div>
                 <div className="kpi-label">Active Passengers</div>
@@ -812,7 +901,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="fleet-map-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: '420px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1 }}>
+        <div className="fleet-map-grid">
           
           {/* Shuttles Sidebar */}
           <div style={{ background: 'var(--surface-elevated)', overflowY: 'auto', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
@@ -820,7 +909,11 @@ export default function DashboardPage() {
               ONLINE SHUTTLES ({fleet.length})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {fleet.map((bus) => {
+              {fleet.length === 0 ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  No active shuttles
+                </div>
+              ) : fleet.map((bus) => {
                 const isSelected = selectedBusId === bus.id;
                 return (
                   <div 
@@ -946,7 +1039,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row */}
-      <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div className="charts-grid">
         {/* Bookings SVG Line Chart */}
         <div className="card" style={{ padding: '1.25rem 1.5rem', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

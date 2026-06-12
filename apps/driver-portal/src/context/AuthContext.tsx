@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { driverAPI } from '../services/api';
+import { socketService } from '../services/socket';
 
 interface AuthContextType {
   user: any | null;
@@ -20,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('dride_driver_token');
     setToken(null);
     setUser(null);
+    socketService.forceDisconnect();
   };
 
   useEffect(() => {

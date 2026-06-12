@@ -1,3 +1,4 @@
+import './tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
@@ -6,6 +7,7 @@ import { json, urlencoded } from 'express';
 import { RedisIoAdapter } from './redis-io.adapter';
 import helmet from 'helmet';
 import compression from 'compression';
+import { AllExceptionsFilter } from './utils/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -82,6 +84,9 @@ async function bootstrap() {
     }),
   );
 
+  // Enable global exception filter for standardized error responses
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   // Enable CORS using environment-driven origin lookups (whitelisting passenger app, driver portal, and admin dashboard)
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   let origins: string[] = [];
@@ -90,32 +95,29 @@ async function bootstrap() {
     origins = allowedOriginsEnv.split(',').map((origin) => origin.trim());
     if (isProduction) {
       origins = origins.filter(
-        (o) => (!o.includes('localhost') && !o.includes('127.0.0.1')) || o === 'https://localhost' || o === 'capacitor://localhost',
+        (o) => !o.includes('localhost') && !o.includes('127.0.0.1') && o !== 'capacitor://localhost',
       );
     }
   } else {
-    origins = isProduction
-      ? [
-          'https://passenger.dride.app',
-          'https://driver.dride.app',
-          'https://admin.dride.app',
-          'https://localhost',
-          'capacitor://localhost',
-        ]
-      : [
-          'http://localhost:5173', // passenger client app
-          'http://localhost:5174', // driver portal
-          'http://localhost:5175', // admin dashboard
-          'http://localhost:3001',
-        ];
+    if (isProduction) {
+      throw new Error('ALLOWED_ORIGINS environment variable is required in production');
+    }
+    origins = [
+      'http://localhost:5173', // passenger client app
+      'http://localhost:5174', // driver portal
+      'http://localhost:5175', // admin dashboard
+      'http://localhost:3001',
+    ];
   }
 
-  // Always allow Capacitor mobile app localhost origins in production/development
-  if (!origins.includes('https://localhost')) {
-    origins.push('https://localhost');
-  }
-  if (!origins.includes('capacitor://localhost')) {
-    origins.push('capacitor://localhost');
+  // Allow Capacitor mobile app localhost origins only in development
+  if (!isProduction) {
+    if (!origins.includes('https://localhost')) {
+      origins.push('https://localhost');
+    }
+    if (!origins.includes('capacitor://localhost')) {
+      origins.push('capacitor://localhost');
+    }
   }
 
   app.enableCors({

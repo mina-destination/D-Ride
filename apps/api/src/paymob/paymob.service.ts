@@ -5,6 +5,7 @@ import {
   Logger,
   Inject,
   forwardRef,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -15,7 +16,7 @@ import { PaymentStatus } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
-export class PaymobService {
+export class PaymobService implements OnModuleInit {
   private readonly logger = new Logger(PaymobService.name);
   private readonly hmacSecret: string;
   private readonly apiKey: string;
@@ -47,6 +48,17 @@ export class PaymobService {
       'paymob.apiBaseUrl',
       'https://accept.paymob.com',
     );
+
+    if (!this.hmacSecret) {
+      this.logger.error(
+        'FATAL: PAYMOB_HMAC_SECRET environment variable is required for Paymob webhook verification',
+      );
+      throw new Error('PAYMOB_HMAC_SECRET is required');
+    }
+  }
+
+  onModuleInit() {
+    this.logger.log('PaymobService initialized — HMAC verification enforced');
   }
 
   /**
@@ -56,27 +68,14 @@ export class PaymobService {
     payload: PaymobWebhookPayload,
     hmacHeader: string,
   ): Promise<void> {
-    const isProduction =
-      this.configService.get<string>('nodeEnv') === 'production';
     const isValidHmac = this.verifyHmac(payload.obj, hmacHeader);
 
-    // Step 1: Verify HMAC signature
+    // Step 1: Verify HMAC signature - ALWAYS enforce, never bypass
     if (!isValidHmac) {
-      if (isProduction) {
-        this.logger.error(
-          'Invalid HMAC signature received in production environment!',
-        );
-        throw new BadRequestException('Invalid HMAC signature');
-      }
-      if (this.apiKey) {
-        this.logger.error(
-          'Invalid HMAC signature received (API Key is configured)',
-        );
-        throw new BadRequestException('Invalid HMAC signature');
-      }
-      this.logger.warn(
-        'HMAC verification failed, but bypassing due to development/sandbox mode.',
+      this.logger.error(
+        'Invalid HMAC signature received — rejecting webhook',
       );
+      throw new BadRequestException('Invalid HMAC signature');
     }
 
     const orderId = payload.obj.order.id;
@@ -865,23 +864,33 @@ export class PaymobService {
     transactionId?: string,
   ): Promise<boolean> {
     if (!this.apiKey) {
-      return true;
-    }
-    if (
-      this.apiKey.startsWith('egy_sk_test_') ||
-      this.apiKey.startsWith('egy_sk_live_')
-    ) {
-      this.logger.warn(
-        `Bypassing transaction verification check because key format is Paymob V1/Flash: ${this.apiKey.slice(0, 12)}...`,
-      );
-      return true;
+      this.logger.warn('No Paymob API key configured — skipping verification');
+      return false;
     }
     try {
+      if (
+        this.apiKey.startsWith('egy_sk_test_') ||
+        this.apiKey.startsWith('egy_sk_live_')
+      ) {
+        this.logger.warn(
+          `Paymob V1/Flash key detected (${this.apiKey.slice(0, 12)}...). Attempting V2 verification anyway.`,
+        );
+      }
+
+      if (!this.apiBaseUrl) {
+        this.logger.error('No Paymob API base URL configured');
+        return false;
+      }
+
       // 1. Get authentication token
       const authRes = await axios.post(`${this.apiBaseUrl}/api/auth/tokens`, {
         api_key: this.apiKey,
       });
       const token = authRes.data.token;
+      if (!token) {
+        this.logger.error('Failed to obtain Paymob auth token');
+        return false;
+      }
 
       // 2. If we have transactionId, directly retrieve that transaction by ID
       if (transactionId) {

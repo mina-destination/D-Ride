@@ -108,6 +108,8 @@ export default function SupportChatWidget() {
     socketRef.current = socket;
 
     return () => {
+      socket.off('connect');
+      socket.off('newMessage');
       socket.disconnect();
       socketRef.current = null;
     };

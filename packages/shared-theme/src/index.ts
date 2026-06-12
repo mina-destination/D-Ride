@@ -354,3 +354,74 @@ export const antThemeConfigDark = {
     },
   },
 };
+
+// ── MapLibre GL Shared Hook ───────────────────────────────────
+// Provides consistent map initialization across all apps
+export interface UseMapLibreOptions {
+  style?: string;
+  center?: [number, number];
+  zoom?: number;
+  onLoad?: (map: any) => void;
+  containerRef?: React.RefObject<HTMLDivElement>;
+}
+
+export function patchMapLabels(map: any) {
+  const isDark = document.documentElement.classList.contains('dark') || 
+                 document.body.getAttribute('data-theme') === 'dark';
+  map.getStyle()?.layers?.forEach((layer: any) => {
+    if (layer.type === 'symbol') {
+      try {
+        map.setPaintProperty(layer.id, 'text-color', isDark ? '#ffffff' : '#1f2937');
+        map.setPaintProperty(layer.id, 'text-halo-color', isDark ? '#111827' : '#ffffff');
+        map.setPaintProperty(layer.id, 'text-halo-width', 1.5);
+      } catch {}
+    }
+  });
+}
+
+export function setupRTLPlugin(maplibregl: any) {
+  if (maplibregl.getRTLTextPluginStatus() === 'unavailable') {
+    maplibregl.setRTLTextPlugin(
+      'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.js',
+      true
+    );
+  }
+}
+
+export function createMap(
+  container: HTMLDivElement,
+  maplibregl: any,
+  options: UseMapLibreOptions = {}
+): any {
+  const {
+    style = 'https://tiles.openfreemap.org/styles/dark',
+    center = [31.2357, 30.0444],
+    zoom = 14,
+    onLoad,
+  } = options;
+
+  const map = new maplibregl.Map({
+    container,
+    style,
+    center,
+    zoom,
+    attributionControl: false,
+  });
+
+  // Suppress missing sprite image warnings
+  map.on('styleimagemissing', (e: any) => {
+    if (!map.hasImage(e.id)) {
+      map.addImage(e.id, { width: 16, height: 16, data: new Uint8Array(1024) });
+    }
+  });
+
+  // Patch labels for dark mode
+  map.on('style.load', () => patchMapLabels(map));
+
+  // Add navigation control
+  map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+  onLoad?.(map);
+
+  return map;
+}

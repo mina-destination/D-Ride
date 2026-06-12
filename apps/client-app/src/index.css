@@ -11,6 +11,11 @@
 
 :root {
   color-scheme: light dark;
+  /* Safe area insets for notched devices */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
   /* Brand Colors */
   --primary: #F5B731;
   --primary-hover: #FFD04A;
@@ -130,6 +135,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
   /* Removed position: relative — it can interfere with scroll containment
      when combined with overflow-x: hidden on some browsers */
 }

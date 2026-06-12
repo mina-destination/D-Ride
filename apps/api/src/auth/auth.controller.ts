@@ -7,6 +7,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -21,12 +22,14 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   async register(@Body() data: RegisterDto) {
     const result = await this.authService.register(data);
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(@Body() data: LoginDto) {
     const user = await this.authService.validateUser(data.email, data.password);
@@ -34,6 +37,7 @@ export class AuthController {
     return { success: true, data: result, timestamp: new Date().toISOString() };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('google')
   async googleLogin(@Body() data: GoogleLoginDto) {
     const result = await this.authService.googleLogin(data);
@@ -51,12 +55,14 @@ export class AuthController {
     };
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('forgot-password')
   async forgotPassword(@Body() data: ForgotPasswordDto) {
     const result = await this.authService.forgotPassword(data.email);
     return { success: true, ...result, timestamp: new Date().toISOString() };
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('reset-password')
   async resetPassword(@Body() data: ResetPasswordDto) {
     const result = await this.authService.resetPassword(data);

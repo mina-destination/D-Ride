@@ -6,8 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { getVirtualRoute } from '../utils/routes';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CreateTripDto } from './dto/create-trip.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 
 @Injectable()
 export class TripsService {
@@ -21,10 +24,10 @@ export class TripsService {
     pickupCheckpointName?: string,
     dropoffCheckpointName?: string,
     virtualRouteId?: string,
-  ) {
+  ): any {
     if (!trip) return null;
 
-    let routeCopy: any = null;
+    let routeCopy: Prisma.RouteGetPayload<{}> | null = null;
     let pickupCheckpoint: any = null;
     let dropoffCheckpoint: any = null;
 
@@ -50,7 +53,7 @@ export class TripsService {
         routeCopy = { ...trip.route };
       }
 
-      if (routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
+      if (routeCopy && routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
         const depTime = new Date(trip.departureTime).getTime();
 
         let pickupIdx = -1;
@@ -105,7 +108,7 @@ export class TripsService {
       }
     }
 
-    const t = { ...trip, _id: trip.id };
+    const t: Record<string, any> = { ...trip, _id: trip.id };
     if (routeCopy) {
       t.routeId = { ...routeCopy, _id: routeCopy.id };
     }
@@ -350,9 +353,11 @@ export class TripsService {
             name: true,
             coverImage: true,
             checkpoints: true,
+            path: true,
             distanceKm: true,
             estimatedDurationMinutes: true,
             isActive: true,
+            isDeleted: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -407,7 +412,7 @@ export class TripsService {
       .filter((t) => t !== null);
   }
 
-  async create(data: any): Promise<any> {
+  async create(data: CreateTripDto): Promise<any> {
     let finalPrice = Number(data.priceEGP);
     if (
       data.priceEGP === undefined ||
@@ -499,31 +504,29 @@ export class TripsService {
     return this.mapTrip(trip);
   }
 
-  async update(id: string, data: any): Promise<any> {
+  async update(id: string, data: UpdateTripDto): Promise<any> {
     const existing = await this.prisma.trip.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Trip not found');
 
-    const updateData = { ...data };
-    let depTime = existing.departureTime;
-    let arrTime = existing.arrivalTime;
+    let depTime: Date = existing.departureTime;
+    let arrTime: Date | null = existing.arrivalTime;
+    let status: TripStatus | undefined;
 
-    if (updateData.departureTime) {
-      depTime = new Date(updateData.departureTime);
+    if (data.departureTime) {
+      depTime = new Date(data.departureTime);
       if (isNaN(depTime.getTime())) {
         throw new BadRequestException('Invalid departure time');
       }
-      updateData.departureTime = depTime;
     }
 
-    if (updateData.arrivalTime !== undefined) {
-      if (updateData.arrivalTime === null) {
+    if (data.arrivalTime !== undefined) {
+      if (data.arrivalTime === null) {
         arrTime = null;
       } else {
-        arrTime = new Date(updateData.arrivalTime);
+        arrTime = new Date(data.arrivalTime);
         if (isNaN(arrTime.getTime())) {
           throw new BadRequestException('Invalid arrival time');
         }
-        updateData.arrivalTime = arrTime;
       }
     }
 
@@ -533,9 +536,20 @@ export class TripsService {
       );
     }
 
-    if (updateData.status) {
-      updateData.status = updateData.status.toUpperCase() as TripStatus;
+    if (data.status) {
+      status = data.status.toUpperCase() as TripStatus;
     }
+
+    const updateData: Prisma.TripUpdateInput = {
+      departureTime: depTime,
+      arrivalTime: arrTime,
+      status,
+      priceEGP: data.priceEGP,
+      premiumSeatSurcharge: data.premiumSeatSurcharge,
+      availableSeats: data.availableSeats,
+      bookedSeats: data.bookedSeats,
+      lockedSeats: data.lockedSeats,
+    };
 
     try {
       const trip = await this.prisma.trip.update({
@@ -635,15 +649,14 @@ export class TripsService {
   }
 
   async incrementBookedSeats(id: string, count: number): Promise<any> {
-    const trip = await this.prisma.trip.findUnique({ where: { id } });
-    if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.bookedSeats + count > trip.availableSeats) {
-      throw new Error('Not enough available seats');
-    }
     const updated = await this.prisma.trip.update({
-      where: { id },
-      data: {
+      where: { 
+        id,
+        availableSeats: { gte: count }, // Atomic check
+      },
+      data: { 
         bookedSeats: { increment: count },
+        availableSeats: { decrement: count },
       },
       include: {
         route: true,
@@ -651,6 +664,7 @@ export class TripsService {
         driver: true,
       },
     });
+    if (!updated) throw new BadRequestException('Insufficient seats available');
     return this.mapTrip(updated);
   }
 
@@ -660,6 +674,7 @@ export class TripsService {
       include: {
         route: true,
         vehicle: true,
+        driver: true,
       },
       orderBy: { departureTime: 'asc' },
     });
@@ -702,12 +717,12 @@ export class TripsService {
 
     const targetStatus = status.toUpperCase();
     if (!isAdmin && ['BOARDING', 'IN_TRANSIT'].includes(targetStatus) && trip.status === 'SCHEDULED') {
-      const maxLeadTimeMs = 30 * 60 * 1000; // 30 minutes
+      const maxLeadTimeMs = 60 * 60 * 1000; // 1 hour
       const scheduledTime = new Date(trip.departureTime).getTime();
       const now = Date.now();
       if (now < scheduledTime - maxLeadTimeMs) {
         throw new BadRequestException(
-          'You can only start this trip at most 30 minutes before its scheduled departure time.',
+          'You can only start this trip at most 1 hour before its scheduled departure time.',
         );
       }
     }

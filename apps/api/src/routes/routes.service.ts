@@ -5,9 +5,12 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { getDistance } from '../utils/geo';
 import { getVirtualRoute } from '../utils/routes';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CreateRouteDto } from './dto/create-route.dto';
+import { UpdateRouteDto } from './dto/update-route.dto';
 
 @Injectable()
 export class RoutesService {
@@ -92,14 +95,14 @@ export class RoutesService {
     return { ...route, _id: route.id };
   }
 
-  async create(data: any): Promise<any> {
+  async create(data: CreateRouteDto): Promise<any> {
     this.logger.log(`Creating route: ${data.name}`);
     const route = await this.prisma.route.create({
       data: {
         name: data.name,
-        path: data.path,
+        path: data.path as unknown as Prisma.InputJsonValue,
         coverImage: data.coverImage,
-        checkpoints: data.checkpoints || [],
+        checkpoints: (data.checkpoints || []) as unknown as Prisma.InputJsonValue,
         distanceKm: data.distanceKm || 0,
         estimatedDurationMinutes: data.estimatedDurationMinutes || 0,
         isActive: data.isActive !== undefined ? data.isActive : true,
@@ -109,13 +112,13 @@ export class RoutesService {
     return { ...route, _id: route.id };
   }
 
-  async update(id: string, data: any): Promise<any> {
+  async update(id: string, data: UpdateRouteDto): Promise<any> {
     try {
       const updateData: any = {
         name: data.name,
-        path: data.path,
+        path: data.path as unknown as Prisma.InputJsonValue,
         coverImage: data.coverImage,
-        checkpoints: data.checkpoints,
+        checkpoints: data.checkpoints as unknown as Prisma.InputJsonValue,
         distanceKm: data.distanceKm,
         estimatedDurationMinutes: data.estimatedDurationMinutes,
       };
@@ -373,7 +376,9 @@ export class RoutesService {
     pickupCity?: string,
     dropoffCity?: string,
     date?: string,
-  ): Promise<any[]> {
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
     this.logger.log(
       `Smart search: pickup=[${pickupLat},${pickupLng}] (${pickupCity}) dropoff=[${dropoffLat},${dropoffLng}] (${dropoffCity}) radius=${radiusMeters}m date=${date}`,
     );
@@ -404,26 +409,32 @@ export class RoutesService {
       };
     }
 
-    const trips = await this.prisma.trip.findMany({
-      where,
-      include: {
-        route: {
-          select: {
-            id: true,
-            name: true,
-            coverImage: true,
-            checkpoints: true,
-            distanceKm: true,
-            estimatedDurationMinutes: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
+    const [trips, total] = await Promise.all([
+      this.prisma.trip.findMany({
+        where,
+        include: {
+          route: {
+            select: {
+              id: true,
+              name: true,
+              coverImage: true,
+              checkpoints: true,
+              distanceKm: true,
+              estimatedDurationMinutes: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true,
+            },
           },
+          vehicle: true,
+          driver: true,
         },
-        vehicle: true,
-        driver: true,
-      },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { departureTime: 'asc' },
+      }),
+      this.prisma.trip.count({ where }),
+    ]);
 
     const results: any[] = [];
 
@@ -634,7 +645,17 @@ export class RoutesService {
     }
 
     results.sort((a, b) => a.totalWalkingDistance - b.totalWalkingDistance);
-    return results;
+    
+    const totalPages = Math.ceil(total / limit);
+    return {
+      data: results,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   async findNearestCheckpoints(

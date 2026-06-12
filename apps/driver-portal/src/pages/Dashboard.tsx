@@ -35,6 +35,22 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Sound feedback helper
 function playChime(isSuccess: boolean) {
+  // Haptic feedback via Capacitor Plugins (available at runtime on native)
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const haptics = (Capacitor as any).Plugins?.Haptics;
+      if (haptics) {
+        if (isSuccess) {
+          haptics.notification({ type: 'SUCCESS' });
+        } else {
+          haptics.impact({ style: 'HEAVY' });
+        }
+      }
+    }
+  } catch (e) {
+    // haptics not available
+  }
+
   try {
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) return;
@@ -88,6 +104,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTrip, setActiveTrip] = useState<any>(null);
+  const [showAllTrips, setShowAllTrips] = useState(false);
   
   // Passenger manifest details
   const [manifest, setManifest] = useState<any[]>([]);
@@ -181,15 +198,21 @@ export default function DashboardPage() {
   // Generate 7 days for the calendar strip (today +/- 3 days)
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
 
-  // Trigger notification when active trip changes
+  // Haptic feedback on new notification arrival (native mobile)
+  const prevNotifCount = useRef(notifications.length);
   useEffect(() => {
-    if (activeTrip) {
-      addNotification(
-        `Active Shift Selected 🧭`,
-        `Route "${activeTrip.routeId?.name || 'Assigned Route'}" is set as active. Check passenger manifest.`
-      );
+    if (notifications.length > prevNotifCount.current && Capacitor.isNativePlatform()) {
+      try {
+        const haptics = (Capacitor as any).Plugins?.Haptics;
+        if (haptics) {
+          haptics.impact({ style: 'MEDIUM' });
+        }
+      } catch (e) {
+        // haptics not available
+      }
     }
-  }, [activeTrip?._id]);
+    prevNotifCount.current = notifications.length;
+  }, [notifications.length]);
   
   useEffect(() => {
     const dates: Date[] = [];
@@ -684,54 +707,139 @@ export default function DashboardPage() {
     }));
   };
 
-  // Filter trips for selected day in calendar
-  const filteredTrips = trips.filter((t) => {
-    const tripDate = new Date(t.departureTime);
-    return tripDate.toDateString() === selectedDate.toDateString();
-  });
+  // Filter trips for selected day in calendar (or show all)
+  const filteredTrips = showAllTrips
+    ? trips.filter(t => t.status !== 'CANCELLED')
+    : trips.filter((t) => {
+        const tripDate = new Date(t.departureTime);
+        return tripDate.toDateString() === selectedDate.toDateString();
+      });
+
+  // Group trips by date for "All" view
+  const groupedTrips = showAllTrips
+    ? filteredTrips.reduce((acc: Record<string, any[]>, trip) => {
+        const dateKey = new Date(trip.departureTime).toDateString();
+        if (!acc[dateKey]) acc[dateKey] = [];
+        acc[dateKey].push(trip);
+        return acc;
+      }, {})
+    : {};
+
+  // Reusable trip card renderer
+  const renderTripCard = (trip: any) => {
+    const isSelected = activeTrip?._id === trip._id;
+    const routeName = trip.routeId?.name || t('assignedRoute');
+    const timeStr = new Date(trip.departureTime).toLocaleTimeString(language === 'ar' ? 'ar-EG' : undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const tripDate = new Date(trip.departureTime);
+    const isToday = tripDate.toDateString() === new Date().toDateString();
+
+    return (
+      <div
+        key={trip._id}
+        className={`glass-card interactive ${isSelected ? 'active-glow' : ''}`}
+        onClick={() => handleSelectTrip(trip)}
+        style={{ 
+          cursor: 'pointer',
+          borderColor: isSelected ? 'rgba(245, 183, 49, 0.6)' : undefined,
+          background: isSelected ? 'rgba(22, 22, 40, 0.95)' : undefined,
+          boxShadow: isSelected ? '0 8px 24px rgba(245, 183, 49, 0.15)' : undefined
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+          <span className={`status-tag ${trip.status.toLowerCase().replace('_', '-')}`}>
+            {trip.status}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <Clock size={13} />
+            <span>{timeStr}</span>
+          </div>
+        </div>
+
+        <h4 className="title-outfit" style={{ fontSize: '15px', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <MapPin size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{routeName}</span>
+        </h4>
+
+        {showAllTrips && (
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <CalendarIcon size={12} />
+            <span>
+              {tripDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              {isToday && <span style={{ color: 'var(--primary)', fontWeight: 600 }}> ({isRtl ? 'اليوم' : 'Today'})</span>}
+            </span>
+          </div>
+        )}
+
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          paddingTop: '8px',
+          fontSize: '12px',
+          color: 'var(--text-secondary)' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Users size={14} style={{ color: 'var(--text-muted)' }} />
+            <span>{t('bookedCount', { booked: trip.bookedSeats, available: trip.availableSeats })}</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', color: isSelected ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: 600, gap: '2px' }}>
+            <span>{isSelected ? t('activeTrip') : t('view')}</span>
+            <ChevronRight size={14} style={{ transform: isRtl ? 'rotate(180deg)' : 'none', display: isSelected ? 'none' : 'block' }} />
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="app-container">
       {/* Top Header */}
       <div className="floating-header" style={{
-        background: 'rgba(14, 14, 27, 0.45)',
+        background: 'rgba(14, 14, 27, 0.7)',
         backdropFilter: 'blur(20px) saturate(1.6)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '100px',
-        padding: '12px 24px',
+        padding: '10px 16px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         position: 'sticky',
-        top: '1rem',
-        zIndex: 10,
-        margin: '1rem 1rem 0 1rem',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+        top: '0.5rem',
+        zIndex: 100,
+        margin: '0.5rem 0.75rem 0 0.75rem',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+        overflow: 'hidden',
+        minWidth: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <img src={logo} alt="Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px', objectFit: 'contain', boxShadow: '0 0 10px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
-          <div>
-            <h2 className="title-outfit" style={{ fontSize: '14px', margin: 0, color: 'var(--text-primary)' }}>
-              {t('helloDriver', { name: user?.name || 'Driver' })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <img src={logo} alt="Logo" style={{ height: '28px', width: '28px', borderRadius: '6px', objectFit: 'contain', boxShadow: '0 0 8px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <h2 className="title-outfit" style={{ fontSize: '13px', margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('helloDriver', { name: user?.name?.split(' ')[0] || 'Driver' })}
             </h2>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
               {t('cairoRegionFleet')}
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
           <button
             onClick={() => setNotificationDrawerOpen(true)}
-            style={{ position: 'relative', color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
+            style={{ position: 'relative', color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
             title="Notifications"
           >
-            <Bell size={18} />
+            <Bell size={16} />
             {notifications.filter(n => !n.read).length > 0 && (
               <span style={{
                 position: 'absolute',
-                top: '-6px',
-                right: '-6px',
+                top: '0px',
+                right: '0px',
                 background: 'var(--primary)',
                 color: 'black',
                 borderRadius: '50%',
@@ -749,17 +857,17 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-            style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
+            style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
             title={language === 'en' ? 'العربية' : 'English'}
           >
-            <Globe size={18} />
+            <Globe size={16} />
           </button>
           <button
             onClick={logout}
-            style={{ color: 'var(--danger)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
+            style={{ color: 'var(--danger)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
             title={t('signOut')}
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         </div>
       </div>
@@ -812,10 +920,26 @@ export default function DashboardPage() {
 
         {/* SECTION 1: Calendar Strip */}
         <div style={{ marginBottom: '12px' }}>
-          <div className="calendar-strip">
+          <div className="calendar-strip" style={{ paddingLeft: '2px', paddingRight: '8px' }}>
+            {/* All trips button */}
+            <button
+              onClick={() => {
+                setShowAllTrips(true);
+                handleSelectTrip(null);
+              }}
+              className={`calendar-day-btn ${showAllTrips ? 'active' : ''}`}
+              style={{ minWidth: '52px' }}
+            >
+              <span className="cal-day">{isRtl ? 'الكل' : 'All'}</span>
+              <span className="cal-num">{trips.filter(t => t.status !== 'CANCELLED').length}</span>
+            </button>
             {calendarDates.map((date, index) => {
-              const isActive = date.toDateString() === selectedDate.toDateString();
+              const isActive = !showAllTrips && date.toDateString() === selectedDate.toDateString();
               const isToday = date.toDateString() === new Date().toDateString();
+              const tripCount = trips.filter(t => {
+                const tripDate = new Date(t.departureTime);
+                return tripDate.toDateString() === date.toDateString() && t.status !== 'CANCELLED';
+              }).length;
               
               // Get day name (e.g. MON) and day number (e.g. 15)
               const dayName = date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' });
@@ -826,103 +950,134 @@ export default function DashboardPage() {
                   key={index}
                   onClick={() => {
                     setSelectedDate(date);
-                    // Clear selected trip when date changes to prevent confusion
+                    setShowAllTrips(false);
                     handleSelectTrip(null);
                   }}
                   className={`calendar-day-btn ${isActive ? 'active' : ''}`}
                   style={{
                     border: isToday && !isActive ? '1px solid var(--primary)' : undefined,
-                    boxShadow: isToday && !isActive ? 'inset 0 0 6px rgba(245, 183, 49, 0.15)' : undefined
+                    boxShadow: isToday && !isActive ? 'inset 0 0 6px rgba(245, 183, 49, 0.15)' : undefined,
+                    opacity: tripCount === 0 && !isActive ? 0.5 : 1
                   }}
                 >
                   <span className="cal-day">{dayName}</span>
                   <span className="cal-num">{dayNum}</span>
+                  {tripCount > 0 && (
+                    <span style={{
+                      fontSize: '8px',
+                      fontWeight: 700,
+                      color: isActive ? 'var(--text-on-primary)' : 'var(--primary)',
+                      marginTop: '2px'
+                    }}>
+                      {tripCount} {isRtl ? 'رحلة' : 'trips'}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* SECTION 2: Trip Cards for Selected Date */}
+        {/* SECTION 2: Trip Cards for Selected Date or All */}
         <div style={{ marginBottom: '24px' }}>
           <h4 className="section-title">
             <CalendarIcon size={16} style={{ color: 'var(--primary)' }} />
-            {selectedDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric'
-            })}
+            {showAllTrips
+              ? (isRtl ? 'جميع الرحلات' : 'All Assigned Trips')
+              : selectedDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric'
+                })
+            }
+            {!showAllTrips && (
+              <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                {filteredTrips.length} {filteredTrips.length === 1 ? (isRtl ? 'رحلة' : 'trip') : (isRtl ? 'رحلات' : 'trips')}
+              </span>
+            )}
           </h4>
 
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('loadingAssignments')}</span>
             </div>
+          ) : showAllTrips ? (
+            // Grouped by date view
+            Object.keys(groupedTrips).length === 0 ? (
+              <div className="glass-card" style={{ textAlign: 'center', padding: '30px 20px' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {t('noTripsFound')}
+                </p>
+              </div>
+            ) : (
+              Object.entries(groupedTrips)
+                .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+                .map(([dateKey, dateTrips]) => (
+                  <div key={dateKey} style={{ marginBottom: '16px' }}>
+                    <h5 style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      marginBottom: '8px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <span style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: new Date(dateKey).toDateString() === new Date().toDateString() ? 'var(--primary)' : 'var(--text-muted)',
+                        flexShrink: 0
+                      }} />
+                      {new Date(dateKey).toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, {
+                        weekday: 'long',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                      {new Date(dateKey).toDateString() === new Date().toDateString() && (
+                        <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>
+                          {isRtl ? 'اليوم' : 'Today'}
+                        </span>
+                      )}
+                    </h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {dateTrips.map((trip) => renderTripCard(trip))}
+                    </div>
+                  </div>
+                ))
+            )
           ) : filteredTrips.length === 0 ? (
             <div className="glass-card" style={{ textAlign: 'center', padding: '30px 20px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 4px 0' }}>
                 {t('noTripsFound')}
               </p>
+              {trips.length > 0 && (
+                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 12px 0' }}>
+                  {isRtl ? `لديك ${trips.filter(t => t.status !== 'CANCELLED').length} رحلة مخصصة` : `You have ${trips.filter(t => t.status !== 'CANCELLED').length} assigned trip(s) on other days`}
+                </p>
+              )}
+              <button
+                onClick={() => setShowAllTrips(true)}
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--primary)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: 'none',
+                  border: '1px solid rgba(245, 183, 49, 0.3)',
+                  borderRadius: '8px',
+                  padding: '8px 16px'
+                }}
+              >
+                {isRtl ? 'عرض جميع الرحلات' : 'View All Assigned Trips'}
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredTrips.map((trip) => {
-                const isSelected = activeTrip?._id === trip._id;
-                const routeName = trip.routeId?.name || t('assignedRoute');
-                const timeStr = new Date(trip.departureTime).toLocaleTimeString(language === 'ar' ? 'ar-EG' : undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-
-                return (
-                  <div
-                    key={trip._id}
-                    className={`glass-card interactive ${isSelected ? 'active-glow' : ''}`}
-                    onClick={() => handleSelectTrip(trip)}
-                    style={{ 
-                      cursor: 'pointer',
-                      borderColor: isSelected ? 'rgba(245, 183, 49, 0.6)' : undefined,
-                      background: isSelected ? 'rgba(22, 22, 40, 0.95)' : undefined,
-                      boxShadow: isSelected ? '0 8px 24px rgba(245, 183, 49, 0.15)' : undefined
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                      <span className={`status-tag ${trip.status.toLowerCase().replace('_', '-')}`}>
-                        {trip.status}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        <Clock size={13} />
-                        <span>{timeStr}</span>
-                      </div>
-                    </div>
-
-                    <h4 className="title-outfit" style={{ fontSize: '16px', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MapPin size={16} style={{ color: 'var(--primary)' }} />
-                      {routeName}
-                    </h4>
-
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                      paddingTop: '10px',
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)' 
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Users size={14} style={{ color: 'var(--text-muted)' }} />
-                        <span>{t('bookedCount', { booked: trip.bookedSeats, available: trip.availableSeats })}</span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', color: isSelected ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: 600, gap: '2px' }}>
-                        <span>{isSelected ? t('activeTrip') : t('view')}</span>
-                        <ChevronRight size={14} style={{ transform: isRtl ? 'rotate(180deg)' : 'none', display: isSelected ? 'none' : 'block' }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredTrips.map((trip) => renderTripCard(trip))}
             </div>
           )}
         </div>
@@ -947,7 +1102,7 @@ export default function DashboardPage() {
               const depTime = new Date(activeTrip.departureTime).getTime();
               const now = Date.now();
               const diffMinutes = Math.ceil((depTime - now) / 60000);
-              const canStart = diffMinutes <= 30;
+              const canStart = diffMinutes <= 60;
 
               return (
                 <div style={{ marginBottom: '20px' }}>
@@ -990,8 +1145,8 @@ export default function DashboardPage() {
                       <span>⚠️</span>
                       <span>
                         {isRtl 
-                          ? `يمكنك بدء الرحلة قبل موعدها بـ 30 دقيقة كحد أقصى (المتبقي: ${diffMinutes} دقيقة)` 
-                          : `You can only start the trip at most 30 minutes before departure (Scheduled in ${diffMinutes} mins)`}
+                          ? `يمكنك بدء الرحلة قبل موعدها بساعة كحد أقصى (المتبقي: ${diffMinutes} دقيقة)` 
+                          : `You can start the trip at most 1 hour before departure (Scheduled in ${diffMinutes} mins)`}
                       </span>
                     </div>
                   )}
@@ -999,8 +1154,17 @@ export default function DashboardPage() {
               );
             })()}
 
-            {/* SECTION 4: Boarding Gate - QR Scanner & Passenger Manifest (Scheduled/Boarding Status) */}
-            {(activeTrip.status === 'SCHEDULED' || activeTrip.status === 'BOARDING') && (
+            {/* SECTION 4: Boarding Gate - QR Scanner & Passenger Manifest */}
+            {(() => {
+              const depTime = new Date(activeTrip.departureTime).getTime();
+              const now = Date.now();
+              const minutesUntilDeparture = Math.ceil((depTime - now) / 60000);
+              const isWithinOneHour = minutesUntilDeparture <= 60 && minutesUntilDeparture > -120;
+              const showBoardingGate = activeTrip.status === 'BOARDING' || (activeTrip.status === 'SCHEDULED' && isWithinOneHour);
+              
+              if (!showBoardingGate) return null;
+              
+              return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                 
                 {/* QR Scanner Panel */}
@@ -1089,7 +1253,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                   <h4 className="section-title" style={{ margin: 0 }}>
                     <Users size={16} style={{ color: 'var(--primary)' }} />
-                    {t('passengerList', { count: manifest.length })}
+                    {t('passengerList', { count: manifest.filter(b => b.status !== 'CANCELLED').length })}
                   </h4>
                 </div>
 
@@ -1104,7 +1268,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {manifest.map((booking) => {
+                    {manifest.filter(b => b.status !== 'CANCELLED').map((booking) => {
                       const passenger = booking.userId || {};
                       const name = passenger.name || 'Passenger';
                       const phone = passenger.phone || '';
@@ -1178,7 +1342,8 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
 
             {/* SECTION 5: Start Driving Button (Boarding Status) */}
             {activeTrip.status === 'BOARDING' && (
@@ -1379,7 +1544,7 @@ export default function DashboardPage() {
                           </div>
 
                           {/* Checkpoint details */}
-                          <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                          <div className="checkpoint-detail" style={{ flex: 1, textAlign: isRtl ? 'right' : 'left', minWidth: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                               <h5 style={{ 
                                 fontSize: '13.5px', 
@@ -1726,6 +1891,7 @@ export default function DashboardPage() {
                   <div 
                     key={n.id} 
                     onClick={() => markRead(n.id)}
+                    className={`notification-item${n.read ? ' read' : ''}`}
                     style={{
                       padding: '16px 20px',
                       borderBottom: '1px solid rgba(255,255,255,0.03)',

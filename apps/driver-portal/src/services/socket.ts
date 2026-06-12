@@ -44,6 +44,19 @@ class SocketService {
     }, 1000);
   }
 
+  forceDisconnect() {
+    if (this.disconnectTimeout) {
+      clearTimeout(this.disconnectTimeout);
+      this.disconnectTimeout = null;
+    }
+    if (this.socket) {
+      this.socket.off('connect');
+      this.socket.off('disconnect');
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
+
   sendLocation(payload: {
     vehicleId: string;
     driverId: string;
