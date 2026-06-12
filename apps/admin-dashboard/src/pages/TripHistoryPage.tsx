@@ -476,11 +476,13 @@ export function TripHistoryPage() {
             overflow: 'hidden',
             padding: 0
           }}
-          bodyStyle={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            height: '100%',
-            padding: '16px'
+          styles={{ 
+            body: {
+              display: 'flex', 
+              flexDirection: 'column', 
+              height: '100%',
+              padding: '16px'
+            }
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>

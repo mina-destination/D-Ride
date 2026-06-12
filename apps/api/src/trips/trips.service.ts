@@ -560,10 +560,10 @@ export class TripsService {
       departureTime: depTime,
       arrivalTime: arrTime,
       status,
-      priceEGP: data.priceEGP,
-      premiumSeatSurcharge: data.premiumSeatSurcharge,
-      availableSeats: data.availableSeats,
-      bookedSeats: data.bookedSeats,
+      ...(data.priceEGP != null ? { priceEGP: data.priceEGP } : {}),
+      ...(data.premiumSeatSurcharge != null ? { premiumSeatSurcharge: data.premiumSeatSurcharge } : {}),
+      ...(data.availableSeats != null ? { availableSeats: data.availableSeats } : {}),
+      ...(data.bookedSeats != null ? { bookedSeats: data.bookedSeats } : {}),
       lockedSeats: data.lockedSeats,
     };
 

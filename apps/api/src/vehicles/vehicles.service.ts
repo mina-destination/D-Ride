@@ -260,15 +260,22 @@ export class VehiclesService {
   }
 
   async getAllLocations(): Promise<any[]> {
-    return this.prisma.liveVehicleLocation.findMany({
-      include: {
-        vehicle: {
-          select: { id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true },
-          include: { driver: { select: { id: true, name: true, phone: true } } },
+    try {
+      return await this.prisma.liveVehicleLocation.findMany({
+        include: {
+          vehicle: {
+            select: {
+              id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true,
+              driver: { select: { id: true, name: true, phone: true } },
+            },
+          },
         },
-      },
-      orderBy: { lastUpdatedAt: 'desc' },
-    });
+        orderBy: { lastUpdatedAt: 'desc' },
+      });
+    } catch (err: any) {
+      this.logger.error(`Failed to fetch all vehicle locations: ${err.message}`);
+      return [];
+    }
   }
 
   async getLocationWithDetails(vehicleId: string): Promise<any> {
@@ -276,8 +283,10 @@ export class VehiclesService {
       where: { vehicleId },
       include: {
         vehicle: {
-          select: { id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true },
-          include: { driver: { select: { id: true, name: true, phone: true } } },
+          select: {
+            id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true,
+            driver: { select: { id: true, name: true, phone: true } },
+          },
         },
       },
     });
