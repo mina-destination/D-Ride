@@ -230,9 +230,9 @@ export default function FamilyTrackingPage() {
 
   // WebSocket connection & telemetry room subscription
   useEffect(() => {
-    if (!booking?.tripId?.vehicleId?._id || !code) return;
+    if (!booking?.tripId?.vehicle?._id || !code) return;
 
-    const vehicleId = booking.tripId.vehicleId._id;
+    const vehicleId = booking.tripId.vehicle._id;
 
     socketService.connect();
     socketService.subscribeToVehicle(vehicleId, code);
@@ -258,7 +258,7 @@ export default function FamilyTrackingPage() {
       socketService.offCheckpointUpdate(handleCheckpointUpdate);
       socketService.disconnect();
     };
-  }, [booking?.tripId?.vehicleId?._id, code]);
+  }, [booking?.tripId?.vehicle?._id, code]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -443,13 +443,13 @@ export default function FamilyTrackingPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>{t('vehicleModel')}</span>
               <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {booking.tripId?.vehicleId?.model ? booking.tripId.vehicleId.model.replace('::', ' ') : 'Toyota HiAce'}
+                {booking.tripId?.vehicle?.model ? booking.tripId.vehicle.model.replace('::', ' ') : 'Toyota HiAce'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>{t('licensePlate')}</span>
               <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {booking.tripId?.vehicleId?.plateNumber || booking.tripId?.vehicleId?.licensePlate || ' ط ر ق ٥٤٣٢'}
+                {booking.tripId?.vehicle?.plateNumber || booking.tripId?.vehicle?.licensePlate || ' ط ر ق ٥٤٣٢'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
