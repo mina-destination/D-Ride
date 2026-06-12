@@ -116,7 +116,6 @@ async function bootstrap() {
       phone: '+201002223334',
       password: defaultPassword,
       role: Role.PASSENGER,
-      walletBalance: 1000,
     },
   });
 
@@ -127,7 +126,6 @@ async function bootstrap() {
       phone: '+201004445556',
       password: defaultPassword,
       role: Role.PASSENGER,
-      walletBalance: 500,
     },
   });
 

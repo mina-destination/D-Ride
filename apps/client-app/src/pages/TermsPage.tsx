@@ -147,7 +147,7 @@ export default function TermsPage() {
             }}>
               <li>
                 <strong>{isAr ? 'الإلغاء قبل أكثر من ساعتين من موعد انطلاق الرحلة:' : 'Cancellations more than 2 hours before departure:'}</strong>{' '}
-                {isAr ? 'يتم استرداد كامل قيمة التذكرة كرصيد في محفظتك الإلكترونية داخل تطبيق دي-رايد لاستخدامه في رحلات أخرى، أو استرجاعها نقدياً مع خصم رسوم إدارية بسيطة.' : 'Full ticket value is refunded as credit to your in-app D-Ride wallet, or refunded to your payment method minus a small administrative fee.'}
+                {isAr ? 'يتم استرداد كامل قيمة التذكرة إلى وسيلة الدفع الأصلية مع خصم رسوم إدارية بسيطة.' : 'Full ticket value is refunded to your original payment method minus a small administrative fee.'}
               </li>
               <li>
                 <strong>{isAr ? 'الإلغاء خلال ساعتين من موعد الرحلة أو عدم الحضور (No-Show):' : 'Cancellations within 2 hours of departure or No-Show:'}</strong>{' '}

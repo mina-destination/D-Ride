@@ -656,7 +656,7 @@ export default function TripSearchPage() {
                           const getTripLegPrice = () => {
                             if (pickupCp && dropoffCp) {
                               if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
-                                return Number(pickupCp.prices[dropoffCp.name]);
+                                  return Number(pickupCp.prices[dropoffCp.name]);
                               }
                               const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
                               const dropoffPrice = Number(dropoffCp.priceFromStartEGP || trip.priceEGP || 0);
@@ -987,72 +987,26 @@ export default function TripSearchPage() {
 
                                 {/* Right Column: Pricing & Booking */}
                                 <div className="trip-card-right" style={{ padding: '1.5rem 1.25rem', minWidth: '220px', width: '220px', flex: '0 0 220px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                                  <div className="trip-price-seats-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                                    <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                      {/* Regular fare */}
-                                      <div style={{
-                                        flex: 1,
-                                        minWidth: '80px',
-                                        textAlign: 'center',
-                                        padding: '8px 6px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(255,255,255,0.03)',
-                                        border: '1px solid var(--border)',
-                                      }}>
-                                        <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '2px' }}>
-                                          {isRtl ? 'عادي' : 'Regular'}
-                                        </div>
-                                        <div className="trip-price" style={{ fontSize: '1.2rem', fontWeight: 800, lineHeight: 1.2 }}>
-                                          {dynamicLegPrice} <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{isRtl ? 'ج.م' : 'EGP'}</span>
-                                        </div>
-                                        <div className="trip-seats" style={{ fontSize: '0.7rem', color: seatsLeft <= 5 ? 'var(--danger)' : 'var(--success)', marginTop: '2px' }}>
-                                          <span className="seat-icon">💺</span> {t('seatsLeft', { count: seatsLeft })}
-                                        </div>
-                                      </div>
-                                      {/* Premium/VIP fare */}
-                                      <div style={{
-                                        flex: 1,
-                                        minWidth: '80px',
-                                        textAlign: 'center',
-                                        padding: '8px 6px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(245, 183, 49, 0.08)',
-                                        border: '1px solid rgba(245, 183, 49, 0.3)',
-                                        position: 'relative',
-                                      }}>
-                                        <div style={{
-                                          position: 'absolute',
-                                          top: '-8px',
-                                          left: '50%',
-                                          transform: 'translateX(-50%)',
-                                          background: 'var(--primary)',
-                                          color: '#000',
-                                          fontSize: '0.55rem',
-                                          fontWeight: 800,
-                                          padding: '1px 8px',
-                                          borderRadius: '4px',
-                                          textTransform: 'uppercase',
-                                          letterSpacing: '0.03em',
-                                          whiteSpace: 'nowrap',
-                                        }}>
-                                          ⭐ {isRtl ? 'VIP' : 'VIP'}
-                                        </div>
-                                        <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '2px', marginTop: '4px' }}>
-                                          {isRtl ? 'مقعد أمامي' : 'Cockpit'}
-                                        </div>
-                                        <div className="trip-price" style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.2 }}>
-                                          {dynamicLegPrice + Number((trip as any).premiumSeatSurcharge || 0)} <span style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>{isRtl ? 'ج.م' : 'EGP'}</span>
-                                        </div>
-                                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                          +{Number((trip as any).premiumSeatSurcharge || 0)} {isRtl ? 'ج.م رسوم' : 'EGP surcharge'}
-                                        </div>
-                                      </div>
+                                  <div className="trip-price-seats-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                                    <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 800 }}>
+                                      {isRtl ? 'سعر التذكرة العادية' : 'Standard Fare'}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginTop: '2px', marginBottom: '4px' }}>
+                                      <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary, #F5B731)', fontFamily: 'Outfit, sans-serif' }}>
+                                        {dynamicLegPrice}
+                                      </span>
+                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary, #F5B731)' }}>
+                                        {isRtl ? 'ج.م' : 'EGP'}
+                                      </span>
                                     </div>
+                                    <span style={{ fontSize: '0.72rem', color: seatsLeft <= 5 ? '#f87171' : '#34d399', fontWeight: 655, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      🔥 {seatsLeft} {isRtl ? 'مقاعد متبقية' : 'seats left'}
+                                    </span>
                                   </div>
-                                  <div className="trip-amenities" style={{ margin: '8px 0 6px' }}>
-                                    <span title="Air Conditioned">❄️</span>
-                                    <span title="Free WiFi">📶</span>
-                                    <span title="USB Charging">🔌</span>
+                                  <div className="trip-amenities" style={{ display: 'flex', gap: '6px', margin: '8px 0 10px', alignSelf: 'flex-start' }}>
+                                    <span title="Air Conditioned" style={{ fontSize: '0.9rem' }}>❄️</span>
+                                    <span title="Free WiFi" style={{ fontSize: '0.9rem' }}>📶</span>
+                                    <span title="USB Charging" style={{ fontSize: '0.9rem' }}>🔌</span>
                                   </div>
                                   <button 
                                     onClick={(e) => {
@@ -1064,9 +1018,24 @@ export default function TripSearchPage() {
                                       navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
                                     }}
                                     className="auth-button" 
-                                    style={{ width: '100%', padding: '0.45rem', marginTop: '0.15rem', fontSize: '0.82rem', minHeight: '32px' }}
+                                    style={{ 
+                                      width: '100%', 
+                                      padding: '10px 16px', 
+                                      fontSize: '0.85rem', 
+                                      fontWeight: 800,
+                                      borderRadius: '10px',
+                                      background: 'var(--primary, #F5B731)',
+                                      color: '#000',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px'
+                                    }}
                                   >
-                                    {t('bookSeatTicket')}
+                                    <span>{t('bookSeatTicket')}</span>
                                   </button>
                                 </div>
                               </div>

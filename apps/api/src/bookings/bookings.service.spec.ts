@@ -64,7 +64,7 @@ describe('BookingsService', () => {
     email: 'test@example.com',
     phone: '+201001234567',
     role: 'PASSENGER',
-    walletBalance: 500,
+
   };
 
   function createTxMock() {
@@ -164,17 +164,32 @@ describe('BookingsService', () => {
       })).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException for duplicate pending booking', async () => {
+    it('should auto-cancel duplicate pending booking and create new booking successfully', async () => {
+      let updatedBookingId = '';
+      let updatedStatus = '';
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const tx = createTxMock();
         tx.booking.findFirst = jest.fn().mockResolvedValue(mockBooking);
+        tx.booking.update = jest.fn().mockImplementation((args) => {
+          updatedBookingId = args.where.id;
+          updatedStatus = args.data.status;
+          return Promise.resolve({ ...mockBooking, status: BookingStatus.CANCELLED });
+        });
+        tx.booking.create = jest.fn().mockResolvedValue(mockBooking);
         return cb(tx);
       });
 
-      await expect(service.create({
+      mockPrismaService.booking.findUnique
+        .mockResolvedValueOnce({ ...mockBooking, status: BookingStatus.CONFIRMED, trip: mockTrip, user: mockUser });
+
+      const result = await service.create({
         userId: 'user-1', tripId: 'trip-1', seatNumbers: [1],
         pickupCheckpointId: 'cp-1', dropoffCheckpointId: 'cp-3',
-      })).rejects.toThrow(BadRequestException);
+      });
+
+      expect(result).toBeDefined();
+      expect(updatedBookingId).toBe('booking-1');
+      expect(updatedStatus).toBe(BookingStatus.CANCELLED);
     });
 
     it('should throw BadRequestException for invalid seat numbers', async () => {

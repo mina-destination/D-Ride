@@ -15,7 +15,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaymobService } from './paymob.service';
 import { InitializeCheckoutDto } from './dto/initialize-checkout.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { WalletTopupDto } from './dto/wallet-topup.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 
 @Controller('paymob')
@@ -70,44 +69,22 @@ export class PaymobController {
     this.logger.log(
       `Direct confirmation request for: ${body.bookingId}, success: ${body.success}`,
     );
-    // Verify ownership: for booking confirmations, check user owns the booking
-    if (body.bookingId && !body.bookingId.startsWith('wallet_')) {
+    // Verify ownership
+    if (body.bookingId) {
       const booking = await this.prisma.booking.findUnique({
         where: { id: body.bookingId },
       });
       if (booking && booking.userId !== req.user.sub) {
         throw new ForbiddenException('You do not own this booking');
       }
-    } else if (body.bookingId && body.bookingId.startsWith('wallet_')) {
-      // For wallet topups, verify the userId in the merchant_order_id matches
-      const parts = body.bookingId.split('_');
-      if (parts[1] !== req.user.sub) {
-        throw new ForbiddenException('Wallet topup does not belong to you');
-      }
     }
     if (body.success && body.bookingId) {
-      // 1. If already confirmed in our DB, return success immediately (happy path)
-      if (!body.bookingId.startsWith('wallet_')) {
-        const booking = await this.prisma.booking.findUnique({
-          where: { id: body.bookingId },
-        });
-        if (booking && booking.status === 'CONFIRMED') {
-          return { success: true };
-        }
-      } else {
-        const parts = body.bookingId.split('_');
-        const userId = parts[1];
-        const existingTx = await this.prisma.transaction.findFirst({
-          where: {
-            userId,
-            paymentMethod: 'CARD',
-            bookingId: body.bookingId,
-            status: 'SUCCESS',
-          },
-        });
-        if (existingTx) {
-          return { success: true };
-        }
+      // If already confirmed in our DB, return success immediately (happy path)
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: body.bookingId },
+      });
+      if (booking && booking.status === 'CONFIRMED') {
+        return { success: true };
       }
 
       // 2. Perform server-side validation against Paymob API to prevent spoofing
@@ -138,29 +115,4 @@ export class PaymobController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('wallet')
-  async getWallet(@Request() req: any) {
-    this.logger.log(`Fetching wallet ledger for user: ${req.user.sub}`);
-    const result = await this.paymobService.getUserWallet(req.user.sub);
-    return { success: true, data: result, timestamp: new Date().toISOString() };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('wallet/topup')
-  async initializeWalletTopup(
-    @Request() req: any,
-    @Body() body: WalletTopupDto,
-  ) {
-    this.logger.log(
-      `User ${req.user.sub} initiating wallet topup of EGP ${body.amountEGP}`,
-    );
-    const result = await this.paymobService.initializeWalletTopup({
-      userId: req.user.sub,
-      amountEGP: body.amountEGP,
-      paymentMethod: body.paymentMethod,
-      walletNumber: body.walletNumber,
-    });
-    return { success: true, data: result, timestamp: new Date().toISOString() };
-  }
 }

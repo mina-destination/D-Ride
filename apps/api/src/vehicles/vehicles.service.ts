@@ -139,8 +139,29 @@ export class VehiclesService {
       const vehicle = await this.prisma.vehicle.findUnique({
         where: { id: data.vehicleId },
       });
-      if (!vehicle || vehicle.driverId !== caller.sub) {
-        throw new ForbiddenException('You are not assigned to this vehicle');
+      if (!vehicle) {
+        throw new NotFoundException('Vehicle not found');
+      }
+      
+      let isAuthorized = (vehicle.driverId === caller.sub);
+      
+      if (!isAuthorized) {
+        const activeTrip = await this.prisma.trip.findFirst({
+          where: {
+            vehicleId: data.vehicleId,
+            driverId: caller.sub,
+            status: { in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'] },
+          },
+        });
+        if (activeTrip) {
+          isAuthorized = true;
+        }
+      }
+      
+      if (!isAuthorized) {
+        throw new ForbiddenException(
+          'You are not assigned to this vehicle or active trip',
+        );
       }
     }
 
@@ -175,6 +196,48 @@ export class VehiclesService {
           lastUpdatedAt: new Date(),
         },
       });
+    }
+
+    // Record actual path trace if there is an active in-transit trip
+    try {
+      if (this.prisma.trip) {
+        const activeTrip = await this.prisma.trip.findFirst({
+          where: {
+            vehicleId: data.vehicleId,
+            driverId: data.driverId,
+            status: 'IN_TRANSIT',
+          },
+        });
+
+        if (activeTrip) {
+        let path: [number, number][] = [];
+        if (activeTrip.actualPath) {
+          try {
+            path = typeof activeTrip.actualPath === 'string'
+              ? JSON.parse(activeTrip.actualPath)
+              : (activeTrip.actualPath as any);
+          } catch (e) {
+            path = [];
+          }
+        }
+        if (!Array.isArray(path)) {
+          path = [];
+        }
+
+        const last = path[path.length - 1];
+        if (!last || last[0] !== data.longitude || last[1] !== data.latitude) {
+          path.push([data.longitude, data.latitude]);
+          await this.prisma.trip.update({
+            where: { id: activeTrip.id },
+            data: {
+              actualPath: path as any,
+            },
+          });
+        }
+      }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to record actual trip path coordinates: ${err.message}`);
     }
 
     // Broadcast the updated location to connected clients

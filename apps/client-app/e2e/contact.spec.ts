@@ -33,7 +33,7 @@ test.describe('Contact Support Page', () => {
 
     // Fill form details
     await page.fill('#subject', 'Double billing on trip 1');
-    await page.fill('#message', 'Hello, my wallet was debited twice for booking #booking-1. Please assist.');
+    await page.fill('#message', 'Hello, I was charged twice for booking #booking-1. Please assist.');
 
     // Click submit
     await submitBtn.click();

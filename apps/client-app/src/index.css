@@ -646,11 +646,6 @@ textarea:focus-visible {
     grid-template-columns: 1fr !important;
   }
 
-  /* Wallet sections stacking */
-  .wallet-top-section {
-    grid-template-columns: 1fr !important;
-  }
-
   /* General page padding */
   .page-container {
     padding: 1rem 0.75rem !important;

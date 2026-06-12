@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent, History, Star, MessageSquare } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
@@ -16,6 +16,7 @@ const navItems = [
   { label: 'Operations', type: 'section' as const },
   { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
   { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
+  { path: '/trip-history', icon: <History size={18} />, label: 'Trip Playbacks' },
   { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicles' },
   { path: '/drivers', icon: <UserCog size={18} />, label: 'Drivers' },
   
@@ -23,29 +24,36 @@ const navItems = [
   { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
   { path: '/refunds', icon: <Undo2 size={18} />, label: 'Refund Requests' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
+  { path: '/transactions', icon: <CreditCard size={18} />, label: 'Transactions' },
   { path: '/finance-calculator', icon: <Calculator size={18} />, label: 'Profit Simulator' },
   { path: '/promo-codes', icon: <Percent size={18} />, label: 'Promo Codes' },
   
   { label: 'CRM & Support', type: 'section' as const },
   { path: '/passengers', icon: <Users size={18} />, label: 'Passengers' },
   { path: '/crm', icon: <Megaphone size={18} />, label: 'CRM' },
+  { path: '/reviews', icon: <Star size={18} />, label: 'Reviews' },
   { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Tickets' },
   { path: '/partners', icon: <Handshake size={18} />, label: 'Partners' },
   
   { label: 'System Settings', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
   { path: '/settings', icon: <Settings size={18} />, label: 'Settings' },
+  { path: '/notifications', icon: <Bell size={18} />, label: 'Notifications' },
 ];
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
   '/routes': 'Routes',
   '/trips': 'Trips',
+  '/trip-history': 'Trip Playbacks',
   '/vehicles': 'Vehicles',
   '/drivers': 'Drivers',
   '/bookings': 'Bookings',
   '/refunds': 'Refund Requests',
   '/payments': 'Payments',
+  '/transactions': 'Transaction Log',
+  '/reviews': 'Review Management',
+  '/notifications': 'Notification Center',
   '/analytics': 'Analytics & Profits',
   '/finance-calculator': 'Route Profit & Cost Simulator',
   '/passengers': 'Passengers',
@@ -62,11 +70,15 @@ const pathPermissionMap: Record<string, string> = {
   '/': 'dashboard',
   '/routes': 'routes',
   '/trips': 'trips',
+  '/trip-history': 'trips',
   '/vehicles': 'vehicles',
   '/drivers': 'drivers',
   '/bookings': 'bookings',
   '/refunds': 'refunds',
   '/payments': 'payments',
+  '/transactions': 'payments',
+  '/reviews': 'crm',
+  '/notifications': 'settings',
   '/analytics': 'analytics',
   '/finance-calculator': 'finance-calculator',
   '/passengers': 'passengers',

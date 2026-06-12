@@ -1,7 +1,6 @@
 import {
   Injectable,
   BadRequestException,
-  NotFoundException,
   Logger,
   Inject,
   forwardRef,
@@ -84,51 +83,6 @@ export class PaymobService implements OnModuleInit {
     const bookingId =
       (payload.obj.order as any)?.merchant_order_id ||
       (payload.obj as any).special_reference;
-
-    // Intercept Wallet Topup Webhook
-    if (bookingId && bookingId.startsWith('wallet_')) {
-      const parts = bookingId.split('_');
-      const userId = parts[1]; // wallet_userId_timestamp
-
-      await this.prisma.$transaction(async (tx) => {
-        const existingTx = await tx.transaction.findFirst({
-          where: { paymobOrderId: orderId },
-        });
-        if (existingTx) {
-          this.logger.warn(
-            `Wallet topup transaction already processed for order: ${orderId}. Skipping.`,
-          );
-          return;
-        }
-
-        await tx.transaction.create({
-          data: {
-            paymobOrderId: orderId,
-            amountEGP: amountCents / 100,
-            status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-            paymentMethod:
-              (payload.obj as any).payment_key_claims?.pm || 'CARD',
-            paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
-            userId: userId,
-            bookingId: null,
-            rawResponse: payload as any,
-          },
-        });
-
-        if (success) {
-          await tx.user.update({
-            where: { id: userId },
-            data: {
-              walletBalance: { increment: amountCents / 100 },
-            },
-          });
-          this.logger.log(
-            `User ${userId} wallet topped up with ${amountCents / 100} EGP successfully.`,
-          );
-        }
-      });
-      return;
-    }
 
     // Step 2-4: Wrap standard booking confirmation update paths inside isolated transaction
     await this.prisma.$transaction(async (tx) => {
@@ -244,7 +198,7 @@ export class PaymobService implements OnModuleInit {
     bookingId: string;
     amountCents: number;
     billingData?: any;
-    paymentMethod?: 'CARD' | 'WALLET' | 'WALLET_BALANCE';
+    paymentMethod?: 'CARD' | 'WALLET';
     walletNumber?: string;
   }): Promise<{
     paymentKey: string;
@@ -262,68 +216,6 @@ export class PaymobService implements OnModuleInit {
       where: { id: data.bookingId },
     });
     const userId = booking ? booking.userId : '';
-
-    // Handle Direct Wallet Balance Payment
-    if (paymentMethod === 'WALLET_BALANCE') {
-      const amountEGP = data.amountCents / 100;
-
-      await this.prisma.$transaction(async (tx) => {
-        // Fetch user with a lock/fresh read inside the interactive transaction
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-        });
-        if (!user) throw new BadRequestException('User not found');
-
-        if (user.walletBalance < amountEGP) {
-          throw new BadRequestException('Insufficient wallet balance');
-        }
-
-        // Deduct atomically inside the interactive transaction block
-        await tx.user.update({
-          where: { id: userId },
-          data: { walletBalance: { decrement: amountEGP } },
-        });
-
-        await tx.booking.update({
-          where: { id: data.bookingId },
-          data: {
-            status: 'CONFIRMED',
-            paymentStatus: 'SUCCESS',
-          },
-        });
-
-        await tx.transaction.create({
-          data: {
-            paymobOrderId: crypto.randomInt(100000000, 999999999),
-            amountEGP: amountEGP,
-            status: PaymentStatus.SUCCESS,
-            paymentMethod: 'WALLET_BALANCE',
-            userId: userId,
-            bookingId: data.bookingId,
-          },
-        });
-      });
-
-      this.logger.log(
-        `Wallet payment successful. Deducted ${amountEGP} EGP from user ${userId} for booking ${data.bookingId}`,
-      );
-
-      // Trigger notifications and other side effects asynchronously
-      try {
-        await this.bookingsService.updateStatus(data.bookingId, 'CONFIRMED');
-      } catch (err) {
-        this.logger.error(
-          'Failed to update booking status for notifications',
-          err,
-        );
-      }
-
-      return {
-        paymentKey: 'wallet_balance',
-        iframeUrl: `/payment/callback?success=true&method=wallet_balance`,
-        orderId: 0,
-      };
-    }
 
     const isProduction =
       this.configService.get<string>('nodeEnv') === 'production' ||
@@ -551,264 +443,11 @@ export class PaymobService implements OnModuleInit {
     return calculatedHmac === hmacHeader;
   }
 
-  /**
-   * Initialize a Paymob topup for user's wallet.
-   */
-  public async initializeWalletTopup(data: {
-    userId: string;
-    amountEGP: number;
-    paymentMethod?: 'CARD' | 'WALLET';
-    walletNumber?: string;
-  }): Promise<{
-    paymentKey: string;
-    iframeUrl: string;
-    orderId: number;
-    redirectUrl?: string;
-  }> {
-    const paymentMethod = data.paymentMethod || 'CARD';
-    const amountCents = Math.round(data.amountEGP * 100);
-    const merchantOrderId = `wallet_${data.userId}_${Date.now()}`;
-
-    this.logger.log(
-      `Initializing wallet topup for user: ${data.userId} of amount EGP: ${data.amountEGP} using method: ${paymentMethod}`,
-    );
-
-    const isProduction =
-      this.configService.get<string>('nodeEnv') === 'production' ||
-      process.env.NODE_ENV === 'production';
-
-    if (!this.apiKey) {
-      if (isProduction) {
-        this.logger.error(
-          'PAYMOB_API_KEY is not configured in production environment for wallet topup!',
-        );
-        throw new BadRequestException(
-          'Wallet topup payment initialization failed: Payment gateway misconfigured.',
-        );
-      }
-
-      // Sandbox / Mock Mode
-      this.logger.warn(
-        `No Paymob API Key found. Using Mock ${paymentMethod} Wallet Topup Flow.`,
-      );
-
-      const mockOrderId = Math.floor(Math.random() * 1000000);
-      const mockPaymentKey = `pk_test_${Date.now()}`;
-
-      // Simulate webhook event asynchronously
-      setTimeout(() => {
-        this.processWebhook(
-          {
-            obj: {
-              order: { id: mockOrderId, merchant_order_id: merchantOrderId },
-              amount_cents: amountCents,
-              success: true,
-            } as any,
-          } as any,
-          '',
-        ).catch(console.error);
-      }, 1000);
-
-      const callbackUrl =
-        paymentMethod === 'WALLET'
-          ? `/payment/callback?success=true&order=${mockOrderId}&method=wallet&wallet=${data.walletNumber || '01000000000'}&type=wallet_topup`
-          : `/payment/callback?success=true&order=${mockOrderId}&method=card&type=wallet_topup`;
-
-      return {
-        paymentKey: mockPaymentKey,
-        iframeUrl: callbackUrl,
-        orderId: mockOrderId,
-        redirectUrl: callbackUrl,
-      };
-    }
-
-    try {
-      // Select proper integration ID based on method
-      const integrationId =
-        paymentMethod === 'WALLET'
-          ? this.walletIntegrationId || this.integrationId
-          : this.integrationId;
-
-      // 1. Create Payment Intention
-      const clientUrl = this.configService.get<string>(
-        'clientUrl',
-        'http://localhost:5173',
-      );
-      const redirectionUrl = `${clientUrl}/payment/callback?bookingId=${merchantOrderId}&amount=${data.amountEGP}`;
-
-      const intentionRes = await axios.post(
-        `${this.apiBaseUrl}/v1/intention/`,
-        {
-          amount: amountCents,
-          currency: 'EGP',
-          payment_methods: [parseInt(integrationId, 10)],
-          special_reference: merchantOrderId,
-          billing_data: {
-            apartment: 'NA',
-            email: 'passenger@dride.com',
-            floor: 'NA',
-            first_name: 'Passenger',
-            street: 'NA',
-            building: 'NA',
-            phone_number: data.walletNumber || '+201000000000',
-            shipping_method: 'NA',
-            postal_code: 'NA',
-            city: 'Cairo',
-            country: 'EG',
-            last_name: 'User',
-            state: 'NA',
-          },
-          redirection_url: redirectionUrl,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Token ${this.apiKey}`,
-          },
-        },
-      );
-
-      const clientSecret = intentionRes.data.client_secret;
-      const orderId = intentionRes.data.intention_order_id;
-      const paymentKey = intentionRes.data.payment_keys?.[0]?.key || '';
-
-      if (paymentMethod === 'WALLET') {
-        const walletPayRes = await axios.post(
-          `${this.apiBaseUrl}/api/acceptance/payments/pay`,
-          {
-            source: {
-              identifier: data.walletNumber || '01000000000',
-              subtype: 'WALLET',
-            },
-            payment_token: paymentKey,
-          },
-        );
-        const redirectUrl =
-          walletPayRes.data.iframe_redirection_url ||
-          walletPayRes.data.redirect_url;
-
-        return {
-          paymentKey,
-          iframeUrl: redirectUrl,
-          orderId,
-          redirectUrl,
-        };
-      }
-
-      // Standard Credit Card: redirect to Unified Checkout hosted page
-      const hostedCheckoutUrl = `${this.apiBaseUrl}/unifiedcheckout/?publicKey=${this.publicKey}&clientSecret=${clientSecret}`;
-
-      return {
-        paymentKey: clientSecret,
-        iframeUrl: hostedCheckoutUrl,
-        orderId,
-        redirectUrl: hostedCheckoutUrl,
-      };
-    } catch (error: any) {
-      const errorDetail = error.response
-        ? JSON.stringify(error.response.data)
-        : error.message;
-      this.logger.error(
-        `Failed to initialize Paymob wallet topup: ${errorDetail}`,
-        error,
-      );
-      throw new BadRequestException(
-        `Wallet topup payment initialization failed: ${errorDetail}`,
-      );
-    }
-  }
-
-  /**
-   * Fetch current user's wallet balance and ledger transaction list.
-   */
-  public async getUserWallet(userId: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { walletBalance: true },
-    });
-    if (!user) throw new NotFoundException('User not found');
-
-    const transactions = await this.prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        booking: {
-          include: {
-            trip: {
-              include: {
-                route: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return {
-      walletBalance: user.walletBalance,
-      transactions: transactions.map((tx) => ({
-        id: tx.id,
-        amountEGP: tx.amountEGP,
-        status: tx.status,
-        paymentMethod: tx.paymentMethod,
-        createdAt: tx.createdAt,
-        booking: tx.booking
-          ? {
-              id: tx.booking.id,
-              routeName:
-                tx.booking.trip?.route?.name || 'D-Ride Booking Deduction',
-              seats: tx.booking.seatNumbers,
-            }
-          : null,
-      })),
-    };
-  }
-
   public async confirmPaymentDirect(
     bookingId: string,
     amountEGP?: number,
     transactionId?: string,
   ): Promise<void> {
-    if (bookingId.startsWith('wallet_')) {
-      const parts = bookingId.split('_');
-      const userId = parts[1];
-
-      // Check if we already recorded this direct confirmation transaction
-      const existingTx = await this.prisma.transaction.findFirst({
-        where: {
-          userId,
-          paymentMethod: 'CARD',
-          bookingId: bookingId,
-        },
-      });
-      if (existingTx) {
-        this.logger.warn(`Wallet topup already confirmed for: ${bookingId}`);
-        return;
-      }
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.transaction.create({
-          data: {
-            paymobOrderId: crypto.randomInt(100000000, 999999999),
-            amountEGP: amountEGP || 0,
-            status: PaymentStatus.SUCCESS,
-            paymentMethod: 'CARD',
-            userId: userId,
-            bookingId: bookingId, // store the wallet order id here
-          },
-        });
-
-        await tx.user.update({
-          where: { id: userId },
-          data: {
-            walletBalance: { increment: amountEGP || 0 },
-          },
-        });
-      });
-      this.logger.log(
-        `Confirmed wallet topup of ${amountEGP} EGP for user ${userId} via client redirect.`,
-      );
-    } else {
       // Booking confirmation
       const booking = await this.prisma.booking.findUnique({
         where: { id: bookingId },
@@ -856,7 +495,6 @@ export class PaymobService implements OnModuleInit {
         this.logger.error('Failed to trigger updateStatus notifications', err);
       }
       this.logger.log(`Confirmed booking ${bookingId} via client redirect.`);
-    }
   }
 
   public async verifyTransactionOnPaymob(

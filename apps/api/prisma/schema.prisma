@@ -20,7 +20,6 @@ model User {
   crmNotes      Json            @default("[]")
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
-  walletBalance           Float           @default(0)
   resetPasswordOtp        String?
   resetPasswordOtpExpires DateTime?
   bookings      Booking[]
@@ -28,6 +27,7 @@ model User {
   reviews       Review[]
   tickets       SupportTicket[]
   transactions  Transaction[]
+  notifications Notification[]
   trips         Trip[]          @relation("DriverTrips")
   vehicles      Vehicle[]
 
@@ -73,6 +73,8 @@ model Route {
   updatedAt                DateTime @updatedAt
   isActive                 Boolean  @default(true)
   isDeleted                Boolean  @default(false)
+  priceEGP                 Float    @default(0)
+  premiumSeatSurcharge     Float    @default(0)
   trips                    Trip[]
 
   @@map("routes")
@@ -93,6 +95,7 @@ model Trip {
   lockedSeats    Json       @default("[14]")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+  actualPath     Json?
   bookings       Booking[]
   reviews        Review[]
   driver         User?      @relation("DriverTrips", fields: [driverId], references: [id])
@@ -228,6 +231,23 @@ model Partner {
   updatedAt  DateTime @updatedAt
 
   @@map("partners")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String?
+  type      String    // BROADCAST, BOOKING_CONFIRMATION, TRIP_UPDATE, CANCELLATION, REFUND, PROMO
+  channel   String    // EMAIL, SMS, WHATSAPP, PUSH, IN_APP
+  title     String
+  message   String
+  status    String    @default("SENT") // SENT, DELIVERED, FAILED, READ
+  sentAt    DateTime  @default(now())
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 enum Role {

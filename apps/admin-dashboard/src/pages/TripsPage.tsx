@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, InputNumber } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
@@ -903,23 +903,7 @@ export function TripsPage() {
                 </Select>
               </Form.Item>
 
-              <Form.Item 
-                name="priceEGP" 
-                label={<span>Standard Ticket Price (EGP)</span>}
-                rules={[{ type: 'number', min: 0, message: 'Must be a positive number' }]}
-                style={{ marginBottom: '8px' }}
-              >
-                <InputNumber style={{ width: '100%' }} placeholder="Auto-computed if empty" />
-              </Form.Item>
 
-              <Form.Item 
-                name="premiumSeatSurcharge" 
-                label="VIP Seat 1 Surcharge (EGP)"
-                rules={[{ type: 'number', min: 0, message: 'Must be a positive number' }]}
-                style={{ marginBottom: '8px' }}
-              >
-                <InputNumber style={{ width: '100%' }} placeholder="Additional fee (e.g. 40)" />
-              </Form.Item>
 
               {!editingId && (
                 <div style={{ gridColumn: 'span 2' }}>

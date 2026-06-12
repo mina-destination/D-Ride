@@ -69,6 +69,10 @@ class StopDto {
   @IsOptional()
   prices?: Record<string, number>;
 
+  @IsObject()
+  @IsOptional()
+  premiumSurcharges?: Record<string, number>;
+
   @IsString()
   @IsOptional()
   purpose?: string;
@@ -115,4 +119,12 @@ export class CreateRouteDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  priceEGP?: number;
+
+  @IsNumber()
+  @IsOptional()
+  premiumSeatSurcharge?: number;
 }

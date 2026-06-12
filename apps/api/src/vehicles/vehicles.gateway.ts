@@ -409,11 +409,34 @@ export class VehiclesGateway
     const driverId = user.id;
     const vehicleId = data.vehicleId;
 
-    // Verify driver is assigned to this vehicle
+    // Verify driver is assigned to this vehicle OR has an active/upcoming trip using this vehicle
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: vehicleId },
     });
-    if (!vehicle || vehicle.driverId !== driverId) {
+    if (!vehicle) {
+      this.logger.error(`Vehicle ${vehicleId} not found`);
+      return {
+        event: 'locationAck',
+        data: { success: false, error: 'Vehicle not found' },
+      };
+    }
+
+    let isAuthorized = (vehicle.driverId === driverId);
+
+    if (!isAuthorized) {
+      const activeTrip = await this.prisma.trip.findFirst({
+        where: {
+          vehicleId: vehicleId,
+          driverId: driverId,
+          status: { in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'] },
+        },
+      });
+      if (activeTrip) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
       this.logger.error(
         `Driver ${driverId} attempted to push location for unauthorized vehicle ${vehicleId}`,
       );
@@ -421,7 +444,7 @@ export class VehiclesGateway
         event: 'locationAck',
         data: {
           success: false,
-          error: 'Access Denied: Not your assigned vehicle',
+          error: 'Access Denied: Not your assigned vehicle or active trip',
         },
       };
     }
