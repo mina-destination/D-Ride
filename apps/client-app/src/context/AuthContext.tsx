@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authAPI } from '../services/api';
+import { socketService } from '../services/socket';
 
 interface User {
   _id: string;
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem('dride_token');
     localStorage.removeItem('dride_user');
+    socketService.forceDisconnect();
   };
 
   const updateProfile = async (data: { name?: string; phone?: string }) => {

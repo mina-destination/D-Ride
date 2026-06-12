@@ -419,12 +419,12 @@ export function RouteFinancePage() {
                   {/* Gauge */}
                   <Col xs={24} md={10} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ width: '120px', height: '120px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Progress 
+                        <Progress 
                         type="dashboard" 
                         percent={Math.min(100, Math.round((avgSeatsSold / breakEvenSeats) * 100))} 
                         status={isProfitable ? 'success' : 'exception'}
                         strokeColor={isProfitable ? '#10b981' : '#ff4d4f'}
-                        width={120}
+                        size={120}
                         strokeWidth={8}
                         gapDegree={60}
                       />

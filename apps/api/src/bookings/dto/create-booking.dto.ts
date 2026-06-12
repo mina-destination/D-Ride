@@ -136,4 +136,8 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   paymentMethod?: string;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }

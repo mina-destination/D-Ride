@@ -70,6 +70,18 @@ function RouteSearchForm() {
   const fromRef = useRef<HTMLDivElement>(null);
   const toRef = useRef<HTMLDivElement>(null);
 
+  // Debounced queries for Nominatim geocoding search
+  const [debouncedFromQuery, setDebouncedFromQuery] = useState('');
+  const [debouncedToQuery, setDebouncedToQuery] = useState('');
+  const [nominatimFromResults, setNominatimFromResults] = useState<any[]>([]);
+  const [nominatimToResults, setNominatimToResults] = useState<any[]>([]);
+  const [nominatimLoading, setNominatimLoading] = useState(false);
+  // Keyboard navigation active index
+  const [fromActiveIndex, setFromActiveIndex] = useState(0);
+  const [toActiveIndex, setToActiveIndex] = useState(0);
+  const fromInputRef = useRef<HTMLInputElement>(null);
+  const toInputRef = useRef<HTMLInputElement>(null);
+
   // Map modal states
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [mapPickerCoords, setMapPickerCoords] = useState<[number, number] | null>(null);
@@ -235,6 +247,8 @@ function RouteSearchForm() {
 
     return () => {
       map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
     };
   }, [isMapModalOpen]);
 
@@ -325,30 +339,92 @@ function RouteSearchForm() {
     });
   }, [fromStation, allCheckpoints, routes]);
 
-  // Filter boarding suggestions based on search query
+  // Ranked checkpoint search: exact > startsWith > includes
+  const rankCheckpoints = (list: any[], query: string) => {
+    const q = query.toLowerCase().trim();
+    if (!q) return list;
+    const scored = list.map(cp => {
+      const name = cp.name.toLowerCase();
+      const nameAr = cp.nameAr.toLowerCase();
+      const city = (cp.city || '').toLowerCase();
+      let score = Infinity;
+      if (name === q || nameAr === q) score = 0;
+      else if (name.startsWith(q) || nameAr.startsWith(q)) score = 1;
+      else if (city === q) score = 2;
+      else if (city.startsWith(q)) score = 3;
+      else if (name.includes(q) || nameAr.includes(q)) score = 4;
+      else if (city.includes(q)) score = 5;
+      return { cp, score };
+    }).filter(item => item.score !== Infinity);
+    scored.sort((a, b) => a.score - b.score);
+    return scored.map(item => item.cp);
+  };
+
   const filteredFromSuggestions = useMemo(() => {
-    const query = fromQuery.toLowerCase().trim();
-    if (!query) return allCheckpoints;
-    return allCheckpoints.filter(
-      (cp) =>
-        cp.name.toLowerCase().includes(query) ||
-        cp.nameAr.toLowerCase().includes(query) ||
-        cp.city.toLowerCase().includes(query)
-    );
+    return rankCheckpoints(allCheckpoints, fromQuery);
   }, [fromQuery, allCheckpoints]);
 
-  // Filter destination suggestions based on search query
   const filteredToSuggestions = useMemo(() => {
-    const query = toQuery.toLowerCase().trim();
     const sourceList = fromStation ? reachableDropoffStations : allCheckpoints;
-    if (!query) return sourceList;
-    return sourceList.filter(
-      (cp) =>
-        cp.name.toLowerCase().includes(query) ||
-        cp.nameAr.toLowerCase().includes(query) ||
-        cp.city.toLowerCase().includes(query)
-    );
+    return rankCheckpoints(sourceList, toQuery);
   }, [toQuery, fromStation, reachableDropoffStations, allCheckpoints]);
+
+  // Combined suggestions: ranked checkpoints + Nominatim address results
+  const combinedFromSuggestions = useMemo(() => {
+    const items: Array<{ type: 'checkpoint' | 'address'; data: any; label: string; sublabel: string }> = [];
+    if (fromQuery.trim()) {
+      items.push(...filteredFromSuggestions.map(cp => ({
+        type: 'checkpoint' as const,
+        data: cp,
+        label: cp.name,
+        sublabel: cp.city,
+      })));
+      if (nominatimFromResults.length > 0) {
+        items.push(...nominatimFromResults.map((r: any) => ({
+          type: 'address' as const,
+          data: r,
+          label: r.name || r.display_name.split(',')[0] || 'Location',
+          sublabel: r.display_name,
+        })));
+      }
+    } else {
+      items.push(...filteredFromSuggestions.map(cp => ({
+        type: 'checkpoint' as const,
+        data: cp,
+        label: cp.name,
+        sublabel: cp.city,
+      })));
+    }
+    return items;
+  }, [filteredFromSuggestions, nominatimFromResults, fromQuery]);
+
+  const combinedToSuggestions = useMemo(() => {
+    const items: Array<{ type: 'checkpoint' | 'address'; data: any; label: string; sublabel: string }> = [];
+    if (toQuery.trim()) {
+      items.push(...filteredToSuggestions.map(cp => ({
+        type: 'checkpoint' as const,
+        data: cp,
+        label: cp.name,
+        sublabel: cp.city,
+      })));
+      if (nominatimToResults.length > 0) {
+        items.push(...nominatimToResults.map((r: any) => ({
+          type: 'address' as const,
+          data: r,
+          label: r.name || r.display_name.split(',')[0] || 'Location',
+          sublabel: r.display_name,
+        })));
+      }
+    } else {
+      items.push(...filteredToSuggestions.map(cp => ({
+        type: 'checkpoint' as const,
+        data: cp,
+        label: cp.name,
+        sublabel: cp.city,
+      })));
+    }
+    return items;
+  }, [filteredToSuggestions, nominatimToResults, toQuery]);
 
   const handleSwap = () => {
     setIsSwapped(prev => !prev);
@@ -451,6 +527,54 @@ function RouteSearchForm() {
     );
   };
 
+  // Debounce fromQuery
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedFromQuery(fromQuery), 300);
+    return () => clearTimeout(timer);
+  }, [fromQuery]);
+
+  // Debounce toQuery
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedToQuery(toQuery), 300);
+    return () => clearTimeout(timer);
+  }, [toQuery]);
+
+  // Nominatim search for From field
+  useEffect(() => {
+    const q = debouncedFromQuery.trim();
+    if (!q || q.length < 2) {
+      setNominatimFromResults([]);
+      return;
+    }
+    let active = true;
+    setNominatimLoading(true);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=eg&limit=3`)
+      .then(res => res.json())
+      .then(data => {
+        if (active) setNominatimFromResults(Array.isArray(data) ? data : []);
+      })
+      .catch(() => { if (active) setNominatimFromResults([]); })
+      .finally(() => { if (active) setNominatimLoading(false); });
+    return () => { active = false; };
+  }, [debouncedFromQuery]);
+
+  // Nominatim search for To field
+  useEffect(() => {
+    const q = debouncedToQuery.trim();
+    if (!q || q.length < 2) {
+      setNominatimToResults([]);
+      return;
+    }
+    let active = true;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=eg&limit=3`)
+      .then(res => res.json())
+      .then(data => {
+        if (active) setNominatimToResults(Array.isArray(data) ? data : []);
+      })
+      .catch(() => { if (active) setNominatimToResults([]); });
+    return () => { active = false; };
+  }, [debouncedToQuery]);
+
   // Click outside listener for inputs
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -465,29 +589,177 @@ function RouteSearchForm() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Handle selection from the combined dropdown (checkpoint or address)
+  const handleSelectFromItem = async (item: { type: string; data: any }) => {
+    if (item.type === 'checkpoint') {
+      const cp = item.data;
+      setFromStation(cp);
+      setFromQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
+      setFromFocused(false);
+      if (!toStation) {
+        setTimeout(() => setToFocused(true), 100);
+      }
+    } else if (item.type === 'address') {
+      const r = item.data;
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      try {
+        setFromQuery(r.name || r.display_name.split(',')[0]);
+        const results = await routesAPI.getNearestStation(lat, lng, 1);
+        if (results && results.length > 0) {
+          const nearest = results[0];
+          const cp = nearest.checkpoint;
+          const route = nearest.route;
+          const parts = route.name.split(/\s+to\s+/i);
+          const fromC = parts.length >= 1 ? parts[0].trim() : '';
+          const city = cp.city || fromC.charAt(0).toUpperCase() + fromC.slice(1);
+          setFromStation({
+            name: cp.name,
+            nameAr: cp.nameAr,
+            lat: lat,
+            lng: lng,
+            city: city,
+            routeId: route._id || route.id,
+            order: cp.order,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to find nearest station for address', err);
+      }
+      setFromFocused(false);
+      if (!toStation) {
+        setTimeout(() => setToFocused(true), 100);
+      }
+    }
+  };
+
+  const handleSelectToItem = async (item: { type: string; data: any }) => {
+    if (item.type === 'checkpoint') {
+      const cp = item.data;
+      setToStation(cp);
+      setToQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
+      setToFocused(false);
+    } else if (item.type === 'address') {
+      const r = item.data;
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      try {
+        setToQuery(r.name || r.display_name.split(',')[0]);
+        const results = await routesAPI.getNearestStation(lat, lng, 1);
+        if (results && results.length > 0) {
+          const nearest = results[0];
+          const cp = nearest.checkpoint;
+          const route = nearest.route;
+          const parts = route.name.split(/\s+to\s+/i);
+          const fromC = parts.length >= 1 ? parts[0].trim() : '';
+          const city = cp.city || fromC.charAt(0).toUpperCase() + fromC.slice(1);
+          setToStation({
+            name: cp.name,
+            nameAr: cp.nameAr,
+            lat: lat,
+            lng: lng,
+            city: city,
+            routeId: route._id || route.id,
+            order: cp.order,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to find nearest station for address', err);
+      }
+      setToFocused(false);
+    }
+  };
+
+  // Keyboard navigation for From dropdown
+  const handleFromKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!fromFocused) return;
+    const items = Object.values(groupedFrom).flat();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFromActiveIndex(prev => Math.min(prev + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFromActiveIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items.length > 0 && fromActiveIndex >= 0 && fromActiveIndex < items.length) {
+        handleSelectFromItem(items[fromActiveIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setFromFocused(false);
+    }
+  };
+
+  // Keyboard navigation for To dropdown
+  const handleToKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!toFocused) return;
+    const items = Object.values(groupedTo).flat();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setToActiveIndex(prev => Math.min(prev + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setToActiveIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items.length > 0 && toActiveIndex >= 0 && toActiveIndex < items.length) {
+        handleSelectToItem(items[toActiveIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setToFocused(false);
+    }
+  };
+
+  // Reset active index when dropdown content changes
+  useEffect(() => {
+    setFromActiveIndex(0);
+  }, [combinedFromSuggestions]);
+
+  useEffect(() => {
+    setToActiveIndex(0);
+  }, [combinedToSuggestions]);
+
   const polylinePath: [number, number][] = [];
   if (fromStation) polylinePath.push([fromStation.lat, fromStation.lng]);
   if (toStation) polylinePath.push([toStation.lat, toStation.lng]);
 
   const groupedFrom = useMemo(() => {
     const groups: Record<string, any[]> = {};
-    filteredFromSuggestions.forEach(cp => {
-      const city = cp.city || 'Other';
-      if (!groups[city]) groups[city] = [];
-      groups[city].push(cp);
+    const addressItems: any[] = [];
+    combinedFromSuggestions.forEach(item => {
+      if (item.type === 'address') {
+        addressItems.push(item);
+      } else {
+        const city = item.data.city || 'Other';
+        if (!groups[city]) groups[city] = [];
+        groups[city].push(item);
+      }
     });
+    if (addressItems.length > 0) {
+      groups['__addresses__'] = addressItems;
+    }
     return groups;
-  }, [filteredFromSuggestions]);
+  }, [combinedFromSuggestions]);
 
   const groupedTo = useMemo(() => {
     const groups: Record<string, any[]> = {};
-    filteredToSuggestions.forEach(cp => {
-      const city = cp.city || 'Other';
-      if (!groups[city]) groups[city] = [];
-      groups[city].push(cp);
+    const addressItems: any[] = [];
+    combinedToSuggestions.forEach(item => {
+      if (item.type === 'address') {
+        addressItems.push(item);
+      } else {
+        const city = item.data.city || 'Other';
+        if (!groups[city]) groups[city] = [];
+        groups[city].push(item);
+      }
     });
+    if (addressItems.length > 0) {
+      groups['__addresses__'] = addressItems;
+    }
     return groups;
-  }, [filteredToSuggestions]);
+  }, [combinedToSuggestions]);
 
   return (
     <>
@@ -577,6 +849,7 @@ function RouteSearchForm() {
                 className="field-input"
                 placeholder={t('searchBoardingStopPlaceholder')}
                 value={fromQuery}
+                ref={fromInputRef}
                 onFocus={() => {
                   setFromFocused(true);
                   setToFocused(false);
@@ -587,6 +860,7 @@ function RouteSearchForm() {
                     setFromStation(null);
                   }
                 }}
+                onKeyDown={handleFromKeyDown}
                 style={{ paddingLeft: '36px', paddingRight: '36px' }}
               />
               {fromQuery && (
@@ -613,45 +887,82 @@ function RouteSearchForm() {
 
               {fromFocused && (
                 <div className="custom-dropdown-menu" style={{ width: '100%' }}>
-                  {Object.keys(groupedFrom).length === 0 ? (
+                  {Object.keys(groupedFrom).length === 0 && !nominatimLoading ? (
                     <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
                       {t('noMatchingStations')}
+                    </div>
+                  ) : nominatimLoading && Object.keys(groupedFrom).length === 0 ? (
+                    <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default', justifyContent: 'center' }}>
+                      <div className="btn-loading-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
+                      Searching...
                     </div>
                   ) : (
                     Object.entries(groupedFrom).map(([city, items]) => (
                       <div key={city}>
-                        <div style={{
-                          padding: '6px 12px',
-                          fontSize: '0.7rem',
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          color: 'var(--primary)',
-                          background: 'rgba(245, 183, 49, 0.05)',
-                          borderBottom: '1px solid var(--border)',
-                          letterSpacing: '0.05em'
-                        }}>
-                          🏙️ {city}
-                        </div>
-                        {items.map((cp: any) => (
-                          <div
-                            key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
-                            className={`custom-dropdown-item ${fromStation?.name === cp.name ? 'selected' : ''}`}
-                            onClick={() => {
-                              setFromStation(cp);
-                              setFromQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
-                              setFromFocused(false);
-                              // Trigger auto-focus / overlay on dropoff if empty
-                              if (!toStation) {
-                                setTimeout(() => setToFocused(true), 100);
-                              }
-                            }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
-                            </div>
+                        {city === '__addresses__' ? (
+                          <div style={{
+                            padding: '6px 12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            color: '#10B981',
+                            background: 'rgba(16, 185, 129, 0.05)',
+                            borderBottom: '1px solid var(--border)',
+                            letterSpacing: '0.05em'
+                          }}>
+                            📍 Addresses & Places
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{
+                            padding: '6px 12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            color: 'var(--primary)',
+                            background: 'rgba(245, 183, 49, 0.05)',
+                            borderBottom: '1px solid var(--border)',
+                            letterSpacing: '0.05em'
+                          }}>
+                            🏙️ {city}
+                          </div>
+                        )}
+                        {items.map((item: any, idx: number) => {
+                          const globalIdx = Object.values(groupedFrom).flat().indexOf(item);
+                          if (item.type === 'address') {
+                            const r = item.data;
+                            return (
+                              <div
+                                key={`addr-${r.lat}-${r.lon}`}
+                                className={`custom-dropdown-item ${globalIdx === fromActiveIndex ? 'keyboard-active' : ''}`}
+                                onClick={() => handleSelectFromItem(item)}
+                                onMouseEnter={() => setFromActiveIndex(globalIdx)}
+                              >
+                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                  <span style={{ fontWeight: 600, color: '#10B981' }}>
+                                    {r.name || r.display_name.split(',')[0]}
+                                  </span>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {r.display_name}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          const cp = item.data;
+                          return (
+                            <div
+                              key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
+                              className={`custom-dropdown-item ${globalIdx === fromActiveIndex ? 'keyboard-active' : ''} ${fromStation?.name === cp.name ? 'selected' : ''}`}
+                              onClick={() => handleSelectFromItem(item)}
+                              onMouseEnter={() => setFromActiveIndex(globalIdx)}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))
                   )}
@@ -683,6 +994,7 @@ function RouteSearchForm() {
                     : t('searchDestinationStopPlaceholder')
                 }
                 value={toQuery}
+                ref={toInputRef}
                 onFocus={() => {
                   setToFocused(true);
                   setFromFocused(false);
@@ -693,6 +1005,7 @@ function RouteSearchForm() {
                     setToStation(null);
                   }
                 }}
+                onKeyDown={handleToKeyDown}
                 style={{ paddingLeft: '36px', paddingRight: '36px' }}
               />
               {toQuery && (
@@ -724,41 +1037,82 @@ function RouteSearchForm() {
                       {t('selectBoardingStopFirst')}
                     </div>
                   )}
-                  {fromStation && Object.keys(groupedTo).length === 0 ? (
+                  {fromStation && Object.keys(groupedTo).length === 0 && !nominatimLoading ? (
                     <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
                       {t('noReachableStopsFound')}
+                    </div>
+                  ) : fromStation && nominatimLoading && Object.keys(groupedTo).length === 0 ? (
+                    <div className="custom-dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default', justifyContent: 'center' }}>
+                      <div className="btn-loading-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
+                      Searching...
                     </div>
                   ) : (
                     fromStation && Object.entries(groupedTo).map(([city, items]) => (
                       <div key={city}>
-                        <div style={{
-                          padding: '6px 12px',
-                          fontSize: '0.7rem',
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          color: '#EF4444',
-                          background: 'rgba(239, 68, 68, 0.03)',
-                          borderBottom: '1px solid var(--border)',
-                          letterSpacing: '0.05em'
-                        }}>
-                          🏙️ {city}
-                        </div>
-                        {items.map((cp: any) => (
-                          <div
-                            key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
-                            className={`custom-dropdown-item ${toStation?.name === cp.name ? 'selected' : ''}`}
-                            onClick={() => {
-                              setToStation(cp);
-                              setToQuery(isRtl ? (cp.nameAr || cp.name) : cp.name);
-                              setToFocused(false);
-                            }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
-                            </div>
+                        {city === '__addresses__' ? (
+                          <div style={{
+                            padding: '6px 12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            color: '#10B981',
+                            background: 'rgba(16, 185, 129, 0.05)',
+                            borderBottom: '1px solid var(--border)',
+                            letterSpacing: '0.05em'
+                          }}>
+                            📍 Addresses & Places
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{
+                            padding: '6px 12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            color: '#EF4444',
+                            background: 'rgba(239, 68, 68, 0.03)',
+                            borderBottom: '1px solid var(--border)',
+                            letterSpacing: '0.05em'
+                          }}>
+                            🏙️ {city}
+                          </div>
+                        )}
+                        {items.map((item: any, idx: number) => {
+                          const globalIdx = Object.values(groupedTo).flat().indexOf(item);
+                          if (item.type === 'address') {
+                            const r = item.data;
+                            return (
+                              <div
+                                key={`addr-${r.lat}-${r.lon}`}
+                                className={`custom-dropdown-item ${globalIdx === toActiveIndex ? 'keyboard-active' : ''}`}
+                                onClick={() => handleSelectToItem(item)}
+                                onMouseEnter={() => setToActiveIndex(globalIdx)}
+                              >
+                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                  <span style={{ fontWeight: 600, color: '#10B981' }}>
+                                    {r.name || r.display_name.split(',')[0]}
+                                  </span>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {r.display_name}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          const cp = item.data;
+                          return (
+                            <div
+                              key={`${cp.name}-${cp.lat}-${cp.lng}-${cp.routeId}`}
+                              className={`custom-dropdown-item ${globalIdx === toActiveIndex ? 'keyboard-active' : ''} ${toStation?.name === cp.name ? 'selected' : ''}`}
+                              onClick={() => handleSelectToItem(item)}
+                              onMouseEnter={() => setToActiveIndex(globalIdx)}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600 }}>{isRtl ? cp.nameAr : cp.name}</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{cp.city}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))
                   )}

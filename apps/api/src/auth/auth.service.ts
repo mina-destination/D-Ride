@@ -266,11 +266,12 @@ export class AuthService {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        resetPasswordOtp: otp,
+        resetPasswordOtp: hashedOtp,
         resetPasswordOtpExpires: expires,
       },
     });
@@ -292,7 +293,8 @@ export class AuthService {
       throw new BadRequestException('Invalid OTP or email');
     }
 
-    if (user.resetPasswordOtp !== data.otp) {
+    const isValidOtp = await bcrypt.compare(data.otp, user.resetPasswordOtp);
+    if (!isValidOtp) {
       throw new BadRequestException('Invalid OTP');
     }
 
@@ -322,11 +324,12 @@ export class AuthService {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        resetPasswordOtp: otp,
+        resetPasswordOtp: hashedOtp,
         resetPasswordOtpExpires: expires,
       },
     });
@@ -345,7 +348,8 @@ export class AuthService {
       throw new BadRequestException('No password change request active');
     }
 
-    if (user.resetPasswordOtp !== data.otp) {
+    const isValidOtp = await bcrypt.compare(data.otp, user.resetPasswordOtp);
+    if (!isValidOtp) {
       throw new BadRequestException('Invalid OTP');
     }
 

@@ -44,6 +44,10 @@ export default function CheckoutPage() {
   const [selectedDropoffCheckpoint, setSelectedDropoffCheckpoint] = useState<any>(null);
   const [mapFocusCoords, setMapFocusCoords] = useState<[number, number] | null>(null);
 
+  // Track which checkpoint names are pickup/dropoff to avoid reading popup HTML
+  const pickupCheckpointNameRef = useRef<string | null>(null);
+  const dropoffCheckpointNameRef = useRef<string | null>(null);
+
   // Phone Prompt States
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [promptPhone, setPromptPhone] = useState('');
@@ -203,12 +207,12 @@ export default function CheckoutPage() {
     };
   }, [trip, theme]);
 
-  // Synchronize Checkpoint and User Location Markers dynamically without reloading map
+  // Separate effect for checkpoint markers - only depends on trip and mapLoaded
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded || !trip?.routeId) return;
 
-    // Remove existing markers
+    // Remove existing checkpoint markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
@@ -257,27 +261,75 @@ export default function CheckoutPage() {
 
       markersRef.current.push(marker);
     });
+  }, [mapLoaded, trip]); // Only re-run when map loads or trip changes
 
-    // User location marker (Google style pulsating accuracy ring helper)
-    if (userLocation) {
-      const uEl = document.createElement('div');
-      uEl.style.width = '16px';
-      uEl.style.height = '16px';
-      uEl.style.borderRadius = '50%';
-      uEl.style.backgroundColor = '#4285F4';
-      uEl.style.border = '2px solid white';
-      uEl.style.boxShadow = '0 0 8px #4285F4';
+  // Separate effect for user location marker
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || !userLocation) return;
 
-      const uPopup = new maplibregl.Popup({ offset: 10 }).setHTML(`<div style="color:#000; font-family: 'Roboto', 'Inter', sans-serif; font-size:11px; font-weight:bold; padding:2px;">You are here</div>`);
+    // Remove only user location marker (last one if it's a user marker)
+    const userMarkers = markersRef.current.filter(m => 
+      m.getElement().style.width === '16px'
+    );
+    userMarkers.forEach(m => {
+      m.remove();
+      markersRef.current = markersRef.current.filter(marker => marker !== m);
+    });
 
-      const uMarker = new maplibregl.Marker({ element: uEl })
-        .setLngLat([userLocation[1], userLocation[0]]) // convert [lat, lng] to [lng, lat]
-        .setPopup(uPopup)
-        .addTo(map);
+    const uEl = document.createElement('div');
+    uEl.style.width = '16px';
+    uEl.style.height = '16px';
+    uEl.style.borderRadius = '50%';
+    uEl.style.backgroundColor = '#4285F4';
+    uEl.style.border = '2px solid white';
+    uEl.style.boxShadow = '0 0 8px #4285F4';
 
-      markersRef.current.push(uMarker);
-    }
-  }, [mapLoaded, trip, userLocation, selectedPickupCheckpoint, selectedDropoffCheckpoint, isRtl]);
+    const uPopup = new maplibregl.Popup({ offset: 10 }).setHTML(`<div style="color:#000; font-family: 'Roboto', 'Inter', sans-serif; font-size:11px; font-weight:bold; padding:2px;">You are here</div>`);
+
+    const uMarker = new maplibregl.Marker({ element: uEl })
+      .setLngLat([userLocation[1], userLocation[0]])
+      .setPopup(uPopup)
+      .addTo(map);
+
+    markersRef.current.push(uMarker);
+  }, [mapLoaded, userLocation]); // Only re-run when user location changes
+
+  // Update refs when selected checkpoints change
+  useEffect(() => {
+    pickupCheckpointNameRef.current = selectedPickupCheckpoint?.name || null;
+    dropoffCheckpointNameRef.current = selectedDropoffCheckpoint?.name || null;
+  }, [selectedPickupCheckpoint, selectedDropoffCheckpoint]);
+
+  // Separate effect for selected checkpoint highlighting - uses refs instead of popup HTML
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    
+    const pickupName = pickupCheckpointNameRef.current;
+    const dropoffName = dropoffCheckpointNameRef.current;
+    
+    // Update marker colors for pickup/dropoff selection
+    markersRef.current.forEach((marker) => {
+      const el = marker.getElement();
+      if (!el) return;
+      
+      const popup = marker.getPopup();
+      if (!popup) return;
+      
+      const popupHtml = (popup._content as HTMLElement)?.innerHTML || '';
+      const isPickup = pickupName && popupHtml?.includes(pickupName) && popupHtml?.includes('Selected Pickup');
+      const isDropoff = dropoffName && popupHtml?.includes(dropoffName) && popupHtml?.includes('Selected Dropoff');
+      
+      if (isPickup || isDropoff) {
+        el.style.width = '32px';
+        el.style.height = '32px';
+      } else {
+        el.style.width = '22px';
+        el.style.height = '22px';
+      }
+    });
+  }, [mapLoaded, selectedPickupCheckpoint, selectedDropoffCheckpoint]);
 
 
   useEffect(() => {
@@ -387,7 +439,12 @@ export default function CheckoutPage() {
       // Redirect to the payment checkout page
       navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (error) {
-      alert(t('reservationFailed') + ((error as any)?.message || 'Unknown error'));
+      const errData = error as any;
+      if (errData?.existingBookingId) {
+        navigate(`/payment?bookingId=${errData.existingBookingId}`);
+        return;
+      }
+      alert(t('reservationFailed') + (errData?.message || 'Unknown error'));
     } finally {
       setProcessing(false);
       isSubmitting.current = false;
@@ -445,6 +502,10 @@ export default function CheckoutPage() {
 
       navigate(`/payment?bookingId=${booking._id || booking.id}`);
     } catch (err: any) {
+      if (err?.existingBookingId) {
+        navigate(`/payment?bookingId=${err.existingBookingId}`);
+        return;
+      }
       setPromptError(err?.message || 'Failed to update phone number. Please try again.');
     } finally {
       setPromptLoading(false);

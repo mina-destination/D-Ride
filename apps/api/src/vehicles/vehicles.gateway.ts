@@ -17,6 +17,7 @@ import {
   ExecutionContext,
   Injectable,
   UseGuards,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
 import { JwtService } from '@nestjs/jwt';
@@ -42,16 +43,39 @@ export class WsJwtGuard implements CanActivate {
   path: '/api/socket.io',
   cors: {
     origin: (() => {
-      const origins = process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-        : [
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175',
-            'http://localhost:3001',
-          ];
-      if (!origins.includes('https://localhost')) origins.push('https://localhost');
-      if (!origins.includes('capacitor://localhost')) origins.push('capacitor://localhost');
+      const isProduction = process.env.NODE_ENV === 'production';
+      const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+      let origins: string[] = [];
+
+      if (allowedOriginsEnv) {
+        origins = allowedOriginsEnv.split(',').map((o) => o.trim());
+        if (isProduction) {
+          origins = origins.filter(
+            (o) => !o.includes('localhost') && !o.includes('127.0.0.1') && o !== 'capacitor://localhost',
+          );
+        }
+      } else {
+        if (isProduction) {
+          throw new Error('ALLOWED_ORIGINS environment variable is required in production');
+        }
+        origins = [
+          'http://localhost:5173',
+          'http://localhost:5174',
+          'http://localhost:5175',
+          'http://localhost:3001',
+        ];
+      }
+
+      // Allow Capacitor mobile app localhost origins only in development
+      if (!isProduction) {
+        if (!origins.includes('https://localhost')) {
+          origins.push('https://localhost');
+        }
+        if (!origins.includes('capacitor://localhost')) {
+          origins.push('capacitor://localhost');
+        }
+      }
+
       return origins;
     })(),
     credentials: true,
@@ -60,13 +84,14 @@ export class WsJwtGuard implements CanActivate {
   pingInterval: 5000,
 })
 export class VehiclesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(VehiclesGateway.name);
   private redisClient: RedisClientType;
+  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @Inject(forwardRef(() => VehiclesService))
@@ -85,13 +110,20 @@ export class VehiclesGateway
   }
 
   afterInit(server: Server) {
+    // Rate limiter: max 30 messages per minute per connection
+    const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+    const RATE_LIMIT = 30;
+    const RATE_WINDOW_MS = 60 * 1000;
+
     server.use((socket: any, next) => {
       try {
         const token =
           socket.handshake.auth?.token ||
           socket.handshake.headers?.authorization;
         if (!token) {
-          return next(new Error('Unauthorized: Token missing'));
+          this.logger.warn(`WS auth failed: Token missing from ${socket.id}`);
+          socket.disconnect(true);
+          return;
         }
         const cleanToken = token.startsWith('Bearer ')
           ? token.split(' ')[1]
@@ -106,9 +138,46 @@ export class VehiclesGateway
         };
         next();
       } catch (err) {
-        next(new Error('Unauthorized: Invalid or expired token'));
+        this.logger.warn(`WS auth failed: ${err.message} from ${socket.id}`);
+        socket.disconnect(true);
       }
     });
+
+    // Rate limiting middleware for messages
+    server.use((socket: any, next) => {
+      const now = Date.now();
+      const userId = socket.user?.id || socket.id;
+      const record = rateLimitMap.get(userId);
+
+      if (!record || now > record.resetTime) {
+        rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_WINDOW_MS });
+      } else {
+        record.count++;
+        if (record.count > RATE_LIMIT) {
+          this.logger.warn(`Rate limit exceeded for user ${userId}`);
+          socket.disconnect(true);
+          return;
+        }
+      }
+      next();
+    });
+
+    // Cleanup old entries periodically
+    this.rateLimitCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [key, record] of rateLimitMap.entries()) {
+        if (now > record.resetTime) {
+          rateLimitMap.delete(key);
+        }
+      }
+    }, RATE_WINDOW_MS);
+  }
+
+  onModuleDestroy() {
+    if (this.rateLimitCleanupInterval) {
+      clearInterval(this.rateLimitCleanupInterval);
+      this.rateLimitCleanupInterval = null;
+    }
   }
 
   handleConnection(client: any) {

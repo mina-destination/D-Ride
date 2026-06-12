@@ -169,7 +169,15 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   @Get('track-by-code/:code')
   async trackByCode(@Request() req: any, @Param('code', ParseUUIDPipe) code: string) {
-    const trackingInfo = await this.bookingsService.trackByCode(code);
+    const userRole = req.user.role;
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole);
+    const isDriver = userRole === 'DRIVER';
+    
+    // Pass userId for ownership check (admins/drivers can track any)
+    const trackingInfo = await this.bookingsService.trackByCode(
+      code,
+      isAdmin || isDriver ? undefined : req.user.sub,
+    );
     return {
       success: true,
       data: trackingInfo,

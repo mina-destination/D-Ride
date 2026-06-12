@@ -2809,6 +2809,12 @@ html[data-theme='light'] .tracking-sandbox-panel {
   font-weight: 700;
 }
 
+.custom-dropdown-item.keyboard-active {
+  background: var(--surface-hover);
+  border-left: 3px solid var(--primary);
+  padding-left: 15px;
+}
+
 @keyframes slideDownFade {
   from {
     opacity: 0;

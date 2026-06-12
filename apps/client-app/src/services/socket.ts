@@ -33,6 +33,17 @@ class SocketService {
     }
   }
 
+  forceDisconnect() {
+    if (this.socket) {
+      this.socket.off('connect');
+      this.socket.off('disconnect');
+      this.socket.off('vehicleLocationUpdate');
+      this.socket.off('checkpointUpdate');
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
+
   subscribeToVehicle(vehicleId: string, ticketCode?: string) {
     if (this.socket) {
       if (ticketCode) {

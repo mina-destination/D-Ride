@@ -7,6 +7,8 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -197,7 +199,7 @@ export class UsersService implements OnModuleInit {
     return this.mapUser(user);
   }
 
-  async createUser(data: any): Promise<any> {
+  async createUser(data: CreateUserDto): Promise<any> {
     const existing = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -226,7 +228,7 @@ export class UsersService implements OnModuleInit {
     return this.mapUser(user);
   }
 
-  async updateUser(id: string, data: any): Promise<any> {
+  async updateUser(id: string, data: UpdateUserDto): Promise<any> {
     // Allowlist only safe fields to prevent mass assignment of walletBalance, crmNotes, etc.
     const allowedFields = [
       'name',
@@ -237,11 +239,11 @@ export class UsersService implements OnModuleInit {
       'avatarUrl',
       'isActive',
       'status',
-    ];
-    const updateData: any = {};
+    ] as const;
+    const updateData: Record<string, any> = {};
     for (const key of allowedFields) {
-      if (data[key] !== undefined) {
-        updateData[key] = data[key];
+      if (data[key as keyof UpdateUserDto] !== undefined) {
+        updateData[key] = data[key as keyof UpdateUserDto];
       }
     }
 

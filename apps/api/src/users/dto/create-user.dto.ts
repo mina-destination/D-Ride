@@ -5,7 +5,10 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { UserRole } from '@transport/shared-types';
 
 export class CreateUserDto {
@@ -36,4 +39,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  crmNotes?: string[];
 }

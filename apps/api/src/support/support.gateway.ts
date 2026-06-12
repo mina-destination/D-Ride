@@ -9,7 +9,8 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, Inject, forwardRef } from '@nestjs/common';
+import { Logger, Inject, forwardRef, OnModuleDestroy } from '@nestjs/common';
+import sanitizeHtml from 'sanitize-html';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -46,12 +47,13 @@ export interface SendMessagePayload {
   pingInterval: 5000,
 })
 export class SupportGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(SupportGateway.name);
+  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -68,7 +70,9 @@ export class SupportGateway
           socket.handshake.auth?.token ||
           socket.handshake.headers?.authorization;
         if (!token) {
-          return next(new Error('Unauthorized: Token missing'));
+          this.logger.warn(`WS auth failed: Token missing from ${socket.id}`);
+          socket.disconnect(true);
+          return;
         }
         const cleanToken = token.startsWith('Bearer ')
           ? token.split(' ')[1]
@@ -83,9 +87,50 @@ export class SupportGateway
         };
         next();
       } catch (err) {
-        next(new Error('Unauthorized: Invalid or expired token'));
+        this.logger.warn(`WS auth failed: ${err.message} from ${socket.id}`);
+        socket.disconnect(true);
       }
     });
+
+    // Rate limiting: max 30 messages per minute per connection
+    const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+    const RATE_LIMIT = 30;
+    const RATE_WINDOW_MS = 60 * 1000;
+
+    server.use((socket: any, next) => {
+      const now = Date.now();
+      const userId = socket.user?.id || socket.id;
+      const record = rateLimitMap.get(userId);
+
+      if (!record || now > record.resetTime) {
+        rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_WINDOW_MS });
+      } else {
+        record.count++;
+        if (record.count > RATE_LIMIT) {
+          this.logger.warn(`Rate limit exceeded for user ${userId}`);
+          socket.disconnect(true);
+          return;
+        }
+      }
+      next();
+    });
+
+    // Cleanup old entries periodically
+    this.rateLimitCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [key, record] of rateLimitMap.entries()) {
+        if (now > record.resetTime) {
+          rateLimitMap.delete(key);
+        }
+      }
+    }, RATE_WINDOW_MS);
+  }
+
+  onModuleDestroy() {
+    if (this.rateLimitCleanupInterval) {
+      clearInterval(this.rateLimitCleanupInterval);
+      this.rateLimitCleanupInterval = null;
+    }
   }
 
   handleConnection(client: any) {
@@ -163,6 +208,11 @@ export class SupportGateway
     );
 
     try {
+      const sanitizedMessage = sanitizeHtml(data.message, {
+        allowedTags: [],
+        allowedAttributes: {},
+      });
+
       // Save message to Postgres database
       const savedMsg = await this.prisma.chatMessage.create({
         data: {
@@ -170,7 +220,7 @@ export class SupportGateway
           senderId: senderId,
           senderRole: senderRole,
           senderName: senderName,
-          message: data.message,
+          message: sanitizedMessage,
         },
       });
 
@@ -190,7 +240,7 @@ export class SupportGateway
       // Broadcast live ticketActivity notification exclusively to the support_operators room
       this.server.to('support_operators').emit('ticketActivity', {
         ticketId: data.ticketId,
-        lastMessage: data.message,
+        lastMessage: sanitizedMessage,
         senderName: senderName,
         senderRole: senderRole,
         createdAt: savedMsg.createdAt,

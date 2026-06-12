@@ -2,13 +2,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripsService } from '../trips/trips.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { BookingStatus, PaymentStatus } from '@prisma/client';
+import { Prisma, BookingStatus, PaymentStatus } from '@prisma/client';
+import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
 export class BookingsService {
@@ -222,37 +224,37 @@ export class BookingsService {
     return peakBookedCount;
   }
 
-  async create(data: any): Promise<any> {
+  async create(data: CreateBookingDto): Promise<any> {
     const tripIdStr = data.tripId ? data.tripId.toString() : '';
     const requestedSeats = data.seatNumbers?.length || 1;
     const requestedSeatsList: number[] = data.seatNumbers || [1];
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
-    const booking = await this.prisma.$transaction(async (tx) => {
-      // 0. Acquire exclusive row-level lock on the trip to serialize concurrent bookings
-      await tx.$queryRaw`SELECT id FROM "trips" WHERE id = ${tripIdStr} FOR UPDATE`;
+    const booking = await this.prisma.$transaction(
+      async (tx) => {
+        // 0. Acquire exclusive row-level lock on the trip via findUnique with Serializable isolation
+        // The transaction isolation level (set below) ensures row locking on read
+        const currentTrip = await tx.trip.findUnique({
+          where: { id: tripIdStr },
+          include: {
+            route: true,
+            vehicle: true,
+          },
+        });
+        if (!currentTrip) throw new NotFoundException('Trip not found');
 
-      // 1. Clean up expired pending payments and recalculate current bookedSeats count
-      const activeBookedSeatsCount = await this.cleanupExpiredBookings(
-        tripIdStr,
-        tx,
-      );
-
-      // 2. Retrieve the trip and acquire a database lock via findUnique
-      const currentTrip = await tx.trip.findUnique({
-        where: { id: tripIdStr },
-        include: {
-          route: true,
-          vehicle: true,
-        },
-      });
-      if (!currentTrip) throw new NotFoundException('Trip not found');
+        // 1. Clean up expired pending payments and recalculate current bookedSeats count
+        let activeBookedSeatsCount = await this.cleanupExpiredBookings(
+          tripIdStr,
+          tx,
+        );
 
       // 2.5. Prevent duplicate pending bookings for the same user on the same trip
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const userId = data.userId?.toString() || '';
       const existingPending = await tx.booking.findFirst({
         where: {
-          userId: data.userId.toString(),
+          userId,
           tripId: tripIdStr,
           status: {
             in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
@@ -261,9 +263,12 @@ export class BookingsService {
         },
       });
       if (existingPending) {
-        throw new BadRequestException(
-          'You already have a pending booking for this trip. Please complete or cancel it first.',
-        );
+        // Auto-cancel old pending booking so user can rebook without getting stuck
+        await tx.booking.update({
+          where: { id: existingPending.id },
+          data: { status: BookingStatus.CANCELLED },
+        });
+        activeBookedSeatsCount = await this.cleanupExpiredBookings(tripIdStr, tx);
       }
 
       // Enforce bounds checks on requested seat numbers
@@ -540,8 +545,10 @@ export class BookingsService {
           data.paymentMethod === 'WALLET_BALANCE');
 
       if (isWallet) {
+        const userId = data.userId?.toString();
+        if (!userId) throw new BadRequestException('User ID is required for wallet payment');
         const user = await tx.user.findUnique({
-          where: { id: data.userId.toString() },
+          where: { id: userId },
         });
         if (!user) throw new NotFoundException('User not found');
 
@@ -594,15 +601,16 @@ export class BookingsService {
           : null;
 
       // Write the final booking entry ledger
+      const bookingUserId = data.userId?.toString() || '';
       const newBooking = await tx.booking.create({
         data: {
-          userId: data.userId.toString(),
+          userId: bookingUserId,
           tripId: tripIdStr,
           seatNumbers: data.seatNumbers || [1],
           pickupStopId: data.pickupCheckpointId || data.pickupStopId || null,
           dropoffStopId: data.dropoffCheckpointId || data.dropoffStopId || null,
-          pickupCheckpoint: pickupCheckpointData || null,
-          dropoffCheckpoint: dropoffCheckpointData || null,
+          pickupCheckpoint: (pickupCheckpointData as unknown as Prisma.InputJsonValue) ?? null,
+          dropoffCheckpoint: (dropoffCheckpointData as unknown as Prisma.InputJsonValue) ?? null,
           status: bookingStatus,
           paymentStatus: paymentStatus,
           amountEGP,
@@ -629,7 +637,7 @@ export class BookingsService {
         await tx.transaction.create({
           data: {
             bookingId: newBooking.id,
-            userId: data.userId.toString(),
+            userId: data.userId?.toString() || '',
             amountEGP,
             status: PaymentStatus.SUCCESS,
             paymentMethod: isReward
@@ -640,7 +648,13 @@ export class BookingsService {
       }
 
       return newBooking;
-    });
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5000,
+      timeout: 10000,
+    },
+  );
 
     // Trigger confirmation notification asynchronously if confirmed
     if (booking.status === BookingStatus.CONFIRMED) {
@@ -943,7 +957,6 @@ export class BookingsService {
       });
 
       // Create a refund/reject transaction record
-      const crypto = await import('crypto');
       await tx.transaction.create({
         data: {
           bookingId: bookingId,
@@ -1098,6 +1111,9 @@ export class BookingsService {
     const bookings = await this.prisma.booking.findMany({
       where: {
         tripId,
+        status: {
+          not: 'CANCELLED',
+        },
       },
       include: {
         user: true,
@@ -1178,7 +1194,22 @@ export class BookingsService {
     return this.mapBooking(booking);
   }
 
-  async trackByCode(code: string): Promise<any> {
+  async verifyUserTripAccess(userId: string, tripId: string): Promise<void> {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        tripId,
+        status: {
+          in: [BookingStatus.CONFIRMED, BookingStatus.BOARDED],
+        },
+      },
+    });
+    if (!booking) {
+      throw new ForbiddenException('No active booking found for this trip');
+    }
+  }
+
+  async trackByCode(code: string, userId?: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: code },
       include: {
@@ -1194,6 +1225,20 @@ export class BookingsService {
 
     if (!booking) {
       throw new NotFoundException('Booking not found with this ticket code');
+    }
+
+    // If userId provided, verify ownership (unless admin/driver)
+    if (userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      const isAdmin = user && ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(user.role);
+      const isDriver = user && user.role === 'DRIVER';
+      
+      if (!isAdmin && !isDriver) {
+        // Passenger can only track their own bookings
+        if (booking.userId !== userId) {
+          throw new ForbiddenException('Not authorized to track this booking');
+        }
+      }
     }
 
     if (
@@ -1276,26 +1321,28 @@ export class BookingsService {
     const bookingSeatsList = Array.isArray(booking.seatNumbers) ? (booking.seatNumbers as number[]) : [1];
     const baseAmount = this.calculateBasePrice(currentTrip, segmentPrice, bookingSeatsList);
 
-    return this.prisma.$transaction(async (tx) => {
-      if (!code || code.trim() === '') {
-        // Clear promo code
-        const updated = await tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            discountEGP: 0,
-            promoCodeId: null,
-            amountEGP: baseAmount,
-          },
-          include: {
-            trip: {
-              include: {
-                route: true,
+        return this.prisma.$transaction(async (tx) => {
+          if (!code || code.trim() === '') {
+            // Clear promo code
+            const updated = await tx.booking.update({
+              where: { id: bookingId },
+              data: {
+                discountEGP: 0,
+                promoCodeId: null,
+                amountEGP: baseAmount,
               },
-            },
-            user: true,
-            transactions: true,
-          },
-        });
+              include: {
+                trip: {
+                  include: {
+                    route: true,
+                    vehicle: true,
+                    driver: true,
+                  },
+                },
+                user: true,
+                transactions: true,
+              },
+            });
 
         await tx.transaction.updateMany({
           where: {
