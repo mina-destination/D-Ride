@@ -66,23 +66,25 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{
-          marginTop: '1.5rem',
-          padding: '1rem',
-          background: 'var(--surface-elevated)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px dashed var(--border)',
-          fontSize: '0.8rem',
-          color: 'var(--text-secondary)'
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: '0.4rem', color: 'var(--primary)' }}>🔑 Demo Credentials:</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.25rem 0.5rem' }}>
-            <span><strong>Owner:</strong></span>
-            <span>owner@dride.com / owner123</span>
-            <span><strong>Admin:</strong></span>
-            <span>admin@dride.com / admin123</span>
+        {import.meta.env.DEV && (
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: 'var(--surface-elevated)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px dashed var(--border)',
+            fontSize: '0.8rem',
+            color: 'var(--text-secondary)'
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.4rem', color: 'var(--primary)' }}>🔑 Demo Credentials:</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.25rem 0.5rem' }}>
+              <span><strong>Owner:</strong></span>
+              <span>owner@dride.com / owner123</span>
+              <span><strong>Admin:</strong></span>
+              <span>admin@dride.com / admin123</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="login-footer-text">
           Operated by Destination © 2026
