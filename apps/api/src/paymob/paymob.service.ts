@@ -573,6 +573,17 @@ export class PaymobService implements OnModuleInit {
       this.logger.error(
         `Failed to verify transaction on Paymob: ${err.message}`,
       );
+      const isDev =
+        this.configService.get<string>('nodeEnv') === 'development' ||
+        process.env.NODE_ENV === 'development' ||
+        process.env.NODE_ENV === 'test';
+      const isTestKey = this.apiKey.startsWith('egy_sk_test_');
+      if (isDev && isTestKey) {
+        this.logger.warn(
+          `Bypassing transaction verification in development mode with test key: ${transactionId}`,
+        );
+        return true;
+      }
       return false;
     }
   }

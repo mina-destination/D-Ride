@@ -80,6 +80,20 @@ export class VehiclesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
+  @Get('locations')
+  async getAllLocations() {
+    return this.vehiclesService.getAllLocations();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
+  @Get('locations/:vehicleId')
+  async getVehicleLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
+    return this.vehiclesService.getLocationWithDetails(vehicleId);
+  }
+
   @Get('nearby')
   async getNearby(
     @Query('lat') lat: string,

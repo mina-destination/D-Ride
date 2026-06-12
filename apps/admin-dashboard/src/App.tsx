@@ -166,6 +166,7 @@ function DashboardIndexRoute() {
   const allowedPermission = [
     'routes',
     'trips',
+    'live-tracking',
     'vehicles',
     'drivers',
     'bookings',
@@ -188,6 +189,7 @@ function DashboardIndexRoute() {
     const pathMap: Record<string, string> = {
       routes: '/routes',
       trips: '/trips',
+      'live-tracking': '/live-tracking',
       vehicles: '/vehicles',
       drivers: '/drivers',
       bookings: '/bookings',

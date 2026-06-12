@@ -16,6 +16,9 @@ export function DriversPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [assignVehicleOpen, setAssignVehicleOpen] = useState(false);
+  const [assigningDriver, setAssigningDriver] = useState<any>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
   
   const location = useLocation();
   useEffect(() => {
@@ -145,6 +148,37 @@ export function DriversPage() {
     }
   };
 
+  const handleOpenAssignVehicle = (driver: any) => {
+    const assigned = vehicles.find(v =>
+      v.driverId === driver._id || (v.driver && (v.driver._id === driver._id || v.driver.id === driver._id))
+    );
+    setAssigningDriver(driver);
+    setSelectedVehicleId(assigned ? assigned._id : undefined);
+    setAssignVehicleOpen(true);
+  };
+
+  const handleAssignVehicle = async () => {
+    if (!assigningDriver) return;
+    try {
+      const currentAssigned = vehicles.find(v =>
+        v.driverId === assigningDriver._id ||
+        (v.driver && (v.driver._id === assigningDriver._id || v.driver.id === assigningDriver._id))
+      );
+      if (currentAssigned && currentAssigned._id !== selectedVehicleId) {
+        await vehiclesAPI.update(currentAssigned._id, { driverId: null });
+      }
+      if (selectedVehicleId) {
+        await vehiclesAPI.update(selectedVehicleId, { driverId: assigningDriver._id });
+      }
+      message.success('Vehicle assignment updated');
+      setAssignVehicleOpen(false);
+      setAssigningDriver(null);
+      fetchDriversAndVehicles();
+    } catch (error) {
+      message.error('Failed to assign vehicle');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await usersAPI.delete(id);
@@ -237,6 +271,7 @@ export function DriversPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
+          <Button type="link" onClick={() => handleOpenAssignVehicle(record)}>Assign Vehicle</Button>
           <Button type="link" onClick={() => handleOpenReviewsModal(record)}>View Reviews</Button>
           <Popconfirm
             title="Delete driver?"
@@ -371,6 +406,29 @@ export function DriversPage() {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`Assign Vehicle — ${assigningDriver?.name || ''}`}
+        open={assignVehicleOpen}
+        onCancel={() => { setAssignVehicleOpen(false); setAssigningDriver(null); }}
+        onOk={handleAssignVehicle}
+        okText="Assign"
+        forceRender
+      >
+        <Select
+          placeholder="Select a vehicle"
+          allowClear
+          value={selectedVehicleId}
+          onChange={value => setSelectedVehicleId(value)}
+          style={{ width: '100%' }}
+        >
+          {vehicles.map(v => (
+            <Select.Option key={v._id} value={v._id}>
+              {v.make} {v.model} ({v.licensePlate})
+            </Select.Option>
+          ))}
+        </Select>
       </Modal>
 
       <Modal

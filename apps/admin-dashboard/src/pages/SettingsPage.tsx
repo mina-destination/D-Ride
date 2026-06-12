@@ -3,7 +3,7 @@ import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, I
 import { message } from '../utils/antdGlobal';
 import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI, settingsAPI, whatsappAPI } from '../services/api';
+import { usersAPI, settingsAPI, whatsappAPI, paymobAPI } from '../services/api';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -20,6 +20,24 @@ export function SettingsPage() {
   const [whatsappQr, setWhatsappQr] = useState<string | null>(null);
   const [whatsappActionLoading, setWhatsappActionLoading] = useState(false);
 
+  const [paymobFeatures, setPaymobFeatures] = useState<any>(null);
+  const [paymobLoading, setPaymobLoading] = useState(false);
+  const [paymobError, setPaymobError] = useState(false);
+
+  const fetchPaymobFeatures = async () => {
+    try {
+      setPaymobLoading(true);
+      setPaymobError(false);
+      const res = await paymobAPI.getFeatures();
+      setPaymobFeatures(res);
+    } catch (err) {
+      console.error('Failed to fetch Paymob features', err);
+      setPaymobError(true);
+    } finally {
+      setPaymobLoading(false);
+    }
+  };
+
   const fetchWhatsappStatus = async () => {
     try {
       const res = await whatsappAPI.getStatus();
@@ -32,6 +50,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     fetchWhatsappStatus();
+    fetchPaymobFeatures();
     const interval = setInterval(fetchWhatsappStatus, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -240,6 +259,104 @@ export function SettingsPage() {
               </Form.Item>
             </Col>
           </Row>
+        </Card>
+      ),
+    },
+    {
+      key: 'payment-gateway',
+      label: <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CreditCard size={16} /> Payment Gateway</span>,
+      children: (
+        <Card variant="borderless" className="glass" style={{ background: 'var(--surface-elevated)' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <Title level={4}>Paymob Integration Status</Title>
+            <Paragraph type="secondary">
+              View the current status of your Paymob payment gateway configuration and available features.
+            </Paragraph>
+          </div>
+
+          {paymobLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+              <Spin size="large" tip="Loading Paymob configuration..." />
+            </div>
+          ) : paymobError || !paymobFeatures ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 0', gap: '1rem' }}>
+              <div style={{ padding: '1.5rem', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CreditCard size={48} />
+              </div>
+              <Title level={5} style={{ margin: 0 }}>Not Configured</Title>
+              <Text type="secondary">Paymob payment gateway is not configured or unreachable.</Text>
+              <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                Configure your Paymob Integration IDs and Iframe ID in the "Paymob Integration" tab above.
+              </Text>
+              <Button type="primary" loading={paymobLoading} onClick={fetchPaymobFeatures} style={{ background: 'var(--primary-color)' }}>
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <div style={{ padding: '1rem 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.08)', borderRadius: '8px' }}>
+                <div style={{ padding: '0.5rem', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', display: 'flex' }}>
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <Text strong style={{ color: '#22c55e', fontSize: '1.1rem' }}>Connected</Text>
+                  <br />
+                  <Text type="secondary">Paymob payment gateway is active and configured.</Text>
+                </div>
+              </div>
+
+              <Row gutter={[16, 16]}>
+                {paymobFeatures.iframeUrl && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>IFRAME URL</Text>
+                      <Text code style={{ fontSize: '0.85rem', wordBreak: 'break-all' }}>{paymobFeatures.iframeUrl}</Text>
+                    </div>
+                  </Col>
+                )}
+                {paymobFeatures.integrationIdCard && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>CARD INTEGRATION ID</Text>
+                      <Text strong>{paymobFeatures.integrationIdCard}</Text>
+                    </div>
+                  </Col>
+                )}
+                {paymobFeatures.integrationIdWallet && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>WALLET INTEGRATION ID</Text>
+                      <Text strong>{paymobFeatures.integrationIdWallet}</Text>
+                    </div>
+                  </Col>
+                )}
+                {paymobFeatures.mode && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>MODE</Text>
+                      <Text strong>{paymobFeatures.mode === 'test' ? 'Sandbox (Test)' : 'Live'}</Text>
+                    </div>
+                  </Col>
+                )}
+                {paymobFeatures.apiKey && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>API KEY</Text>
+                      <Text code style={{ fontSize: '0.85rem' }}>{paymobFeatures.apiKey.substring(0, 12)}...</Text>
+                    </div>
+                  </Col>
+                )}
+                {paymobFeatures.merchantId && (
+                  <Col xs={24} md={12}>
+                    <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>MERCHANT ID</Text>
+                      <Text strong>{paymobFeatures.merchantId}</Text>
+                    </div>
+                  </Col>
+                )}
+              </Row>
+            </div>
+          )}
         </Card>
       ),
     },

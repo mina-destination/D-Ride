@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Space, Button, Table, Tag, Statistic, Badge, Spin, Tooltip, Breadcrumb, Typography, Modal, Select, Radio, Input } from 'antd';
-import { ArrowLeft, User, Phone, Mail, Ticket, CreditCard, CheckCircle, Bus, AlertCircle, Briefcase, Settings, LayoutGrid, ArrowRightToLine } from 'lucide-react';
-import { tripsAPI, bookingsAPI, usersAPI } from '../services/api';
+import { Card, Row, Col, Space, Button, Table, Tag, Statistic, Badge, Spin, Tooltip, Breadcrumb, Typography, Modal, Select, Radio, Input, List } from 'antd';
+import { ArrowLeft, User, Phone, Mail, Ticket, CreditCard, CheckCircle, Bus, AlertCircle, Briefcase, Settings, LayoutGrid, ArrowRightToLine, Star } from 'lucide-react';
+import { tripsAPI, bookingsAPI, usersAPI, reviewsAPI } from '../services/api';
 import { message } from '../utils/antdGlobal';
 
 const { Text, Title } = Typography;
@@ -24,6 +24,7 @@ export function TripDetailsPage() {
   const [newPassengerName, setNewPassengerName] = useState('');
   const [newPassengerEmail, setNewPassengerEmail] = useState('');
   const [newPassengerPhone, setNewPassengerPhone] = useState('');
+  const [reviews, setReviews] = useState<any[]>([]);
 
   const fetchTripDetails = async () => {
     if (!id) return;
@@ -38,6 +39,13 @@ export function TripDetailsPage() {
     } catch (error) {
       message.error('Failed to load trip manifest details');
       navigate('/trips');
+    }
+
+    try {
+      const reviewsRes = await reviewsAPI.getTripReviews(id);
+      setReviews(reviewsRes || []);
+    } catch {
+      // reviews are non-critical
     } finally {
       setLoading(false);
     }
@@ -661,6 +669,46 @@ export function TripDetailsPage() {
                 <AlertCircle size={20} style={{ color: 'orange' }} />
                 <Text type="secondary">No vehicle fleet assigned to this trip.</Text>
               </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Reviews Section */}
+      <Row gutter={[24, 24]} style={{ marginTop: '2.5rem' }}>
+        <Col xs={24}>
+          <Card title={<><Star size={16} style={{ marginRight: 6, verticalAlign: 'middle', color: '#f5b731' }} /> Passenger Reviews</>} className="refund-card-glass">
+            {reviews.length === 0 ? (
+              <Text type="secondary">No reviews for this trip yet.</Text>
+            ) : (
+              <List
+                itemLayout="horizontal"
+                dataSource={reviews}
+                renderItem={(item: any) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text strong style={{ color: 'var(--text-primary)' }}>{item.user?.name || 'Anonymous'}</Text>
+                          <span style={{ color: '#f5b731', fontWeight: 'bold' }}>
+                            {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)} {item.rating}/5
+                          </span>
+                        </div>
+                      }
+                      description={
+                        <div>
+                          <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)', margin: '4px 0' }}>
+                            "{item.comment || 'No comment provided'}"
+                          </p>
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            Reviewed on {new Date(item.createdAt).toLocaleDateString()}
+                          </Text>
+                        </div>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
             )}
           </Card>
         </Col>

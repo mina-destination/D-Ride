@@ -259,6 +259,34 @@ export class VehiclesService {
     return { ...location, _id: location.id };
   }
 
+  async getAllLocations(): Promise<any[]> {
+    return this.prisma.liveVehicleLocation.findMany({
+      include: {
+        vehicle: {
+          select: { id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true },
+          include: { driver: { select: { id: true, name: true, phone: true } } },
+        },
+      },
+      orderBy: { lastUpdatedAt: 'desc' },
+    });
+  }
+
+  async getLocationWithDetails(vehicleId: string): Promise<any> {
+    const location = await this.prisma.liveVehicleLocation.findFirst({
+      where: { vehicleId },
+      include: {
+        vehicle: {
+          select: { id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true },
+          include: { driver: { select: { id: true, name: true, phone: true } } },
+        },
+      },
+    });
+    if (!location) {
+      throw new NotFoundException(`No live location for vehicle ${vehicleId}`);
+    }
+    return location;
+  }
+
   async getNearbyVehicles(
     lng: number,
     lat: number,

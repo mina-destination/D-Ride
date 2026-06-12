@@ -4,7 +4,7 @@ import { Table, Button, Modal, Form, Input, Space, Select, InputNumber, Tag } fr
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { vehiclesAPI, usersAPI } from '../services/api';
-import { CarFront, Download } from 'lucide-react';
+import { CarFront, Download, User } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 export function VehiclesPage() {
@@ -141,17 +141,20 @@ export function VehiclesPage() {
       render: (val: number) => <Tag color="blue">{val} seats</Tag>,
     },
     {
-      title: 'Assigned Driver',
+      title: 'Driver',
       key: 'driver',
       render: (_: any, record: any) => {
         const driver = record.driver;
         return driver ? (
-          <div>
-            <strong>{driver.name}</strong>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{driver.phone}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <div>
+              <strong>{driver.name}</strong>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{driver.phone}</div>
+            </div>
           </div>
         ) : (
-          <Tag color="default">Unassigned</Tag>
+          <span style={{ color: 'var(--text-secondary)' }}>— Unassigned</span>
         );
       },
     },
