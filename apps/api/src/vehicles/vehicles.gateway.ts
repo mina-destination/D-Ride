@@ -92,6 +92,7 @@ export class VehiclesGateway
   private readonly logger = new Logger(VehiclesGateway.name);
   private redisClient: RedisClientType;
   private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly memoryFallbackStore = new Map<string, string>();
 
   constructor(
     @Inject(forwardRef(() => VehiclesService))
@@ -101,12 +102,50 @@ export class VehiclesGateway
     private readonly prisma: PrismaService,
   ) {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    this.redisClient = createClient({ url: redisUrl });
+    this.redisClient = createClient({
+      url: redisUrl,
+      disableOfflineQueue: true,
+    });
     this.redisClient.connect().catch((err) => {
       this.logger.error(
         `VehiclesGateway failed to connect to Redis: ${err.message}`,
       );
     });
+  }
+
+  private async getRedisValue(key: string): Promise<string | null> {
+    if (this.redisClient.isReady) {
+      try {
+        return await this.redisClient.get(key);
+      } catch (err: any) {
+        this.logger.error(`Redis get error for key ${key}: ${err.message}`);
+      }
+    }
+    return this.memoryFallbackStore.get(key) || null;
+  }
+
+  private async setRedisValue(key: string, value: string): Promise<void> {
+    if (this.redisClient.isReady) {
+      try {
+        await this.redisClient.set(key, value);
+        return;
+      } catch (err: any) {
+        this.logger.error(`Redis set error for key ${key}: ${err.message}`);
+      }
+    }
+    this.memoryFallbackStore.set(key, value);
+  }
+
+  private async delRedisValue(key: string): Promise<void> {
+    if (this.redisClient.isReady) {
+      try {
+        await this.redisClient.del(key);
+        return;
+      } catch (err: any) {
+        this.logger.error(`Redis del error for key ${key}: ${err.message}`);
+      }
+    }
+    this.memoryFallbackStore.delete(key);
   }
 
   afterInit(server: Server) {
@@ -189,7 +228,7 @@ export class VehiclesGateway
   async handleDisconnect(client: any) {
     try {
       const key = `d-ride:active-driver:${client.id}`;
-      const driverDataStr = await this.redisClient.get(key);
+      const driverDataStr = await this.getRedisValue(key);
       if (driverDataStr) {
         const driverData = JSON.parse(driverDataStr) as {
           vehicleId: string;
@@ -199,7 +238,7 @@ export class VehiclesGateway
           `Driver disconnected unexpectedly: socketId=${client.id}, driverId=${driverData.driverId}, vehicleId=${driverData.vehicleId}`,
         );
         client.leave(`vehicle_${driverData.vehicleId}`);
-        await this.redisClient.del(key);
+        await this.delRedisValue(key);
 
         await this.vehiclesService.markVehicleOffline(driverData.vehicleId);
       } else {
@@ -310,7 +349,7 @@ export class VehiclesGateway
 
     // Fetch and send current arrived checkpoints to the subscribing client
     try {
-      const arrivedStr = await this.redisClient.get(`d-ride:arrived-checkpoints:${vehicleId}`);
+      const arrivedStr = await this.getRedisValue(`d-ride:arrived-checkpoints:${vehicleId}`);
       if (arrivedStr) {
         client.emit('checkpointUpdate', {
           vehicleId,
@@ -389,7 +428,7 @@ export class VehiclesGateway
 
     try {
       const key = `d-ride:active-driver:${client.id}`;
-      await this.redisClient.set(
+      await this.setRedisValue(
         key,
         JSON.stringify({
           vehicleId,
@@ -399,10 +438,10 @@ export class VehiclesGateway
           updatedAt: new Date().toISOString(),
         }),
       );
-      client.join(`vehicle_${vehicleId}`);
     } catch (err: any) {
-      this.logger.error(`Failed to map active driver to Redis: ${err.message}`);
+      this.logger.error(`Failed to map active driver: ${err.message}`);
     }
+    client.join(`vehicle_${vehicleId}`);
 
     try {
       await this.vehiclesService.upsertLocation({
@@ -446,12 +485,12 @@ export class VehiclesGateway
     );
 
     try {
-      await this.redisClient.set(
+      await this.setRedisValue(
         `d-ride:arrived-checkpoints:${data.vehicleId}`,
         JSON.stringify(data.arrivedCheckpoints),
       );
     } catch (err: any) {
-      this.logger.error(`Failed to save arrived checkpoints to Redis: ${err.message}`);
+      this.logger.error(`Failed to save arrived checkpoints: ${err.message}`);
     }
 
     this.server.to(`vehicle_${data.vehicleId}`).emit('checkpointUpdate', {
