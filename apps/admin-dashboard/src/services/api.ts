@@ -130,6 +130,7 @@ export const tripsAPI = {
   create: (data: any): Promise<any> => api.post('/trips', data),
   update: (id: string, data: any): Promise<any> => api.put(`/trips/${id}`, data),
   delete: (id: string): Promise<any> => api.delete(`/trips/${id}`),
+  updateStatus: (id: string, status: string): Promise<any> => api.put(`/trips/${id}/status`, { status }),
 };
 
 // ── Vehicles API ──────────────────────────────────────────
@@ -143,6 +144,7 @@ export const vehiclesAPI = {
     api.post('/vehicles/location', { vehicleId, driverId, latitude: lat, longitude: lng }),
   findNearby: (lat: number, lng: number, maxDistance?: number): Promise<any> =>
     api.get('/vehicles/nearby', { params: { lat, lng, maxDistance } }),
+  getLocation: (vehicleId: string): Promise<any> => api.get(`/vehicles/location/${vehicleId}`),
 };
 
 // ── Bookings API ──────────────────────────────────────────
@@ -154,6 +156,10 @@ export const bookingsAPI = {
   refund: (id: string, action?: string): Promise<any> => api.put(`/bookings/${id}/refund`, { action }),
   getTripManifest: (tripId: string): Promise<any> => api.get(`/bookings/trip/${tripId}/manifest`),
   checkIn: (id: string): Promise<any> => api.put(`/bookings/${id}/check-in`),
+  applyPromo: (id: string, code: string | null): Promise<any> => api.put(`/bookings/${id}/apply-promo`, { code }),
+  verifyTicket: (id: string, token: string): Promise<any> => api.put(`/bookings/${id}/verify-ticket`, { token }),
+  getOccupiedSeats: (tripId: string, pickupCheckpointName?: string, dropoffCheckpointName?: string): Promise<any> =>
+    api.get(`/bookings/occupied/${tripId}`, { params: { pickupCheckpointName, dropoffCheckpointName } }),
 };
 
 // ── Users API ─────────────────────────────────────────────
@@ -192,6 +198,8 @@ export const reviewsAPI = {
     api.delete(`/reviews/${id}`),
   getStats: (): Promise<any> =>
     api.get('/reviews/stats'),
+  getTripReviews: (tripId: string): Promise<any> =>
+    api.get(`/reviews/trip/${tripId}`),
 };
 
 // ── Partners API ────────────────────────────────────────────

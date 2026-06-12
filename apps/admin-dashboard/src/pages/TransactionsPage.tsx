@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Tag, Card, Space, Select, DatePicker, Input, Button, Statistic, Row, Col, Typography, Tooltip, Drawer, Descriptions, Spin, Empty } from 'antd';
 import { transactionsAPI } from '../services/api';
-import { CreditCard, TrendingUp, Target, XCircle, Eye, ChevronRight } from 'lucide-react';
+import { CreditCard, Eye, ChevronRight } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;

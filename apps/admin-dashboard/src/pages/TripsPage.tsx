@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, List } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
-import { tripsAPI, routesAPI, vehiclesAPI, usersAPI } from '../services/api';
+import { tripsAPI, routesAPI, vehiclesAPI, usersAPI, reviewsAPI } from '../services/api';
 import dayjs from 'dayjs';
-import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download, Trash2 } from 'lucide-react';
+import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download, Trash2, Star } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 interface ActiveSimulation {
@@ -52,6 +52,24 @@ export function TripsPage() {
   const [recurrencePattern, setRecurrencePattern] = useState<'DAILY' | 'WEEKLY' | 'DAYS_OF_WEEK'>('DAILY');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [bulkEndDate, setBulkEndDate] = useState<dayjs.Dayjs | null>(null);
+
+  // Trip reviews states
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+  const [tripReviews, setTripReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  const handleViewReviews = async (tripId: string) => {
+    setIsReviewsOpen(true);
+    setReviewsLoading(true);
+    try {
+      const res = await reviewsAPI.getTripReviews(tripId);
+      setTripReviews(res || []);
+    } catch (err) {
+      message.error('Failed to fetch reviews for this trip');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   const selectedRouteId = Form.useWatch('routeId', form);
   const selectedRoute = routes.find(r => r._id === selectedRouteId);
@@ -434,6 +452,7 @@ export function TripsPage() {
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" onClick={() => navigate(`/trips/${record._id}`)} style={{ fontWeight: 'bold' }}>View Manifest</Button>
+          <Button type="link" onClick={() => handleViewReviews(record._id)}>Reviews</Button>
           <Button type="link" onClick={() => handleOpenModal(record)}>Edit</Button>
           <Popconfirm
             title="Delete trip?"
@@ -487,7 +506,7 @@ export function TripsPage() {
   const handleBulkStatusChange = async (status: string) => {
     try {
       setBulkLoading(true);
-      await Promise.all(selectedRowKeys.map(id => tripsAPI.update(id, { status })));
+      await Promise.all(selectedRowKeys.map(id => tripsAPI.updateStatus(id, status)));
       message.success(`Successfully updated ${selectedRowKeys.length} trips to ${status}`);
       setSelectedRowKeys([]);
       fetchData();
@@ -989,6 +1008,55 @@ export function TripsPage() {
               </div>
             </div>
           </Form>
+      </Modal>
+
+      {/* Trip Reviews Modal */}
+      <Modal
+        title={<div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'white' }}><Star size={18} color="#f5b731" fill="#f5b731" /> Passenger Trip Reviews</div>}
+        open={isReviewsOpen}
+        onCancel={() => setIsReviewsOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsReviewsOpen(false)}>Close</Button>
+        ]}
+        width={600}
+        destroyOnClose={true}
+      >
+        <List
+          loading={reviewsLoading}
+          itemLayout="horizontal"
+          dataSource={tripReviews}
+          locale={{ emptyText: 'No reviews found for this trip yet' }}
+          renderItem={(item: any) => (
+            <List.Item>
+              <List.Item.Meta
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'white', fontWeight: 'bold' }}>{item.user?.name || 'Anonymous Passenger'}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#f5b731', fontWeight: 'bold' }}>⭐ {item.rating} / 5</span>
+                  </div>
+                }
+                description={
+                  <div style={{ marginTop: '6px' }}>
+                    <p style={{
+                      fontStyle: 'italic',
+                      background: '#161922',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #232938',
+                      color: '#8f9cae',
+                      margin: '0 0 4px 0'
+                    }}>
+                      "{item.comment || 'No comment provided'}"
+                    </p>
+                    <span style={{ fontSize: '11px', color: '#556987' }}>
+                      Reviewed on {new Date(item.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                }
+              />
+            </List.Item>
+          )}
+        />
       </Modal>
     </div>
   );

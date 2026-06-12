@@ -3,12 +3,13 @@ import { useLocation } from 'react-router-dom';
 import { Table, Button, Modal, Form, Input, Space, Select, InputNumber, Tag } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
-import { vehiclesAPI } from '../services/api';
+import { vehiclesAPI, usersAPI } from '../services/api';
 import { CarFront, Download } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 
 export function VehiclesPage() {
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -24,20 +25,24 @@ export function VehiclesPage() {
     }
   }, [location.state]);
 
-  const fetchVehicles = async () => {
+  const fetchFleetData = async () => {
     try {
       setLoading(true);
-      const res = await vehiclesAPI.getAll();
-      setVehicles(res);
+      const [vehiclesRes, driversRes] = await Promise.all([
+        vehiclesAPI.getAll(),
+        usersAPI.getByRole('DRIVER'),
+      ]);
+      setVehicles(vehiclesRes);
+      setDrivers(driversRes);
     } catch (error) {
-      message.error('Failed to fetch vehicles');
+      message.error('Failed to fetch fleet data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchVehicles();
+    fetchFleetData();
   }, []);
 
   const handleOpenModal = (vehicle?: any) => {
@@ -49,6 +54,7 @@ export function VehiclesPage() {
         licensePlate: vehicle.licensePlate,
         capacity: vehicle.capacity,
         status: vehicle.status,
+        driverId: vehicle.driverId || (vehicle.driver ? (vehicle.driver._id || vehicle.driver.id) : undefined),
       });
     } else {
       setEditingId(null);
@@ -73,7 +79,7 @@ export function VehiclesPage() {
         message.success('Vehicle added successfully');
       }
       setIsModalOpen(false);
-      fetchVehicles();
+      fetchFleetData();
     } catch (error) {
       message.error((error as any).message || 'Operation failed');
     }
@@ -83,7 +89,7 @@ export function VehiclesPage() {
     try {
       await vehiclesAPI.delete(id);
       message.success('Vehicle deleted successfully');
-      fetchVehicles();
+      fetchFleetData();
     } catch (error) {
       message.error('Failed to delete vehicle');
     }
@@ -133,6 +139,21 @@ export function VehiclesPage() {
       dataIndex: 'capacity',
       key: 'capacity',
       render: (val: number) => <Tag color="blue">{val} seats</Tag>,
+    },
+    {
+      title: 'Assigned Driver',
+      key: 'driver',
+      render: (_: any, record: any) => {
+        const driver = record.driver;
+        return driver ? (
+          <div>
+            <strong>{driver.name}</strong>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{driver.phone}</div>
+          </div>
+        ) : (
+          <Tag color="default">Unassigned</Tag>
+        );
+      },
     },
     {
       title: 'Status',
@@ -286,6 +307,19 @@ export function VehiclesPage() {
               <Select.Option value="ACTIVE">Active</Select.Option>
               <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
               <Select.Option value="OUT_OF_SERVICE">Out of Service</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item 
+            name="driverId" 
+            label="Assigned Driver"
+          >
+            <Select placeholder="Select a driver" allowClear>
+              {drivers.map(d => (
+                <Select.Option key={d._id} value={d._id}>
+                  {d.name} ({d.phone || 'No Phone'})
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
         </Form>

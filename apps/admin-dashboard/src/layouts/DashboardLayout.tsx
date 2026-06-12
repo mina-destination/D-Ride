@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent, History, Star, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent, History, Star, Radio } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   
   { label: 'Operations', type: 'section' as const },
+  { path: '/live-tracking', icon: <Radio size={18} />, label: 'Live Fleet Map' },
   { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
   { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
   { path: '/trip-history', icon: <History size={18} />, label: 'Trip Playbacks' },
@@ -43,6 +44,7 @@ const navItems = [
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
+  '/live-tracking': 'Live Fleet Tracking Map',
   '/routes': 'Routes',
   '/trips': 'Trips',
   '/trip-history': 'Trip Playbacks',
@@ -68,6 +70,7 @@ const pageTitles: Record<string, string> = {
 
 const pathPermissionMap: Record<string, string> = {
   '/': 'dashboard',
+  '/live-tracking': 'vehicles',
   '/routes': 'routes',
   '/trips': 'trips',
   '/trip-history': 'trips',

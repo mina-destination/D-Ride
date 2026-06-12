@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, Min, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, Min, IsEnum, IsOptional } from 'class-validator';
 
 export enum VehicleStatus {
   ACTIVE = 'ACTIVE',
@@ -25,4 +25,8 @@ export class CreateVehicleDto {
 
   @IsEnum(VehicleStatus)
   status: VehicleStatus;
+
+  @IsString()
+  @IsOptional()
+  driverId?: string;
 }
