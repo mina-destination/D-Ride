@@ -6,6 +6,6 @@ import { VehiclesGateway } from './vehicles.gateway';
 @Module({
   controllers: [VehiclesController],
   providers: [VehiclesService, VehiclesGateway],
-  exports: [VehiclesService],
+  exports: [VehiclesService, VehiclesGateway],
 })
 export class VehiclesModule {}

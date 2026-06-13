@@ -130,6 +130,11 @@ export const driverAPI = {
     return res.data;
   },
   
+  getArrivedCheckpoints: async (tripId: string) => {
+    const res: any = await api.get(`/trips/${tripId}/arrived-checkpoints`);
+    return res.data;
+  },
+  
   getTripManifest: async (tripId: string) => {
     const res: any = await api.get(`/bookings/trip/${tripId}/manifest`);
     return res.data;

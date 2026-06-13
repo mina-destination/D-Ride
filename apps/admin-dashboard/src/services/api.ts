@@ -136,6 +136,9 @@ export const tripsAPI = {
   update: (id: string, data: any): Promise<any> => api.put(`/trips/${id}`, data),
   delete: (id: string): Promise<any> => api.delete(`/trips/${id}`),
   updateStatus: (id: string, status: string): Promise<any> => api.put(`/trips/${id}/status`, { status }),
+  getArrivedCheckpoints: (id: string): Promise<any> => api.get(`/trips/${id}/arrived-checkpoints`),
+  updateArrivedCheckpoints: (id: string, arrivedCheckpoints: string[]): Promise<any> =>
+    api.put(`/trips/${id}/arrived-checkpoints`, { arrivedCheckpoints }),
 };
 
 // ── Vehicles API ──────────────────────────────────────────

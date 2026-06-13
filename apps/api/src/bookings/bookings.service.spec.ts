@@ -441,17 +441,19 @@ describe('BookingsService', () => {
 
   describe('trackByCode', () => {
     it('should throw NotFoundException if booking not found', async () => {
-      mockPrismaService.booking.findUnique.mockResolvedValue(null);
+      mockPrismaService.booking.findMany.mockResolvedValue([]);
       await expect(service.trackByCode('nonexistent')).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should return booking with live location', async () => {
-      mockPrismaService.booking.findUnique.mockResolvedValue({
-        ...mockBooking,
-        trip: { ...mockTrip, vehicleId: 'vehicle-1' },
-      });
+      mockPrismaService.booking.findMany.mockResolvedValue([
+        {
+          ...mockBooking,
+          trip: { ...mockTrip, vehicleId: 'vehicle-1' },
+        }
+      ]);
       mockPrismaService.liveVehicleLocation.findUnique.mockResolvedValue({
         id: 'loc-1',
         vehicleId: 'vehicle-1',

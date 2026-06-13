@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TripsService } from './trips.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { VehiclesGateway } from '../vehicles/vehicles.gateway';
 import {
   NotFoundException,
   BadRequestException,
@@ -73,6 +74,8 @@ describe('TripsService', () => {
     role: 'ADMIN',
   };
 
+  let mockVehiclesGateway: any;
+
   beforeEach(async () => {
     mockPrismaService = {
       trip: {
@@ -101,6 +104,12 @@ describe('TripsService', () => {
       sendCancellationNotification: jest.fn().mockResolvedValue(true),
     };
 
+    mockVehiclesGateway = {
+      getArrivedCheckpoints: jest.fn().mockResolvedValue([]),
+      setArrivedCheckpoints: jest.fn().mockResolvedValue(undefined),
+      emitTripStatusUpdate: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TripsService,
@@ -111,6 +120,10 @@ describe('TripsService', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService,
+        },
+        {
+          provide: VehiclesGateway,
+          useValue: mockVehiclesGateway,
         },
       ],
     }).compile();

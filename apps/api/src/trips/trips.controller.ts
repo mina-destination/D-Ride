@@ -120,4 +120,34 @@ export class TripsController {
       throw new BadRequestException(e.message);
     }
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('DRIVER', 'ADMIN')
+  @Get(':id/arrived-checkpoints')
+  async getArrivedCheckpoints(@Param('id', ParseUUIDPipe) id: string) {
+    try {
+      const data = await this.tripsService.getArrivedCheckpoints(id);
+      return { success: true, data, timestamp: new Date().toISOString() };
+    } catch (e: any) {
+      throw new BadRequestException(e.message);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Put(':id/arrived-checkpoints')
+  async updateArrivedCheckpoints(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { arrivedCheckpoints: string[] },
+  ) {
+    try {
+      const data = await this.tripsService.updateArrivedCheckpoints(
+        id,
+        body.arrivedCheckpoints,
+      );
+      return { success: true, data, timestamp: new Date().toISOString() };
+    } catch (e: any) {
+      throw new BadRequestException(e.message);
+    }
+  }
 }
