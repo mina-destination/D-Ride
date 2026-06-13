@@ -3,6 +3,8 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VehiclesGateway } from './vehicles.gateway';
@@ -42,6 +44,7 @@ export class VehiclesService {
 
   constructor(
     private prisma: PrismaService,
+    @Inject(forwardRef(() => VehiclesGateway))
     private vehiclesGateway: VehiclesGateway,
   ) {}
 
