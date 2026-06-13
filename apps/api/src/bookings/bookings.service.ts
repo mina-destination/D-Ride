@@ -1218,18 +1218,44 @@ export class BookingsService {
   }
 
   async trackByCode(code: string, userId?: string): Promise<any> {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: code },
-      include: {
-        trip: {
-          include: {
-            route: true,
-            vehicle: true,
-            driver: true,
+    let booking = null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code);
+
+    if (isUuid) {
+      booking = await this.prisma.booking.findUnique({
+        where: { id: code },
+        include: {
+          trip: {
+            include: {
+              route: true,
+              vehicle: true,
+              driver: true,
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      const bookings = await this.prisma.booking.findMany({
+        where: {
+          id: {
+            endsWith: code.toLowerCase(),
+            mode: 'insensitive',
+          },
+        },
+        include: {
+          trip: {
+            include: {
+              route: true,
+              vehicle: true,
+              driver: true,
+            },
+          },
+        },
+      });
+      if (bookings.length > 0) {
+        booking = bookings[0];
+      }
+    }
 
     if (!booking) {
       throw new NotFoundException('Booking not found with this ticket code');
