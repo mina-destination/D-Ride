@@ -204,18 +204,19 @@ export default function DashboardPage() {
     try {
       if (!silent) setLoading(true);
       const data = await driverAPI.getMyTrips();
-      setTrips(data);
+      const nonCancelledTrips = (data || []).filter((x: any) => x.status !== 'CANCELLED');
+      setTrips(nonCancelledTrips);
       
       // Auto-update active trip if it was already selected
       if (activeTrip) {
-        const updated = data.find((x: any) => x._id === activeTrip._id);
+        const updated = nonCancelledTrips.find((x: any) => x._id === activeTrip._id);
         if (updated) {
           setActiveTrip(updated);
         }
-      } else if (autoSelect && data.length > 0) {
+      } else if (autoSelect && nonCancelledTrips.length > 0) {
         // Optionally auto-select the first matching trip today
         const todayStr = new Date().toDateString();
-        const todayTrip = data.find((x: any) => new Date(x.departureTime).toDateString() === todayStr && x.status !== 'COMPLETED' && x.status !== 'CANCELLED');
+        const todayTrip = nonCancelledTrips.find((x: any) => new Date(x.departureTime).toDateString() === todayStr && x.status !== 'COMPLETED');
         if (todayTrip) {
           handleSelectTrip(todayTrip);
         }
