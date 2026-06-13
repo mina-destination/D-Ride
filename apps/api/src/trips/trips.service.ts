@@ -704,7 +704,12 @@ export class TripsService {
 
   async findByDriver(driverId: string): Promise<any[]> {
     const trips = await this.prisma.trip.findMany({
-      where: { driverId },
+      where: {
+        driverId,
+        status: {
+          not: 'CANCELLED',
+        },
+      },
       include: {
         route: true,
         vehicle: true,
