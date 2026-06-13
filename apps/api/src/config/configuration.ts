@@ -27,6 +27,8 @@ export default () => {
     jwt: {
       secret: jwtSecret,
       expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+      refreshSecret: process.env.REFRESH_TOKEN_SECRET || jwtSecret,
+      refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
     },
 
     paymob: {
@@ -45,6 +47,18 @@ export default () => {
       authToken: process.env.TWILIO_AUTH_TOKEN || '',
       phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
       whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER || '',
+    },
+
+    defaults: {
+      vehicleCapacity: parseInt(process.env.DEFAULT_VEHICLE_CAPACITY || '14', 10),
+      countryCode: process.env.DEFAULT_COUNTRY_CODE || '+20',
+      lockedSeats: (() => {
+        try {
+          return JSON.parse(process.env.DEFAULT_LOCKED_SEATS || '[14]');
+        } catch {
+          return [14];
+        }
+      })(),
     },
   };
 };

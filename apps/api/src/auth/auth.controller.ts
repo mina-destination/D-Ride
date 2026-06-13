@@ -17,6 +17,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -88,5 +89,18 @@ export class AuthController {
   async updateProfile(@Request() req: any, @Body() data: UpdateProfileDto) {
     const result = await this.authService.updateProfile(req.user.sub, data);
     return { success: true, data: result, timestamp: new Date().toISOString() };
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('refresh')
+  async refresh(@Body() data: RefreshTokenDto) {
+    const result = await this.authService.refreshAccessToken(data.refreshToken);
+    return { success: true, data: result, timestamp: new Date().toISOString() };
+  }
+
+  @Post('logout')
+  async logout(@Body() data: RefreshTokenDto) {
+    await this.authService.revokeRefreshToken(data.refreshToken);
+    return { success: true, message: 'Logged out successfully', timestamp: new Date().toISOString() };
   }
 }

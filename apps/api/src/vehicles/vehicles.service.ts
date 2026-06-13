@@ -130,6 +130,8 @@ export class VehiclesService {
       driverId: string;
       longitude: number;
       latitude: number;
+      speedKmh?: number;
+      headingDegrees?: number;
     },
     caller?: { sub: string; role: string },
   ): Promise<any> {
@@ -184,6 +186,9 @@ export class VehiclesService {
             type: 'Point',
             coordinates: [data.longitude, data.latitude],
           } as any,
+          speedKmh: data.speedKmh ?? 0,
+          headingDegrees: data.headingDegrees ?? 0,
+          status: 'ACTIVE',
           lastUpdatedAt: new Date(),
         },
       });
@@ -196,6 +201,8 @@ export class VehiclesService {
             type: 'Point',
             coordinates: [data.longitude, data.latitude],
           } as any,
+          speedKmh: data.speedKmh ?? 0,
+          headingDegrees: data.headingDegrees ?? 0,
           lastUpdatedAt: new Date(),
         },
       });
@@ -209,6 +216,9 @@ export class VehiclesService {
             vehicleId: data.vehicleId,
             driverId: data.driverId,
             status: 'IN_TRANSIT',
+          },
+          include: {
+            route: true,
           },
         });
 
@@ -242,11 +252,49 @@ export class VehiclesService {
               },
             });
           }
+
+          // Estimate ETA to the next unarrived checkpoint
+          if (activeTrip.route && activeTrip.route.checkpoints) {
+            const checkpoints = (activeTrip.route.checkpoints as any[]) || [];
+            if (checkpoints.length > 0) {
+              const arrivedCheckpoints = await this.vehiclesGateway.getArrivedCheckpoints(data.vehicleId);
+              
+              // Find the first checkpoint that is not arrived
+              const nextCheckpoint = checkpoints.find(
+                (cp) => !arrivedCheckpoints.includes(cp.name),
+              );
+
+              if (nextCheckpoint && nextCheckpoint.location?.coordinates) {
+                const [cpLng, cpLat] = nextCheckpoint.location.coordinates;
+                const distanceMeters = getDistance(data.longitude, data.latitude, cpLng, cpLat);
+
+                const routeDistKm = activeTrip.route.distanceKm || 15;
+                const routeDurationMin = activeTrip.route.estimatedDurationMinutes || 30;
+                let avgSpeedKmh = (routeDistKm / (routeDurationMin / 60)) || 45;
+                if (avgSpeedKmh < 15) avgSpeedKmh = 15;
+                if (avgSpeedKmh > 100) avgSpeedKmh = 100;
+
+                const currentSpeedKmh = data.speedKmh ?? 0;
+                const speedKmh = currentSpeedKmh < 10 ? avgSpeedKmh : Math.max(10, Math.min(currentSpeedKmh, 120));
+                
+                const speedMetersPerMinute = (speedKmh * 1000) / 60;
+                const etaMinutes = Math.max(1, Math.round(distanceMeters / speedMetersPerMinute));
+
+                this.vehiclesGateway.emitEtaUpdate(data.vehicleId, {
+                  vehicleId: data.vehicleId,
+                  nextCheckpoint: nextCheckpoint.name,
+                  etaMinutes,
+                  distanceMeters: Math.round(distanceMeters),
+                  timestamp: new Date().toISOString(),
+                });
+              }
+            }
+          }
         }
       }
     } catch (err: any) {
       this.logger.error(
-        `Failed to record actual trip path coordinates: ${err.message}`,
+        `Failed to record actual trip path coordinates/ETA: ${err.message}`,
       );
     }
 
@@ -254,6 +302,8 @@ export class VehiclesService {
     this.vehiclesGateway.broadcastVehicleLocation(data.vehicleId, {
       longitude: data.longitude,
       latitude: data.latitude,
+      speed: data.speedKmh ?? 0,
+      heading: data.headingDegrees ?? 0,
     });
 
     return { ...updatedLocation, _id: updatedLocation.id };

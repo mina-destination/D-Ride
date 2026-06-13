@@ -59,6 +59,21 @@ function showDebouncedError(title: string, message: string) {
   }
 }
 
+// ─── Silent Token Refresh Logic ────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response helper for cleaning payload
 api.interceptors.response.use(
   (response) => {
@@ -83,7 +98,57 @@ api.interceptors.response.use(
     }
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Attempt token refresh on 401 (skip for auth endpoints to avoid infinite loop)
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/register')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const storedRefreshToken = localStorage.getItem('dride_driver_refresh_token');
+      if (storedRefreshToken) {
+        try {
+          const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: storedRefreshToken });
+          const { accessToken, refreshToken: newRefreshToken } = response.data?.data || response.data;
+          localStorage.setItem('dride_driver_token', accessToken);
+          localStorage.setItem('dride_driver_refresh_token', newRefreshToken);
+          api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+          processQueue(null, accessToken);
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          localStorage.removeItem('dride_driver_token');
+          localStorage.removeItem('dride_driver_refresh_token');
+          localStorage.removeItem('dride_driver_user');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        localStorage.removeItem('dride_driver_token');
+        localStorage.removeItem('dride_driver_user');
+        window.location.href = '/login';
+      }
+    }
+
     const errorData = error.response?.data;
     let title = 'Error';
     let message = 'API request failed';

@@ -429,6 +429,8 @@ export class VehiclesGateway
       vehicleId: string;
       longitude: number;
       latitude: number;
+      speed?: number | null;
+      heading?: number | null;
     },
   ) {
     const user = client.user;
@@ -495,6 +497,8 @@ export class VehiclesGateway
           driverId,
           longitude: data.longitude,
           latitude: data.latitude,
+          speed: data.speed ?? 0,
+          heading: data.heading ?? 0,
           updatedAt: new Date().toISOString(),
         }),
       );
@@ -509,6 +513,8 @@ export class VehiclesGateway
         driverId,
         longitude: data.longitude,
         latitude: data.latitude,
+        speedKmh: data.speed ?? 0,
+        headingDegrees: data.heading ?? 0,
       });
       return { event: 'locationAck', data: { success: true } };
     } catch (e: any) {
@@ -592,6 +598,21 @@ export class VehiclesGateway
   ): void {
     if (this.server) {
       this.server.to(`vehicle_${vehicleId}`).emit('tripStatusUpdate', data);
+    }
+  }
+
+  emitEtaUpdate(
+    vehicleId: string,
+    data: {
+      vehicleId: string;
+      nextCheckpoint: string;
+      etaMinutes: number;
+      distanceMeters: number;
+      timestamp: string;
+    },
+  ): void {
+    if (this.server) {
+      this.server.to(`vehicle_${vehicleId}`).emit('etaUpdate', data);
     }
   }
 }

@@ -18,7 +18,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const logout = () => {
+    const refreshToken = localStorage.getItem('dride_driver_refresh_token');
+    if (refreshToken) {
+      // Fire and forget — revoke server-side
+      import('../services/api').then(({ api }) => {
+        api.post('/auth/logout', { refreshToken }).catch(() => {});
+      });
+    }
     localStorage.removeItem('dride_driver_token');
+    localStorage.removeItem('dride_driver_refresh_token');
     setToken(null);
     setUser(null);
     socketService.forceDisconnect();
@@ -59,7 +67,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const tokenValue = loginData.accessToken || loginData.token;
+      const refreshTokenValue = loginData.refreshToken;
       localStorage.setItem('dride_driver_token', tokenValue);
+      if (refreshTokenValue) {
+        localStorage.setItem('dride_driver_refresh_token', refreshTokenValue);
+      }
       setToken(tokenValue);
       setUser(loginData.user);
     } catch (error) {

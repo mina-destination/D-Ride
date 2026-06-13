@@ -278,11 +278,30 @@ export default function LiveDrivePage() {
   // Connect socket on mount, disconnect on unmount
   useEffect(() => {
     socketService.connect();
+
+    const handleTripStatusUpdate = (data: any) => {
+      if (trip && (data.tripId === trip._id || data.tripId === trip.id)) {
+        setTrip((prev: any) => prev ? { ...prev, status: data.status } : null);
+        if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+          stopLocationStream();
+          alert(`Trip status updated by admin to: ${data.status}`);
+          navigate(`/trips/${id}`);
+        }
+      }
+    };
+
+    if (socketService.socket) {
+      socketService.socket.on('tripStatusUpdate', handleTripStatusUpdate);
+    }
+
     return () => {
       stopLocationStream();
+      if (socketService.socket) {
+        socketService.socket.off('tripStatusUpdate', handleTripStatusUpdate);
+      }
       socketService.disconnect();
     };
-  }, []);
+  }, [trip, id]);
 
   const startLocationStream = async () => {
     if (isStreaming) return;
@@ -328,13 +347,15 @@ export default function LiveDrivePage() {
       maximumAge: 0
     };
 
-    const handleSuccess = (lat: number, lng: number) => {
+    const handleSuccess = (lat: number, lng: number, speed?: number | null, heading?: number | null) => {
       setCurrentCoords({ lat, lng });
       socketService.sendLocation({
         vehicleId: trip?.vehicleId?._id || 'mock-vehicle-123',
         driverId: user?._id || 'mock-driver-123',
         longitude: lng,
         latitude: lat,
+        speed: speed != null ? speed * 3.6 : null, // m/s → km/h
+        heading: heading ?? null,
       });
     };
 
@@ -355,7 +376,12 @@ export default function LiveDrivePage() {
               return;
             }
             if (position?.coords) {
-              handleSuccess(position.coords.latitude, position.coords.longitude);
+              handleSuccess(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.speed,
+                position.coords.heading
+              );
             } else {
               handleFailure('No coordinates from native GPS');
             }
@@ -369,7 +395,12 @@ export default function LiveDrivePage() {
       if ('geolocation' in navigator) {
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            handleSuccess(position.coords.latitude, position.coords.longitude);
+            handleSuccess(
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.speed,
+              position.coords.heading
+            );
           },
           (error) => {
             handleFailure(error.message);

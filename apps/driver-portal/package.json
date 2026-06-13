@@ -22,6 +22,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@transport/shared-theme": "*",
     "@transport/shared-types": "*",
+    "@transport/shared-api": "*",
     "axios": "^1.7.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.16.0",

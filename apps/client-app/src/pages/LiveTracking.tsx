@@ -21,11 +21,14 @@ export default function LiveTrackingPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const busMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get('vehicleId');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [trip, setTrip] = useState<any>(null);
+  const [etaInfo, setEtaInfo] = useState<{ nextCheckpoint: string; etaMinutes: number; distanceMeters: number } | null>(null);
+  const [speed, setSpeed] = useState<number | null>(null);
 
   // Load trip details to draw the route path on the map
   useEffect(() => {
@@ -36,6 +39,15 @@ export default function LiveTrackingPage() {
       .then(data => setTrip(data))
       .catch(console.error);
   }, [searchParams]);
+
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, []);
 
 
 
@@ -117,7 +129,7 @@ export default function LiveTrackingPage() {
     };
   }, [trip, theme]);
 
-  // Update bus marker and center map
+  // Update bus marker and center map with smooth location smoothing animation
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !location) return;
@@ -148,7 +160,36 @@ export default function LiveTrackingPage() {
 
       busMarkerRef.current = marker;
     } else {
-      busMarkerRef.current.setLngLat(busCoords);
+      // Smooth animated interpolation to prevent jumping markers
+      const fromCoords = busMarkerRef.current.getLngLat();
+      const from = { lat: fromCoords.lat, lng: fromCoords.lng };
+      const to = { lat: location.lat, lng: location.lng };
+
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+
+      const duration = 2000; // transition over 2 seconds
+      const start = performance.now();
+
+      const animateStep = (now: number) => {
+        const timeFraction = Math.min((now - start) / duration, 1);
+        // Easing function (easeInOutQuad)
+        const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
+        
+        const currentLat = from.lat + (to.lat - from.lat) * t;
+        const currentLng = from.lng + (to.lng - from.lng) * t;
+
+        if (busMarkerRef.current) {
+          busMarkerRef.current.setLngLat([currentLng, currentLat]);
+        }
+
+        if (timeFraction < 1) {
+          animFrameRef.current = requestAnimationFrame(animateStep);
+        }
+      };
+
+      animFrameRef.current = requestAnimationFrame(animateStep);
     }
 
     map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });
@@ -167,14 +208,29 @@ export default function LiveTrackingPage() {
     const handleLocationUpdate = (data: any) => {
       if (data.vehicleId === vehicleId && data.location) {
         setLocation({ lat: data.location.latitude, lng: data.location.longitude });
+        if (data.location.speed !== undefined) {
+          setSpeed(data.location.speed);
+        }
+      }
+    };
+
+    const handleEtaUpdate = (data: any) => {
+      if (data.vehicleId === vehicleId) {
+        setEtaInfo({
+          nextCheckpoint: data.nextCheckpoint,
+          etaMinutes: data.etaMinutes,
+          distanceMeters: data.distanceMeters,
+        });
       }
     };
 
     socketService.onVehicleLocationUpdate(handleLocationUpdate);
+    socketService.onEtaUpdate(handleEtaUpdate);
 
     return () => {
       socketService.unsubscribeFromVehicle(vehicleId);
       socketService.offVehicleLocationUpdate(handleLocationUpdate);
+      socketService.offEtaUpdate(handleEtaUpdate);
       socketService.disconnect();
     };
   }, [vehicleId]);
@@ -322,14 +378,54 @@ export default function LiveTrackingPage() {
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
 
-          {/* Fallback Info for Offline State */}
+           {/* Fallback Info for Offline State */}
           {!location ? (
             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
               ℹ️ {t('minibusDetailsWillUpdate')}
             </div>
           ) : (
-            <div style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 500 }}>
-              🟢 {t('minibusOnRoute')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 600 }}>
+                🟢 {t('minibusOnRoute')}
+              </div>
+              
+              {etaInfo && (
+                <div style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  fontSize: '11px',
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <div>
+                    🏁 {isRtl ? 'المحطة القادمة:' : 'Next Stop:'}{' '}
+                    <strong>{etaInfo.nextCheckpoint}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                    <span>⏱️ {isRtl ? 'الوصول المتوقع:' : 'ETA:'}</span>
+                    <strong style={{ color: 'var(--primary)', fontSize: '12px' }}>
+                      {etaInfo.etaMinutes} {isRtl ? 'دقيقة' : 'min'}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>📏 {isRtl ? 'المسافة المتبقية:' : 'Distance:'}</span>
+                    <strong style={{ color: 'var(--text-secondary)' }}>
+                      {(etaInfo.distanceMeters / 1000).toFixed(1)} km
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {speed !== null && speed > 0 && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>⚡ {isRtl ? 'السرعة الحالية:' : 'Current Speed:'}</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{Math.round(speed)} km/h</span>
+                </div>
+              )}
             </div>
           )}
 

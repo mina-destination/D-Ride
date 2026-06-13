@@ -66,12 +66,50 @@ class SocketService {
     }
   }
 
+  // GPS throttling state
+  private lastSentAt = 0;
+  private lastSentLat = 0;
+  private lastSentLng = 0;
+  private static MIN_INTERVAL_MS = 3000; // 3 seconds
+  private static MIN_DISTANCE_M = 10; // 10 meters
+
+  private haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000; // Earth radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   sendLocation(payload: {
     vehicleId: string;
     driverId: string;
     longitude: number;
     latitude: number;
+    speed?: number | null;
+    heading?: number | null;
   }) {
+    const now = Date.now();
+
+    // Throttle: skip if too soon AND too close
+    if (this.lastSentAt > 0) {
+      const timeDiff = now - this.lastSentAt;
+      const distDiff = this.haversineDistance(
+        this.lastSentLat, this.lastSentLng,
+        payload.latitude, payload.longitude
+      );
+      if (timeDiff < SocketService.MIN_INTERVAL_MS && distDiff < SocketService.MIN_DISTANCE_M) {
+        return; // Skip this update
+      }
+    }
+
+    this.lastSentAt = now;
+    this.lastSentLat = payload.latitude;
+    this.lastSentLng = payload.longitude;
+
     if (this.socket && this.socket.connected) {
       this.socket.emit('driverLocationPush', payload);
     } else {

@@ -28,6 +28,12 @@ interface LiveVehicle {
     batteryLevel?: number;
     lastUpdated: string;
   };
+  etaInfo?: {
+    nextCheckpoint: string;
+    etaMinutes: number;
+    distanceMeters: number;
+    lastUpdated: string;
+  };
 }
 
 function getRelativeTime(iso: string): string {
@@ -200,9 +206,29 @@ export function LiveTrackingPage() {
               location: {
                 lng: coords[0],
                 lat: coords[1],
-                speed: data.speedKmh || 0,
-                heading: data.heading,
-                batteryLevel: data.batteryLevel,
+                speed: data.location.speed !== undefined ? data.location.speed : (data.speedKmh || 0),
+                heading: data.location.heading !== undefined ? data.location.heading : (data.heading || 0),
+                batteryLevel: data.location.batteryLevel !== undefined ? data.location.batteryLevel : (data.batteryLevel || null),
+                lastUpdated: new Date().toISOString(),
+              },
+            };
+          }
+          return v;
+        }),
+      );
+    });
+
+    socket.on('etaUpdate', (data: any) => {
+      if (!data?.vehicleId) return;
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.id === data.vehicleId) {
+            return {
+              ...v,
+              etaInfo: {
+                nextCheckpoint: data.nextCheckpoint,
+                etaMinutes: data.etaMinutes,
+                distanceMeters: data.distanceMeters,
                 lastUpdated: new Date().toISOString(),
               },
             };
@@ -651,6 +677,30 @@ export function LiveTrackingPage() {
                     </Text>
                   </div>
                 </div>
+
+                {selectedVehicle.etaInfo && (
+                  <div style={{
+                    background: 'rgba(24, 144, 255, 0.05)',
+                    border: '1px solid rgba(24, 144, 255, 0.15)',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    margin: '4px 0',
+                    fontSize: '12px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <Text type="secondary">Next Checkpoint:</Text>
+                      <Text strong style={{ color: '#ffffff' }}>{selectedVehicle.etaInfo.nextCheckpoint}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <Text type="secondary">ETA:</Text>
+                      <Text strong style={{ color: '#1890ff' }}>{selectedVehicle.etaInfo.etaMinutes} min</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">Distance:</Text>
+                      <Text strong style={{ color: '#ffffff' }}>{(selectedVehicle.etaInfo.distanceMeters / 1000).toFixed(2)} km</Text>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
