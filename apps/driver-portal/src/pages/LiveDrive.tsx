@@ -279,30 +279,11 @@ export default function LiveDrivePage() {
     };
   }, []);
 
-  const startLocationStream = async () => {
+  const startLocationStream = () => {
     if (isStreaming) return;
-
-    try {
-      const permStatus = await Geolocation.checkPermissions();
-      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          setGpsError(t('gpsNotAvailable'));
-          return;
-        }
-      } else if (permStatus.location === 'denied') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          setGpsError(t('gpsNotAvailable'));
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Native Geolocation permission request failed, using browser fallback:', err);
-    }
-
     setIsStreaming(true);
-    setGpsError(null);
+    setIsMocking(true);
+    setGpsError("Simulator running.");
 
     // Cairo starting position
     let startLat = 30.0444;
@@ -316,37 +297,7 @@ export default function LiveDrivePage() {
     }
     
     setCurrentCoords({ lat: startLat, lng: startLng });
-
-    // 1. Try real GPS via Geolocation API
-    if ('geolocation' in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setCurrentCoords({ lat, lng });
-          
-          // Send location update to WebSocket Server
-          socketService.sendLocation({
-            vehicleId: trip?.vehicleId?._id || 'mock-vehicle-123',
-            driverId: user?._id || 'mock-driver-123',
-            longitude: lng,
-            latitude: lat,
-          });
-        },
-        (error) => {
-          console.warn('GPS error, switching to simulator option:', error.message);
-          setGpsError(t('gpsNotAvailable'));
-          setIsMocking(true);
-          startMockSimulation(startLat, startLng);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-      geoWatchId.current = watchId;
-    } else {
-      setGpsError(t('geoNotSupported'));
-      setIsMocking(true);
-      startMockSimulation(startLat, startLng);
-    }
+    startMockSimulation(startLat, startLng);
   };
 
   // Mock drive coordinate simulation along the route checkpoints or Cairo street path
