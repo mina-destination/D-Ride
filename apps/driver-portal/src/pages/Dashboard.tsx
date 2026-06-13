@@ -96,10 +96,22 @@ function playChime(isSuccess: boolean) {
   }
 }
 
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Radius of the earth in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
-  const { notifications, markRead, markAllRead, clearNotifications, addNotification } = useNotifications();
+  const { notifications, markRead, markAllRead, addNotification } = useNotifications();
 
   // Trips and calendar state
   const [trips, setTrips] = useState<any[]>([]);
@@ -107,6 +119,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [showAllTrips, setShowAllTrips] = useState(false);
+  const [expandUpcoming, setExpandUpcoming] = useState(false);
   
   // Passenger manifest details
   const [manifest, setManifest] = useState<any[]>([]);
@@ -120,6 +133,7 @@ export default function DashboardPage() {
   const [scannerActive, setScannerActive] = useState(false);
   const [scanStatus, setScanStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [confirmStatusModal, setConfirmStatusModal] = useState<string | null>(null);
+  const lastNotifiedCountRef = useRef<number | null>(null);
 
   // Notifications & Permissions layout states
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
@@ -156,7 +170,36 @@ export default function DashboardPage() {
 
   const toggleCheckpointArrived = (checkpointName: string) => {
     if (!activeTrip) return;
+    const sortedCPs = activeTrip.routeId?.checkpoints
+      ? [...activeTrip.routeId.checkpoints].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+      : [];
+    const cpIndex = sortedCPs.findIndex((c: any) => c.name === checkpointName);
+    if (cpIndex === -1) return;
+
     const isArrived = arrivedCheckpoints.includes(checkpointName);
+    
+    if (!isArrived) {
+      // 1. Check sequence
+      if (cpIndex > 0) {
+        const prevCp = sortedCPs[cpIndex - 1];
+        if (!arrivedCheckpoints.includes(prevCp.name)) {
+          return; // Block silently or UI disabled handles it
+        }
+      }
+      // 2. Check distance
+      const targetCp = sortedCPs[cpIndex];
+      const cpCoords = targetCp.location?.coordinates || targetCp.coordinates;
+      if (cpCoords) {
+        if (!currentCoords) {
+          return;
+        }
+        const dist = getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0]);
+        if (dist > 200) {
+          return;
+        }
+      }
+    }
+
     let updated: string[];
     if (isArrived) {
       updated = arrivedCheckpoints.filter(name => name !== checkpointName);
@@ -205,22 +248,53 @@ export default function DashboardPage() {
     try {
       if (!silent) setLoading(true);
       const data = await driverAPI.getMyTrips();
-      const nonCancelledTrips = (data || []).filter((x: any) => x.status !== 'CANCELLED');
-      setTrips(nonCancelledTrips);
+      const activeUpcomingTrips = (data || [])
+        .filter((x: any) => x.status !== 'CANCELLED' && x.status !== 'COMPLETED')
+        .sort((a: any, b: any) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
+      setTrips(activeUpcomingTrips);
+
+      const tripCount = activeUpcomingTrips.length;
+      if (tripCount > 0) {
+        if (lastNotifiedCountRef.current === null) {
+          // Summary of all scheduled shifts on first load
+          const title = t('upcomingShiftsSummaryTitle');
+          const description = t('upcomingShiftsSummaryDesc', { count: tripCount });
+          addNotification(title, description);
+
+          // Web browser notification API fallback
+          try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new window.Notification(title, { body: description });
+            }
+          } catch (e) {}
+        } else if (tripCount > lastNotifiedCountRef.current) {
+          // Real-time alert when new shifts are added
+          const diff = tripCount - lastNotifiedCountRef.current;
+          const title = t('newShiftsAssignedTitle');
+          const description = t('newShiftsAssignedDesc', { count: diff });
+          addNotification(title, description);
+
+          // Web browser notification API fallback
+          try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new window.Notification(title, { body: description });
+            }
+          } catch (e) {}
+        }
+      }
+      lastNotifiedCountRef.current = tripCount;
       
       // Auto-update active trip if it was already selected
       if (activeTrip) {
-        const updated = nonCancelledTrips.find((x: any) => x._id === activeTrip._id);
+        const updated = activeUpcomingTrips.find((x: any) => x._id === activeTrip._id);
         if (updated) {
           setActiveTrip(updated);
+        } else {
+          setActiveTrip(null);
         }
-      } else if (autoSelect && nonCancelledTrips.length > 0) {
-        // Optionally auto-select the first matching trip today
-        const todayStr = new Date().toDateString();
-        const todayTrip = nonCancelledTrips.find((x: any) => new Date(x.departureTime).toDateString() === todayStr && x.status !== 'COMPLETED');
-        if (todayTrip) {
-          handleSelectTrip(todayTrip);
-        }
+      } else if (autoSelect && activeUpcomingTrips.length > 0) {
+        // Auto-select the first upcoming trip
+        handleSelectTrip(activeUpcomingTrips[0]);
       }
     } catch (error) {
       console.error('Failed to load driver trips', error);
@@ -602,6 +676,14 @@ export default function DashboardPage() {
   useEffect(() => {
     socketService.connect();
     fetchTrips(true);
+    
+    // Request notification permission if not yet granted/denied
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch((err) => {
+        console.warn("Failed to request notification permission:", err);
+      });
+    }
+
     return () => {
       stopLocationStream();
       socketService.disconnect();
@@ -651,6 +733,19 @@ export default function DashboardPage() {
               setScanStatus({ type: 'error', message: t('invalidQrStructure') });
               playChime(false);
               return;
+            }
+
+            // Enforce pickup checkpoint arrival check in IN_TRANSIT
+            if (activeTrip.status === 'IN_TRANSIT') {
+              const booking = manifest.find((b: any) => b._id === parsed.bookingId);
+              if (booking) {
+                const pickupStopName = booking.pickupStopId || booking.pickupCheckpoint?.name;
+                if (pickupStopName && !arrivedCheckpoints.includes(pickupStopName)) {
+                  setScanStatus({ type: 'error', message: t('arriveStopFirst') });
+                  playChime(false);
+                  return;
+                }
+              }
             }
 
             setActionLoading(true);
@@ -774,23 +869,8 @@ export default function DashboardPage() {
     }));
   };
 
-  // Filter trips for selected day in calendar (or show all)
-  const filteredTrips = showAllTrips
-    ? trips.filter(t => t.status !== 'CANCELLED')
-    : trips.filter((t) => {
-        const tripDate = new Date(t.departureTime);
-        return tripDate.toDateString() === selectedDate.toDateString();
-      });
-
-  // Group trips by date for "All" view
-  const groupedTrips = showAllTrips
-    ? filteredTrips.reduce((acc: Record<string, any[]>, trip) => {
-        const dateKey = new Date(trip.departureTime).toDateString();
-        if (!acc[dateKey]) acc[dateKey] = [];
-        acc[dateKey].push(trip);
-        return acc;
-      }, {})
-    : {};
+  // Trips are already filtered to only include active/upcoming ones and sorted chronologically
+  const filteredTrips = expandUpcoming ? trips : trips.slice(0, 1);
 
   // Reusable trip card renderer
   const renderTripCard = (trip: any) => {
@@ -917,166 +997,47 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* SECTION 1: Calendar Strip */}
-        <div style={{ marginBottom: '12px' }}>
-          <div className="calendar-strip" style={{ paddingLeft: '2px', paddingRight: '8px' }}>
-            {/* All trips button */}
-            <button
-              onClick={() => {
-                setShowAllTrips(true);
-                handleSelectTrip(null);
-              }}
-              className={`calendar-day-btn ${showAllTrips ? 'active' : ''}`}
-              style={{ minWidth: '52px' }}
-            >
-              <span className="cal-day">{isRtl ? 'الكل' : 'All'}</span>
-              <span className="cal-num">{trips.filter(t => t.status !== 'CANCELLED').length}</span>
-            </button>
-            {calendarDates.map((date, index) => {
-              const isActive = !showAllTrips && date.toDateString() === selectedDate.toDateString();
-              const isToday = date.toDateString() === new Date().toDateString();
-              const tripCount = trips.filter(t => {
-                const tripDate = new Date(t.departureTime);
-                return tripDate.toDateString() === date.toDateString() && t.status !== 'CANCELLED';
-              }).length;
-              
-              // Get day name (e.g. MON) and day number (e.g. 15)
-              const dayName = date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' });
-              const dayNum = date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric' });
-
-              return (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setSelectedDate(date);
-                    setShowAllTrips(false);
-                    handleSelectTrip(null);
-                  }}
-                  className={`calendar-day-btn ${isActive ? 'active' : ''}`}
-                  style={{
-                    border: isToday && !isActive ? '1px solid var(--primary)' : undefined,
-                    boxShadow: isToday && !isActive ? 'inset 0 0 6px rgba(245, 183, 49, 0.15)' : undefined,
-                    opacity: tripCount === 0 && !isActive ? 0.5 : 1
-                  }}
-                >
-                  <span className="cal-day">{dayName}</span>
-                  <span className="cal-num">{dayNum}</span>
-                  {tripCount > 0 && (
-                    <span style={{
-                      fontSize: '8px',
-                      fontWeight: 700,
-                      color: isActive ? 'var(--text-on-primary)' : 'var(--primary)',
-                      marginTop: '2px'
-                    }}>
-                      {tripCount} {isRtl ? 'رحلة' : 'trips'}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SECTION 2: Trip Cards for Selected Date or All */}
+        {/* SECTION 2: Upcoming Shifts / next trip list */}
         <div style={{ marginBottom: '24px' }}>
           <h4 className="section-title">
             <CalendarIcon size={16} style={{ color: 'var(--primary)' }} />
-            {showAllTrips
-              ? (isRtl ? 'جميع الرحلات' : 'All Assigned Trips')
-              : selectedDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, {
-                  weekday: 'long',
-                  month: 'short',
-                  day: 'numeric'
-                })
-            }
-            {!showAllTrips && (
-              <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                {filteredTrips.length} {filteredTrips.length === 1 ? (isRtl ? 'رحلة' : 'trip') : (isRtl ? 'رحلات' : 'trips')}
-              </span>
-            )}
+            {t('upcomingShiftsTitle')}
+            <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 'auto', marginRight: 'auto' }}>
+              {trips.length} {trips.length === 1 ? (isRtl ? 'رحلة' : 'trip') : (isRtl ? 'رحلات' : 'trips')}
+            </span>
           </h4>
 
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('loadingAssignments')}</span>
             </div>
-          ) : showAllTrips ? (
-            // Grouped by date view
-            Object.keys(groupedTrips).length === 0 ? (
-              <div className="glass-card" style={{ textAlign: 'center', padding: '30px 20px' }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  {t('noTripsFound')}
-                </p>
-              </div>
-            ) : (
-              Object.entries(groupedTrips)
-                .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-                .map(([dateKey, dateTrips]) => (
-                  <div key={dateKey} style={{ marginBottom: '16px' }}>
-                    <h5 style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      marginBottom: '8px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <span style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: new Date(dateKey).toDateString() === new Date().toDateString() ? 'var(--primary)' : 'var(--text-muted)',
-                        flexShrink: 0
-                      }} />
-                      {new Date(dateKey).toLocaleDateString(language === 'ar' ? 'ar-EG' : undefined, {
-                        weekday: 'long',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                      {new Date(dateKey).toDateString() === new Date().toDateString() && (
-                        <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>
-                          {isRtl ? 'اليوم' : 'Today'}
-                        </span>
-                      )}
-                    </h5>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {dateTrips.map((trip) => renderTripCard(trip))}
-                    </div>
-                  </div>
-                ))
-            )
-          ) : filteredTrips.length === 0 ? (
+          ) : trips.length === 0 ? (
             <div className="glass-card" style={{ textAlign: 'center', padding: '30px 20px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 4px 0' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0' }}>
                 {t('noTripsFound')}
               </p>
-              {trips.length > 0 && (
-                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 12px 0' }}>
-                  {isRtl ? `لديك ${trips.filter(t => t.status !== 'CANCELLED').length} رحلة مخصصة` : `You have ${trips.filter(t => t.status !== 'CANCELLED').length} assigned trip(s) on other days`}
-                </p>
-              )}
-              <button
-                onClick={() => setShowAllTrips(true)}
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--primary)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: '1px solid rgba(245, 183, 49, 0.3)',
-                  borderRadius: '8px',
-                  padding: '8px 16px'
-                }}
-              >
-                {isRtl ? 'عرض جميع الرحلات' : 'View All Assigned Trips'}
-              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filteredTrips.map((trip) => renderTripCard(trip))}
+              
+              {trips.length > 1 && (
+                <button
+                  onClick={() => setExpandUpcoming(!expandUpcoming)}
+                  className="btn btn-secondary btn-block"
+                  style={{
+                    marginTop: '8px',
+                    fontSize: '13px',
+                    height: '42px',
+                    fontWeight: 600,
+                    borderColor: 'rgba(245, 183, 49, 0.25)',
+                    background: 'rgba(245, 183, 49, 0.04)',
+                    color: 'var(--primary)'
+                  }}
+                >
+                  {expandUpcoming ? t('hideNextTrips') : t('showNextTrips')}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1471,236 +1432,290 @@ export default function DashboardPage() {
             )}
 
             {/* SECTION 6b: Route Checkpoints Timeline Checklist (In Transit Status) */}
-            {activeTrip.status === 'IN_TRANSIT' && activeTrip.routeId?.checkpoints && (
-              <div style={{ marginBottom: '24px' }}>
-                <h4 className="section-title">
-                  <MapPin size={16} style={{ color: 'var(--primary)' }} />
-                  Route Checkpoints Timeline
-                </h4>
+            {activeTrip.status === 'IN_TRANSIT' && activeTrip.routeId?.checkpoints && (() => {
+              const sortedCPs = activeTrip.routeId.checkpoints
+                ? [...activeTrip.routeId.checkpoints].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                : [];
+              
+              const allCheckpointsArrived = sortedCPs.length > 0 && sortedCPs.every((cp: any) => arrivedCheckpoints.includes(cp.name));
+              const allBoardedOffboarded = manifest.every((booking: any) => {
+                if (booking.status === 'BOARDED') {
+                  return !!offboardedPassengers[booking._id];
+                }
+                return true;
+              });
+              const canCompleteTrip = allCheckpointsArrived && allBoardedOffboarded;
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 16px' }}>
-                  {activeTrip.routeId.checkpoints
-                    .slice()
-                    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-                    .map((cp: any, index: number) => {
-                      const isArrived = arrivedCheckpoints.includes(cp.name);
-                      
-                      // Passengers to drop off at this stop
-                      const dropoffs = manifest.filter(b => 
-                        (b.dropoffStopId === cp.name || b.dropoffCheckpoint?.name === cp.name) && 
-                        (b.status === 'CONFIRMED' || b.status === 'BOARDED')
-                      );
+              return (
+                <>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 className="section-title">
+                      <MapPin size={16} style={{ color: 'var(--primary)' }} />
+                      {t('stopsTimeline')}
+                    </h4>
 
-                      // Passengers to pick up at this stop
-                      const pickups = manifest.filter(b => 
-                        (b.pickupStopId === cp.name || b.pickupCheckpoint?.name === cp.name) && 
-                        b.status === 'CONFIRMED'
-                      );
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 16px' }}>
+                      {sortedCPs.map((cp: any, index: number) => {
+                        const isArrived = arrivedCheckpoints.includes(cp.name);
+                        
+                        // Sequence validation: Must arrive at previous stop first
+                        const isPrevArrived = index === 0 || arrivedCheckpoints.includes(sortedCPs[index - 1].name);
+                        
+                        // Proximity check: Must be within 200m
+                        const cpCoords = cp.location?.coordinates || cp.coordinates;
+                        const distance = currentCoords && cpCoords
+                          ? getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0])
+                          : null;
+                        const isWithinRange = distance !== null && distance <= 200;
+                        
+                        // Arrived button validation
+                        const isActionable = isArrived || (isPrevArrived && isWithinRange);
 
-                      return (
-                        <div key={cp.name || index} style={{ 
-                          display: 'flex', 
-                          gap: '14px', 
-                          position: 'relative',
-                          paddingBottom: index === activeTrip.routeId.checkpoints.length - 1 ? 0 : '16px'
-                        }}>
-                          {/* Timeline vertical line */}
-                          {index !== activeTrip.routeId.checkpoints.length - 1 && (
-                            <div style={{
-                              position: 'absolute',
-                              left: '12px',
-                              top: '28px',
-                              bottom: 0,
-                              width: '2px',
-                              background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
-                              zIndex: 1
-                            }} />
-                          )}
+                        // Bookings for pickups/dropoffs at this specific checkpoint
+                        const dropoffs = manifest.filter(b => 
+                          (b.dropoffStopId === cp.name || b.dropoffCheckpoint?.name === cp.name) && 
+                          (b.status === 'CONFIRMED' || b.status === 'BOARDED')
+                        );
+                        const pickups = manifest.filter(b => 
+                          (b.pickupStopId === cp.name || b.pickupCheckpoint?.name === cp.name) && 
+                          b.status === 'CONFIRMED'
+                        );
 
-                          {/* Checkpoint order marker */}
-                          <div 
-                            onClick={() => toggleCheckpointArrived(cp.name)}
-                            style={{
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
-                              border: `1.5px solid ${isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.2)'}`,
-                              color: isArrived ? 'black' : 'var(--text-secondary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              zIndex: 2,
-                              cursor: 'pointer',
-                              boxShadow: isArrived ? '0 0 10px rgba(245, 183, 49, 0.4)' : 'none',
-                              transition: 'all 0.2s',
-                              flexShrink: 0
-                            }}
-                          >
-                            {isArrived ? '✓' : cp.order || (index + 1)}
-                          </div>
+                        return (
+                          <div key={cp.name || index} style={{ 
+                            display: 'flex', 
+                            gap: '14px', 
+                            position: 'relative',
+                            paddingBottom: index === sortedCPs.length - 1 ? 0 : '20px'
+                          }}>
+                            {/* Timeline vertical line */}
+                            {index !== sortedCPs.length - 1 && (
+                              <div style={{
+                                position: 'absolute',
+                                left: isRtl ? 'auto' : '12px',
+                                right: isRtl ? '12px' : 'auto',
+                                top: '28px',
+                                bottom: 0,
+                                width: '2px',
+                                background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
+                                zIndex: 1
+                              }} />
+                            )}
 
-                          {/* Checkpoint details */}
-                          <div className="checkpoint-detail" style={{ flex: 1, textAlign: isRtl ? 'right' : 'left', minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                              <h5 style={{ 
-                                fontSize: '13.5px', 
-                                fontWeight: 700, 
-                                color: isArrived ? 'var(--primary)' : 'var(--text-primary)',
-                                margin: 0,
-                                textDecoration: isArrived ? 'line-through' : 'none',
-                                transition: 'all 0.2s'
-                              }}>
-                                {language === 'ar' ? (cp.nameAr || cp.name) : cp.name}
-                              </h5>
-
-                              {/* Arrived status badge button */}
-                              <button
-                                onClick={() => toggleCheckpointArrived(cp.name)}
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 700,
-                                  background: isArrived ? 'rgba(245, 183, 49, 0.15)' : 'rgba(255,255,255,0.03)',
-                                  border: `1px solid ${isArrived ? 'var(--primary)' : 'var(--border)'}`,
-                                  borderRadius: '4px',
-                                  padding: '3px 8px',
-                                  color: isArrived ? 'var(--primary)' : 'var(--text-muted)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
-                                  flexShrink: 0
-                                }}
-                              >
-                                {isArrived ? 'Arrived ✓' : 'Mark Arrived'}
-                              </button>
+                            {/* Checkpoint order marker */}
+                            <div 
+                              onClick={() => isActionable && toggleCheckpointArrived(cp.name)}
+                              style={{
+                                width: '26px',
+                                height: '26px',
+                                borderRadius: '50%',
+                                background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
+                                border: `1.5px solid ${isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.2)'}`,
+                                color: isArrived ? 'black' : 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                zIndex: 2,
+                                cursor: isActionable ? 'pointer' : 'not-allowed',
+                                opacity: isActionable ? 1 : 0.4,
+                                boxShadow: isArrived ? '0 0 10px rgba(245, 183, 49, 0.4)' : 'none',
+                                transition: 'all 0.2s',
+                                flexShrink: 0
+                              }}
+                            >
+                              {isArrived ? '✓' : cp.order || (index + 1)}
                             </div>
 
-                            {/* Drop-offs and Pick-ups detailed list */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                              {/* Drop-offs */}
-                              {dropoffs.length > 0 ? (
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                  <span style={{ color: 'var(--danger)', fontWeight: 600 }}>🛑 Drop-offs: </span>
-                                  {dropoffs.map((b, bIdx) => (
-                                    <span key={b._id} style={{ color: 'var(--text-primary)' }}>
-                                      {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'}){bIdx === dropoffs.length - 1 ? '' : ', '}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  <span style={{ fontWeight: 600 }}>🛑 Drop-offs: </span>None
-                                </div>
-                              )}
+                            {/* Checkpoint details */}
+                            <div className="checkpoint-detail" style={{ flex: 1, textAlign: isRtl ? 'right' : 'left', minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                <h5 style={{ 
+                                  fontSize: '13.5px', 
+                                  fontWeight: 700, 
+                                  color: isArrived ? 'var(--primary)' : 'var(--text-primary)',
+                                  margin: 0,
+                                  textDecoration: isArrived ? 'line-through' : 'none',
+                                  transition: 'all 0.2s'
+                                }}>
+                                  {language === 'ar' ? (cp.nameAr || cp.name) : cp.name}
+                                </h5>
 
-                              {/* Pick-ups */}
-                              {pickups.length > 0 ? (
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                  <span style={{ color: 'var(--success)', fontWeight: 600 }}>🟢 Pick-ups: </span>
-                                  {pickups.map((b, bIdx) => (
-                                    <span key={b._id} style={{ color: 'var(--text-primary)' }}>
-                                      {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'}){bIdx === pickups.length - 1 ? '' : ', '}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  <span style={{ fontWeight: 600 }}>🟢 Pick-ups: </span>None
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {/* SECTION 7: Offboard Passengers (In Transit Status) */}
-            {activeTrip.status === 'IN_TRANSIT' && (
-              <div style={{ marginBottom: '24px' }}>
-                <h4 className="section-title">
-                  <Users size={16} style={{ color: 'var(--primary)' }} />
-                  Passenger Drop-Off Manifest ({manifest.length})
-                </h4>
-
-                {manifest.length === 0 ? (
-                  <div className="glass-card" style={{ textAlign: 'center', padding: '20px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{t('noPassengersBooked')}</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {manifest.map((booking) => {
-                      const passenger = booking.userId || {};
-                      const name = passenger.name || 'Passenger';
-                      const isOffboarded = offboardedPassengers[booking._id];
-                      const phone = passenger.phone || '';
-
-                      return (
-                        <div key={booking._id} className="glass-card" style={{ padding: '12px 16px', opacity: isOffboarded ? 0.65 : 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <h5 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                                {name}
-                              </h5>
-                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                Seat {booking.seatNumbers?.join(', ') || 'N/A'}
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              {phone && !isOffboarded && (
-                                <a 
-                                  href={`tel:${phone}`}
-                                  className="btn-call"
-                                  title={t('callPassenger')}
-                                  style={{ width: '32px', height: '32px' }}
+                                {/* Arrived status badge button */}
+                                <button
+                                  onClick={() => toggleCheckpointArrived(cp.name)}
+                                  disabled={!isActionable}
+                                  style={{
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    background: isArrived ? 'rgba(245, 183, 49, 0.15)' : 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${isArrived ? 'var(--primary)' : 'var(--border)'}`,
+                                    borderRadius: '4px',
+                                    padding: '4px 8px',
+                                    color: isArrived ? 'var(--primary)' : 'var(--text-muted)',
+                                    cursor: isActionable ? 'pointer' : 'not-allowed',
+                                    opacity: isActionable ? 1 : 0.4,
+                                    transition: 'all 0.2s',
+                                    flexShrink: 0
+                                  }}
                                 >
-                                  <Phone size={13} fill="currentColor" />
-                                </a>
+                                  {isArrived ? (isRtl ? 'وصلت ✓' : 'Arrived ✓') : (isRtl ? 'تأكيد الوصول' : 'Mark Arrived')}
+                                </button>
+                              </div>
+
+                              {/* Distance warning/status indicator */}
+                              {!isArrived && (
+                                <div style={{ fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
+                                  {!isPrevArrived ? (
+                                    <span style={{ color: 'var(--text-muted)' }}>⚠️ {t('arrivePreviousFirst')}</span>
+                                  ) : distance === null ? (
+                                    <span style={{ color: '#f59e0b' }}>⏳ {t('gpsRequired')}</span>
+                                  ) : !isWithinRange ? (
+                                    <span style={{ color: '#f59e0b' }}>📍 {t('tooFarFromCheckpoint', { distance: Math.round(distance) })}</span>
+                                  ) : (
+                                    <span style={{ color: 'var(--success)' }}>✅ {isRtl ? 'جاهز لتأكيد الوصول' : 'Ready to mark arrived'} ({t('currentDistance', { distance: Math.round(distance) })})</span>
+                                  )}
+                                </div>
+                              )}
+                              {isArrived && (
+                                <div style={{ fontSize: '11px', marginTop: '4px', fontWeight: 500, color: 'var(--success)' }}>
+                                  ✓ {isRtl ? 'تم الوصول للمحطة' : 'Arrived at stop'}
+                                </div>
                               )}
 
-                              <button
-                                onClick={() => toggleOffboard(booking._id)}
-                                className={`btn ${isOffboarded ? 'btn-secondary' : 'btn-primary'}`}
-                                style={{
-                                  padding: '5px 12px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  height: '30px',
-                                  background: isOffboarded ? 'rgba(255,255,255,0.03)' : 'rgba(239, 68, 68, 0.1)',
-                                  borderColor: isOffboarded ? 'transparent' : 'rgba(239, 68, 68, 0.2)',
-                                  color: isOffboarded ? 'var(--text-secondary)' : 'var(--danger)'
-                                }}
-                              >
-                                {isOffboarded ? t('offboarded') : t('offboardBtn')}
-                              </button>
+                              {/* Stop Passengers Section */}
+                              {(pickups.length > 0 || dropoffs.length > 0) && (
+                                <div style={{ marginTop: '10px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px' }}>
+                                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                                    👥 {t('passengersAtStop')}
+                                  </div>
+
+                                  {/* Drop-offs */}
+                                  {dropoffs.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: pickups.length > 0 ? '10px' : '0' }}>
+                                      <div style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700 }}>🛑 {isRtl ? 'تنزيل الركاب:' : 'Drop-offs:'}</div>
+                                      {dropoffs.map((b) => {
+                                        const isOffboarded = !!offboardedPassengers[b._id];
+                                        return (
+                                          <div key={b._id} className="glass-card" style={{ padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.02)', margin: 0 }}>
+                                            <span style={{ fontSize: '11.5px', color: 'var(--text-primary)' }}>
+                                              {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'})
+                                            </span>
+                                            <div>
+                                              {!isArrived ? (
+                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('arriveStopFirst')}</span>
+                                              ) : isOffboarded ? (
+                                                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 700 }}>{t('offboarded')}</span>
+                                              ) : (
+                                                <button
+                                                  onClick={() => toggleOffboard(b._id)}
+                                                  className="btn btn-secondary"
+                                                  style={{ padding: '4px 8px', fontSize: '10px', height: '24px', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}
+                                                >
+                                                  {t('offboardBtn')}
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {/* Pick-ups */}
+                                  {pickups.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                      <div style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>🟢 {isRtl ? 'ركوب الركاب:' : 'Pick-ups:'}</div>
+                                      {pickups.map((b) => {
+                                        const isBoarded = b.status === 'BOARDED';
+                                        const phone = b.userId?.phone;
+                                        return (
+                                          <div key={b._id} className="glass-card" style={{ padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.02)', margin: 0 }}>
+                                            <span style={{ fontSize: '11.5px', color: 'var(--text-primary)' }}>
+                                              {b.userId?.name || 'Passenger'} (Seat #{b.seatNumbers?.join(', ') || 'N/A'})
+                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                              {phone && !isBoarded && isArrived && (
+                                                <a href={`tel:${phone}`} className="btn-call" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                  <Phone size={11} fill="currentColor" />
+                                                </a>
+                                              )}
+                                              {!isArrived ? (
+                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('arriveStopFirst')}</span>
+                                              ) : isBoarded ? (
+                                                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 700 }}>{t('onBoard')}</span>
+                                              ) : (
+                                                <button
+                                                  onClick={() => handleCheckInPassenger(b._id)}
+                                                  className="btn btn-primary"
+                                                  style={{ padding: '4px 8px', fontSize: '10px', height: '24px' }}
+                                                  disabled={actionLoading}
+                                                >
+                                                  {t('checkInBtn')}
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* SECTION 8: End Trip Button (In Transit Status) */}
-            {activeTrip.status === 'IN_TRANSIT' && (
-              <div style={{ marginBottom: '24px' }}>
-                <button
-                  className="btn btn-primary btn-block"
-                  style={{ background: 'var(--success)', color: 'var(--text-on-primary)', height: '52px', fontSize: '15px' }}
-                  onClick={() => setConfirmStatusModal('COMPLETED')}
-                  disabled={actionLoading}
-                >
-                  <CheckCircle size={18} fill="currentColor" />
-                  {t('completeTripShift')}
-                </button>
-              </div>
-            )}
+                  {/* SECTION 8: End Trip Button (In Transit Status) */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <button
+                      className="btn btn-primary btn-block"
+                      style={{ 
+                        background: canCompleteTrip ? 'var(--success)' : 'rgba(255,255,255,0.05)', 
+                        color: canCompleteTrip ? 'var(--text-on-primary)' : 'var(--text-muted)', 
+                        border: canCompleteTrip ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                        height: '52px', 
+                        fontSize: '15px',
+                        cursor: canCompleteTrip ? 'pointer' : 'not-allowed'
+                      }}
+                      onClick={() => {
+                        if (canCompleteTrip) {
+                          setConfirmStatusModal('COMPLETED');
+                        }
+                      }}
+                      disabled={actionLoading || !canCompleteTrip}
+                    >
+                      <CheckCircle size={18} fill="currentColor" />
+                      {t('completeTripShift')}
+                    </button>
+
+                    {/* Strict validations warnings */}
+                    {!canCompleteTrip && (
+                      <div style={{
+                        marginTop: '8px',
+                        fontSize: '0.78rem',
+                        color: '#ef4444',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                      }}>
+                        {!allCheckpointsArrived && <span>⚠️ {t('checkpointsRequired')}</span>}
+                        {!allBoardedOffboarded && <span>⚠️ {t('dropOffRequired')}</span>}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* SECTION 9: Trip Complete Summary (Completed Status) */}
             {activeTrip.status === 'COMPLETED' && (
@@ -1863,18 +1878,15 @@ export default function DashboardPage() {
             {/* Drawer Header */}
             <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="title-outfit" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                <Bell size={18} style={{ color: 'var(--primary)' }} /> Notifications
+                <Bell size={18} style={{ color: 'var(--primary)' }} /> {t('notificationsDrawerTitle')}
               </h3>
               <button onClick={() => setNotificationDrawerOpen(false)} style={{ color: 'var(--text-secondary)', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
             {/* Actions Bar */}
             {notifications.length > 0 && (
-              <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+              <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'center', fontSize: '12px' }}>
                 <button onClick={markAllRead} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Check size={12} /> Mark all read
-                </button>
-                <button onClick={clearNotifications} style={{ color: 'var(--danger)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Trash2 size={12} /> Clear all
+                  <Check size={12} /> {t('markAllRead')}
                 </button>
               </div>
             )}
@@ -1883,7 +1895,7 @@ export default function DashboardPage() {
               {notifications.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60%', color: 'var(--text-secondary)', padding: '24px', textAlign: 'center' }}>
                   <Bell size={32} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
-                  <span style={{ fontSize: '13px' }}>All caught up! No notifications.</span>
+                  <span style={{ fontSize: '13px' }}>{t('noNotifications')}</span>
                 </div>
               ) : (
                 notifications.map(n => (
@@ -1957,10 +1969,10 @@ export default function DashboardPage() {
 
             <div>
               <h3 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                Allow Live Route Telemetry
+                {t('allowBackgroundLocationTitle')}
               </h3>
               <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                To broadcast your live coordinates to D-Ride transit dispatch, guide commuters to your pickup terminals, and ensure passenger safety, please grant device location permission.
+                {t('allowBackgroundLocationDesc')}
               </p>
             </div>
 
@@ -1970,27 +1982,7 @@ export default function DashboardPage() {
                 className="btn btn-primary btn-block"
                 style={{ height: '46px', fontSize: '13.5px' }}
               >
-                Allow & Share Location
-              </button>
-              <button
-                onClick={() => {
-                  setPermissionModalVisible(false);
-                  setIsStreaming(true);
-                  setIsMocking(true);
-                  let startLat = 30.0444;
-                  let startLng = 31.2357;
-                  if (activeTrip?.routeId?.path?.coordinates?.length > 0) {
-                    const firstCoord = activeTrip.routeId.path.coordinates[0];
-                    startLng = firstCoord[0];
-                    startLat = firstCoord[1];
-                  }
-                  setGpsError("Permission bypassed. Simulator running.");
-                  startMockSimulation(startLat, startLng);
-                }}
-                className="btn btn-secondary btn-block"
-                style={{ height: '46px', fontSize: '13.5px' }}
-              >
-                Run Route Simulation (Local Test)
+                {t('allowBackgroundLocationBtn')}
               </button>
             </div>
           </div>
