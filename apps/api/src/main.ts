@@ -115,14 +115,15 @@ async function bootstrap() {
     ];
   }
 
-  // Allow Capacitor mobile app localhost origins only in development
-  if (!isProduction) {
-    if (!origins.includes('https://localhost')) {
-      origins.push('https://localhost');
-    }
-    if (!origins.includes('capacitor://localhost')) {
-      origins.push('capacitor://localhost');
-    }
+  // Allow Capacitor mobile app localhost origins in both development and production
+  if (!origins.includes('https://localhost')) {
+    origins.push('https://localhost');
+  }
+  if (!origins.includes('capacitor://localhost')) {
+    origins.push('capacitor://localhost');
+  }
+  if (!origins.includes('http://localhost')) {
+    origins.push('http://localhost');
   }
 
   app.enableCors({
