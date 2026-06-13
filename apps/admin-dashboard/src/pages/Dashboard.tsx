@@ -120,7 +120,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    const mapObj = new maplibregl.Map({
+    let mapObj: maplibregl.Map | null = new maplibregl.Map({
       container: mapContainerRef.current,
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
       center: [31.2357, 30.0444],
@@ -133,17 +133,24 @@ export default function DashboardPage() {
       const width = 16;
       const height = 16;
       const data = new Uint8Array(width * height * 4); // transparent pixels
-      if (!mapObj.hasImage(e.id)) {
+      if (mapObj && !mapObj.hasImage(e.id)) {
         mapObj.addImage(e.id, { width, height, data });
       }
     });
 
-    mapRef.current = mapObj;
-    setMap(mapObj);
     mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
+    mapObj.on('load', () => {
+      if (!mapObj) return;
+      mapRef.current = mapObj;
+      setMap(mapObj);
+    });
+
     return () => {
-      mapObj.remove();
+      if (mapObj) {
+        mapObj.remove();
+        mapObj = null;
+      }
       mapRef.current = null;
       setMap(null);
     };

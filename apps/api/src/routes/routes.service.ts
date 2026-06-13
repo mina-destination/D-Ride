@@ -122,8 +122,8 @@ export class RoutesService {
         path: data.path as unknown as Prisma.InputJsonValue,
         coverImage: data.coverImage,
         checkpoints: data.checkpoints as unknown as Prisma.InputJsonValue,
-        distanceKm: data.distanceKm,
-        estimatedDurationMinutes: data.estimatedDurationMinutes,
+        distanceKm: data.distanceKm ?? 0,
+        estimatedDurationMinutes: data.estimatedDurationMinutes ?? 0,
       };
       if (data.isActive !== undefined) {
         updateData.isActive = data.isActive;
@@ -132,10 +132,10 @@ export class RoutesService {
         updateData.isDeleted = data.isDeleted;
       }
       if (data.priceEGP !== undefined) {
-        updateData.priceEGP = data.priceEGP;
+        updateData.priceEGP = data.priceEGP ?? 0;
       }
       if (data.premiumSeatSurcharge !== undefined) {
-        updateData.premiumSeatSurcharge = data.premiumSeatSurcharge;
+        updateData.premiumSeatSurcharge = data.premiumSeatSurcharge ?? 0;
       }
       const route = await this.prisma.route.update({
         where: { id },
