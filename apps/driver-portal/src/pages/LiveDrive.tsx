@@ -325,7 +325,7 @@ export default function LiveDrivePage() {
     const watchOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
-      maximumAge: 3000
+      maximumAge: 0
     };
 
     const handleSuccess = (lat: number, lng: number) => {

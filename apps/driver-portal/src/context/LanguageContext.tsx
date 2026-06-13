@@ -140,7 +140,8 @@ const translations: Record<Language, Record<string, string>> = {
     upcomingShiftsSummaryDesc: 'You have {count} upcoming shifts scheduled.',
     markAllRead: 'Mark all read',
     notificationsDrawerTitle: 'Notifications',
-    noNotifications: 'All caught up! No notifications.'
+    noNotifications: 'All caught up! No notifications.',
+    readyToSkipNoPassengers: 'Ready to skip / mark arrived (No passengers)'
   },
   ar: {
     // General / Layout
@@ -272,7 +273,8 @@ const translations: Record<Language, Record<string, string>> = {
     upcomingShiftsSummaryDesc: 'لديك {count} وردية عمل قادمة مجدولة.',
     markAllRead: 'تحديد الكل كمقروء',
     notificationsDrawerTitle: 'الإشعارات',
-    noNotifications: 'لا توجد إشعارات جديدة.'
+    noNotifications: 'لا توجد إشعارات جديدة.',
+    readyToSkipNoPassengers: 'جاهز للتخطي أو تأكيد الوصول (لا يوجد ركاب)'
   }
 };
 

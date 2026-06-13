@@ -236,6 +236,23 @@ export class VehiclesGateway
     this.logger.log(
       `Client connected: ${client.id} (User: ${client.user?.id})`,
     );
+
+    // Prevent concurrent logins for DRIVER users
+    if (client.user?.role === 'DRIVER') {
+      const driverId = client.user.id;
+      for (const [socketId, socketInstance] of this.server.sockets.sockets.entries()) {
+        const anySocketInstance = socketInstance as any;
+        if (socketId !== client.id && anySocketInstance.user?.id === driverId) {
+          this.logger.warn(
+            `Concurrent driver login detected: Disconnecting socket ${socketId} for driver ${driverId}`,
+          );
+          anySocketInstance.emit('sessionExpired', {
+            message: 'Your account has been logged in on another device.',
+          });
+          anySocketInstance.disconnect(true);
+        }
+      }
+    }
   }
 
   async handleDisconnect(client: any) {
