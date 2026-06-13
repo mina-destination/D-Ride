@@ -19,7 +19,8 @@ export default function MyTripsPage() {
     try {
       setLoading(true);
       const data = await driverAPI.getMyTrips();
-      setTrips(data);
+      const nonCancelledTrips = (data || []).filter((x: any) => x.status !== 'CANCELLED');
+      setTrips(nonCancelledTrips);
     } catch (error) {
       console.error('Failed to load driver trips', error);
     } finally {
