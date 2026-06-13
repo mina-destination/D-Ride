@@ -29,6 +29,12 @@ class SocketService {
         this.flushOfflineCheckpointUpdates();
       });
 
+      this.socket.on('sessionExpired', (data: any) => {
+        alert(data.message || 'Session expired. You logged in on another device.');
+        localStorage.removeItem('dride_driver_token');
+        window.location.reload();
+      });
+
       this.socket.on('disconnect', () => {
         console.log('Driver disconnected from WebSocket server');
       });

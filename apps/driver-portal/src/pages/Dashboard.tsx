@@ -186,16 +186,30 @@ export default function DashboardPage() {
           return; // Block silently or UI disabled handles it
         }
       }
-      // 2. Check distance
-      const targetCp = sortedCPs[cpIndex];
-      const cpCoords = targetCp.location?.coordinates || targetCp.coordinates;
-      if (cpCoords) {
-        if (!currentCoords) {
-          return;
-        }
-        const dist = getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0]);
-        if (dist > 200) {
-          return;
+
+      // Check if checkpoint has passenger actions (pickups or dropoffs)
+      const dropoffs = manifest.filter(b => 
+        (b.dropoffStopId === checkpointName || b.dropoffCheckpoint?.name === checkpointName) && 
+        (b.status === 'CONFIRMED' || b.status === 'BOARDED')
+      );
+      const pickups = manifest.filter(b => 
+        (b.pickupStopId === checkpointName || b.pickupCheckpoint?.name === checkpointName) && 
+        b.status === 'CONFIRMED'
+      );
+      const hasPassengers = dropoffs.length > 0 || pickups.length > 0;
+
+      // 2. Check distance (only if the checkpoint has passenger pickups/dropoffs)
+      if (hasPassengers) {
+        const targetCp = sortedCPs[cpIndex];
+        const cpCoords = targetCp.location?.coordinates || targetCp.coordinates;
+        if (cpCoords) {
+          if (!currentCoords) {
+            return;
+          }
+          const dist = getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0]);
+          if (dist > 200) {
+            return;
+          }
         }
       }
     }
@@ -503,7 +517,7 @@ export default function DashboardPage() {
     const watchOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
-      maximumAge: 3000
+      maximumAge: 0
     };
 
     const handleSuccess = (lat: number, lng: number) => {
@@ -1461,16 +1475,6 @@ export default function DashboardPage() {
                         // Sequence validation: Must arrive at previous stop first
                         const isPrevArrived = index === 0 || arrivedCheckpoints.includes(sortedCPs[index - 1].name);
                         
-                        // Proximity check: Must be within 200m
-                        const cpCoords = cp.location?.coordinates || cp.coordinates;
-                        const distance = currentCoords && cpCoords
-                          ? getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0])
-                          : null;
-                        const isWithinRange = distance !== null && distance <= 200;
-                        
-                        // Arrived button validation
-                        const isActionable = isArrived || (isPrevArrived && isWithinRange);
-
                         // Bookings for pickups/dropoffs at this specific checkpoint
                         const dropoffs = manifest.filter(b => 
                           (b.dropoffStopId === cp.name || b.dropoffCheckpoint?.name === cp.name) && 
@@ -1480,6 +1484,17 @@ export default function DashboardPage() {
                           (b.pickupStopId === cp.name || b.pickupCheckpoint?.name === cp.name) && 
                           b.status === 'CONFIRMED'
                         );
+                        const hasPassengers = dropoffs.length > 0 || pickups.length > 0;
+
+                        // Proximity check: Must be within 200m
+                        const cpCoords = cp.location?.coordinates || cp.coordinates;
+                        const distance = currentCoords && cpCoords
+                          ? getDistanceInMeters(currentCoords.lat, currentCoords.lng, cpCoords[1], cpCoords[0])
+                          : null;
+                        const isWithinRange = distance !== null && distance <= 200;
+                        
+                        // Arrived button validation: If no passengers, driver can mark arrived directly (skip distance check)
+                        const isActionable = isArrived || (isPrevArrived && (!hasPassengers || isWithinRange));
 
                         return (
                           <div key={cp.name || index} style={{ 
@@ -1569,6 +1584,8 @@ export default function DashboardPage() {
                                 <div style={{ fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
                                   {!isPrevArrived ? (
                                     <span style={{ color: 'var(--text-muted)' }}>⚠️ {t('arrivePreviousFirst')}</span>
+                                  ) : !hasPassengers ? (
+                                    <span style={{ color: 'var(--success)' }}>✅ {t('readyToSkipNoPassengers')}</span>
                                   ) : distance === null ? (
                                     <span style={{ color: '#f59e0b' }}>⏳ {t('gpsRequired')}</span>
                                   ) : !isWithinRange ? (
