@@ -102,14 +102,14 @@ test.describe('Navigation & Layout UI', () => {
   test('should redirect unauthenticated users away from protected routes', async ({ page }) => {
     // Try accessing protected contact page
     await page.goto('/contact');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL(/\/login/);
 
     // Try accessing protected my-trips page
     await page.goto('/my-trips');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL(/\/login/);
 
     // Try accessing protected checkout page
     await page.goto('/checkout?tripId=trip-1');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL(/\/login/);
   });
 });

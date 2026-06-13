@@ -147,25 +147,65 @@ async function setupConsoleAndAPIMocks(page: any, role: 'OWNER' | 'DRIVER' | 'PA
     });
   });
 
-  await page.route('**/api/bookings', async (route: any) => {
+  await page.route(/\/api\/users(\?.*)?$/, async (route: any) => {
     await route.fulfill({
-      status: 201,
+      status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        data: {
-          _id: 'booking-new-e2e',
-          userId: 'user-123',
-          tripId: MOCK_TRIPS[0],
-          seatNumbers: [1],
-          pickupCheckpoint: MOCK_ROUTES[0].checkpoints[1], // Ring Road
-          dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2], // Smart Village Gate
-          status: 'CONFIRMED',
-          paymentStatus: 'SUCCESS',
-          amountEGP: 65,
-          bookedAt: new Date(),
-        }
-      }),
+      body: JSON.stringify({ data: [MOCK_PASSENGER_USER] }),
     });
+  });
+
+  await page.route('**/api/vehicles', async (route: any) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [] }),
+    });
+  });
+
+  await page.route('**/api/bookings', async (route: any) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: {
+            _id: 'booking-new-e2e',
+            userId: 'user-123',
+            tripId: MOCK_TRIPS[0],
+            seatNumbers: [1],
+            pickupCheckpoint: MOCK_ROUTES[0].checkpoints[1], // Ring Road
+            dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2], // Smart Village Gate
+            status: 'CONFIRMED',
+            paymentStatus: 'SUCCESS',
+            amountEGP: 65,
+            bookedAt: new Date(),
+          }
+        }),
+      });
+    } else {
+      // GET request
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [
+            {
+              _id: 'booking-new-e2e',
+              userId: MOCK_PASSENGER_USER,
+              tripId: MOCK_TRIPS[0],
+              seatNumbers: [1],
+              pickupCheckpoint: MOCK_ROUTES[0].checkpoints[1], // Ring Road
+              dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2], // Smart Village Gate
+              status: 'CONFIRMED',
+              paymentStatus: 'SUCCESS',
+              amountEGP: 65,
+              bookedAt: new Date(),
+            }
+          ]
+        }),
+      });
+    }
   });
 
   await page.route('**/api/bookings/booking-new-e2e', async (route: any) => {
@@ -230,6 +270,19 @@ async function setupConsoleAndAPIMocks(page: any, role: 'OWNER' | 'DRIVER' | 'PA
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ data: [] }),
+    });
+  });
+
+  await page.route('**/api/settings', async (route: any) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          supportEmail: 'support@dride.com',
+          supportPhone: '+20 100 123 4567',
+        }
+      }),
     });
   });
 }

@@ -724,7 +724,7 @@ export function BookingsPage() {
         onOk={() => createForm.submit()}
         confirmLoading={createLoading}
         width={700}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         okText="Confirm Reservation"
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateSubmit} style={{ marginTop: '1.5rem' }}>

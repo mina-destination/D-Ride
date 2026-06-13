@@ -91,14 +91,19 @@ export class AuthService {
 
     // Asynchronously send a welcome WhatsApp message if phone is provided
     if (user.phone) {
-      const welcomeMsg = 
+      const welcomeMsg =
         `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
         `Your account has been registered successfully with your phone number.\n\n` +
         `You can now use this chat to query your active bookings or chat with our live support anytime! Just send any message here to open the main menu.`;
-      
-      this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
-        this.logger.error(`Failed to send welcome WhatsApp message to ${user.phone}:`, err);
-      });
+
+      this.notificationsService
+        .sendWhatsApp(user.phone, welcomeMsg)
+        .catch((err) => {
+          this.logger.error(
+            `Failed to send welcome WhatsApp message to ${user.phone}:`,
+            err,
+          );
+        });
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -390,7 +395,9 @@ export class AuthService {
       updateData.phone = normalizedPhone;
     }
 
-    const oldUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    const oldUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -398,13 +405,18 @@ export class AuthService {
 
     // Send WhatsApp notification if the phone number was updated/linked
     if (user.phone && user.phone !== oldUser?.phone) {
-      const welcomeMsg = 
+      const welcomeMsg =
         `Welcome to *D-Ride*, ${user.name}! 🚌 👋\n\n` +
         `Your phone number has been updated/linked successfully to your account.\n\n` +
         `Use this chat to query your active bookings or speak with customer service!`;
-      this.notificationsService.sendWhatsApp(user.phone, welcomeMsg).catch((err) => {
-        this.logger.error(`Failed to send link WhatsApp message to ${user.phone}:`, err);
-      });
+      this.notificationsService
+        .sendWhatsApp(user.phone, welcomeMsg)
+        .catch((err) => {
+          this.logger.error(
+            `Failed to send link WhatsApp message to ${user.phone}:`,
+            err,
+          );
+        });
     }
 
     const permissions = await this.getPermissionsForRole(user.role);

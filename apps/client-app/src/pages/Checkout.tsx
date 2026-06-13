@@ -5,7 +5,7 @@ import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Pho
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
-import { Steps, ConfigProvider } from 'antd';
+import { Steps, ConfigProvider, theme as antdTheme } from 'antd';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -651,15 +651,23 @@ export default function CheckoutPage() {
           margin: '0 auto 3.5rem auto',
           padding: '0 1.5rem'
         }}>
-          <ConfigProvider direction={isRtl ? 'rtl' : 'ltr'}>
+          <ConfigProvider
+            direction={isRtl ? 'rtl' : 'ltr'}
+            theme={{
+              algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+              token: {
+                colorPrimary: '#f5b731',
+              }
+            }}
+          >
             <Steps
               current={processing ? 2 : (selectedSeats.length > 0 ? 1 : 0)}
               titlePlacement="vertical"
               className="premium-steps"
               items={[
-                { title: t('configureCommuteStepper') },
-                { title: t('selectPaymentStepper') },
-                { title: t('confirmSeatStepper') }
+                { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
+                { title: <span className="stepper-label">{t('selectPaymentStepper')}</span> },
+                { title: <span className="stepper-label">{t('confirmSeatStepper')}</span> }
               ]}
             />
           </ConfigProvider>
@@ -737,7 +745,7 @@ export default function CheckoutPage() {
                             left: 50%;
                             width: 100%;
                             height: 2px;
-                            background: rgba(255, 255, 255, 0.15);
+                            background: var(--border);
                             z-index: 0;
                           }
                           .ant-timeline-item:last-child .ant-timeline-item-tail {
@@ -747,7 +755,7 @@ export default function CheckoutPage() {
                             width: 10px;
                             height: 10px;
                             border-radius: 50%;
-                            background: #141416;
+                            background: var(--surface);
                             border: 2px solid var(--primary);
                             z-index: 1;
                             box-shadow: 0 0 6px var(--primary);
@@ -802,12 +810,12 @@ export default function CheckoutPage() {
                                 <div 
                                   className="ant-timeline-item-head"
                                   style={{
-                                    borderColor: isFirst ? 'var(--primary)' : (isLast ? '#EF4444' : 'rgba(255,255,255,0.4)'),
-                                    boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px #EF4444' : 'none'),
+                                    borderColor: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--border)'),
+                                    boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px var(--danger)' : 'none'),
                                   }}
                                 ></div>
                                 <div className="ant-timeline-item-content">
-                                  <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? '#EF4444' : 'var(--text-primary)') }}>
+                                  <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--text-primary)') }}>
                                     {isRtl ? (cp.nameAr || cp.name) : cp.name}
                                   </div>
                                   {(isFirst || isLast) && cpDateStr && (

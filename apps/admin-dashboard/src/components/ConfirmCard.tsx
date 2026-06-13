@@ -32,6 +32,7 @@ export function ConfirmCard({
       closable={false}
       centered
       width={420}
+      zIndex={10100}
       className="confirm-modal"
     >
       <div className="confirm-card-container">

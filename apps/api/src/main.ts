@@ -95,12 +95,17 @@ async function bootstrap() {
     origins = allowedOriginsEnv.split(',').map((origin) => origin.trim());
     if (isProduction) {
       origins = origins.filter(
-        (o) => !o.includes('localhost') && !o.includes('127.0.0.1') && o !== 'capacitor://localhost',
+        (o) =>
+          !o.includes('localhost') &&
+          !o.includes('127.0.0.1') &&
+          o !== 'capacitor://localhost',
       );
     }
   } else {
     if (isProduction) {
-      throw new Error('ALLOWED_ORIGINS environment variable is required in production');
+      throw new Error(
+        'ALLOWED_ORIGINS environment variable is required in production',
+      );
     }
     origins = [
       'http://localhost:5173', // passenger client app

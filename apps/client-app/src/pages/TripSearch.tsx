@@ -4,6 +4,7 @@ import { tripsAPI, routesAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
+import { Wifi, Snowflake, Zap } from 'lucide-react';
 
 // Map imports removed
 
@@ -440,7 +441,7 @@ export default function TripSearchPage() {
            left: 50%;
            width: 100%;
            height: 2px;
-           background: rgba(255, 255, 255, 0.15);
+           background: var(--border);
            z-index: 0;
          }
          .ant-timeline-item:last-child .ant-timeline-item-tail {
@@ -450,7 +451,7 @@ export default function TripSearchPage() {
            width: 10px;
            height: 10px;
            border-radius: 50%;
-           background: #141416;
+           background: var(--surface);
            border: 2px solid var(--primary);
            z-index: 1;
            box-shadow: 0 0 6px var(--primary);
@@ -686,24 +687,25 @@ export default function TripSearchPage() {
                           })();
 
                           return (
-                            <div 
-                              key={trip._id} 
-                              className={`trip-card glass animate-fade-in-up ${activeTripId === trip._id ? 'connector-glow' : ''} ${!isTargetDate ? 'alternative-trip-card' : ''}`}
-                              onClick={() => setActiveTripId(trip._id)}
-                              style={{ 
-                                animationDelay: `${idx * 0.1}s`, 
-                                display: 'flex', 
-                                flexDirection: 'column',
-                                border: activeTripId === trip._id 
-                                  ? '1px solid var(--primary)' 
-                                  : isTargetDate 
-                                    ? '1px solid var(--border)' 
-                                    : '1px solid rgba(255, 255, 255, 0.05)',
-                                position: 'relative',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease'
-                              }}
-                            >
+                            <div key={trip._id}>
+                              {/* DESKTOP SEARCH CARD */}
+                              <div 
+                                className={`desktop-search-card trip-card glass animate-fade-in-up ${activeTripId === trip._id ? 'connector-glow' : ''} ${!isTargetDate ? 'alternative-trip-card' : ''}`}
+                                onClick={() => setActiveTripId(trip._id)}
+                                style={{ 
+                                  animationDelay: `${idx * 0.1}s`, 
+                                  display: 'flex', 
+                                  flexDirection: 'column',
+                                  border: activeTripId === trip._id 
+                                    ? '1px solid var(--primary)' 
+                                    : isTargetDate 
+                                      ? '1px solid var(--border)' 
+                                      : '1px solid rgba(255, 255, 255, 0.05)',
+                                  position: 'relative',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              >
                               <div style={{ display: 'flex', width: '100%', position: 'relative' }} className="trip-card-main-row">
                                 {/* Ticket Punch Cutout Top */}
                                 <div style={{
@@ -953,20 +955,28 @@ export default function TripSearchPage() {
                                       
                                       return journeyCps.length > 0 ? (
                                         <ul className="ant-timeline ant-timeline-horizontal" style={{ margin: '1.25rem 0 0.5rem 0', padding: 0, listStyle: 'none' }}>
-                                          {journeyCps.map((cp: any) => {
+                                          {journeyCps.map((cp: any, idx: number) => {
                                             const cpEstimatedTime = cp.minutesFromStart !== undefined
                                               ? new Date(baseTripDepTime + cp.minutesFromStart * 60 * 1000)
                                               : null;
                                             const cpTimeStr = cpEstimatedTime
                                               ? cpEstimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                               : '';
+                                            const isFirst = idx === 0;
+                                            const isLast = idx === journeyCps.length - 1;
 
                                             return (
                                               <li key={cp.name} className="ant-timeline-item">
                                                 <div className="ant-timeline-item-tail"></div>
-                                                <div className="ant-timeline-item-head"></div>
+                                                <div 
+                                                  className="ant-timeline-item-head"
+                                                  style={{
+                                                    borderColor: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--border)'),
+                                                    boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px var(--danger)' : 'none'),
+                                                  }}
+                                                ></div>
                                                 <div className="ant-timeline-item-content">
-                                                  <div className="ant-timeline-item-title">
+                                                  <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--text-primary)') }}>
                                                     {isRtl ? (cp.nameAr || cp.name) : cp.name}
                                                   </div>
                                                   <div className="ant-timeline-item-time">
@@ -991,22 +1001,28 @@ export default function TripSearchPage() {
                                     <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 800 }}>
                                       {isRtl ? 'سعر التذكرة العادية' : 'Standard Fare'}
                                     </span>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginTop: '2px', marginBottom: '4px' }}>
+                                    <div className="trip-price" style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginTop: '2px', marginBottom: '4px' }}>
                                       <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary, #F5B731)', fontFamily: 'Outfit, sans-serif' }}>
                                         {dynamicLegPrice}
                                       </span>
                                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary, #F5B731)' }}>
-                                        {isRtl ? 'ج.م' : 'EGP'}
+                                        {isRtl ? ' ج.م' : ' EGP'}
                                       </span>
                                     </div>
-                                    <span style={{ fontSize: '0.72rem', color: seatsLeft <= 5 ? '#f87171' : '#34d399', fontWeight: 655, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <span className="trip-seats" style={{ fontSize: '0.72rem', color: seatsLeft <= 5 ? '#f87171' : '#34d399', fontWeight: 655, display: 'flex', alignItems: 'center', gap: '3px' }}>
                                       🔥 {seatsLeft} {isRtl ? 'مقاعد متبقية' : 'seats left'}
                                     </span>
                                   </div>
-                                  <div className="trip-amenities" style={{ display: 'flex', gap: '6px', margin: '8px 0 10px', alignSelf: 'flex-start' }}>
-                                    <span title="Air Conditioned" style={{ fontSize: '0.9rem' }}>❄️</span>
-                                    <span title="Free WiFi" style={{ fontSize: '0.9rem' }}>📶</span>
-                                    <span title="USB Charging" style={{ fontSize: '0.9rem' }}>🔌</span>
+                                  <div className="trip-amenities" style={{ display: 'flex', gap: '10px', margin: '8px 0 10px', alignSelf: 'flex-start' }}>
+                                    <div title="Air Conditioned" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                      <Snowflake size={16} style={{ color: 'var(--primary)' }} />
+                                    </div>
+                                    <div title="Free WiFi" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                      <Wifi size={16} style={{ color: 'var(--primary)' }} />
+                                    </div>
+                                    <div title="USB Charging" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                      <Zap size={16} style={{ color: 'var(--primary)' }} />
+                                    </div>
                                   </div>
                                   <button 
                                     onClick={(e) => {
@@ -1040,9 +1056,260 @@ export default function TripSearchPage() {
                                 </div>
                               </div>
 
-
                             </div>
-                          );
+
+                            {/* MOBILE SEARCH CARD */}
+                            <div className="mobile-search-card glass" style={{
+                              background: 'var(--surface)',
+                              border: activeTripId === trip._id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                              borderRadius: '16px',
+                              padding: '12px 14px',
+                              marginBottom: '1rem',
+                              boxSizing: 'border-box',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              position: 'relative',
+                              transition: 'all 0.3s ease'
+                            }} onClick={() => setActiveTripId(trip._id)}>
+                              {/* Top Row: Date Badge & Smart Mode / Alternative Badge */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '4px', 
+                                  fontSize: '0.72rem', 
+                                  fontWeight: 700, 
+                                  color: 'var(--primary)', 
+                                  background: 'rgba(245, 183, 49, 0.08)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  <span>📅</span>
+                                  <span>{boardingDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                
+                                {!isTargetDate && (
+                                  <span style={{ 
+                                    fontSize: '0.6rem', 
+                                    fontWeight: 700, 
+                                    color: 'var(--text-muted)',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    {t('alternativeDate')}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Timings Row */}
+                              <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                                {/* Pickup */}
+                                <div style={{ display: 'flex', flexDirection: 'column', width: '40%' }}>
+                                  <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{pickupTimeStr}</span>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop'))}
+                                  </span>
+                                </div>
+
+                                {/* Duration / Timeline Line */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative', margin: '0 8px' }}>
+                                  <span style={{ fontSize: '0.62rem', color: 'var(--primary)', fontWeight: 700, whiteSpace: 'nowrap', marginBottom: '2px' }}>
+                                    {durationMinutes} min
+                                  </span>
+                                  <div style={{ width: '100%', height: '1px', background: 'repeating-linear-gradient(90deg, var(--border), var(--border) 2px, transparent 2px, transparent 4px)' }} />
+                                </div>
+
+                                {/* Dropoff */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '40%', textAlign: 'right' }}>
+                                  <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{dropoffTimeStr}</span>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop'))}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Pickup Walk/Drive Distance Badge */}
+                              {isSmartMode && trip.totalWalkingDistance !== undefined && (
+                                (() => {
+                                  const searchPickupLat = pickupLat ? parseFloat(pickupLat) : null;
+                                  const searchPickupLng = pickupLng ? parseFloat(pickupLng) : null;
+
+                                  const pickupDist = (() => {
+                                    const coords = pickupCp.location?.coordinates || pickupCp.coordinates;
+                                    if (coords && coords.length >= 2) {
+                                      if (userLocation) {
+                                        return haversineDistance(userLocation.lng, userLocation.lat, coords[0], coords[1]);
+                                      }
+                                      if (searchPickupLat !== null && !isNaN(searchPickupLat) && searchPickupLng !== null && !isNaN(searchPickupLng)) {
+                                        return haversineDistance(searchPickupLng, searchPickupLat, coords[0], coords[1]);
+                                      }
+                                    }
+                                    return trip.pickupCheckpoint.distanceMeters || 0;
+                                  })();
+                                  
+                                  const firstMileTimeWalk = pickupDist > 0 ? Math.max(1, Math.round(pickupDist / 80)) : 0;
+                                  const firstMileTimeCar = pickupDist > 0 ? Math.max(1, Math.round(pickupDist / 350)) : 0;
+
+                                  const formatMinsCompact = (mins: number) => {
+                                    if (mins === 0) return isRtl ? '0 د' : '0m';
+                                    if (mins < 60) return isRtl ? `${mins} د` : `${mins}m`;
+                                    const hrs = Math.floor(mins / 60);
+                                    const remainingMins = mins % 60;
+                                    return remainingMins > 0 
+                                      ? (isRtl ? `${hrs} س ${remainingMins} د` : `${hrs}h ${remainingMins}m`) 
+                                      : (isRtl ? `${hrs} س` : `${hrs}h`);
+                                  };
+
+                                  const distanceStr = pickupDist < 1000 
+                                    ? `${pickupDist}m` 
+                                    : `${(pickupDist / 1000).toFixed(1)} km`;
+
+                                  const showLocationPrompt = !userLocation;
+
+                                  return (
+                                    <div style={{ display: 'flex', width: '100%', marginTop: '4px', justifyContent: 'center' }}>
+                                      {showLocationPrompt ? (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            requestGPS();
+                                          }}
+                                          style={{
+                                            fontSize: '0.68rem',
+                                            background: 'rgba(245, 183, 49, 0.06)',
+                                            color: 'var(--primary)',
+                                            padding: '4px 10px',
+                                            borderRadius: '12px',
+                                            border: '1px solid rgba(245, 183, 49, 0.25)',
+                                            fontWeight: 650,
+                                            cursor: 'pointer',
+                                            outline: 'none'
+                                          }}
+                                        >
+                                          📍 {isRtl ? 'مشاركة الموقع للمسافة' : 'Share location for walking/driving'}
+                                        </button>
+                                      ) : (
+                                        <div style={{
+                                          fontSize: '0.68rem',
+                                          background: 'rgba(255, 255, 255, 0.02)',
+                                          color: 'var(--primary)',
+                                          padding: '4px 10px',
+                                          borderRadius: '12px',
+                                          border: '1px solid rgba(245, 183, 49, 0.15)',
+                                          fontWeight: 650,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px'
+                                        }}>
+                                          <span>{isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}</span>
+                                          <span>🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})</span>
+                                          <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+                                          <span>🚗 {formatMinsCompact(firstMileTimeCar)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()
+                              )}
+
+                              {/* Amenities icons Row */}
+                              <div style={{ display: 'flex', gap: '10px', margin: '4px 0 6px', justifyContent: 'center' }}>
+                                <div title="Air Conditioned" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                  <Snowflake size={16} style={{ color: 'var(--primary)' }} />
+                                </div>
+                                <div title="Free WiFi" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                  <Wifi size={16} style={{ color: 'var(--primary)' }} />
+                                </div>
+                                <div title="USB Charging" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 183, 49, 0.12)', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(245, 183, 49, 0.25)', boxShadow: '0 2px 6px rgba(245, 183, 49, 0.08)' }}>
+                                  <Zap size={16} style={{ color: 'var(--primary)' }} />
+                                </div>
+                              </div>
+
+                              {/* Divider Line (Dashed) */}
+                              <div style={{ borderTop: '1px dashed var(--border)', margin: '4px 0' }} />
+
+                              {/* Bottom Section: Price & Booking */}
+                              <div style={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                gap: '10px', 
+                                background: 'var(--surface-hover)', 
+                                margin: '-12px -14px -12px -14px', 
+                                padding: '12px 14px', 
+                                borderBottomLeftRadius: '14px', 
+                                borderBottomRightRadius: '14px',
+                                borderTop: '1px solid var(--border)'
+                              }}>
+                                {/* Price & Seats Left Row */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+                                  {/* Price Group */}
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 800 }}>
+                                      {isRtl ? 'سعر التذكرة العادية' : 'Standard Fare'}
+                                    </span>
+                                    <div className="trip-price" style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginTop: '2px' }}>
+                                      <span style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--primary)', fontFamily: 'Outfit, sans-serif' }}>
+                                        {dynamicLegPrice}
+                                      </span>
+                                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                        {isRtl ? ' ج.م' : ' EGP'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Seats Left Group */}
+                                  <span className="trip-seats" style={{ 
+                                    fontSize: '0.72rem', 
+                                    color: seatsLeft <= 5 ? '#f87171' : '#34d399', 
+                                    fontWeight: 700,
+                                    background: seatsLeft <= 5 ? 'rgba(248, 113, 113, 0.08)' : 'rgba(52, 211, 153, 0.08)',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}>
+                                    🔥 {seatsLeft} {isRtl ? 'مقاعد متبقية' : 'seats left'}
+                                  </span>
+                                </div>
+
+                                {/* Full-Width Book Seat Button */}
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const selectedCp = selectedCheckpoints[trip._id];
+                                    const selectedDropoffCp = selectedDropoffCheckpoints[trip._id];
+                                    const cpQuery = selectedCp ? `&checkpointName=${encodeURIComponent(selectedCp)}` : '';
+                                    const dropoffQuery = selectedDropoffCp ? `&dropoffCheckpointName=${encodeURIComponent(selectedDropoffCp)}` : '';
+                                    navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
+                                  }}
+                                  className="auth-button" 
+                                  style={{ 
+                                    width: '100%',
+                                    padding: '10px 16px', 
+                                    fontSize: '0.85rem', 
+                                    fontWeight: 800,
+                                    borderRadius: '10px',
+                                    background: 'var(--primary)',
+                                    color: '#000',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 12px rgba(245, 183, 49, 0.2)'
+                                  }}
+                                >
+                                  <span>{t('bookSeatTicket')}</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
                         })}
                       </div>
                     </div>

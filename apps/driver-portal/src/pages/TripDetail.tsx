@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { driverAPI } from '../services/api';
 import { ArrowLeft, Clock, MapPin, Play, CheckCircle, Navigation, ShieldCheck, QrCode, Camera, Globe } from 'lucide-react';
-import logo from '../assets/d-ride-logo.jpeg';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useTranslation } from '../context/LanguageContext';
+import Header from '../components/Header';
 
 function playChime(isSuccess: boolean) {
   try {
@@ -202,42 +202,11 @@ export default function TripDetailPage() {
   return (
     <div className="app-container">
       {/* Top bar header */}
-      <div className="floating-header" style={{
-        background: 'rgba(14, 14, 27, 0.45)',
-        backdropFilter: 'blur(20px) saturate(1.6)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '100px',
-        padding: '12px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: '1rem',
-        zIndex: 10,
-        margin: '1rem 1rem 0 1rem',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button 
-            onClick={() => navigate('/trips')} 
-            style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
-          >
-            <ArrowLeft size={20} style={{ transform: isRtl ? 'rotate(180deg)' : 'none' }} />
-          </button>
-          <img src={logo} alt="Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px', objectFit: 'contain', boxShadow: '0 0 10px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
-          <h2 className="title-outfit" style={{ fontSize: '15px', margin: 0, color: 'var(--text-primary)' }}>
-            {t('tripDetails')}
-          </h2>
-        </div>
-        <button
-          onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-          style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: 0 }}
-          title={language === 'en' ? 'العربية' : 'English'}
-        >
-          <Globe size={18} />
-        </button>
-      </div>
+      <Header 
+        title={t('tripDetails')} 
+        showBack={true} 
+        backPath="/trips" 
+      />
 
       <div className="content-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Route Card Overview */}

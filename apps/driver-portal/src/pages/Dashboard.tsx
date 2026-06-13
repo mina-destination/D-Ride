@@ -32,6 +32,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import maplibregl from 'maplibre-gl';
 import { Capacitor } from '@capacitor/core';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import Header from '../components/Header';
 
 // Sound feedback helper
 function playChime(isSuccess: boolean) {
@@ -198,34 +199,8 @@ export default function DashboardPage() {
   // Generate 7 days for the calendar strip (today +/- 3 days)
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
 
-  // Haptic feedback on new notification arrival (native mobile)
-  const prevNotifCount = useRef(notifications.length);
-  useEffect(() => {
-    if (notifications.length > prevNotifCount.current && Capacitor.isNativePlatform()) {
-      try {
-        const haptics = (Capacitor as any).Plugins?.Haptics;
-        if (haptics) {
-          haptics.impact({ style: 'MEDIUM' });
-        }
-      } catch (e) {
-        // haptics not available
-      }
-    }
-    prevNotifCount.current = notifications.length;
-  }, [notifications.length]);
-  
-  useEffect(() => {
-    const dates: Date[] = [];
-    for (let i = -3; i <= 3; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      dates.push(d);
-    }
-    setCalendarDates(dates);
-  }, []);
-
   // Fetch all driver trips
-  const fetchTrips = async (autoSelect = false, silent = false) => {
+  async function fetchTrips(autoSelect = false, silent = false) {
     try {
       if (!silent) setLoading(true);
       const data = await driverAPI.getMyTrips();
@@ -250,10 +225,10 @@ export default function DashboardPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }
 
   // Fetch manifest for the selected active trip
-  const fetchTripManifest = async (tripId: string) => {
+  async function fetchTripManifest(tripId: string) {
     try {
       setManifestLoading(true);
       const manifestData = await driverAPI.getTripManifest(tripId);
@@ -263,37 +238,10 @@ export default function DashboardPage() {
     } finally {
       setManifestLoading(false);
     }
-  };
-
-  // Connect socket on mount, disconnect on unmount
-  useEffect(() => {
-    socketService.connect();
-    fetchTrips(true);
-    return () => {
-      stopLocationStream();
-      socketService.disconnect();
-    };
-  }, []);
-
-  // Periodically refresh trips and active manifest silently (always refreshed)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // 1. Refresh trips list silently
-      fetchTrips(false, true);
-      
-      // 2. If trip manifest is active, refresh manifest silently too
-      if (activeTrip && (activeTrip.status === 'BOARDING' || activeTrip.status === 'IN_TRANSIT')) {
-        driverAPI.getTripManifest(activeTrip._id).then((data) => {
-          setManifest(data);
-        }).catch(console.error);
-      }
-    }, 6000); // every 6s
-
-    return () => clearInterval(interval);
-  }, [activeTrip?._id, activeTrip?.status]);
+  }
 
   // When active trip changes, load its manifest and reset states
-  const handleSelectTrip = (trip: any) => {
+  function handleSelectTrip(trip: any) {
     setActiveTrip(trip);
     setScannerActive(false);
     setScanStatus({ type: null, message: '' });
@@ -335,7 +283,291 @@ export default function DashboardPage() {
     } else {
       setManifest([]);
     }
-  };
+  }
+
+  // Helpers to draw on map
+  function drawRoutePolyline() {
+    const map = mapRef.current;
+    if (!map || streetPath.length === 0) return;
+
+    if (map.getSource('route-path')) {
+      map.removeLayer('route-path-layer');
+      map.removeSource('route-path');
+    }
+
+    map.addSource('route-path', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: streetPath.map(([lat, lng]) => [lng, lat]),
+        },
+      },
+    });
+
+    map.addLayer({
+      id: 'route-path-layer-casing',
+      type: 'line',
+      source: 'route-path',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': '#174ea6',
+        'line-width': 8,
+        'line-opacity': 0.9,
+      },
+    });
+
+    map.addLayer({
+      id: 'route-path-layer',
+      type: 'line',
+      source: 'route-path',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': '#8ab4f8',
+        'line-width': 5,
+        'line-opacity': 0.95,
+      },
+    });
+  }
+
+  function drawCheckpointMarkers() {
+    const map = mapRef.current;
+    if (!map || !activeTrip?.routeId?.checkpoints) return;
+
+    // Clear old ones
+    checkpointMarkersRef.current.forEach((m) => m.remove());
+    checkpointMarkersRef.current = [];
+
+    activeTrip.routeId.checkpoints.forEach((cp: any, idx: number) => {
+      const coords = cp.location?.coordinates || cp.coordinates;
+      if (!coords) return;
+
+      const el = document.createElement('div');
+      const isStart = cp.type === 'START';
+      const isEnd = cp.type === 'END';
+      if (isStart) {
+        el.className = 'google-maps-start-pin';
+      } else if (isEnd) {
+        el.className = 'google-maps-dest-pin';
+      } else {
+        el.className = 'google-maps-stop-pin';
+        el.innerText = String(idx);
+      }
+
+      const cpName = language === 'ar' ? (cp.nameAr || cp.name) : cp.name;
+      const popup = new maplibregl.Popup({ offset: isStart || isEnd ? 15 : 10, closeButton: false }).setHTML(
+        `<div style="color:#000; font-size:11px; font-weight:bold; padding:1px 3px;">${cpName}</div>`
+      );
+
+      const marker = new maplibregl.Marker({ element: el, anchor: isStart || isEnd ? 'bottom' : 'center' })
+        .setLngLat([coords[0], coords[1]])
+        .setPopup(popup)
+        .addTo(map);
+
+      marker.togglePopup();
+      checkpointMarkersRef.current.push(marker);
+    });
+  }
+
+  // Location Telemetry Broadcasting
+  function startLocationStream() {
+    if (isStreaming) return;
+    const gpsPermitted = localStorage.getItem('dride_gps_permitted') === 'true';
+    if (gpsPermitted) {
+      triggerRealGPS();
+    } else {
+      setPermissionModalVisible(true);
+    }
+  }
+
+  function triggerRealGPS() {
+    setIsStreaming(true);
+    setGpsError(null);
+    localStorage.setItem('dride_gps_permitted', 'true');
+    setPermissionModalVisible(false);
+
+    let startLat = 30.0444;
+    let startLng = 31.2357;
+    
+    if (activeTrip?.routeId?.path?.coordinates?.length > 0) {
+      const firstCoord = activeTrip.routeId.path.coordinates[0];
+      startLng = firstCoord[0];
+      startLat = firstCoord[1];
+    }
+    
+    setCurrentCoords({ lat: startLat, lng: startLng });
+
+    if ('geolocation' in navigator) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setCurrentCoords({ lat, lng });
+          
+          socketService.sendLocation({
+            vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
+            driverId: user?._id || 'mock-driver-123',
+            longitude: lng,
+            latitude: lat,
+          });
+        },
+        (error) => {
+          console.warn('GPS failed, fallback to simulator:', error.message);
+          setGpsError(t('gpsNotAvailable'));
+          setIsMocking(true);
+          startMockSimulation(startLat, startLng);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+      geoWatchId.current = watchId;
+    } else {
+      setGpsError(t('geoNotSupported'));
+      setIsMocking(true);
+      startMockSimulation(startLat, startLng);
+    }
+  }
+
+  function stopLocationStream() {
+    if (geoWatchId.current !== null) {
+      navigator.geolocation.clearWatch(geoWatchId.current);
+      geoWatchId.current = null;
+    }
+    if (mockIntervalId.current !== null) {
+      clearInterval(mockIntervalId.current);
+      mockIntervalId.current = null;
+    }
+    setIsStreaming(false);
+    setIsMocking(false);
+  }
+
+  function startMockSimulation(initLat: number, initLng: number) {
+    let lat = initLat;
+    let lng = initLng;
+    let step = 0;
+
+    const mockRoutePath = streetPath.length > 0
+      ? streetPath.map(c => [c[1], c[0]])
+      : (activeTrip?.routeId?.path?.coordinates || [[31.2357, 30.0444]]);
+
+    mockIntervalId.current = setInterval(() => {
+      const nextCoord = mockRoutePath[step % mockRoutePath.length];
+      lng = nextCoord[0];
+      lat = nextCoord[1];
+      step++;
+
+      setCurrentCoords({ lat, lng });
+
+      socketService.sendLocation({
+        vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
+        driverId: user?._id || 'mock-driver-123',
+        longitude: lng,
+        latitude: lat,
+      });
+    }, 3000);
+  }
+
+  // Status transitions
+  async function handleUpdateTripStatus(newStatus: string) {
+    if (!activeTrip) return;
+    try {
+      setActionLoading(true);
+      await driverAPI.updateTripStatus(activeTrip._id, newStatus);
+      
+      // Update local state
+      const updatedTrip = { ...activeTrip, status: newStatus };
+      setActiveTrip(updatedTrip);
+      
+      if (newStatus === 'COMPLETED') {
+        stopLocationStream();
+      }
+
+      await fetchTrips();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleCheckInPassenger(bookingId: string) {
+    try {
+      setActionLoading(true);
+      await driverAPI.checkInPassenger(bookingId);
+      playChime(true);
+      await fetchTripManifest(activeTrip._id);
+      fetchTrips();
+    } catch (error) {
+      playChime(false);
+      console.error(error);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Haptic feedback on new notification arrival (native mobile)
+  const prevNotifCount = useRef(notifications.length);
+  useEffect(() => {
+    if (notifications.length > prevNotifCount.current && Capacitor.isNativePlatform()) {
+      try {
+        const haptics = (Capacitor as any).Plugins?.Haptics;
+        if (haptics) {
+          haptics.impact({ style: 'MEDIUM' });
+        }
+      } catch (e) {
+        // haptics not available
+      }
+    }
+    prevNotifCount.current = notifications.length;
+  }, [notifications.length]);
+  
+  useEffect(() => {
+    const dates: Date[] = [];
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      dates.push(d);
+    }
+    setCalendarDates(dates);
+  }, []);
+
+
+
+  // Connect socket on mount, disconnect on unmount
+  useEffect(() => {
+    socketService.connect();
+    fetchTrips(true);
+    return () => {
+      stopLocationStream();
+      socketService.disconnect();
+    };
+  }, []);
+
+  // Periodically refresh trips and active manifest silently (always refreshed)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // 1. Refresh trips list silently
+      fetchTrips(false, true);
+      
+      // 2. If trip manifest is active, refresh manifest silently too
+      if (activeTrip && (activeTrip.status === 'BOARDING' || activeTrip.status === 'IN_TRANSIT')) {
+        driverAPI.getTripManifest(activeTrip._id).then((data) => {
+          setManifest(data);
+        }).catch(console.error);
+      }
+    }, 6000); // every 6s
+
+    return () => clearInterval(interval);
+  }, [activeTrip?._id, activeTrip?.status]);
+
+
 
   // QR Scanner Effect
   useEffect(() => {
@@ -452,97 +684,7 @@ export default function DashboardPage() {
     };
   }, [activeTrip?._id, activeTrip?.status === 'IN_TRANSIT']);
 
-  // Helpers to draw on map
-  const drawRoutePolyline = () => {
-    const map = mapRef.current;
-    if (!map || streetPath.length === 0) return;
 
-    if (map.getSource('route-path')) {
-      map.removeLayer('route-path-layer');
-      map.removeSource('route-path');
-    }
-
-    map.addSource('route-path', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: streetPath.map(([lat, lng]) => [lng, lat]),
-        },
-      },
-    });
-
-    map.addLayer({
-      id: 'route-path-layer-casing',
-      type: 'line',
-      source: 'route-path',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': '#174ea6',
-        'line-width': 8,
-        'line-opacity': 0.9,
-      },
-    });
-
-    map.addLayer({
-      id: 'route-path-layer',
-      type: 'line',
-      source: 'route-path',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': '#8ab4f8',
-        'line-width': 5,
-        'line-opacity': 0.95,
-      },
-    });
-  };
-
-  const drawCheckpointMarkers = () => {
-    const map = mapRef.current;
-    if (!map || !activeTrip?.routeId?.checkpoints) return;
-
-    // Clear old ones
-    checkpointMarkersRef.current.forEach((m) => m.remove());
-    checkpointMarkersRef.current = [];
-
-    activeTrip.routeId.checkpoints.forEach((cp: any, idx: number) => {
-      const coords = cp.location?.coordinates || cp.coordinates;
-      if (!coords) return;
-
-      const el = document.createElement('div');
-      const isStart = cp.type === 'START';
-      const isEnd = cp.type === 'END';
-      if (isStart) {
-        el.className = 'google-maps-start-pin';
-      } else if (isEnd) {
-        el.className = 'google-maps-dest-pin';
-      } else {
-        el.className = 'google-maps-stop-pin';
-        el.innerText = String(idx);
-      }
-
-      const cpName = language === 'ar' ? (cp.nameAr || cp.name) : cp.name;
-      const popup = new maplibregl.Popup({ offset: isStart || isEnd ? 15 : 10, closeButton: false }).setHTML(
-        `<div style="color:#000; font-size:11px; font-weight:bold; padding:1px 3px;">${cpName}</div>`
-      );
-
-      const marker = new maplibregl.Marker({ element: el, anchor: isStart || isEnd ? 'bottom' : 'center' })
-        .setLngLat([coords[0], coords[1]])
-        .setPopup(popup)
-        .addTo(map);
-
-      marker.togglePopup();
-      checkpointMarkersRef.current.push(marker);
-    });
-  };
 
   // Update bus marker position on coords change
   useEffect(() => {
@@ -565,140 +707,7 @@ export default function DashboardPage() {
     }
   }, [currentCoords, lockCenter]);
 
-  // Location Telemetry Broadcasting
-  const startLocationStream = () => {
-    if (isStreaming) return;
-    const gpsPermitted = localStorage.getItem('dride_gps_permitted') === 'true';
-    if (gpsPermitted) {
-      triggerRealGPS();
-    } else {
-      setPermissionModalVisible(true);
-    }
-  };
 
-  const triggerRealGPS = () => {
-    setIsStreaming(true);
-    setGpsError(null);
-    localStorage.setItem('dride_gps_permitted', 'true');
-    setPermissionModalVisible(false);
-
-    let startLat = 30.0444;
-    let startLng = 31.2357;
-    
-    if (activeTrip?.routeId?.path?.coordinates?.length > 0) {
-      const firstCoord = activeTrip.routeId.path.coordinates[0];
-      startLng = firstCoord[0];
-      startLat = firstCoord[1];
-    }
-    
-    setCurrentCoords({ lat: startLat, lng: startLng });
-
-    if ('geolocation' in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setCurrentCoords({ lat, lng });
-          
-          socketService.sendLocation({
-            vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
-            driverId: user?._id || 'mock-driver-123',
-            longitude: lng,
-            latitude: lat,
-          });
-        },
-        (error) => {
-          console.warn('GPS failed, fallback to simulator:', error.message);
-          setGpsError(t('gpsNotAvailable'));
-          setIsMocking(true);
-          startMockSimulation(startLat, startLng);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-      geoWatchId.current = watchId;
-    } else {
-      setGpsError(t('geoNotSupported'));
-      setIsMocking(true);
-      startMockSimulation(startLat, startLng);
-    }
-  };
-
-  const stopLocationStream = () => {
-    if (geoWatchId.current !== null) {
-      navigator.geolocation.clearWatch(geoWatchId.current);
-      geoWatchId.current = null;
-    }
-    if (mockIntervalId.current !== null) {
-      clearInterval(mockIntervalId.current);
-      mockIntervalId.current = null;
-    }
-    setIsStreaming(false);
-    setIsMocking(false);
-  };
-
-  const startMockSimulation = (initLat: number, initLng: number) => {
-    let lat = initLat;
-    let lng = initLng;
-    let step = 0;
-
-    const mockRoutePath = streetPath.length > 0
-      ? streetPath.map(c => [c[1], c[0]])
-      : (activeTrip?.routeId?.path?.coordinates || [[31.2357, 30.0444]]);
-
-    mockIntervalId.current = setInterval(() => {
-      const nextCoord = mockRoutePath[step % mockRoutePath.length];
-      lng = nextCoord[0];
-      lat = nextCoord[1];
-      step++;
-
-      setCurrentCoords({ lat, lng });
-
-      socketService.sendLocation({
-        vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
-        driverId: user?._id || 'mock-driver-123',
-        longitude: lng,
-        latitude: lat,
-      });
-    }, 3000);
-  };
-
-  // Status transitions
-  const handleUpdateTripStatus = async (newStatus: string) => {
-    if (!activeTrip) return;
-    try {
-      setActionLoading(true);
-      await driverAPI.updateTripStatus(activeTrip._id, newStatus);
-      
-      // Update local state
-      const updatedTrip = { ...activeTrip, status: newStatus };
-      setActiveTrip(updatedTrip);
-      
-      if (newStatus === 'COMPLETED') {
-        stopLocationStream();
-      }
-
-      await fetchTrips();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCheckInPassenger = async (bookingId: string) => {
-    try {
-      setActionLoading(true);
-      await driverAPI.checkInPassenger(bookingId);
-      playChime(true);
-      await fetchTripManifest(activeTrip._id);
-      fetchTrips();
-    } catch (error) {
-      playChime(false);
-      console.error(error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const toggleOffboard = (bookingId: string) => {
     setOffboardedPassengers(prev => ({
@@ -799,78 +808,10 @@ export default function DashboardPage() {
   return (
     <div className="app-container">
       {/* Top Header */}
-      <div className="floating-header" style={{
-        background: 'rgba(14, 14, 27, 0.7)',
-        backdropFilter: 'blur(20px) saturate(1.6)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '100px',
-        padding: '10px 16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'sticky',
-        top: '0.5rem',
-        zIndex: 100,
-        margin: '0.5rem 0.75rem 0 0.75rem',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-        overflow: 'hidden',
-        minWidth: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-          <img src={logo} alt="Logo" style={{ height: '28px', width: '28px', borderRadius: '6px', objectFit: 'contain', boxShadow: '0 0 8px rgba(245, 183, 49, 0.3)', flexShrink: 0 }} />
-          <div style={{ minWidth: 0, overflow: 'hidden' }}>
-            <h2 className="title-outfit" style={{ fontSize: '13px', margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t('helloDriver', { name: user?.name?.split(' ')[0] || 'Driver' })}
-            </h2>
-            <span style={{ fontSize: '9px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-              {t('cairoRegionFleet')}
-            </span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-          <button
-            onClick={() => setNotificationDrawerOpen(true)}
-            style={{ position: 'relative', color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
-            title="Notifications"
-          >
-            <Bell size={16} />
-            {notifications.filter(n => !n.read).length > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '0px',
-                right: '0px',
-                background: 'var(--primary)',
-                color: 'black',
-                borderRadius: '50%',
-                width: '14px',
-                height: '14px',
-                fontSize: '9px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {notifications.filter(n => !n.read).length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-            style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
-            title={language === 'en' ? 'العربية' : 'English'}
-          >
-            <Globe size={16} />
-          </button>
-          <button
-            onClick={logout}
-            style={{ color: 'var(--danger)', cursor: 'pointer', background: 'none', border: 'none', display: 'flex', alignItems: 'center', padding: '4px', minWidth: '32px', minHeight: '32px', justifyContent: 'center' }}
-            title={t('signOut')}
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </div>
+      <Header 
+        showNotifications={true} 
+        onNotificationClick={() => setNotificationDrawerOpen(true)} 
+      />
 
       <div className="content-container">
         {/* Android App Download Banner */}

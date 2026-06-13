@@ -30,8 +30,20 @@ describe('TripsService', () => {
       id: 'route-1',
       name: 'Test Route',
       checkpoints: [
-        { id: 'cp-1', name: 'Start', order: 1, minutesFromStart: 0, priceFromStartEGP: 0 },
-        { id: 'cp-2', name: 'End', order: 2, minutesFromStart: 30, priceFromStartEGP: 100 },
+        {
+          id: 'cp-1',
+          name: 'Start',
+          order: 1,
+          minutesFromStart: 0,
+          priceFromStartEGP: 0,
+        },
+        {
+          id: 'cp-2',
+          name: 'End',
+          order: 2,
+          minutesFromStart: 30,
+          priceFromStartEGP: 100,
+        },
       ],
     },
     vehicle: {
@@ -145,7 +157,12 @@ describe('TripsService', () => {
       mockPrismaService.trip.findMany.mockResolvedValue([mockTrip]);
       mockPrismaService.booking.findMany.mockResolvedValue([]);
 
-      const result = await service.searchTrips('route-1', undefined, 'Start', 'End');
+      const result = await service.searchTrips(
+        'route-1',
+        undefined,
+        'Start',
+        'End',
+      );
 
       expect(result).toHaveLength(1);
     });
@@ -189,9 +206,9 @@ describe('TripsService', () => {
     it('should throw NotFoundException if trip does not exist', async () => {
       mockPrismaService.trip.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.update('nonexistent', {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('nonexistent', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should update trip fields', async () => {
@@ -282,7 +299,11 @@ describe('TripsService', () => {
         status: 'IN_TRANSIT',
       });
 
-      const result = await service.updateTripStatus('trip-1', 'admin-1', 'IN_TRANSIT');
+      const result = await service.updateTripStatus(
+        'trip-1',
+        'admin-1',
+        'IN_TRANSIT',
+      );
 
       expect(result).toBeDefined();
     });

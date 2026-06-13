@@ -198,28 +198,43 @@ export class ReviewsService {
   }
 
   async getStats() {
-    const [totalReviews, ratingAgg, ratingDistribution, totalDrivers, totalTrips] =
-      await Promise.all([
-        this.prisma.review.count(),
-        this.prisma.review.aggregate({
-          _avg: { rating: true },
-        }),
-        this.prisma.review.groupBy({
-          by: ['rating'],
-          _count: { id: true },
-        }),
-        this.prisma.review.groupBy({
+    const [
+      totalReviews,
+      ratingAgg,
+      ratingDistribution,
+      totalDrivers,
+      totalTrips,
+    ] = await Promise.all([
+      this.prisma.review.count(),
+      this.prisma.review.aggregate({
+        _avg: { rating: true },
+      }),
+      this.prisma.review.groupBy({
+        by: ['rating'],
+        _count: { id: true },
+      }),
+      this.prisma.review
+        .groupBy({
           by: ['tripId'],
           where: {
             trip: { driverId: { not: null } },
           },
-        }).then((r) => new Set(r.map((x) => x.tripId)).size),
-        this.prisma.review.groupBy({
+        })
+        .then((r) => new Set(r.map((x) => x.tripId)).size),
+      this.prisma.review
+        .groupBy({
           by: ['tripId'],
-        }).then((r) => r.length),
-      ]);
+        })
+        .then((r) => r.length),
+    ]);
 
-    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const distribution: Record<number, number> = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
     for (const entry of ratingDistribution) {
       distribution[entry.rating] = entry._count.id;
     }

@@ -1039,7 +1039,7 @@ export function TripsPage() {
           <Button key="close" onClick={() => setIsReviewsOpen(false)}>Close</Button>
         ]}
         width={600}
-        destroyOnClose={true}
+        destroyOnHidden={true}
       >
         <List
           loading={reviewsLoading}

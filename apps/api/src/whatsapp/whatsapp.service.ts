@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupportGateway } from '../support/support.gateway';
@@ -10,7 +16,8 @@ import * as QRCode from 'qrcode';
 export class WhatsappService implements OnModuleInit {
   private readonly logger = new Logger('WhatsappService');
   private client: Client | null = null;
-  private status: 'DISCONNECTED' | 'CONNECTING' | 'SCAN_QR' | 'CONNECTED' = 'DISCONNECTED';
+  private status: 'DISCONNECTED' | 'CONNECTING' | 'SCAN_QR' | 'CONNECTED' =
+    'DISCONNECTED';
   private qrCode: string | null = null;
 
   constructor(
@@ -21,7 +28,9 @@ export class WhatsappService implements OnModuleInit {
 
   onModuleInit() {
     if (process.env.NODE_ENV === 'test') {
-      this.logger.log('Bypassing WhatsApp client initialization in test environment.');
+      this.logger.log(
+        'Bypassing WhatsApp client initialization in test environment.',
+      );
       this.status = 'CONNECTED';
       return;
     }
@@ -29,18 +38,21 @@ export class WhatsappService implements OnModuleInit {
   }
 
   private async initializeClient() {
-    this.logger.log('Starting WhatsApp client initialization via whatsapp-web.js...');
+    this.logger.log(
+      'Starting WhatsApp client initialization via whatsapp-web.js...',
+    );
     this.status = 'CONNECTING';
 
     try {
       this.client = new Client({
         authStrategy: new LocalAuth({
           clientId: 'dride-session',
-          dataPath: path.join(process.cwd(), '.wwebjs_auth')
+          dataPath: path.join(process.cwd(), '.wwebjs_auth'),
         }),
         webVersionCache: {
           type: 'remote',
-          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+          remotePath:
+            'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
         },
         puppeteer: {
           headless: true,
@@ -53,9 +65,9 @@ export class WhatsappService implements OnModuleInit {
             '--no-zygote',
             '--single-process',
             '--disable-gpu',
-            '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           ],
-        }
+        },
       });
 
       // Register Event Listeners
@@ -66,13 +78,18 @@ export class WhatsappService implements OnModuleInit {
             this.status = 'SCAN_QR';
             this.logger.log('WhatsApp QR code generated successfully.');
           } else {
-            this.logger.error('Failed to convert WhatsApp QR string to DataURL', err);
+            this.logger.error(
+              'Failed to convert WhatsApp QR string to DataURL',
+              err,
+            );
           }
         });
       });
 
       this.client.on('authenticated', () => {
-        this.logger.log('WhatsApp client authenticated successfully! Loading session...');
+        this.logger.log(
+          'WhatsApp client authenticated successfully! Loading session...',
+        );
       });
 
       this.client.on('ready', () => {
@@ -92,12 +109,10 @@ export class WhatsappService implements OnModuleInit {
         this.logger.warn(`WhatsApp client disconnected: ${reason}`);
       });
 
-      this.client.on('message', async (message) => {
-        try {
-          await this.handleIncomingMessage(message);
-        } catch (err) {
+      this.client.on('message', (message) => {
+        this.handleIncomingMessage(message).catch((err) => {
           this.logger.error('Error handling incoming WhatsApp message', err);
-        }
+        });
       });
 
       // Trigger initialization
@@ -105,7 +120,6 @@ export class WhatsappService implements OnModuleInit {
         this.logger.error('Failed to run client.initialize()', err);
         this.status = 'DISCONNECTED';
       });
-
     } catch (error) {
       this.logger.error('Failed to instantiate WhatsApp client', error);
       this.status = 'DISCONNECTED';
@@ -138,7 +152,10 @@ export class WhatsappService implements OnModuleInit {
       }
       this.logger.log('WhatsApp session and version caches cleared.');
     } catch (err) {
-      this.logger.error('Failed to clean up WhatsApp session and cache files', err);
+      this.logger.error(
+        'Failed to clean up WhatsApp session and cache files',
+        err,
+      );
     }
 
     // Re-initialize
@@ -147,7 +164,9 @@ export class WhatsappService implements OnModuleInit {
 
   async sendWhatsAppMessage(to: string, message: string): Promise<boolean> {
     if (this.status !== 'CONNECTED' || !this.client) {
-      this.logger.warn(`WhatsApp client is not connected (Status: ${this.status}). Cannot send message.`);
+      this.logger.warn(
+        `WhatsApp client is not connected (Status: ${this.status}). Cannot send message.`,
+      );
       return false;
     }
 
@@ -162,10 +181,15 @@ export class WhatsappService implements OnModuleInit {
 
     try {
       await this.client.sendMessage(formattedRecipient, message);
-      this.logger.log(`WhatsApp message successfully sent via whatsapp-web.js to ${formattedRecipient}`);
+      this.logger.log(
+        `WhatsApp message successfully sent via whatsapp-web.js to ${formattedRecipient}`,
+      );
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp message via whatsapp-web.js to ${formattedRecipient}`, error);
+      this.logger.error(
+        `Failed to send WhatsApp message via whatsapp-web.js to ${formattedRecipient}`,
+        error,
+      );
       return false;
     }
   }
@@ -210,7 +234,9 @@ export class WhatsappService implements OnModuleInit {
     this.logger.log(`Incoming WhatsApp message from ${fromPhone}: "${text}"`);
 
     // Look up user in database
-    const cleanPhoneSuffix = fromPhone.startsWith('20') ? fromPhone.slice(2) : fromPhone;
+    const cleanPhoneSuffix = fromPhone.startsWith('20')
+      ? fromPhone.slice(2)
+      : fromPhone;
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -226,8 +252,8 @@ export class WhatsappService implements OnModuleInit {
       await this.client.sendMessage(
         message.from,
         `Welcome to D-Ride! 🚌\n\n` +
-        `This phone number is not registered on our platform.\n` +
-        `Please sign up at http://localhost:5173 to start booking trips and tracking shuttles!`,
+          `This phone number is not registered on our platform.\n` +
+          `Please sign up at http://localhost:5173 to start booking trips and tracking shuttles!`,
       );
       return;
     }
@@ -251,16 +277,18 @@ export class WhatsappService implements OnModuleInit {
 
         // Notify operators
         if (this.supportGateway && this.supportGateway.server) {
-          this.supportGateway.server.to(`ticket_${activeTicket.id}`).emit('ticketClosed', { ticketId: activeTicket.id });
+          this.supportGateway.server
+            .to(`ticket_${activeTicket.id}`)
+            .emit('ticketClosed', { ticketId: activeTicket.id });
         }
 
         await this.client.sendMessage(
           message.from,
           `🚪 *Live Chat Ended*\n\n` +
-      `Your support session has been resolved. You are back in the main menu.\n\n` +
-      `How else can we help you today? Please reply with a number:\n` +
-      `1️⃣  *Active Bookings*\n` +
-      `2️⃣  *Live Chat with Support*`
+            `Your support session has been resolved. You are back in the main menu.\n\n` +
+            `How else can we help you today? Please reply with a number:\n` +
+            `1️⃣  *Active Bookings*\n` +
+            `2️⃣  *Live Chat with Support*`,
         );
         return;
       }
@@ -278,15 +306,19 @@ export class WhatsappService implements OnModuleInit {
 
       // Emit gateway WebSocket event
       if (this.supportGateway && this.supportGateway.server) {
-        this.supportGateway.server.to(`ticket_${activeTicket.id}`).emit('newMessage', chatMsg);
-        
-        this.supportGateway.server.to('support_operators').emit('ticketActivity', {
-          ticketId: activeTicket.id,
-          lastMessage: text,
-          senderName: user.name,
-          senderRole: 'PASSENGER',
-          createdAt: chatMsg.createdAt,
-        });
+        this.supportGateway.server
+          .to(`ticket_${activeTicket.id}`)
+          .emit('newMessage', chatMsg);
+
+        this.supportGateway.server
+          .to('support_operators')
+          .emit('ticketActivity', {
+            ticketId: activeTicket.id,
+            lastMessage: text,
+            senderName: user.name,
+            senderRole: 'PASSENGER',
+            createdAt: chatMsg.createdAt,
+          });
       }
       return;
     }
@@ -319,15 +351,26 @@ export class WhatsappService implements OnModuleInit {
       } else {
         let bookingText = `🎫 *Your Active Bookings (Latest ${bookings.length})*:\n\n`;
         bookings.forEach((b, idx) => {
-          const departureDate = new Date(b.trip.departureTime).toLocaleString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          const seats = Array.isArray(b.seatNumbers) ? (b.seatNumbers as any[]).join(', ') : b.seatNumbers;
-          bookingText += 
+          const departureDate = new Date(b.trip.departureTime).toLocaleString(
+            'en-US',
+            {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            },
+          );
+          const seats = Array.isArray(b.seatNumbers)
+            ? (b.seatNumbers as any[]).join(', ')
+            : typeof b.seatNumbers === 'string'
+              ? b.seatNumbers
+              : typeof b.seatNumbers === 'number'
+                ? String(b.seatNumbers)
+                : b.seatNumbers
+                  ? JSON.stringify(b.seatNumbers)
+                  : '';
+          bookingText +=
             `${idx + 1}. *Route:* ${b.trip.route.name}\n` +
             `   *Departure:* ${departureDate}\n` +
             `   *Seats:* ${seats}\n` +
@@ -351,7 +394,7 @@ export class WhatsappService implements OnModuleInit {
         await this.client.sendMessage(
           message.from,
           `⚠️ *Support Ticket Limit Reached*\n\n` +
-          `You already have ${openTicketsCount} open support tickets on D-Ride. Please wait until they are resolved.`,
+            `You already have ${openTicketsCount} open support tickets on D-Ride. Please wait until they are resolved.`,
         );
         return;
       }
@@ -383,20 +426,22 @@ export class WhatsappService implements OnModuleInit {
 
       // Notify operators
       if (this.supportGateway && this.supportGateway.server) {
-        this.supportGateway.server.to('support_operators').emit('ticketActivity', {
-          ticketId: ticket.id,
-          lastMessage: 'Customer connected via WhatsApp',
-          senderName: user.name,
-          senderRole: 'PASSENGER',
-          createdAt: ticket.createdAt,
-        });
+        this.supportGateway.server
+          .to('support_operators')
+          .emit('ticketActivity', {
+            ticketId: ticket.id,
+            lastMessage: 'Customer connected via WhatsApp',
+            senderName: user.name,
+            senderRole: 'PASSENGER',
+            createdAt: ticket.createdAt,
+          });
       }
 
       await this.client.sendMessage(
         message.from,
         `👨‍💻 *D-Ride Live Support*\n\n` +
-        `You are now connected to our support desk! Any message you type here will be sent directly to customer service.\n\n` +
-        `_Note: Type *EXIT* to end the support session and return to the main menu._`,
+          `You are now connected to our support desk! Any message you type here will be sent directly to customer service.\n\n` +
+          `_Note: Type *EXIT* to end the support session and return to the main menu._`,
       );
       return;
     }

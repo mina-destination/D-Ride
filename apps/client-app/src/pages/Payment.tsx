@@ -3,12 +3,14 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
-import { Steps, ConfigProvider } from 'antd';
+import { Steps, ConfigProvider, theme as antdTheme } from 'antd';
+import { useTheme } from '../context/ThemeContext';
 
 import { Lock, Bus } from 'lucide-react';
 
 export default function PaymentPage() {
   const { t, isRtl, language } = useTranslation();
+  const { theme } = useTheme();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const navigate = useNavigate();
@@ -171,15 +173,23 @@ export default function PaymentPage() {
           margin: '0 auto 3.5rem auto',
           padding: '0 1.5rem'
         }}>
-          <ConfigProvider direction={isRtl ? 'rtl' : 'ltr'}>
+          <ConfigProvider
+            direction={isRtl ? 'rtl' : 'ltr'}
+            theme={{
+              algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+              token: {
+                colorPrimary: '#f5b731',
+              }
+            }}
+          >
             <Steps
               current={processing ? 2 : 1}
               titlePlacement="vertical"
               className="premium-steps"
               items={[
-                { title: t('configureCommuteStepper') },
-                { title: t('selectPaymentStepper') },
-                { title: t('confirmSeatStepper') }
+                { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
+                { title: <span className="stepper-label">{t('selectPaymentStepper')}</span> },
+                { title: <span className="stepper-label">{t('confirmSeatStepper')}</span> }
               ]}
             />
           </ConfigProvider>

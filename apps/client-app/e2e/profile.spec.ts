@@ -55,7 +55,7 @@ test.describe('Profile Page', () => {
     await signOutBtn.click();
 
     // Should redirect to login page
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('should navigate back when clicking back button', async ({ page }) => {

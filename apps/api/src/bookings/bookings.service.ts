@@ -107,7 +107,10 @@ export class BookingsService {
     seatNumbers: number[],
     customSurcharge?: number,
   ): number {
-    const surcharge = customSurcharge !== undefined ? customSurcharge : Number(trip.premiumSeatSurcharge || 0);
+    const surcharge =
+      customSurcharge !== undefined
+        ? customSurcharge
+        : Number(trip.premiumSeatSurcharge || 0);
     const hasSeat1 = seatNumbers.some((s) => Number(s) === 1);
     return segmentPrice * seatNumbers.length + (hasSeat1 ? surcharge : 0);
   }
@@ -250,386 +253,417 @@ export class BookingsService {
           tx,
         );
 
-      // 2.5. Prevent duplicate pending bookings for the same user on the same trip
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      const userId = data.userId?.toString() || '';
-      const existingPending = await tx.booking.findFirst({
-        where: {
-          userId,
-          tripId: tripIdStr,
-          status: {
-            in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
+        // 2.5. Prevent duplicate pending bookings for the same user on the same trip
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const userId = data.userId?.toString() || '';
+        const existingPending = await tx.booking.findFirst({
+          where: {
+            userId,
+            tripId: tripIdStr,
+            status: {
+              in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
+            },
+            createdAt: { gte: tenMinutesAgo },
           },
-          createdAt: { gte: tenMinutesAgo },
-        },
-      });
-      if (existingPending) {
-        // Auto-cancel old pending booking so user can rebook without getting stuck
-        await tx.booking.update({
-          where: { id: existingPending.id },
-          data: { status: BookingStatus.CANCELLED },
         });
-        activeBookedSeatsCount = await this.cleanupExpiredBookings(tripIdStr, tx);
-      }
-
-      // Enforce bounds checks on requested seat numbers
-      const capacity = currentTrip.vehicle?.capacity || 14;
-      for (const seat of requestedSeatsList) {
-        if (!Number.isInteger(seat) || seat < 1 || seat > capacity) {
-          throw new BadRequestException(
-            `Invalid seat number: ${seat}. Seat numbers must be integers between 1 and ${capacity}.`,
-          );
-        }
-      }
-
-      // Check if checkpoint-relative pricing and segment calculations apply
-      const routeCheckpoints = (currentTrip.route?.checkpoints as any[]) || [];
-      const pickupCp = routeCheckpoints.find(
-        (cp) =>
-          (data.pickupCheckpointId && (cp.id === data.pickupCheckpointId || cp.name === data.pickupCheckpointId)) ||
-          (data.pickupStopId && cp.name === data.pickupStopId),
-      );
-      const dropoffCp = routeCheckpoints.find(
-        (cp) =>
-          (data.dropoffCheckpointId && (cp.id === data.dropoffCheckpointId || cp.name === data.dropoffCheckpointId)) ||
-          (data.dropoffStopId && cp.name === data.dropoffStopId),
-      );
-
-      if (pickupCp) {
-        if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') {
-          throw new BadRequestException(
-            `Selected pickup checkpoint "${pickupCp.name}" is not available for boarding`,
-          );
-        }
-      }
-      if (dropoffCp) {
-        if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') {
-          throw new BadRequestException(
-            `Selected dropoff checkpoint "${dropoffCp.name}" is not available for drop-off`,
-          );
-        }
-      }
-
-      let segmentPrice = currentTrip.priceEGP || 0;
-      let customSurcharge: number | undefined;
-      let pickupCheckpointData = data.pickupCheckpoint || null;
-      let dropoffCheckpointData = data.dropoffCheckpoint || null;
-
-      if (pickupCp && dropoffCp) {
-        const pickupIdx = routeCheckpoints.indexOf(pickupCp);
-        const dropoffIdx = routeCheckpoints.indexOf(dropoffCp);
-        if (pickupIdx >= dropoffIdx) {
-          throw new BadRequestException(
-            'Dropoff checkpoint must be after pickup checkpoint',
+        if (existingPending) {
+          // Auto-cancel old pending booking so user can rebook without getting stuck
+          await tx.booking.update({
+            where: { id: existingPending.id },
+            data: { status: BookingStatus.CANCELLED },
+          });
+          activeBookedSeatsCount = await this.cleanupExpiredBookings(
+            tripIdStr,
+            tx,
           );
         }
 
-        const baseDepartureTimeMs = new Date(
-          currentTrip.departureTime,
-        ).getTime();
-        const pickupOffsetMs = (pickupCp.minutesFromStart || 0) * 60 * 1000;
-        const dropoffOffsetMs = (dropoffCp.minutesFromStart || 0) * 60 * 1000;
-
-        const localizedDepartureTime = new Date(
-          baseDepartureTimeMs + pickupOffsetMs,
-        ).toISOString();
-        const localizedArrivalTime = new Date(
-          baseDepartureTimeMs + dropoffOffsetMs,
-        ).toISOString();
-
-        if (pickupCp.prices && pickupCp.prices[dropoffCp.name] !== undefined) {
-          segmentPrice = Number(pickupCp.prices[dropoffCp.name]);
-        } else {
-          const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
-          const dropoffPrice = Number(
-            dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
-          );
-          segmentPrice = dropoffPrice - pickupPrice;
-        }
-
-        if (pickupCp.premiumSurcharges && pickupCp.premiumSurcharges[dropoffCp.name] !== undefined) {
-          customSurcharge = Number(pickupCp.premiumSurcharges[dropoffCp.name]);
-        }
-
-        pickupCheckpointData = {
-          ...pickupCp,
-          localizedDepartureTime,
-        };
-        dropoffCheckpointData = {
-          ...dropoffCp,
-          localizedArrivalTime,
-        };
-      }
-
-      // Determine requested start and end indices on the route checkpoints
-      let startReq = 0;
-      let endReq = routeCheckpoints.length - 1;
-      if (pickupCp && dropoffCp) {
-        const pIdx = routeCheckpoints.indexOf(pickupCp);
-        const dIdx = routeCheckpoints.indexOf(dropoffCp);
-        if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-          startReq = pIdx;
-          endReq = dIdx;
-        }
-      }
-
-      // 3. Enforce segment-based seat limit/bounds checks
-      const activeBookingsForCounts = await tx.booking.findMany({
-        where: {
-          tripId: tripIdStr,
-          status: {
-            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
-          },
-        },
-        select: {
-          seatNumbers: true,
-          pickupStopId: true,
-          dropoffStopId: true,
-        },
-      });
-
-      if (routeCheckpoints.length >= 2) {
-        const segmentsCount = routeCheckpoints.length - 1;
-        const segmentOccupancy = new Array(segmentsCount).fill(0);
-
-        activeBookingsForCounts.forEach((b: any) => {
-          const seatsCount =
-            b.seatNumbers && Array.isArray(b.seatNumbers)
-              ? b.seatNumbers.length
-              : 0;
-          if (seatsCount === 0) return;
-
-          const pCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
-          );
-          const dCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
-          );
-
-          let startB = 0;
-          let endB = routeCheckpoints.length - 1;
-
-          if (pCpB && dCpB) {
-            const pIdx = routeCheckpoints.indexOf(pCpB);
-            const dIdx = routeCheckpoints.indexOf(dCpB);
-            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-              startB = pIdx;
-              endB = dIdx;
-            }
-          }
-
-          for (let i = startB; i < endB; i++) {
-            segmentOccupancy[i] += seatsCount;
-          }
-        });
-
-        for (let i = startReq; i < endReq; i++) {
-          if (
-            segmentOccupancy[i] + requestedSeats >
-            currentTrip.availableSeats
-          ) {
+        // Enforce bounds checks on requested seat numbers
+        const capacity = currentTrip.vehicle?.capacity || 14;
+        for (const seat of requestedSeatsList) {
+          if (!Number.isInteger(seat) || seat < 1 || seat > capacity) {
             throw new BadRequestException(
-              'Not enough available seats on this segment',
+              `Invalid seat number: ${seat}. Seat numbers must be integers between 1 and ${capacity}.`,
             );
           }
         }
-      } else {
-        if (
-          activeBookedSeatsCount + requestedSeats >
-          currentTrip.availableSeats
-        ) {
-          throw new BadRequestException('Not enough available seats');
-        }
-      }
 
-      // 4. Pull all active non-cancelled/non-refunded bookings to build the occupied seat indexes for this segment
-      const activeBookings = await tx.booking.findMany({
-        where: {
-          tripId: tripIdStr,
-          status: {
-            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
-          },
-        },
-        select: {
-          seatNumbers: true,
-          pickupStopId: true,
-          dropoffStopId: true,
-        },
-      });
-
-      // Parse the seatNumbers JSON arrays along with the trip's administrative lockedSeats array into a flat memory Set of occupied seat indexes.
-      const occupiedSeatIndexes = new Set<number>();
-
-      const lockedSeatsList: number[] = Array.isArray(currentTrip.lockedSeats)
-        ? (currentTrip.lockedSeats as number[])
-        : [];
-      lockedSeatsList.forEach((s) => occupiedSeatIndexes.add(Number(s)));
-
-      activeBookings.forEach((b) => {
-        if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-          const pCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
-          );
-          const dCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
-          );
-
-          let startB = 0;
-          let endB = routeCheckpoints.length - 1;
-
-          if (pCpB && dCpB) {
-            const pIdx = routeCheckpoints.indexOf(pCpB);
-            const dIdx = routeCheckpoints.indexOf(dCpB);
-            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-              startB = pIdx;
-              endB = dIdx;
-            }
-          }
-
-          const overlap =
-            routeCheckpoints.length < 2 || (startReq < endB && startB < endReq);
-          if (overlap) {
-            b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
-          }
-        }
-      });
-
-      // Check the incoming data.seatNumbers array. If there is ANY structural index collision with an already occupied seat, throw a BadRequestException immediately.
-      const hasCollision = requestedSeatsList.some((s) =>
-        occupiedSeatIndexes.has(Number(s)),
-      );
-      if (hasCollision) {
-        throw new BadRequestException(
-          'One or more selected seats are already booked or locked on this segment',
+        // Check if checkpoint-relative pricing and segment calculations apply
+        const routeCheckpoints =
+          (currentTrip.route?.checkpoints as any[]) || [];
+        const pickupCp = routeCheckpoints.find(
+          (cp) =>
+            (data.pickupCheckpointId &&
+              (cp.id === data.pickupCheckpointId ||
+                cp.name === data.pickupCheckpointId)) ||
+            (data.pickupStopId && cp.name === data.pickupStopId),
         );
-      }
+        const dropoffCp = routeCheckpoints.find(
+          (cp) =>
+            (data.dropoffCheckpointId &&
+              (cp.id === data.dropoffCheckpointId ||
+                cp.name === data.dropoffCheckpointId)) ||
+            (data.dropoffStopId && cp.name === data.dropoffStopId),
+        );
 
-      const isReward = !!data.isReward;
-      const basePrice = isReward ? 0 : this.calculateBasePrice(currentTrip, segmentPrice, requestedSeatsList, customSurcharge);
-      
-      let discountEGP = 0;
-      let promoCodeId: string | null = null;
-      let amountEGP = basePrice;
+        if (pickupCp) {
+          if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') {
+            throw new BadRequestException(
+              `Selected pickup checkpoint "${pickupCp.name}" is not available for boarding`,
+            );
+          }
+        }
+        if (dropoffCp) {
+          if (dropoffCp.purpose === 'REST' || dropoffCp.purpose === 'PICKUP') {
+            throw new BadRequestException(
+              `Selected dropoff checkpoint "${dropoffCp.name}" is not available for drop-off`,
+            );
+          }
+        }
 
-      if (data.promoCode && !isReward) {
-        const codeNormalized = data.promoCode.trim().toUpperCase();
-        const promo = await tx.promoCode.findUnique({
-          where: { code: codeNormalized },
+        let segmentPrice = currentTrip.priceEGP || 0;
+        let customSurcharge: number | undefined;
+        let pickupCheckpointData = data.pickupCheckpoint || null;
+        let dropoffCheckpointData = data.dropoffCheckpoint || null;
+
+        if (pickupCp && dropoffCp) {
+          const pickupIdx = routeCheckpoints.indexOf(pickupCp);
+          const dropoffIdx = routeCheckpoints.indexOf(dropoffCp);
+          if (pickupIdx >= dropoffIdx) {
+            throw new BadRequestException(
+              'Dropoff checkpoint must be after pickup checkpoint',
+            );
+          }
+
+          const baseDepartureTimeMs = new Date(
+            currentTrip.departureTime,
+          ).getTime();
+          const pickupOffsetMs = (pickupCp.minutesFromStart || 0) * 60 * 1000;
+          const dropoffOffsetMs = (dropoffCp.minutesFromStart || 0) * 60 * 1000;
+
+          const localizedDepartureTime = new Date(
+            baseDepartureTimeMs + pickupOffsetMs,
+          ).toISOString();
+          const localizedArrivalTime = new Date(
+            baseDepartureTimeMs + dropoffOffsetMs,
+          ).toISOString();
+
+          if (
+            pickupCp.prices &&
+            pickupCp.prices[dropoffCp.name] !== undefined
+          ) {
+            segmentPrice = Number(pickupCp.prices[dropoffCp.name]);
+          } else {
+            const pickupPrice = Number(pickupCp.priceFromStartEGP || 0);
+            const dropoffPrice = Number(
+              dropoffCp.priceFromStartEGP || currentTrip.priceEGP || 0,
+            );
+            segmentPrice = dropoffPrice - pickupPrice;
+          }
+
+          if (
+            pickupCp.premiumSurcharges &&
+            pickupCp.premiumSurcharges[dropoffCp.name] !== undefined
+          ) {
+            customSurcharge = Number(
+              pickupCp.premiumSurcharges[dropoffCp.name],
+            );
+          }
+
+          pickupCheckpointData = {
+            ...pickupCp,
+            localizedDepartureTime,
+          };
+          dropoffCheckpointData = {
+            ...dropoffCp,
+            localizedArrivalTime,
+          };
+        }
+
+        // Determine requested start and end indices on the route checkpoints
+        let startReq = 0;
+        let endReq = routeCheckpoints.length - 1;
+        if (pickupCp && dropoffCp) {
+          const pIdx = routeCheckpoints.indexOf(pickupCp);
+          const dIdx = routeCheckpoints.indexOf(dropoffCp);
+          if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+            startReq = pIdx;
+            endReq = dIdx;
+          }
+        }
+
+        // 3. Enforce segment-based seat limit/bounds checks
+        const activeBookingsForCounts = await tx.booking.findMany({
+          where: {
+            tripId: tripIdStr,
+            status: {
+              notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+            },
+          },
+          select: {
+            seatNumbers: true,
+            pickupStopId: true,
+            dropoffStopId: true,
+          },
         });
 
-        if (promo && promo.isActive) {
-          const isNotExpired = !promo.expiryDate || new Date() <= new Date(promo.expiryDate);
-          const isUnderLimit = promo.usageLimit === null || promo.usageCount < promo.usageLimit;
-          const meetsMinAmount = basePrice >= promo.minBookingAmountEGP;
+        if (routeCheckpoints.length >= 2) {
+          const segmentsCount = routeCheckpoints.length - 1;
+          const segmentOccupancy = new Array(segmentsCount).fill(0);
 
-          if (isNotExpired && isUnderLimit && meetsMinAmount) {
-            promoCodeId = promo.id;
-            if (promo.discountType === 'FIXED') {
-              discountEGP = promo.discountValue;
-            } else if (promo.discountType === 'PERCENTAGE') {
-              discountEGP = basePrice * (promo.discountValue / 100);
-              if (promo.maxDiscountEGP !== null) {
-                discountEGP = Math.min(discountEGP, promo.maxDiscountEGP);
+          activeBookingsForCounts.forEach((b: any) => {
+            const seatsCount =
+              b.seatNumbers && Array.isArray(b.seatNumbers)
+                ? b.seatNumbers.length
+                : 0;
+            if (seatsCount === 0) return;
+
+            const pCpB = routeCheckpoints.find(
+              (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+            );
+            const dCpB = routeCheckpoints.find(
+              (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+            );
+
+            let startB = 0;
+            let endB = routeCheckpoints.length - 1;
+
+            if (pCpB && dCpB) {
+              const pIdx = routeCheckpoints.indexOf(pCpB);
+              const dIdx = routeCheckpoints.indexOf(dCpB);
+              if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+                startB = pIdx;
+                endB = dIdx;
               }
             }
-            discountEGP = Math.min(discountEGP, basePrice);
-            amountEGP = basePrice - discountEGP;
+
+            for (let i = startB; i < endB; i++) {
+              segmentOccupancy[i] += seatsCount;
+            }
+          });
+
+          for (let i = startReq; i < endReq; i++) {
+            if (
+              segmentOccupancy[i] + requestedSeats >
+              currentTrip.availableSeats
+            ) {
+              throw new BadRequestException(
+                'Not enough available seats on this segment',
+              );
+            }
+          }
+        } else {
+          if (
+            activeBookedSeatsCount + requestedSeats >
+            currentTrip.availableSeats
+          ) {
+            throw new BadRequestException('Not enough available seats');
           }
         }
-      }
 
-      let bookingStatus: BookingStatus = isReward
-        ? BookingStatus.CONFIRMED
-        : BookingStatus.PENDING_PAYMENT;
-      let paymentStatus: PaymentStatus = isReward
-        ? PaymentStatus.SUCCESS
-        : PaymentStatus.PENDING;
-
-      // Generate a unique random boarding number from 1 to 99 for this trip
-      const activeTripBookings = await tx.booking.findMany({
-        where: {
-          tripId: tripIdStr,
-          status: {
-            notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+        // 4. Pull all active non-cancelled/non-refunded bookings to build the occupied seat indexes for this segment
+        const activeBookings = await tx.booking.findMany({
+          where: {
+            tripId: tripIdStr,
+            status: {
+              notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+            },
           },
-          boardingNumber: { not: null },
-        },
-        select: {
-          boardingNumber: true,
-        },
-      });
+          select: {
+            seatNumbers: true,
+            pickupStopId: true,
+            dropoffStopId: true,
+          },
+        });
 
-      const usedBoardingNumbers = new Set(
-        activeTripBookings.map((b) => b.boardingNumber),
-      );
+        // Parse the seatNumbers JSON arrays along with the trip's administrative lockedSeats array into a flat memory Set of occupied seat indexes.
+        const occupiedSeatIndexes = new Set<number>();
 
-      const availableBoardingNumbers: number[] = [];
-      for (let i = 1; i <= 99; i++) {
-        if (!usedBoardingNumbers.has(i)) {
-          availableBoardingNumbers.push(i);
+        const lockedSeatsList: number[] = Array.isArray(currentTrip.lockedSeats)
+          ? (currentTrip.lockedSeats as number[])
+          : [];
+        lockedSeatsList.forEach((s) => occupiedSeatIndexes.add(Number(s)));
+
+        activeBookings.forEach((b) => {
+          if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+            const pCpB = routeCheckpoints.find(
+              (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+            );
+            const dCpB = routeCheckpoints.find(
+              (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+            );
+
+            let startB = 0;
+            let endB = routeCheckpoints.length - 1;
+
+            if (pCpB && dCpB) {
+              const pIdx = routeCheckpoints.indexOf(pCpB);
+              const dIdx = routeCheckpoints.indexOf(dCpB);
+              if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+                startB = pIdx;
+                endB = dIdx;
+              }
+            }
+
+            const overlap =
+              routeCheckpoints.length < 2 ||
+              (startReq < endB && startB < endReq);
+            if (overlap) {
+              b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
+            }
+          }
+        });
+
+        // Check the incoming data.seatNumbers array. If there is ANY structural index collision with an already occupied seat, throw a BadRequestException immediately.
+        const hasCollision = requestedSeatsList.some((s) =>
+          occupiedSeatIndexes.has(Number(s)),
+        );
+        if (hasCollision) {
+          throw new BadRequestException(
+            'One or more selected seats are already booked or locked on this segment',
+          );
         }
-      }
 
-      const boardingNumber =
-        availableBoardingNumbers.length > 0
-          ? availableBoardingNumbers[
-              Math.floor(Math.random() * availableBoardingNumbers.length)
-            ]
-          : null;
+        const isReward = !!data.isReward;
+        const basePrice = isReward
+          ? 0
+          : this.calculateBasePrice(
+              currentTrip,
+              segmentPrice,
+              requestedSeatsList,
+              customSurcharge,
+            );
 
-      // Write the final booking entry ledger
-      const bookingUserId = data.userId?.toString() || '';
-      const newBooking = await tx.booking.create({
-        data: {
-          userId: bookingUserId,
-          tripId: tripIdStr,
-          seatNumbers: data.seatNumbers || [1],
-          pickupStopId: data.pickupCheckpointId || data.pickupStopId || null,
-          dropoffStopId: data.dropoffCheckpointId || data.dropoffStopId || null,
-          pickupCheckpoint: (pickupCheckpointData as unknown as Prisma.InputJsonValue) ?? null,
-          dropoffCheckpoint: (dropoffCheckpointData as unknown as Prisma.InputJsonValue) ?? null,
-          status: bookingStatus,
-          paymentStatus: paymentStatus,
-          amountEGP,
-          discountEGP,
-          promoCodeId,
-          qrVerificationToken,
-          boardingNumber,
-        },
-      });
+        let discountEGP = 0;
+        let promoCodeId: string | null = null;
+        let amountEGP = basePrice;
 
-      // Update the promo code usage count if wallet payment instantly confirms it
-      if (bookingStatus === BookingStatus.CONFIRMED && promoCodeId) {
-        await tx.promoCode.update({
-          where: { id: promoCodeId },
-          data: { usageCount: { increment: 1 } },
-        });
-      }
+        if (data.promoCode && !isReward) {
+          const codeNormalized = data.promoCode.trim().toUpperCase();
+          const promo = await tx.promoCode.findUnique({
+            where: { code: codeNormalized },
+          });
 
-      // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
-      await this.cleanupExpiredBookings(tripIdStr, tx);
+          if (promo && promo.isActive) {
+            const isNotExpired =
+              !promo.expiryDate || new Date() <= new Date(promo.expiryDate);
+            const isUnderLimit =
+              promo.usageLimit === null || promo.usageCount < promo.usageLimit;
+            const meetsMinAmount = basePrice >= promo.minBookingAmountEGP;
 
-      // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD payment
-      if (isReward) {
-        await tx.transaction.create({
-          data: {
-            bookingId: newBooking.id,
-            userId: data.userId?.toString() || '',
-            amountEGP,
-            status: PaymentStatus.SUCCESS,
-            paymentMethod: data.paymentMethod || 'ADMIN_REWARD',
+            if (isNotExpired && isUnderLimit && meetsMinAmount) {
+              promoCodeId = promo.id;
+              if (promo.discountType === 'FIXED') {
+                discountEGP = promo.discountValue;
+              } else if (promo.discountType === 'PERCENTAGE') {
+                discountEGP = basePrice * (promo.discountValue / 100);
+                if (promo.maxDiscountEGP !== null) {
+                  discountEGP = Math.min(discountEGP, promo.maxDiscountEGP);
+                }
+              }
+              discountEGP = Math.min(discountEGP, basePrice);
+              amountEGP = basePrice - discountEGP;
+            }
+          }
+        }
+
+        const bookingStatus: BookingStatus = isReward
+          ? BookingStatus.CONFIRMED
+          : BookingStatus.PENDING_PAYMENT;
+        const paymentStatus: PaymentStatus = isReward
+          ? PaymentStatus.SUCCESS
+          : PaymentStatus.PENDING;
+
+        // Generate a unique random boarding number from 1 to 99 for this trip
+        const activeTripBookings = await tx.booking.findMany({
+          where: {
+            tripId: tripIdStr,
+            status: {
+              notIn: [BookingStatus.CANCELLED, BookingStatus.REFUNDED],
+            },
+            boardingNumber: { not: null },
+          },
+          select: {
+            boardingNumber: true,
           },
         });
-      }
 
-      return newBooking;
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5000,
-      timeout: 10000,
-    },
-  );
+        const usedBoardingNumbers = new Set(
+          activeTripBookings.map((b) => b.boardingNumber),
+        );
+
+        const availableBoardingNumbers: number[] = [];
+        for (let i = 1; i <= 99; i++) {
+          if (!usedBoardingNumbers.has(i)) {
+            availableBoardingNumbers.push(i);
+          }
+        }
+
+        const boardingNumber =
+          availableBoardingNumbers.length > 0
+            ? availableBoardingNumbers[
+                Math.floor(Math.random() * availableBoardingNumbers.length)
+              ]
+            : null;
+
+        // Write the final booking entry ledger
+        const bookingUserId = data.userId?.toString() || '';
+        const newBooking = await tx.booking.create({
+          data: {
+            userId: bookingUserId,
+            tripId: tripIdStr,
+            seatNumbers: data.seatNumbers || [1],
+            pickupStopId: data.pickupCheckpointId || data.pickupStopId || null,
+            dropoffStopId:
+              data.dropoffCheckpointId || data.dropoffStopId || null,
+            pickupCheckpoint:
+              (pickupCheckpointData as unknown as Prisma.InputJsonValue) ??
+              null,
+            dropoffCheckpoint:
+              (dropoffCheckpointData as unknown as Prisma.InputJsonValue) ??
+              null,
+            status: bookingStatus,
+            paymentStatus: paymentStatus,
+            amountEGP,
+            discountEGP,
+            promoCodeId,
+            qrVerificationToken,
+            boardingNumber,
+          },
+        });
+
+        // Update the promo code usage count if wallet payment instantly confirms it
+        if (bookingStatus === BookingStatus.CONFIRMED && promoCodeId) {
+          await tx.promoCode.update({
+            where: { id: promoCodeId },
+            data: { usageCount: { increment: 1 } },
+          });
+        }
+
+        // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
+        await this.cleanupExpiredBookings(tripIdStr, tx);
+
+        // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD payment
+        if (isReward) {
+          await tx.transaction.create({
+            data: {
+              bookingId: newBooking.id,
+              userId: data.userId?.toString() || '',
+              amountEGP,
+              status: PaymentStatus.SUCCESS,
+              paymentMethod: data.paymentMethod || 'ADMIN_REWARD',
+            },
+          });
+        }
+
+        return newBooking;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 5000,
+        timeout: 10000,
+      },
+    );
 
     // Trigger confirmation notification asynchronously if confirmed
     if (booking.status === BookingStatus.CONFIRMED) {
@@ -684,7 +718,11 @@ export class BookingsService {
       data: { status: status.toUpperCase() as BookingStatus },
     });
 
-    if (status.toUpperCase() === 'CONFIRMED' && booking.status !== BookingStatus.CONFIRMED && booking.promoCodeId) {
+    if (
+      status.toUpperCase() === 'CONFIRMED' &&
+      booking.status !== BookingStatus.CONFIRMED &&
+      booking.promoCodeId
+    ) {
       try {
         await this.prisma.promoCode.update({
           where: { id: booking.promoCodeId },
@@ -784,7 +822,11 @@ export class BookingsService {
       if (u && t && r) {
         const seatNo = Array.isArray(updated.seatNumbers)
           ? updated.seatNumbers.join(', ')
-          : String(updated.seatNumbers || '');
+          : typeof updated.seatNumbers === 'string'
+            ? updated.seatNumbers
+            : typeof updated.seatNumbers === 'number'
+              ? String(updated.seatNumbers)
+              : '';
         const initiator =
           userRole &&
           ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole)
@@ -1196,9 +1238,11 @@ export class BookingsService {
     // If userId provided, verify ownership (unless admin/driver)
     if (userId) {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      const isAdmin = user && ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(user.role);
+      const isAdmin =
+        user &&
+        ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(user.role);
       const isDriver = user && user.role === 'DRIVER';
-      
+
       if (!isAdmin && !isDriver) {
         // Passenger can only track their own bookings
         if (booking.userId !== userId) {
@@ -1234,8 +1278,11 @@ export class BookingsService {
     };
   }
 
-
-  async applyPromoCode(bookingId: string, userId: string, code: string | null): Promise<any> {
+  async applyPromoCode(
+    bookingId: string,
+    userId: string,
+    code: string | null,
+  ): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { trip: { include: { route: true } } },
@@ -1249,8 +1296,13 @@ export class BookingsService {
       throw new BadRequestException('Unauthorized to modify this booking');
     }
 
-    if (booking.status !== BookingStatus.PENDING_PAYMENT && booking.status !== BookingStatus.PENDING) {
-      throw new BadRequestException('Can only apply promo codes to pending bookings');
+    if (
+      booking.status !== BookingStatus.PENDING_PAYMENT &&
+      booking.status !== BookingStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        'Can only apply promo codes to pending bookings',
+      );
     }
 
     const currentTrip = booking.trip;
@@ -1283,36 +1335,46 @@ export class BookingsService {
         );
         segmentPrice = dropoffPrice - pickupPrice;
       }
-      if (pickupCp.premiumSurcharges && pickupCp.premiumSurcharges[dropoffCp.name] !== undefined) {
+      if (
+        pickupCp.premiumSurcharges &&
+        pickupCp.premiumSurcharges[dropoffCp.name] !== undefined
+      ) {
         customSurcharge = Number(pickupCp.premiumSurcharges[dropoffCp.name]);
       }
     }
 
-    const bookingSeatsList = Array.isArray(booking.seatNumbers) ? (booking.seatNumbers as number[]) : [1];
-    const baseAmount = this.calculateBasePrice(currentTrip, segmentPrice, bookingSeatsList, customSurcharge);
+    const bookingSeatsList = Array.isArray(booking.seatNumbers)
+      ? (booking.seatNumbers as number[])
+      : [1];
+    const baseAmount = this.calculateBasePrice(
+      currentTrip,
+      segmentPrice,
+      bookingSeatsList,
+      customSurcharge,
+    );
 
-        return this.prisma.$transaction(async (tx) => {
-          if (!code || code.trim() === '') {
-            // Clear promo code
-            const updated = await tx.booking.update({
-              where: { id: bookingId },
-              data: {
-                discountEGP: 0,
-                promoCodeId: null,
-                amountEGP: baseAmount,
-              },
+    return this.prisma.$transaction(async (tx) => {
+      if (!code || code.trim() === '') {
+        // Clear promo code
+        const updated = await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            discountEGP: 0,
+            promoCodeId: null,
+            amountEGP: baseAmount,
+          },
+          include: {
+            trip: {
               include: {
-                trip: {
-                  include: {
-                    route: true,
-                    vehicle: true,
-                    driver: true,
-                  },
-                },
-                user: true,
-                transactions: true,
+                route: true,
+                vehicle: true,
+                driver: true,
               },
-            });
+            },
+            user: true,
+            transactions: true,
+          },
+        });
 
         await tx.transaction.updateMany({
           where: {
@@ -1346,7 +1408,9 @@ export class BookingsService {
       }
 
       if (promo.usageLimit !== null && promo.usageCount >= promo.usageLimit) {
-        throw new BadRequestException('This promo code has reached its usage limit');
+        throw new BadRequestException(
+          'This promo code has reached its usage limit',
+        );
       }
 
       if (baseAmount < promo.minBookingAmountEGP) {

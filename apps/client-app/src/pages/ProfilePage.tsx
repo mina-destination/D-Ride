@@ -142,9 +142,9 @@ export default function ProfilePage() {
             }}>
               {getInitials()}
             </div>
-            <h1 className="title-outfit" style={{ margin: '8px 0 0 0', fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+            <h2 className="title-outfit" style={{ margin: '8px 0 0 0', fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 800 }}>
               {user?.name || 'Commuter'}
-            </h1>
+            </h2>
             <span style={{
               fontSize: '10px',
               fontWeight: 800,

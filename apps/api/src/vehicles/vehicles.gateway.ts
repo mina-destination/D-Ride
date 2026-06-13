@@ -51,12 +51,17 @@ export class WsJwtGuard implements CanActivate {
         origins = allowedOriginsEnv.split(',').map((o) => o.trim());
         if (isProduction) {
           origins = origins.filter(
-            (o) => !o.includes('localhost') && !o.includes('127.0.0.1') && o !== 'capacitor://localhost',
+            (o) =>
+              !o.includes('localhost') &&
+              !o.includes('127.0.0.1') &&
+              o !== 'capacitor://localhost',
           );
         }
       } else {
         if (isProduction) {
-          throw new Error('ALLOWED_ORIGINS environment variable is required in production');
+          throw new Error(
+            'ALLOWED_ORIGINS environment variable is required in production',
+          );
         }
         origins = [
           'http://localhost:5173',
@@ -84,14 +89,19 @@ export class WsJwtGuard implements CanActivate {
   pingInterval: 5000,
 })
 export class VehiclesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnGatewayInit,
+    OnModuleDestroy
 {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(VehiclesGateway.name);
   private redisClient: RedisClientType;
-  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null =
+    null;
   private readonly memoryFallbackStore = new Map<string, string>();
 
   constructor(
@@ -150,7 +160,10 @@ export class VehiclesGateway
 
   afterInit(server: Server) {
     // Rate limiter: max 30 messages per minute per connection
-    const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+    const rateLimitMap = new Map<
+      string,
+      { count: number; resetTime: number }
+    >();
     const RATE_LIMIT = 30;
     const RATE_WINDOW_MS = 60 * 1000;
 
@@ -282,7 +295,9 @@ export class VehiclesGateway
       };
     }
 
-    const isAdmin = ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(user.role);
+    const isAdmin = ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(
+      user.role,
+    );
 
     if (user.role === 'PASSENGER') {
       let hasAccess = false;
@@ -328,7 +343,8 @@ export class VehiclesGateway
           event: 'subscribed',
           data: {
             success: false,
-            error: 'Access Denied: No active booking or valid ticket code for this vehicle',
+            error:
+              'Access Denied: No active booking or valid ticket code for this vehicle',
           },
         };
       }
@@ -349,7 +365,9 @@ export class VehiclesGateway
 
     // Fetch and send current arrived checkpoints to the subscribing client
     try {
-      const arrivedStr = await this.getRedisValue(`d-ride:arrived-checkpoints:${vehicleId}`);
+      const arrivedStr = await this.getRedisValue(
+        `d-ride:arrived-checkpoints:${vehicleId}`,
+      );
       if (arrivedStr) {
         client.emit('checkpointUpdate', {
           vehicleId,
@@ -358,7 +376,9 @@ export class VehiclesGateway
         });
       }
     } catch (err: any) {
-      this.logger.error(`Failed to fetch arrived checkpoints on subscribe: ${err.message}`);
+      this.logger.error(
+        `Failed to fetch arrived checkpoints on subscribe: ${err.message}`,
+      );
     }
 
     return { event: 'subscribed', data: vehicleId };
@@ -421,7 +441,7 @@ export class VehiclesGateway
       };
     }
 
-    let isAuthorized = (vehicle.driverId === driverId);
+    let isAuthorized = vehicle.driverId === driverId;
 
     if (!isAuthorized) {
       const activeTrip = await this.prisma.trip.findFirst({
@@ -525,4 +545,3 @@ export class VehiclesGateway
     return { event: 'checkpointUpdateAck', data: { success: true } };
   }
 }
-

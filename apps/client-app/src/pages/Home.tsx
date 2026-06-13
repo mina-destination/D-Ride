@@ -736,6 +736,7 @@ function RouteSearchForm() {
   if (fromStation) polylinePath.push([fromStation.lat, fromStation.lng]);
   if (toStation) polylinePath.push([toStation.lat, toStation.lng]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const groupedFrom = useMemo(() => {
     const groups: Record<string, any[]> = {};
     const addressItems: any[] = [];
@@ -754,6 +755,7 @@ function RouteSearchForm() {
     return groups;
   }, [combinedFromSuggestions]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const groupedTo = useMemo(() => {
     const groups: Record<string, any[]> = {};
     const addressItems: any[] = [];
@@ -937,7 +939,7 @@ function RouteSearchForm() {
                             🏙️ {city}
                           </div>
                         )}
-                        {items.map((item: any, _idx: number) => {
+                        {items.map((item: any) => {
                           const globalIdx = Object.values(groupedFrom).flat().indexOf(item);
                           if (item.type === 'address') {
                             const r = item.data;
@@ -1087,7 +1089,7 @@ function RouteSearchForm() {
                             🏙️ {city}
                           </div>
                         )}
-                        {items.map((item: any, _idx: number) => {
+                        {items.map((item: any) => {
                           const globalIdx = Object.values(groupedTo).flat().indexOf(item);
                           if (item.type === 'address') {
                             const r = item.data;

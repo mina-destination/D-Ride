@@ -102,7 +102,8 @@ export class RoutesService {
         name: data.name,
         path: data.path as unknown as Prisma.InputJsonValue,
         coverImage: data.coverImage,
-        checkpoints: (data.checkpoints || []) as unknown as Prisma.InputJsonValue,
+        checkpoints: (data.checkpoints ||
+          []) as unknown as Prisma.InputJsonValue,
         distanceKm: data.distanceKm || 0,
         estimatedDurationMinutes: data.estimatedDurationMinutes || 0,
         isActive: data.isActive !== undefined ? data.isActive : true,
@@ -386,7 +387,15 @@ export class RoutesService {
     date?: string,
     page: number = 1,
     limit: number = 20,
-  ): Promise<{ data: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+  ): Promise<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
     this.logger.log(
       `Smart search: pickup=[${pickupLat},${pickupLng}] (${pickupCity}) dropoff=[${dropoffLat},${dropoffLng}] (${dropoffCity}) radius=${radiusMeters}m date=${date}`,
     );
@@ -648,12 +657,14 @@ export class RoutesService {
           localizedArrivalTime,
         },
         amountEGP,
-        totalWalkingDistance: Math.round(finalPickupDistance + finalDropoffDistance),
+        totalWalkingDistance: Math.round(
+          finalPickupDistance + finalDropoffDistance,
+        ),
       });
     }
 
     results.sort((a, b) => a.totalWalkingDistance - b.totalWalkingDistance);
-    
+
     const totalPages = Math.ceil(total / limit);
     return {
       data: results,

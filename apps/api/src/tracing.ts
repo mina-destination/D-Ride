@@ -7,7 +7,9 @@ import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 
 const traceExporter = new OTLPTraceExporter({
-  url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+  url:
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+    'http://localhost:4318/v1/traces',
 });
 
 const sdk = new NodeSDK({
@@ -25,7 +27,9 @@ const sdk = new NodeSDK({
 sdk.start();
 
 process.on('SIGTERM', () => {
-  sdk.shutdown().catch((err: Error) => console.error('Error shutting down SDK', err));
+  sdk
+    .shutdown()
+    .catch((err: Error) => console.error('Error shutting down SDK', err));
 });
 
 export default sdk;

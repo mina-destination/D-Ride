@@ -114,5 +114,4 @@ export class PaymobController {
       timestamp: new Date().toISOString(),
     };
   }
-
 }

@@ -41,13 +41,18 @@ export class UpdateTripDto {
   @IsOptional()
   priceEGP?: number | null;
 
-  @ValidateIf((o) => o.premiumSeatSurcharge !== null && o.premiumSeatSurcharge !== undefined)
+  @ValidateIf(
+    (o) =>
+      o.premiumSeatSurcharge !== null && o.premiumSeatSurcharge !== undefined,
+  )
   @IsNumber()
   @Min(0)
   @IsOptional()
   premiumSeatSurcharge?: number | null;
 
-  @ValidateIf((o) => o.availableSeats !== null && o.availableSeats !== undefined)
+  @ValidateIf(
+    (o) => o.availableSeats !== null && o.availableSeats !== undefined,
+  )
   @IsNumber()
   @Min(0)
   @IsOptional()

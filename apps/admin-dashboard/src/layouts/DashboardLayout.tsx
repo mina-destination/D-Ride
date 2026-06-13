@@ -9,11 +9,8 @@ import { Popover, List, Button } from 'antd';
 import { routesAPI, vehiclesAPI, usersAPI } from '../services/api';
 
 const navItems = [
-  { label: 'Overview & Insights', type: 'section' as const },
+  { label: 'Core Operations', type: 'section' as const },
   { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-  { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
-  
-  { label: 'Operations', type: 'section' as const },
   { path: '/live-tracking', icon: <Radio size={18} />, label: 'Live Tracking' },
   { path: '/routes', icon: <Map size={18} />, label: 'Routes' },
   { path: '/trips', icon: <Bus size={18} />, label: 'Trips' },
@@ -21,7 +18,8 @@ const navItems = [
   { path: '/vehicles', icon: <CarFront size={18} />, label: 'Vehicles' },
   { path: '/drivers', icon: <UserCog size={18} />, label: 'Drivers' },
   
-  { label: 'Sales & Finance', type: 'section' as const },
+  { label: 'Financials & Sales', type: 'section' as const },
+  { path: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
   { path: '/bookings', icon: <Ticket size={18} />, label: 'Bookings' },
   { path: '/refunds', icon: <Undo2 size={18} />, label: 'Refund Requests' },
   { path: '/payments', icon: <CreditCard size={18} />, label: 'Payments' },
@@ -36,7 +34,7 @@ const navItems = [
   { path: '/support-tickets', icon: <LifeBuoy size={18} />, label: 'Support Tickets' },
   { path: '/partners', icon: <Handshake size={18} />, label: 'Partners' },
   
-  { label: 'System Settings', type: 'section' as const },
+  { label: 'Administration', type: 'section' as const },
   { path: '/administrators', icon: <Shield size={18} />, label: 'Administrators' },
   { path: '/settings', icon: <Settings size={18} />, label: 'Settings' },
   { path: '/notifications', icon: <Bell size={18} />, label: 'Notifications' },
