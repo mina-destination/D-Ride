@@ -170,7 +170,7 @@ export class BookingsController {
   @Get('track-by-code/:code')
   async trackByCode(
     @Request() req: any,
-    @Param('code', ParseUUIDPipe) code: string,
+    @Param('code') code: string,
   ) {
     const userRole = req.user.role;
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(
