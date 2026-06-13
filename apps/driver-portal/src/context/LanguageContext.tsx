@@ -115,7 +115,32 @@ const translations: Record<Language, Record<string, string>> = {
     confirmStartDriving: 'Start Driving & Transit?',
     confirmCompleteTrip: 'Complete Trip Shift?',
     confirm: 'Confirm',
-    cancel: 'Cancel'
+    cancel: 'Cancel',
+    
+    // Workflow constraints
+    tooFarFromCheckpoint: 'Too far. Please get within 200m to mark arrived (Current: {distance}m).',
+    arrivePreviousFirst: 'Please arrive at previous stops in sequence first.',
+    arriveStopFirst: 'Please mark this stop as arrived first.',
+    dropOffRequired: 'Please drop off all boarded passengers before completing the trip.',
+    checkpointsRequired: 'All checkpoints must be arrived at before completing the trip.',
+    showNextTrips: 'Show Next Trips',
+    hideNextTrips: 'Hide Next Trips',
+    currentDistance: '{distance}m away',
+    gpsRequired: 'Sharing location is required to confirm stop arrivals.',
+    stopsTimeline: 'Stops & Route Timeline',
+    passengersAtStop: 'Passengers at this Stop',
+    noActionsAvailable: 'No actions available',
+    upcomingShiftsTitle: 'Upcoming Shifts',
+    allowBackgroundLocationTitle: 'Allow Background Location Tracking',
+    allowBackgroundLocationDesc: 'To share your live route coordinates with commuters, guide them to your minibus, and keep tracking even if you close the screen or open another app, please grant "Allow all the time" location permission.',
+    allowBackgroundLocationBtn: 'Allow Location & Share',
+    newShiftsAssignedTitle: 'New Shifts Assigned 📅',
+    newShiftsAssignedDesc: 'You have {count} new upcoming shifts assigned to you.',
+    upcomingShiftsSummaryTitle: 'Upcoming Shifts Summary 🗓️',
+    upcomingShiftsSummaryDesc: 'You have {count} upcoming shifts scheduled.',
+    markAllRead: 'Mark all read',
+    notificationsDrawerTitle: 'Notifications',
+    noNotifications: 'All caught up! No notifications.'
   },
   ar: {
     // General / Layout
@@ -222,7 +247,32 @@ const translations: Record<Language, Record<string, string>> = {
     confirmStartDriving: 'بدء القيادة والمسار؟',
     confirmCompleteTrip: 'إنهاء الوردية والرحلة؟',
     confirm: 'تأكيد',
-    cancel: 'إلغاء'
+    cancel: 'إلغاء',
+    
+    // Workflow constraints
+    tooFarFromCheckpoint: 'بعيد جداً. يرجى الاقتراب لمسافة أقل من ٢٠٠ متر لتأكيد الوصول (المسافة الحالية: {distance} متر).',
+    arrivePreviousFirst: 'يرجى تأكيد الوصول للمحطات السابقة بالترتيب أولاً.',
+    arriveStopFirst: 'يرجى تسجيل الوصول للمحطة أولاً.',
+    dropOffRequired: 'يرجى إنزال جميع الركاب الموجودين بالحافلة أولاً قبل إنهاء الرحلة.',
+    checkpointsRequired: 'يجب تأكيد الوصول لجميع محطات المسار قبل إنهاء الرحلة.',
+    showNextTrips: 'عرض الرحلات التالية',
+    hideNextTrips: 'إخفاء الرحلات التالية',
+    currentDistance: 'على بعد {distance} متر',
+    gpsRequired: 'مشاركة الموقع الجغرافي مطلوبة لتأكيد الوصول للمحطات.',
+    stopsTimeline: 'جدول المحطات والمسار',
+    passengersAtStop: 'الركاب في هذه المحطة',
+    noActionsAvailable: 'لا توجد إجراءات متاحة',
+    upcomingShiftsTitle: 'الورديات القادمة',
+    allowBackgroundLocationTitle: 'السماح بتتبع الموقع في الخلفية',
+    allowBackgroundLocationDesc: 'لمشاركة إحداثيات موقعك الجغرافي المباشر مع الركاب وإرشادهم إلى حافلتك، واستمرار التتبع حتى لو قمت بإغلاق الشاشة أو فتحت تطبيقاً آخر، يرجى اختيار إذن الموقع "السماح طوال الوقت".',
+    allowBackgroundLocationBtn: 'السماح بمشاركة الموقع الجغرافي',
+    newShiftsAssignedTitle: 'ورديات جديدة مخصصة 📅',
+    newShiftsAssignedDesc: 'لديك {count} ورديات جديدة قادمة مخصصة لك.',
+    upcomingShiftsSummaryTitle: 'ملخص الورديات القادمة 🗓️',
+    upcomingShiftsSummaryDesc: 'لديك {count} وردية عمل قادمة مجدولة.',
+    markAllRead: 'تحديد الكل كمقروء',
+    notificationsDrawerTitle: 'الإشعارات',
+    noNotifications: 'لا توجد إشعارات جديدة.'
   }
 };
 
