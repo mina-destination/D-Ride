@@ -17,8 +17,10 @@ import { PartnersModule } from './partners/partners.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { HealthModule } from './health/health.module';
 import configuration from './config/configuration';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import {
   RequestIdMiddleware,
   RequestLoggerMiddleware,
@@ -43,6 +45,9 @@ import {
     // Global Prisma Module for PostgreSQL connection
     PrismaModule,
 
+    // Task Scheduling
+    ScheduleModule.forRoot(),
+
     // Feature modules
     AuthModule,
     PaymobModule,
@@ -58,6 +63,7 @@ import {
     WhatsappModule,
     PromoCodesModule,
     TransactionsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

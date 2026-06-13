@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../notifications/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,
   UnauthorizedException,
@@ -49,6 +50,12 @@ describe('AuthService', () => {
       rolePermission: {
         findUnique: jest.fn(),
       },
+      refreshToken: {
+        create: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+        deleteMany: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn(),
+      },
     };
 
     mockJwtService = {
@@ -71,6 +78,16 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: MailService, useValue: mockMailService },
         { provide: NotificationsService, useValue: mockNotificationsService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key) => {
+              if (key === 'jwt.expiresIn') return '15m';
+              if (key === 'jwt.refreshExpiresIn') return '7d';
+              return 'test-secret';
+            }),
+          },
+        },
       ],
     }).compile();
 

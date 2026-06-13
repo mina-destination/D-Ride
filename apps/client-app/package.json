@@ -19,6 +19,7 @@
     "@tanstack/react-query": "^5.0.0",
     "@transport/shared-theme": "*",
     "@transport/shared-types": "*",
+    "@transport/shared-api": "*",
     "@types/qrcode": "^1.5.6",
     "antd": "^6.4.3",
     "axios": "^1.7.0",

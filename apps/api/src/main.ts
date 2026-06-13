@@ -136,7 +136,7 @@ async function bootstrap() {
   });
 
   // Global API prefix
-  app.setGlobalPrefix('api', { exclude: ['/'] });
+  app.setGlobalPrefix('api', { exclude: ['/', 'health'] });
 
   // Secure Swagger API Documentation Portal - Only available in non-production environments
   if (process.env.NODE_ENV !== 'production') {

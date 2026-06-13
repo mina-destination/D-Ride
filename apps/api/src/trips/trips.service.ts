@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -20,6 +21,7 @@ export class TripsService {
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
     private vehiclesGateway: VehiclesGateway,
+    private configService: ConfigService,
   ) {}
 
   private mapTrip(
@@ -478,7 +480,7 @@ export class TripsService {
       data.availableSeats === null ||
       isNaN(finalSeats)
     ) {
-      let seats = 14;
+      let seats = this.configService.get<number>('defaults.vehicleCapacity', 14);
       if (data.vehicleId) {
         const vehicle = await this.prisma.vehicle.findUnique({
           where: { id: data.vehicleId },
@@ -522,7 +524,7 @@ export class TripsService {
         premiumSeatSurcharge: finalPremiumSurcharge,
         availableSeats: finalSeats,
         bookedSeats: Number(data.bookedSeats || 0),
-        lockedSeats: data.lockedSeats || [14],
+        lockedSeats: data.lockedSeats || this.configService.get('defaults.lockedSeats', [14]),
       },
       include: {
         route: true,

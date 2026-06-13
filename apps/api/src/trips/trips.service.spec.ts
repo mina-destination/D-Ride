@@ -3,6 +3,7 @@ import { TripsService } from './trips.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { VehiclesGateway } from '../vehicles/vehicles.gateway';
+import { ConfigService } from '@nestjs/config';
 import {
   NotFoundException,
   BadRequestException,
@@ -124,6 +125,17 @@ describe('TripsService', () => {
         {
           provide: VehiclesGateway,
           useValue: mockVehiclesGateway,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key) => {
+              if (key === 'defaults.vehicleCapacity') return 14;
+              if (key === 'defaults.countryCode') return '+20';
+              if (key === 'defaults.lockedSeats') return [14];
+              return null;
+            }),
+          },
         },
       ],
     }).compile();

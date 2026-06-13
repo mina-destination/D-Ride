@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { logger } from '@transport/shared-api';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL 
   ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') 
@@ -17,11 +18,11 @@ class SocketService {
       });
 
       this.socket.on('connect', () => {
-        console.log('Connected to WebSocket server');
+        logger.info('Connected to WebSocket server');
       });
 
       this.socket.on('disconnect', () => {
-        console.log('Disconnected from WebSocket server');
+        logger.info('Disconnected from WebSocket server');
       });
     }
   }
@@ -88,6 +89,22 @@ class SocketService {
         this.socket.off('checkpointUpdate', callback);
       } else {
         this.socket.off('checkpointUpdate');
+      }
+    }
+  }
+
+  onEtaUpdate(callback: (data: any) => void) {
+    if (this.socket) {
+      this.socket.on('etaUpdate', callback);
+    }
+  }
+
+  offEtaUpdate(callback?: (data: any) => void) {
+    if (this.socket) {
+      if (callback) {
+        this.socket.off('etaUpdate', callback);
+      } else {
+        this.socket.off('etaUpdate');
       }
     }
   }

@@ -60,6 +60,21 @@ function showDebouncedError(msg: string) {
   }
 }
 
+// ─── Silent Token Refresh Logic ────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response interceptor — unwrap API response, attach pagination if present
 api.interceptors.response.use(
   (response) => {
@@ -71,11 +86,56 @@ api.interceptors.response.use(
     }
     return mapped;
   },
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('dride_token');
-      localStorage.removeItem('dride_user');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Attempt token refresh on 401 (skip for auth endpoints to avoid infinite loop)
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/register')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const storedRefreshToken = localStorage.getItem('dride_refresh_token');
+      if (storedRefreshToken) {
+        try {
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken: storedRefreshToken });
+          const resData = response.data?.data || response.data;
+          const { accessToken, refreshToken: newRefreshToken } = resData;
+          localStorage.setItem('dride_token', accessToken);
+          localStorage.setItem('dride_refresh_token', newRefreshToken);
+          api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+          processQueue(null, accessToken);
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          localStorage.removeItem('dride_token');
+          localStorage.removeItem('dride_refresh_token');
+          localStorage.removeItem('dride_user');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        localStorage.removeItem('dride_token');
+        localStorage.removeItem('dride_user');
+        window.location.href = '/login';
+      }
     }
     
     const errorData = error.response?.data;

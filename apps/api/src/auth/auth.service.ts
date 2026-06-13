@@ -5,8 +5,10 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { MailService } from '../notifications/mail.service';
@@ -19,6 +21,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private configService: ConfigService,
     private mailService: MailService,
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -108,6 +111,7 @@ export class AuthService {
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const permissions = await this.getPermissionsForRole(user.role);
+    const refreshToken = await this.generateRefreshToken(user.id);
     return {
       user: {
         _id: user.id,
@@ -119,6 +123,7 @@ export class AuthService {
         permissions,
       },
       accessToken: this.jwtService.sign(payload),
+      refreshToken,
     };
   }
 
@@ -151,10 +156,12 @@ export class AuthService {
     };
     this.logger.log(`User logged in: ${user.email}`);
     const permissions = await this.getPermissionsForRole(user.role);
+    const userId = user.id || user._id;
+    const refreshToken = await this.generateRefreshToken(userId);
     return {
       user: {
-        _id: user.id || user._id,
-        id: user.id || user._id,
+        _id: userId,
+        id: userId,
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -162,6 +169,7 @@ export class AuthService {
         permissions,
       },
       accessToken: this.jwtService.sign(payload),
+      refreshToken,
     };
   }
 
@@ -248,6 +256,7 @@ export class AuthService {
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const permissions = await this.getPermissionsForRole(user.role);
+    const refreshToken = await this.generateRefreshToken(user.id);
     return {
       user: {
         _id: user.id,
@@ -259,6 +268,7 @@ export class AuthService {
         permissions,
       },
       accessToken: this.jwtService.sign(payload),
+      refreshToken,
     };
   }
 
@@ -426,5 +436,93 @@ export class AuthService {
       ...result,
       permissions,
     };
+  }
+
+  // ─── Refresh Token Methods ─────────────────────────────────────
+
+  async generateRefreshToken(userId: string): Promise<string> {
+    const rawToken = crypto.randomUUID();
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    const expiresIn = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
+    const expiresMs = this.parseDuration(expiresIn);
+    const expiresAt = new Date(Date.now() + expiresMs);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: hashedToken,
+        userId,
+        expiresAt,
+      },
+    });
+
+    return rawToken;
+  }
+
+  async refreshAccessToken(rawRefreshToken: string) {
+    const hashedToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+
+    const storedToken = await this.prisma.refreshToken.findUnique({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
+
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (storedToken.expiresAt < new Date()) {
+      await this.prisma.refreshToken.delete({ where: { id: storedToken.id } });
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // Rotate: delete old token and issue new one
+    await this.prisma.refreshToken.delete({ where: { id: storedToken.id } });
+
+    const user = storedToken.user;
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const permissions = await this.getPermissionsForRole(user.role);
+    const newRefreshToken = await this.generateRefreshToken(user.id);
+
+    return {
+      user: {
+        _id: user.id,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        permissions,
+      },
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  async revokeRefreshToken(rawRefreshToken: string): Promise<void> {
+    const hashedToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+    try {
+      await this.prisma.refreshToken.delete({ where: { token: hashedToken } });
+    } catch {
+      // Token already deleted or doesn't exist — that's fine
+    }
+  }
+
+  async revokeAllUserTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
+  private parseDuration(duration: string): number {
+    const match = duration.match(/^(\d+)([smhd])$/);
+    if (!match) return 7 * 24 * 60 * 60 * 1000; // default 7 days
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 's': return value * 1000;
+      case 'm': return value * 60 * 1000;
+      case 'h': return value * 60 * 60 * 1000;
+      case 'd': return value * 24 * 60 * 60 * 1000;
+      default: return 7 * 24 * 60 * 60 * 1000;
+    }
   }
 }

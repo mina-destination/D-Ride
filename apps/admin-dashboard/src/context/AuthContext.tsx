@@ -28,9 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const logout = useCallback(() => {
+    const refreshToken = localStorage.getItem('dride_refresh_token');
+    if (refreshToken) {
+      import('../services/api').then(({ default: api }) => {
+        api.post('/auth/logout', { refreshToken }).catch(() => {});
+      });
+    }
     setUser(null);
     setToken(null);
     localStorage.removeItem('dride_token');
+    localStorage.removeItem('dride_refresh_token');
     localStorage.removeItem('dride_user');
   }, []);
 
@@ -82,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const result: any = await authAPI.login(email, password);
-    const { user: userData, accessToken } = result;
+    const { user: userData, accessToken, refreshToken } = result;
     
     const adminRoles = ['OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION'];
     if (!adminRoles.includes(userData?.role?.toUpperCase())) {
@@ -92,6 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
     setToken(accessToken);
     localStorage.setItem('dride_token', accessToken);
+    if (refreshToken) {
+      localStorage.setItem('dride_refresh_token', refreshToken);
+    }
     localStorage.setItem('dride_user', JSON.stringify(userData));
   }, []);
 
