@@ -88,6 +88,10 @@ class CheckpointDto {
   @IsOptional()
   @IsString()
   purpose?: string;
+
+  @IsOptional()
+  @IsObject()
+  premiumSurcharges?: Record<string, number>;
 }
 
 export class CreateBookingDto {
