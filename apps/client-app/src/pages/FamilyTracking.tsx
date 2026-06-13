@@ -318,20 +318,7 @@ export default function FamilyTrackingPage() {
     );
   }
 
-  // 2. Loading State
-  if (loading) {
-    return (
-      <div className="auth-page">
-        <SEO title={seoTitle} description={seoDescription} />
-        <div style={{ textAlign: 'center', padding: '100px 24px', color: 'var(--text-muted)' }}>
-          <div className="app-loading-spinner" style={{ margin: '0 auto 1.5rem auto' }} />
-          <span>{isAr ? 'جاري تحميل تفاصيل التذكرة...' : 'Loading ticket details...'}</span>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Error State
+  // 2. Error State
   if (error) {
     return (
       <div className="auth-page" style={{ padding: '80px 24px' }}>
@@ -365,6 +352,19 @@ export default function FamilyTrackingPage() {
               {isAr ? 'العودة للرئيسية' : 'Back Home'}
             </Link>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Loading State
+  if (loading || !booking) {
+    return (
+      <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
+        <div style={{ textAlign: 'center', padding: '100px 24px', color: 'var(--text-muted)' }}>
+          <div className="app-loading-spinner" style={{ margin: '0 auto 1.5rem auto' }} />
+          <span>{isAr ? 'جاري تحميل تفاصيل التذكرة...' : 'Loading ticket details...'}</span>
         </div>
       </div>
     );
