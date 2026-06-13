@@ -379,12 +379,41 @@ export default function DashboardPage() {
     });
   }
 
-  // Location Telemetry Broadcasting (Always runs Simulator directly)
+  // Location Telemetry Broadcasting
   function startLocationStream() {
     if (isStreaming) return;
+    const gpsPermitted = localStorage.getItem('dride_gps_permitted') === 'true';
+    if (gpsPermitted) {
+      triggerRealGPS();
+    } else {
+      setPermissionModalVisible(true);
+    }
+  }
+
+  async function triggerRealGPS() {
+    try {
+      const permStatus = await Geolocation.checkPermissions();
+      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      } else if (permStatus.location === 'denied') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Native Geolocation permission request failed, using browser fallback:', err);
+    }
+
     setIsStreaming(true);
-    setIsMocking(true);
-    setGpsError("Simulator running.");
+    setGpsError(null);
+    localStorage.setItem('dride_gps_permitted', 'true');
+    setPermissionModalVisible(false);
 
     let startLat = 30.0444;
     let startLng = 31.2357;
@@ -396,7 +425,35 @@ export default function DashboardPage() {
     }
     
     setCurrentCoords({ lat: startLat, lng: startLng });
-    startMockSimulation(startLat, startLng);
+
+    if ('geolocation' in navigator) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setCurrentCoords({ lat, lng });
+          
+          socketService.sendLocation({
+            vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
+            driverId: user?._id || 'mock-driver-123',
+            longitude: lng,
+            latitude: lat,
+          });
+        },
+        (error) => {
+          console.warn('GPS failed, fallback to simulator:', error.message);
+          setGpsError(t('gpsNotAvailable'));
+          setIsMocking(true);
+          startMockSimulation(startLat, startLng);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+      geoWatchId.current = watchId;
+    } else {
+      setGpsError(t('geoNotSupported'));
+      setIsMocking(true);
+      startMockSimulation(startLat, startLng);
+    }
   }
 
   function stopLocationStream() {

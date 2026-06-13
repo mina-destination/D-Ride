@@ -67,50 +67,8 @@ export default function LiveTrackingPage() {
     mapRef.current = map;
 
     map.on('load', () => {
-      // Draw route polyline
+      // Add static markers for start and end terminals if coordinates exist
       if (routeCoords.length > 0) {
-        map.addSource('route-path', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: routeCoords
-            }
-          }
-        });
-
-        map.addLayer({
-          id: 'route-line-casing',
-          type: 'line',
-          source: 'route-path',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
-            'line-width': 8,
-            'line-opacity': 0.9
-          }
-        });
-
-        map.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route-path',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
-            'line-width': 5,
-            'line-opacity': 0.95
-          }
-        });
-
         // Add static markers for start and end terminals using Google Maps pins with wrappers
         const startEl = document.createElement('div');
         startEl.style.width = '32px';
