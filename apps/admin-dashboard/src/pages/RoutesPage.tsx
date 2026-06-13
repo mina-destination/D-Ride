@@ -745,6 +745,8 @@ export function RoutesPage() {
       return;
     }
 
+    let mapInstance: maplibregl.Map | null = null;
+
     const timer = setTimeout(() => {
       if (!mapContainerRef.current) return;
       if (mapRef.current) return; // Already initialized
@@ -762,20 +764,20 @@ export function RoutesPage() {
         attributionControl: false
       });
 
+      mapInstance = mapObj;
+
       // Suppress missing sprite image warnings by providing dummy transparent images
       mapObj.on('styleimagemissing', (e) => {
         const width = 16;
         const height = 16;
         const data = new Uint8Array(width * height * 4); // transparent pixels
-        if (!mapObj.hasImage(e.id)) {
+        if (mapInstance && !mapObj.hasImage(e.id)) {
           mapObj.addImage(e.id, { width, height, data });
         }
       });
 
-      mapRef.current = mapObj;
-      setMap(mapObj);
-
       mapObj.on('load', () => {
+        if (!mapInstance) return;
         // Fit bounds if checkpoints already exist
         if (checkpoints.length > 0) {
           const bounds = new maplibregl.LngLatBounds();
@@ -786,9 +788,10 @@ export function RoutesPage() {
         }
 
         mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+        
+        mapRef.current = mapObj;
+        setMap(mapObj);
       });
-
-
 
       mapObj.on('click', (e) => {
         handleMapClick(e.lngLat.lat, e.lngLat.lng);
@@ -797,13 +800,14 @@ export function RoutesPage() {
 
     return () => {
       clearTimeout(timer);
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        setMap(null);
+      if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
       }
+      mapRef.current = null;
+      setMap(null);
     };
-  }, [isModalOpen, theme, currentStep]);
+  }, [theme, isModalOpen, currentStep]);
 
   // Synchronize Markers
   useEffect(() => {
