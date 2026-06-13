@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Mail, Eye, EyeOff, Globe } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { driverAPI } from '../services/api';
+import logo from '../assets/d-ride-logo.jpeg';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -127,19 +128,19 @@ export default function LoginPage() {
 
       {/* Brand Header */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #f5b731 0%, #d97706 100%)',
-          width: '64px',
-          height: '64px',
-          borderRadius: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 16px auto',
-          boxShadow: '0 8px 24px rgba(245, 183, 49, 0.3)'
-        }}>
-          <Shield size={32} style={{ color: '#0e0e1b' }} />
-        </div>
+        <img 
+          src={logo} 
+          alt="D-Ride Logo" 
+          style={{ 
+            height: '64px', 
+            width: '64px', 
+            borderRadius: '16px', 
+            objectFit: 'contain', 
+            boxShadow: '0 8px 24px rgba(245, 183, 49, 0.3)', 
+            margin: '0 auto 16px auto',
+            display: 'block'
+          }} 
+        />
         <h1 className="title-outfit" style={{ fontSize: '28px', color: 'var(--text-primary)', marginBottom: '8px' }}>
           {t('brandName')}
         </h1>
