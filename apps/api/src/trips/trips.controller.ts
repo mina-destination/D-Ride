@@ -74,7 +74,7 @@ export class TripsController {
   @Roles('ADMIN')
   @Post()
   async create(@Body() data: CreateTripDto) {
-    const trip = await this.tripsService.create(data as any);
+    const trip = await this.tripsService.create(data);
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }
 
@@ -85,7 +85,7 @@ export class TripsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() data: UpdateTripDto,
   ) {
-    const trip = await this.tripsService.update(id, data as any);
+    const trip = await this.tripsService.update(id, data);
     return { success: true, data: trip, timestamp: new Date().toISOString() };
   }
 

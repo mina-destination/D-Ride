@@ -133,10 +133,16 @@ export class NotificationsController {
     let sent = true;
     switch (body.channel) {
       case 'SMS':
-        sent = await this.notificationsService.sendSMS(user.phone, body.message);
+        sent = await this.notificationsService.sendSMS(
+          user.phone,
+          body.message,
+        );
         break;
       case 'WHATSAPP':
-        sent = await this.notificationsService.sendWhatsApp(user.phone, body.message);
+        sent = await this.notificationsService.sendWhatsApp(
+          user.phone,
+          body.message,
+        );
         break;
       case 'EMAIL':
         sent = await this.mailService.sendMail(
@@ -202,7 +208,10 @@ export class NotificationsController {
           await this.notificationsService.sendSMS(user.phone, body.message);
           break;
         case 'WHATSAPP':
-          await this.notificationsService.sendWhatsApp(user.phone, body.message);
+          await this.notificationsService.sendWhatsApp(
+            user.phone,
+            body.message,
+          );
           break;
         case 'EMAIL':
           await this.mailService.sendMail(user.email, body.title, body.message);

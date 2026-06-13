@@ -100,7 +100,10 @@ export class NotificationsService implements OnModuleInit {
     }
 
     // Attempt dispatch via OpenWA WhatsappService first
-    const sentViaOpenWA = await this.whatsappService.sendWhatsAppMessage(to, message);
+    const sentViaOpenWA = await this.whatsappService.sendWhatsAppMessage(
+      to,
+      message,
+    );
     if (sentViaOpenWA) {
       return true;
     }

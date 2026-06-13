@@ -27,7 +27,7 @@ export class TripsService {
   ): any {
     if (!trip) return null;
 
-    let routeCopy: Prisma.RouteGetPayload<{}> | null = null;
+    let routeCopy: Prisma.RouteGetPayload<Record<string, never>> | null = null;
     let pickupCheckpoint: any = null;
     let dropoffCheckpoint: any = null;
 
@@ -53,7 +53,11 @@ export class TripsService {
         routeCopy = { ...trip.route };
       }
 
-      if (routeCopy && routeCopy.checkpoints && Array.isArray(routeCopy.checkpoints)) {
+      if (
+        routeCopy &&
+        routeCopy.checkpoints &&
+        Array.isArray(routeCopy.checkpoints)
+      ) {
         const depTime = new Date(trip.departureTime).getTime();
 
         let pickupIdx = -1;
@@ -429,8 +433,13 @@ export class TripsService {
       data.priceEGP === null ||
       isNaN(finalPrice)
     ) {
-      let calculatedPrice = (route && route.priceEGP) ? route.priceEGP : 0;
-      if (!calculatedPrice && route && route.checkpoints && Array.isArray(route.checkpoints)) {
+      let calculatedPrice = route && route.priceEGP ? route.priceEGP : 0;
+      if (
+        !calculatedPrice &&
+        route &&
+        route.checkpoints &&
+        Array.isArray(route.checkpoints)
+      ) {
         const checkpoints = route.checkpoints as any[];
         if (checkpoints.length >= 2) {
           const startCp = checkpoints[0];
@@ -456,7 +465,8 @@ export class TripsService {
       data.premiumSeatSurcharge === null ||
       isNaN(finalPremiumSurcharge)
     ) {
-      finalPremiumSurcharge = (route && route.premiumSeatSurcharge) ? route.premiumSeatSurcharge : 0;
+      finalPremiumSurcharge =
+        route && route.premiumSeatSurcharge ? route.premiumSeatSurcharge : 0;
     }
 
     let finalSeats = Number(data.availableSeats);
@@ -561,8 +571,12 @@ export class TripsService {
       arrivalTime: arrTime,
       status,
       ...(data.priceEGP != null ? { priceEGP: data.priceEGP } : {}),
-      ...(data.premiumSeatSurcharge != null ? { premiumSeatSurcharge: data.premiumSeatSurcharge } : {}),
-      ...(data.availableSeats != null ? { availableSeats: data.availableSeats } : {}),
+      ...(data.premiumSeatSurcharge != null
+        ? { premiumSeatSurcharge: data.premiumSeatSurcharge }
+        : {}),
+      ...(data.availableSeats != null
+        ? { availableSeats: data.availableSeats }
+        : {}),
       ...(data.bookedSeats != null ? { bookedSeats: data.bookedSeats } : {}),
       lockedSeats: data.lockedSeats,
     };
@@ -628,7 +642,11 @@ export class TripsService {
           if (u && t && r) {
             const seatNo = Array.isArray(booking.seatNumbers)
               ? booking.seatNumbers.join(', ')
-              : String(booking.seatNumbers || '');
+              : typeof booking.seatNumbers === 'string'
+                ? booking.seatNumbers
+                : typeof booking.seatNumbers === 'number'
+                  ? String(booking.seatNumbers)
+                  : '';
             this.notificationsService
               .sendCancellationNotification(
                 u.phone || '',
@@ -666,11 +684,11 @@ export class TripsService {
 
   async incrementBookedSeats(id: string, count: number): Promise<any> {
     const updated = await this.prisma.trip.update({
-      where: { 
+      where: {
         id,
         availableSeats: { gte: count }, // Atomic check
       },
-      data: { 
+      data: {
         bookedSeats: { increment: count },
         availableSeats: { decrement: count },
       },
@@ -732,7 +750,11 @@ export class TripsService {
     }
 
     const targetStatus = status.toUpperCase();
-    if (!isAdmin && ['BOARDING', 'IN_TRANSIT'].includes(targetStatus) && trip.status === 'SCHEDULED') {
+    if (
+      !isAdmin &&
+      ['BOARDING', 'IN_TRANSIT'].includes(targetStatus) &&
+      trip.status === 'SCHEDULED'
+    ) {
       const maxLeadTimeMs = 60 * 60 * 1000; // 1 hour
       const scheduledTime = new Date(trip.departureTime).getTime();
       const now = Date.now();

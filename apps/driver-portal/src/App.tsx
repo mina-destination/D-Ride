@@ -3,10 +3,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/Login';
-// Keep unused pages for backup/reference:
-// import MyTripsPage from './pages/MyTrips';
-// import TripDetailPage from './pages/TripDetail';
-// import LiveDrivePage from './pages/LiveDrive';
+import MyTripsPage from './pages/MyTrips';
+import TripDetailPage from './pages/TripDetail';
+import LiveDrivePage from './pages/LiveDrive';
 import DashboardPage from './pages/Dashboard';
 import BottomNav from './components/BottomNav';
 import ProfilePage from './pages/ProfilePage';
@@ -72,17 +71,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AnonymousRoute({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
   if (token && user && user.role?.toUpperCase() === 'DRIVER') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/trips" replace />;
   }
   return <>{children}</>;
 }
+
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <NotificationProvider>
-          <Router>
+        <ThemeProvider>
+          <NotificationProvider>
+            <Router>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<AnonymousRoute><LoginPage /></AnonymousRoute>} />
@@ -99,19 +101,25 @@ export default function App() {
               <Route
                 path="/trips"
                 element={
-                  <Navigate to="/dashboard" replace />
+                  <ProtectedRoute>
+                    <MyTripsPage />
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/trips/:id"
                 element={
-                  <Navigate to="/dashboard" replace />
+                  <ProtectedRoute>
+                    <TripDetailPage />
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/drive/:id"
                 element={
-                  <Navigate to="/dashboard" replace />
+                  <ProtectedRoute>
+                    <LiveDrivePage />
+                  </ProtectedRoute>
                 }
               />
               <Route
@@ -139,6 +147,7 @@ export default function App() {
             <BottomNav />
           </Router>
         </NotificationProvider>
+        </ThemeProvider>
       </LanguageProvider>
     </AuthProvider>
   );

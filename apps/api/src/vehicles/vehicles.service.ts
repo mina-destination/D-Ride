@@ -142,9 +142,9 @@ export class VehiclesService {
       if (!vehicle) {
         throw new NotFoundException('Vehicle not found');
       }
-      
-      let isAuthorized = (vehicle.driverId === caller.sub);
-      
+
+      let isAuthorized = vehicle.driverId === caller.sub;
+
       if (!isAuthorized) {
         const activeTrip = await this.prisma.trip.findFirst({
           where: {
@@ -157,7 +157,7 @@ export class VehiclesService {
           isAuthorized = true;
         }
       }
-      
+
       if (!isAuthorized) {
         throw new ForbiddenException(
           'You are not assigned to this vehicle or active trip',
@@ -210,34 +210,41 @@ export class VehiclesService {
         });
 
         if (activeTrip) {
-        let path: [number, number][] = [];
-        if (activeTrip.actualPath) {
-          try {
-            path = typeof activeTrip.actualPath === 'string'
-              ? JSON.parse(activeTrip.actualPath)
-              : (activeTrip.actualPath as any);
-          } catch (e) {
+          let path: [number, number][] = [];
+          if (activeTrip.actualPath) {
+            try {
+              path =
+                typeof activeTrip.actualPath === 'string'
+                  ? JSON.parse(activeTrip.actualPath)
+                  : (activeTrip.actualPath as any);
+            } catch (e) {
+              path = [];
+            }
+          }
+          if (!Array.isArray(path)) {
             path = [];
           }
-        }
-        if (!Array.isArray(path)) {
-          path = [];
-        }
 
-        const last = path[path.length - 1];
-        if (!last || last[0] !== data.longitude || last[1] !== data.latitude) {
-          path.push([data.longitude, data.latitude]);
-          await this.prisma.trip.update({
-            where: { id: activeTrip.id },
-            data: {
-              actualPath: path as any,
-            },
-          });
+          const last = path[path.length - 1];
+          if (
+            !last ||
+            last[0] !== data.longitude ||
+            last[1] !== data.latitude
+          ) {
+            path.push([data.longitude, data.latitude]);
+            await this.prisma.trip.update({
+              where: { id: activeTrip.id },
+              data: {
+                actualPath: path as any,
+              },
+            });
+          }
         }
-      }
       }
     } catch (err: any) {
-      this.logger.error(`Failed to record actual trip path coordinates: ${err.message}`);
+      this.logger.error(
+        `Failed to record actual trip path coordinates: ${err.message}`,
+      );
     }
 
     // Broadcast the updated location to connected clients
@@ -265,7 +272,12 @@ export class VehiclesService {
         include: {
           vehicle: {
             select: {
-              id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true,
+              id: true,
+              model: true,
+              plateNumber: true,
+              capacity: true,
+              type: true,
+              driverId: true,
               driver: { select: { id: true, name: true, phone: true } },
             },
           },
@@ -273,7 +285,9 @@ export class VehiclesService {
         orderBy: { lastUpdatedAt: 'desc' },
       });
     } catch (err: any) {
-      this.logger.error(`Failed to fetch all vehicle locations: ${err.message}`);
+      this.logger.error(
+        `Failed to fetch all vehicle locations: ${err.message}`,
+      );
       return [];
     }
   }
@@ -284,7 +298,12 @@ export class VehiclesService {
       include: {
         vehicle: {
           select: {
-            id: true, model: true, plateNumber: true, capacity: true, type: true, driverId: true,
+            id: true,
+            model: true,
+            plateNumber: true,
+            capacity: true,
+            type: true,
+            driverId: true,
             driver: { select: { id: true, name: true, phone: true } },
           },
         },

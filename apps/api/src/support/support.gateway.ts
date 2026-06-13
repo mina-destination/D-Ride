@@ -37,8 +37,10 @@ export interface SendMessagePayload {
             'http://localhost:5175',
             'http://localhost:3001',
           ];
-      if (!origins.includes('https://localhost')) origins.push('https://localhost');
-      if (!origins.includes('capacitor://localhost')) origins.push('capacitor://localhost');
+      if (!origins.includes('https://localhost'))
+        origins.push('https://localhost');
+      if (!origins.includes('capacitor://localhost'))
+        origins.push('capacitor://localhost');
       return origins;
     })(),
     credentials: true,
@@ -47,13 +49,18 @@ export interface SendMessagePayload {
   pingInterval: 5000,
 })
 export class SupportGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnGatewayInit,
+    OnModuleDestroy
 {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(SupportGateway.name);
-  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null =
+    null;
 
   constructor(
     private prisma: PrismaService,
@@ -93,7 +100,10 @@ export class SupportGateway
     });
 
     // Rate limiting: max 30 messages per minute per connection
-    const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+    const rateLimitMap = new Map<
+      string,
+      { count: number; resetTime: number }
+    >();
     const RATE_LIMIT = 30;
     const RATE_WINDOW_MS = 60 * 1000;
 
@@ -232,8 +242,15 @@ export class SupportGateway
         const ticket = await this.prisma.supportTicket.findUnique({
           where: { id: data.ticketId },
         });
-        if (ticket && ticket.subject === 'WhatsApp Support Session' && ticket.phone) {
-          await this.whatsappService.sendWhatsAppMessage(ticket.phone, data.message);
+        if (
+          ticket &&
+          ticket.subject === 'WhatsApp Support Session' &&
+          ticket.phone
+        ) {
+          await this.whatsappService.sendWhatsAppMessage(
+            ticket.phone,
+            data.message,
+          );
         }
       }
 

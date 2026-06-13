@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Form, Input, Button, Switch, Tabs, Card, Typography, Row, Col, Space, InputNumber, Table, Checkbox, Spin } from 'antd';
 import { message } from '../utils/antdGlobal';
 import { Globe, CreditCard, CarFront, Settings as SettingsIcon, Shield, MessageCircle } from 'lucide-react';
@@ -43,17 +43,31 @@ export function SettingsPage() {
       const res = await whatsappAPI.getStatus();
       setWhatsappStatus(res.status);
       setWhatsappQr(res.qrCode);
-    } catch (err) {
-      console.error('Failed to fetch WhatsApp connection status', err);
+      waFailCountRef.current = 0;
+    } catch {
+      // Only log the first failure, suppress repeated network error spam
+      if (waFailCountRef.current === 0) {
+        console.warn('[Settings] WhatsApp status endpoint unreachable — polling silenced until recovery.');
+      }
+      waFailCountRef.current++;
     }
   };
 
+  const waFailCountRef = useRef(0);
+  const [activeSettingsTab, setActiveSettingsTab] = useState('general');
+
   useEffect(() => {
-    fetchWhatsappStatus();
     fetchPaymobFeatures();
-    const interval = setInterval(fetchWhatsappStatus, 3000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    // Only poll WhatsApp status when the WhatsApp tab is active
+    if (activeSettingsTab !== 'whatsapp') return;
+
+    fetchWhatsappStatus();
+    const interval = setInterval(fetchWhatsappStatus, 10000);
+    return () => clearInterval(interval);
+  }, [activeSettingsTab]);
 
   const permissionsList = [
     { key: 'dashboard', label: 'Dashboard' },
@@ -490,7 +504,9 @@ export function SettingsPage() {
                           setWhatsappActionLoading(true);
                           await whatsappAPI.restart();
                           fetchWhatsappStatus();
-                        } catch (err) {}
+                        } catch (err) {
+                          console.error('Failed to restart WhatsApp connection', err);
+                        }
                         finally { setWhatsappActionLoading(false); }
                       }}
                       style={{ marginTop: '8px' }}
@@ -521,7 +537,9 @@ export function SettingsPage() {
                       setWhatsappActionLoading(true);
                       await whatsappAPI.restart();
                       fetchWhatsappStatus();
-                    } catch (err) {}
+                    } catch (err) {
+                      console.error('Failed to restart WhatsApp connection', err);
+                    }
                     finally { setWhatsappActionLoading(false); }
                   }}
                   style={{ marginTop: '1rem' }}
@@ -628,7 +646,7 @@ export function SettingsPage() {
           </Button>
         </div>
 
-        <Tabs defaultActiveKey="general" items={items} type="card" />
+        <Tabs activeKey={activeSettingsTab} onChange={setActiveSettingsTab} items={items} type="card" />
       </Form>
     </div>
   );

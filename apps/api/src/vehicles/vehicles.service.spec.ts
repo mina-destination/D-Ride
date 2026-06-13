@@ -125,9 +125,9 @@ describe('VehiclesService', () => {
     it('should throw NotFoundException if vehicle not found', async () => {
       mockPrismaService.vehicle.update.mockRejectedValue(new Error());
 
-      await expect(
-        service.updateVehicle('nonexistent', {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateVehicle('nonexistent', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -167,7 +167,9 @@ describe('VehiclesService', () => {
     it('should create new location entry if none exists', async () => {
       mockPrismaService.vehicle.findUnique.mockResolvedValue(mockVehicle);
       mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(null);
-      mockPrismaService.liveVehicleLocation.create.mockResolvedValue(mockLocation);
+      mockPrismaService.liveVehicleLocation.create.mockResolvedValue(
+        mockLocation,
+      );
 
       const result = await service.upsertLocation(
         {
@@ -185,8 +187,12 @@ describe('VehiclesService', () => {
 
     it('should update existing location entry', async () => {
       mockPrismaService.vehicle.findUnique.mockResolvedValue(mockVehicle);
-      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(mockLocation);
-      mockPrismaService.liveVehicleLocation.update.mockResolvedValue(mockLocation);
+      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(
+        mockLocation,
+      );
+      mockPrismaService.liveVehicleLocation.update.mockResolvedValue(
+        mockLocation,
+      );
 
       const result = await service.upsertLocation(
         {
@@ -212,7 +218,9 @@ describe('VehiclesService', () => {
     });
 
     it('should return vehicle location', async () => {
-      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(mockLocation);
+      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(
+        mockLocation,
+      );
 
       const result = await service.getLocation('vehicle-1');
 
@@ -234,7 +242,9 @@ describe('VehiclesService', () => {
 
   describe('markVehicleOffline', () => {
     it('should mark vehicle offline', async () => {
-      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(mockLocation);
+      mockPrismaService.liveVehicleLocation.findFirst.mockResolvedValue(
+        mockLocation,
+      );
       mockPrismaService.liveVehicleLocation.update.mockResolvedValue({
         ...mockLocation,
         status: 'OFFLINE',

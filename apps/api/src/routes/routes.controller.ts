@@ -120,7 +120,7 @@ export class RoutesController {
   @Roles('ADMIN')
   @Post()
   async create(@Body() data: CreateRouteDto) {
-    const route = await this.routesService.create(data as any);
+    const route = await this.routesService.create(data);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 
@@ -131,7 +131,7 @@ export class RoutesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() data: UpdateRouteDto,
   ) {
-    const route = await this.routesService.update(id, data as any);
+    const route = await this.routesService.update(id, data);
     return { success: true, data: route, timestamp: new Date().toISOString() };
   }
 

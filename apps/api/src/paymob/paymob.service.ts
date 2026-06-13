@@ -71,9 +71,7 @@ export class PaymobService implements OnModuleInit {
 
     // Step 1: Verify HMAC signature - ALWAYS enforce, never bypass
     if (!isValidHmac) {
-      this.logger.error(
-        'Invalid HMAC signature received — rejecting webhook',
-      );
+      this.logger.error('Invalid HMAC signature received — rejecting webhook');
       throw new BadRequestException('Invalid HMAC signature');
     }
 
@@ -448,53 +446,53 @@ export class PaymobService implements OnModuleInit {
     amountEGP?: number,
     transactionId?: string,
   ): Promise<void> {
-      // Booking confirmation
-      const booking = await this.prisma.booking.findUnique({
+    // Booking confirmation
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking || booking.status === 'CONFIRMED') {
+      return;
+    }
+
+    let paymobOrderId = crypto.randomInt(100000000, 999999999);
+    if (transactionId) {
+      const parsed = parseInt(transactionId, 10);
+      if (!isNaN(parsed)) {
+        paymobOrderId = parsed;
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({
         where: { id: bookingId },
-      });
-      if (!booking || booking.status === 'CONFIRMED') {
-        return;
-      }
-
-      let paymobOrderId = crypto.randomInt(100000000, 999999999);
-      if (transactionId) {
-        const parsed = parseInt(transactionId, 10);
-        if (!isNaN(parsed)) {
-          paymobOrderId = parsed;
-        }
-      }
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            status: 'CONFIRMED',
-            paymentStatus: 'SUCCESS',
-            paymobOrderId: paymobOrderId,
-          },
-        });
-
-        await tx.transaction.create({
-          data: {
-            paymobOrderId: paymobOrderId,
-            amountEGP: booking.amountEGP,
-            status: PaymentStatus.SUCCESS,
-            paymentMethod: 'CARD',
-            userId: booking.userId,
-            bookingId: bookingId,
-            paymobPaymentId: transactionId ? transactionId.toString() : null,
-          },
-        });
-
-        await this.bookingsService.cleanupExpiredBookings(booking.tripId, tx);
+        data: {
+          status: 'CONFIRMED',
+          paymentStatus: 'SUCCESS',
+          paymobOrderId: paymobOrderId,
+        },
       });
 
-      try {
-        await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
-      } catch (err) {
-        this.logger.error('Failed to trigger updateStatus notifications', err);
-      }
-      this.logger.log(`Confirmed booking ${bookingId} via client redirect.`);
+      await tx.transaction.create({
+        data: {
+          paymobOrderId: paymobOrderId,
+          amountEGP: booking.amountEGP,
+          status: PaymentStatus.SUCCESS,
+          paymentMethod: 'CARD',
+          userId: booking.userId,
+          bookingId: bookingId,
+          paymobPaymentId: transactionId ? transactionId.toString() : null,
+        },
+      });
+
+      await this.bookingsService.cleanupExpiredBookings(booking.tripId, tx);
+    });
+
+    try {
+      await this.bookingsService.updateStatus(bookingId, 'CONFIRMED');
+    } catch (err) {
+      this.logger.error('Failed to trigger updateStatus notifications', err);
+    }
+    this.logger.log(`Confirmed booking ${bookingId} via client redirect.`);
   }
 
   public async verifyTransactionOnPaymob(

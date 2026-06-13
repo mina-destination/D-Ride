@@ -192,10 +192,18 @@ describe('SupportService', () => {
         subject: 'WhatsApp Support Session',
         phone: '+201001234567',
       };
-      mockPrismaService.supportTicket.findUnique.mockResolvedValue(whatsAppTicket);
+      mockPrismaService.supportTicket.findUnique.mockResolvedValue(
+        whatsAppTicket,
+      );
       mockPrismaService.supportTicket.update.mockResolvedValue({
         ...whatsAppTicket,
-        replies: [{ text: 'Reply', createdAt: new Date().toISOString(), adminName: 'Admin' }],
+        replies: [
+          {
+            text: 'Reply',
+            createdAt: new Date().toISOString(),
+            adminName: 'Admin',
+          },
+        ],
       });
 
       await service.replyToTicket('ticket-1', 'Your response', 'Admin');

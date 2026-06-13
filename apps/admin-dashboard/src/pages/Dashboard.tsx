@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Bus, CarFront, Banknote, Users, CreditCard, Activity, Flame, Ticket } from 'lucide-react';
+import { Skeleton } from 'antd';
 import { bookingsAPI, tripsAPI, vehiclesAPI, usersAPI } from '../services/api';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
@@ -263,9 +264,10 @@ export default function DashboardPage() {
     };
   }, [allTrips]);
 
-  // Recent Bookings memo
+  // Recent Bookings memo — filter out records with no valid _id
   const recentBookings = useMemo(() => {
     return [...bookings]
+      .filter(b => b && b._id)
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 5);
   }, [bookings]);
@@ -274,8 +276,8 @@ export default function DashboardPage() {
   const recentActivities = useMemo(() => {
     const activities: { id: string; type: 'booking' | 'trip' | 'vehicle'; text: React.ReactNode; date: Date; icon: React.ReactNode }[] = [];
 
-    // 1. Process Bookings
-    bookings.forEach(b => {
+    // 1. Process Bookings — skip records with no valid _id
+    bookings.filter(b => b && b._id).forEach(b => {
       const name = b.userId?.name || 'Passenger';
       const routeName = b.tripId?.routeId?.name || 'Route';
       const time = new Date(b.createdAt || b.updatedAt);
@@ -299,8 +301,8 @@ export default function DashboardPage() {
       }
     });
 
-    // 2. Process Trips
-    allTrips.forEach(t => {
+    // 2. Process Trips — skip records with no valid _id
+    allTrips.filter(t => t && t._id).forEach(t => {
       const routeName = t.routeId?.name || 'Route';
       const tripIdShort = t._id.slice(-6).toUpperCase();
       const time = new Date(t.updatedAt || t.departureTime);
@@ -332,8 +334,8 @@ export default function DashboardPage() {
       }
     });
 
-    // 3. Process Vehicles
-    allVehicles.forEach(v => {
+    // 3. Process Vehicles — skip records with no valid _id
+    allVehicles.filter(v => v && v._id).forEach(v => {
       const plate = v.licensePlate || 'N/A';
       const make = v.make || 'Shuttle';
       const time = new Date(v.updatedAt || new Date());
@@ -634,6 +636,10 @@ export default function DashboardPage() {
 
     if (mapViewMode === 'FLEET') {
       fleet.forEach((bus) => {
+        if (typeof bus.lng !== 'number' || typeof bus.lat !== 'number' || isNaN(bus.lng) || isNaN(bus.lat)) {
+          return;
+        }
+
         const el = document.createElement('div');
         el.className = 'google-maps-bus-pointer';
 
@@ -667,6 +673,9 @@ export default function DashboardPage() {
           const pickup = booking.pickupCheckpoint;
           const coords = pickup.location?.coordinates || pickup.coordinates;
           if (!coords || coords.length < 2) return;
+          if (typeof coords[0] !== 'number' || typeof coords[1] !== 'number' || isNaN(coords[0]) || isNaN(coords[1])) {
+            return;
+          }
 
           const el = document.createElement('div');
           el.className = 'demand-heatmap-marker';
@@ -719,10 +728,11 @@ export default function DashboardPage() {
     }
 
     const fetchRoute = async () => {
+      let points: [number, number][] = [];
       try {
         // Fetch full trip details on-demand since coordinates are excluded in the list payload
         const fullTrip = await tripsAPI.getById(selectedBusId);
-        const points = fullTrip?.routeId?.path?.coordinates?.map(
+        points = fullTrip?.routeId?.path?.coordinates?.map(
           (c: number[]) => [c[1], c[0]] as [number, number]
         ) || [];
 
@@ -745,8 +755,8 @@ export default function DashboardPage() {
           setSelectedRoutePath(points);
         }
       } catch (err) {
-        console.warn("OSRM routing failed on dashboard, falling back:", err);
-        setSelectedRoutePath([]);
+        console.log("OSRM routing failed on dashboard, falling back to direct path points:", err);
+        setSelectedRoutePath(points);
       }
     };
     fetchRoute();
@@ -854,8 +864,8 @@ const getTrend = (current: number, previous: number) => {
           return (
             <>
             {loading && (
-              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                Loading dashboard data...
+              <div style={{ padding: '1.5rem' }}>
+                <Skeleton active paragraph={{ rows: 2 }} />
               </div>
             )}
             <div className="dashboard-welcome">

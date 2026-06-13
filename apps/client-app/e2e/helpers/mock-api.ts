@@ -479,4 +479,18 @@ export async function setupMockAPI(page: Page) {
       }),
     });
   });
+
+  // 18. Settings Mocking
+  await page.route('**/api/settings', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          supportEmail: 'support@dride.com',
+          supportPhone: '+20 100 123 4567',
+        }
+      }),
+    });
+  });
 }

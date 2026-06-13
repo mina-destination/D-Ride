@@ -13,7 +13,7 @@ export class PromoCodesService {
 
   async create(dto: CreatePromoCodeDto) {
     const code = dto.code.trim().toUpperCase();
-    
+
     const existing = await this.prisma.promoCode.findUnique({
       where: { code },
     });
@@ -59,7 +59,9 @@ export class PromoCodesService {
         },
       });
       if (existing) {
-        throw new BadRequestException(`Promo code "${data.code}" already exists`);
+        throw new BadRequestException(
+          `Promo code "${data.code}" already exists`,
+        );
       }
     }
 
@@ -105,7 +107,9 @@ export class PromoCodesService {
     }
 
     if (promo.usageLimit !== null && promo.usageCount >= promo.usageLimit) {
-      throw new BadRequestException('This promo code has reached its usage limit');
+      throw new BadRequestException(
+        'This promo code has reached its usage limit',
+      );
     }
 
     // Retrieve Trip & Route to calculate segment price

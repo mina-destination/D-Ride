@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsNumber, Min, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  Min,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 
 export enum VehicleStatus {
   ACTIVE = 'ACTIVE',

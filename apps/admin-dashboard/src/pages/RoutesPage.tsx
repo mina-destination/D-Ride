@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Table, Button, Modal, Input, Space, Steps, Spin, Select, Switch } from 'antd';
+import { Table, Button, Modal, Input, Space, Steps, Spin, Select, Switch, Tag } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import maplibregl from 'maplibre-gl';
@@ -20,10 +20,12 @@ import {
   Clock,
   Radio,
   Download,
-  Compass
+  Compass,
+  Star
 } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
 import { useTheme } from '../context/ThemeContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 // Utility to convert Google Drive share links to direct download URLs
 function cleanGoogleDriveLink(url: string): string {
@@ -74,17 +76,40 @@ const POPULAR_TERMINALS = [
   { name: '🌳 Maadi', lng: 31.2755, lat: 29.9602 }
 ];
 
+// Nominatim fetch wrapper with retry + backoff to handle rate-limiting / connection resets
+async function fetchNominatim(url: string, retries = 3, delayMs = 600): Promise<Response> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, delayMs * attempt));
+      }
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'D-Ride-AdminDashboard/1.0'
+        }
+      });
+      if (res.ok) return res;
+    } catch (err) {
+      if (attempt === retries - 1) throw err;
+    }
+  }
+  throw new Error('Nominatim request failed after retries');
+}
+
 // Reusable nominatim location autocomplete input with coordinates & keyboard support
 function SearchAutocomplete({
   placeholder,
   value,
   onChange,
-  onSelect
+  onSelect,
+  favorites = []
 }: {
   placeholder: string;
   value: string;
   onChange: (val: string) => void;
   onSelect: (name: string, lng: number, lat: number) => void;
+  favorites?: any[];
 }) {
   const [results, setResults] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -93,6 +118,34 @@ function SearchAutocomplete({
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const justSelectedRef = useRef<boolean>(false);
+
+  // Local favorites suggestion list matching search string
+  const filteredFavs = (favorites || []).filter(fav => {
+    if (!value) return true; // show all when input is empty (focused)
+    const term = value.toLowerCase();
+    return (
+      (fav.name || '').toLowerCase().includes(term) || 
+      (fav.internalName || '').toLowerCase().includes(term)
+    );
+  });
+
+  const favOptions = filteredFavs.map(fav => ({
+    display_name: fav.name,
+    name: fav.internalName ? `${fav.internalName} (${fav.name})` : fav.name,
+    lon: fav.lng.toString(),
+    lat: fav.lat.toString(),
+    is_favorite: true,
+    rawFav: fav
+  }));
+
+  // Combine favorite options with Nominatim results, preventing coordinates or address duplicates
+  const combinedResults = [
+    ...favOptions,
+    ...results.filter(r => !favOptions.some(f => 
+      Math.abs(parseFloat(f.lat) - parseFloat(r.lat)) < 0.0001 && 
+      Math.abs(parseFloat(f.lon) - parseFloat(r.lon)) < 0.0001
+    ))
+  ];
 
   // Debounce the input value
   useEffect(() => {
@@ -146,7 +199,7 @@ function SearchAutocomplete({
             
             // Try to reverse geocode using OSM reverse geocoding
             try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+              const res = await fetchNominatim(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
               const data = await res.json();
               if (active) {
                 if (data && data.display_name) {
@@ -170,7 +223,7 @@ function SearchAutocomplete({
         }
 
         // Standard address search
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(debouncedValue)}&countrycodes=eg&limit=5`);
+        const res = await fetchNominatim(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(debouncedValue)}&countrycodes=eg&limit=5`);
         const data = await res.json();
         if (active) {
           setResults(data);
@@ -209,6 +262,7 @@ function SearchAutocomplete({
   const selectOption = (item: any) => {
     justSelectedRef.current = true;
     const displayName = item.display_name;
+    // For favorites, use name which has internalName/name combined format if needed, or simply name
     const shortName = item.name || displayName.split(',')[0];
     onSelect(shortName, parseFloat(item.lon), parseFloat(item.lat));
     setOpen(false);
@@ -217,18 +271,18 @@ function SearchAutocomplete({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || results.length === 0) return;
+    if (!open || combinedResults.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex(prev => (prev + 1) % results.length);
+      setActiveIndex(prev => (prev + 1) % combinedResults.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex(prev => (prev - 1 + results.length) % results.length);
+      setActiveIndex(prev => (prev - 1 + combinedResults.length) % combinedResults.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (activeIndex >= 0 && activeIndex < results.length) {
-        selectOption(results[activeIndex]);
+      if (activeIndex >= 0 && activeIndex < combinedResults.length) {
+        selectOption(combinedResults[activeIndex]);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -252,7 +306,7 @@ function SearchAutocomplete({
         onKeyDown={handleKeyDown}
         suffix={loading ? <Spin size="small" /> : '🔍'}
       />
-      {open && (results.length > 0 || !value || value.length < 3 || loading) && (
+      {open && (combinedResults.length > 0 || !value || value.length < 3 || loading) && (
         <div style={{
           position: 'absolute',
           top: '100%',
@@ -268,8 +322,8 @@ function SearchAutocomplete({
           marginTop: '6px',
           padding: '4px 0'
         }}>
-          {results.length > 0 ? (
-            results.map((r, idx) => {
+          {combinedResults.length > 0 ? (
+            combinedResults.map((r, idx) => {
               const displayName = r.display_name;
               const shortName = r.name || displayName.split(',')[0];
               const isHighlighted = idx === activeIndex;
@@ -281,7 +335,7 @@ function SearchAutocomplete({
                     padding: '10px 14px',
                     cursor: 'pointer',
                     fontSize: '12px',
-                    borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
+                    borderBottom: idx < combinedResults.length - 1 ? '1px solid var(--border)' : 'none',
                     color: 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
@@ -298,13 +352,15 @@ function SearchAutocomplete({
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    backgroundColor: r.is_coords 
+                    backgroundColor: r.is_favorite
+                      ? 'rgba(245, 183, 49, 0.15)'
+                      : r.is_coords 
                       ? 'rgba(245, 183, 49, 0.15)' 
                       : 'rgba(16, 185, 129, 0.15)',
-                    color: r.is_coords ? '#F5B731' : '#10B981',
+                    color: r.is_favorite ? '#F5B731' : r.is_coords ? '#F5B731' : '#10B981',
                     flexShrink: 0
                   }}>
-                    {r.is_coords ? <Compass size={14} /> : <MapPin size={14} />}
+                    {r.is_favorite ? <Star size={14} fill="#F5B731" /> : r.is_coords ? <Compass size={14} /> : <MapPin size={14} />}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
                     <strong style={{ 
@@ -322,7 +378,10 @@ function SearchAutocomplete({
                       textOverflow: 'ellipsis', 
                       whiteSpace: 'nowrap' 
                     }}>
-                      {displayName}
+                      {r.is_favorite 
+                        ? (r.rawFav?.internalName ? `Saved Favorite (Customer: ${displayName})` : 'Saved Favorite Location') 
+                        : displayName
+                      }
                     </span>
                   </div>
                 </div>
@@ -399,7 +458,7 @@ function SearchAutocomplete({
 // Helper: reverse geocode to extract city name from coordinates
 async function reverseGeocodeCity(lat: number, lng: number): Promise<string> {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
+    const res = await fetchNominatim(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
     const data = await res.json();
     if (data?.address) {
       return data.address.city || data.address.town || data.address.state || data.address.county || '';
@@ -420,6 +479,7 @@ function haversineDistance(lng1: number, lat1: number, lng2: number, lat2: numbe
 
 export function RoutesPage() {
   const { theme } = useTheme();
+  const confirm = useConfirm();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
@@ -451,6 +511,26 @@ export function RoutesPage() {
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [points, setPoints] = useState<[number, number][]>([]); // Snapped route polyline coordinates
   const [snapping, setSnapping] = useState(false);
+  const [favorites, setFavorites] = useState<{ name: string; internalName: string; lng: number; lat: number }[]>([
+    { name: 'Olympic Sports City', internalName: 'SHM-OLY (Olympic Hub)', lng: 34.33, lat: 27.93 },
+    { name: 'Dahab Terminal', internalName: 'DHB-TERM (Dahab Station)', lng: 34.51, lat: 28.50 },
+    { name: 'Cairo Airport Terminal 3', internalName: 'CAI-T3 (Airport Hub)', lng: 31.40, lat: 30.11 },
+    { name: 'Smart Village Gate', internalName: 'SMV-GATE (Smart Village)', lng: 30.78, lat: 30.08 },
+    { name: 'Maadi Square', internalName: 'MDI-SQ (Maadi Hub)', lng: 31.25, lat: 29.96 }
+  ]);
+  const [lastMapClick, setLastMapClick] = useState<{ lat: number; lng: number } | null>(null);
+
+  const handleSaveFavoriteLocation = (lat: number, lng: number) => {
+    const defaultName = `Map Point (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    const customerName = window.prompt("Enter Customer-facing Name (shown to passengers):", defaultName);
+    if (!customerName || !customerName.trim()) return;
+
+    const adminName = window.prompt("Enter Admin-facing Name/Code (internal use only):", customerName);
+    if (!adminName || !adminName.trim()) return;
+
+    setFavorites(prev => [...prev, { name: customerName.trim(), internalName: adminName.trim(), lng, lat }]);
+    message.success('Added to favorites!');
+  };
 
   // Auto-complete queries
   const [startQuery, setStartQuery] = useState('');
@@ -459,7 +539,184 @@ export function RoutesPage() {
   const [mapPanTo, setMapPanTo] = useState<[number, number] | null>(null);
   const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
 
+  // Re-calculate ordering index and stop type
+  function syncCheckpointsList(list: any[]) {
+    return list.map((item, idx) => {
+      let type: 'START' | 'CHECKPOINT' | 'END' = 'CHECKPOINT';
+      if (idx === 0) type = 'START';
+      else if (idx === list.length - 1 && list.length > 1) type = 'END';
+      return {
+        ...item,
+        order: idx + 1,
+        type
+      };
+    });
+  }
 
+  function addStartTerminal(name: string, lng: number, lat: number) {
+    const newStart = {
+      name,
+      location: { type: 'Point', coordinates: [lng, lat] },
+      order: 1,
+      type: 'START' as const,
+      bufferTimeMinutes: 5,
+      geofenceRadiusMeters: 100,
+      minutesFromStart: 0,
+      city: '',
+      priceFromStartEGP: 0
+    };
+    setCheckpoints(prev => {
+      const updated = [...prev];
+      const startIdx = updated.findIndex(c => c.type === 'START');
+      if (startIdx !== -1) {
+        updated[startIdx] = newStart;
+      } else {
+        updated.unshift(newStart);
+      }
+      return syncCheckpointsList(updated);
+    });
+    setStartQuery(name);
+    setMapPanTo([lat, lng]);
+    // Auto-fill city from reverse geocoding
+    reverseGeocodeCity(lat, lng).then(city => {
+      if (city) {
+        setCheckpoints(prev => {
+          const updated = [...prev];
+          const si = updated.findIndex(c => c.type === 'START');
+          if (si !== -1 && !updated[si].city) updated[si] = { ...updated[si], city };
+          return updated;
+        });
+      }
+    });
+  }
+
+  function addEndTerminal(name: string, lng: number, lat: number) {
+    const newEnd = {
+      name,
+      location: { type: 'Point', coordinates: [lng, lat] },
+      order: checkpoints.length + 1,
+      type: 'END' as const,
+      bufferTimeMinutes: 0,
+      geofenceRadiusMeters: 100,
+      minutesFromStart: 0,
+      city: '',
+      priceFromStartEGP: 0
+    };
+    setCheckpoints(prev => {
+      const updated = [...prev];
+      const endIdx = updated.findIndex(c => c.type === 'END');
+      if (endIdx !== -1) {
+        updated[endIdx] = newEnd;
+      } else {
+        updated.push(newEnd);
+      }
+      return syncCheckpointsList(updated);
+    });
+    setEndQuery(name);
+    setMapPanTo([lat, lng]);
+    // Auto-fill city from reverse geocoding
+    reverseGeocodeCity(lat, lng).then(city => {
+      if (city) {
+        setCheckpoints(prev => {
+          const updated = [...prev];
+          const ei = updated.findIndex(c => c.type === 'END');
+          if (ei !== -1 && !updated[ei].city) updated[ei] = { ...updated[ei], city };
+          return updated;
+        });
+      }
+    });
+  }
+
+  function handleMapClick(lat: number, lng: number) {
+    setLastMapClick({ lat, lng });
+    if (currentStep === 1) {
+      // Place start first, then end
+      const hasStart = checkpoints.some(c => c.type === 'START');
+      if (!hasStart) {
+        addStartTerminal(`Terminal Start (${lat.toFixed(4)}, ${lng.toFixed(4)})`, lng, lat);
+        message.success('Start terminal placed! Now select or click to place End terminal.');
+      } else {
+        addEndTerminal(`Terminal End (${lat.toFixed(4)}, ${lng.toFixed(4)})`, lng, lat);
+        message.success('End terminal placed! Click Next to configure intermediate checkpoints.');
+      }
+    } else if (currentStep === 2) {
+      // Add checkpoint intermediate
+      const newCp = {
+        name: `Checkpoint ${checkpoints.length}`,
+        location: { type: 'Point', coordinates: [lng, lat] },
+        order: checkpoints.length + 1,
+        type: 'CHECKPOINT' as const,
+        bufferTimeMinutes: 2,
+        geofenceRadiusMeters: 50,
+        minutesFromStart: 0,
+        city: '',
+        priceFromStartEGP: 0
+      };
+      setCheckpoints(prev => {
+        const updated = [...prev];
+        const endIdx = updated.findIndex(c => c.type === 'END');
+        if (endIdx !== -1) {
+          updated.splice(endIdx, 0, newCp);
+        } else {
+          updated.push(newCp);
+        }
+        return syncCheckpointsList(updated);
+      });
+      setMapPanTo([lat, lng]);
+      message.success('Checkpoint added!');
+    }
+  }
+
+  function handleMarkerDragEnd(idx: number, lat: number, lng: number) {
+    const updated = [...checkpoints];
+    updated[idx] = {
+      ...updated[idx],
+      location: {
+        type: 'Point',
+        coordinates: [lng, lat]
+      }
+    };
+    const synced = syncCheckpointsList(updated);
+    setCheckpoints(synced);
+    if (currentStep >= 4) {
+      generateSnappedRoute(synced);
+    }
+  }
+
+  // OSRM snapped roadway router
+  async function generateSnappedRoute(stops: any[]) {
+    if (stops.length < 2) return;
+    setSnapping(true);
+    
+    const coordsString = stops
+      .map(s => `${s.location.coordinates[0]},${s.location.coordinates[1]}`)
+      .join(';');
+      
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+    
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const snappedCoords = route.geometry.coordinates; // number[][]
+        const latLngs = snappedCoords.map((c: number[]) => [c[1], c[0]] as [number, number]);
+        
+        setPoints(latLngs);
+        setDistanceKm(parseFloat((route.distance / 1000).toFixed(2)));
+        setDurationMinutes(Math.ceil(route.duration / 60));
+      }
+    } catch (error) {
+      console.warn('OSRM Route snapping failed, using straight-line fallback:', error);
+      // Fallback straight lines
+      const latLngs = stops.map(s => [s.location.coordinates[1], s.location.coordinates[0]] as [number, number]);
+      setPoints(latLngs);
+      setDistanceKm(15);
+      setDurationMinutes(25);
+    } finally {
+      setSnapping(false);
+    }
+  }
 
   const fetchRoutes = async () => {
     try {
@@ -518,16 +775,18 @@ export function RoutesPage() {
       mapRef.current = mapObj;
       setMap(mapObj);
 
-      // Fit bounds if checkpoints already exist
-      if (checkpoints.length > 0) {
-        const bounds = new maplibregl.LngLatBounds();
-        checkpoints.forEach(cp => {
-          bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
-        });
-        mapObj.fitBounds(bounds, { padding: 50, maxZoom: 14 });
-      }
+      mapObj.on('load', () => {
+        // Fit bounds if checkpoints already exist
+        if (checkpoints.length > 0) {
+          const bounds = new maplibregl.LngLatBounds();
+          checkpoints.forEach(cp => {
+            bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+          });
+          mapObj.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        }
 
-      mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+        mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+      });
 
 
 
@@ -544,63 +803,72 @@ export function RoutesPage() {
         setMap(null);
       }
     };
-  }, [isModalOpen, theme]);
+  }, [isModalOpen, theme, currentStep]);
 
   // Synchronize Markers
   useEffect(() => {
     if (!map) return;
 
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
+    // Guard: wait until style is loaded before adding markers
+    const syncMarkers = () => {
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
 
-    checkpoints.forEach((cp, idx) => {
-      const lngLat: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
-      const isStart = cp.type === 'START';
-      const isEnd = cp.type === 'END';
-      const isHovered = activeHoverIndex === idx;
+      checkpoints.forEach((cp, idx) => {
+        const lngLat: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
+        const isStart = cp.type === 'START';
+        const isEnd = cp.type === 'END';
+        const isHovered = activeHoverIndex === idx;
 
-      const el = document.createElement('div');
-      const textLabel = isStart ? 'S' : isEnd ? 'E' : `${idx}`;
-      if (isStart) {
-        el.className = 'google-maps-start-pin' + (isHovered ? ' hovered' : '');
-      } else if (isEnd) {
-        el.className = 'google-maps-dest-pin' + (isHovered ? ' hovered' : '');
-      } else {
-        el.className = 'google-maps-stop-pin' + (isHovered ? ' hovered' : '');
-        el.innerText = textLabel;
-      }
+        const el = document.createElement('div');
+        const textLabel = isStart ? 'S' : isEnd ? 'E' : `${idx}`;
+        if (isStart) {
+          el.className = 'google-maps-start-pin' + (isHovered ? ' hovered' : '');
+        } else if (isEnd) {
+          el.className = 'google-maps-dest-pin' + (isHovered ? ' hovered' : '');
+        } else {
+          el.className = 'google-maps-stop-pin' + (isHovered ? ' hovered' : '');
+          el.innerText = textLabel;
+        }
 
-      const popupHtml = `
-        <div style="font-family: Inter, sans-serif; padding: 4px; color: var(--text-primary);">
-          <strong style="display: block; font-size: 13px;">${cp.name}</strong>
-          ${cp.nameAr ? `<span style="color: var(--text-muted); font-size: 11px; display: block;">${cp.nameAr}</span>` : ''}
-          <hr style="margin: 6px 0; border: none; border-bottom: 1px solid var(--border);" />
-          <span style="font-size: 10px; color: var(--text-secondary);">
-            Order: #${cp.order} (${cp.type})<br />
-            Wait: ${cp.bufferTimeMinutes} mins<br />
-            Geofence: ${cp.geofenceRadiusMeters}m
-          </span>
-        </div>
-      `;
+        const popupHtml = `
+          <div style="font-family: Inter, sans-serif; padding: 4px; color: var(--text-primary);">
+            <strong style="display: block; font-size: 13px;">${cp.name}</strong>
+            ${cp.nameAr ? `<span style="color: var(--text-muted); font-size: 11px; display: block;">${cp.nameAr}</span>` : ''}
+            <hr style="margin: 6px 0; border: none; border-bottom: 1px solid var(--border);" />
+            <span style="font-size: 10px; color: var(--text-secondary);">
+              Order: #${cp.order} (${cp.type})<br />
+              Wait: ${cp.bufferTimeMinutes} mins<br />
+              Geofence: ${cp.geofenceRadiusMeters}m
+            </span>
+          </div>
+        `;
 
-      const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
+        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
 
-      const marker = new maplibregl.Marker({
-        element: el,
-        draggable: true,
-        anchor: isStart || isEnd ? 'bottom' : 'center'
-      })
-        .setLngLat(lngLat)
-        .setPopup(popup)
-        .addTo(map);
+        const marker = new maplibregl.Marker({
+          element: el,
+          draggable: true,
+          anchor: isStart || isEnd ? 'bottom' : 'center'
+        })
+          .setLngLat(lngLat)
+          .setPopup(popup)
+          .addTo(map);
 
-      marker.on('dragend', () => {
-        const newLngLat = marker.getLngLat();
-        handleMarkerDragEnd(idx, newLngLat.lat, newLngLat.lng);
+        marker.on('dragend', () => {
+          const newLngLat = marker.getLngLat();
+          handleMarkerDragEnd(idx, newLngLat.lat, newLngLat.lng);
+        });
+
+        markersRef.current.push(marker);
       });
+    };
 
-      markersRef.current.push(marker);
-    });
+    if (map.isStyleLoaded()) {
+      syncMarkers();
+    } else {
+      map.on('load', syncMarkers);
+    }
   }, [map, checkpoints, activeHoverIndex, isModalOpen]);
 
   // Synchronize Snapped Path Layer
@@ -677,11 +945,18 @@ export function RoutesPage() {
   // Auto bounds adjustment on count changes
   useEffect(() => {
     if (map && checkpoints.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      checkpoints.forEach(cp => {
-        bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
-      });
-      map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      const doBounds = () => {
+        const bounds = new maplibregl.LngLatBounds();
+        checkpoints.forEach(cp => {
+          bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+        });
+        map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      };
+      if (map.isStyleLoaded()) {
+        doBounds();
+      } else {
+        map.on('load', doBounds);
+      }
     }
   }, [map, checkpoints.length]);
 
@@ -786,148 +1061,7 @@ export function RoutesPage() {
     message.success('Generated return route! You can review details and save.');
   };
 
-  // Re-calculate ordering index and stop type
-  const syncCheckpointsList = (list: any[]) => {
-    return list.map((item, idx) => {
-      let type: 'START' | 'CHECKPOINT' | 'END' = 'CHECKPOINT';
-      if (idx === 0) type = 'START';
-      else if (idx === list.length - 1 && list.length > 1) type = 'END';
-      return {
-        ...item,
-        order: idx + 1,
-        type
-      };
-    });
-  };
 
-  const addStartTerminal = (name: string, lng: number, lat: number) => {
-    const newStart = {
-      name,
-      location: { type: 'Point', coordinates: [lng, lat] },
-      order: 1,
-      type: 'START' as const,
-      bufferTimeMinutes: 5,
-      geofenceRadiusMeters: 100,
-      minutesFromStart: 0,
-      city: '',
-      priceFromStartEGP: 0
-    };
-    setCheckpoints(prev => {
-      const updated = [...prev];
-      const startIdx = updated.findIndex(c => c.type === 'START');
-      if (startIdx !== -1) {
-        updated[startIdx] = newStart;
-      } else {
-        updated.unshift(newStart);
-      }
-      return syncCheckpointsList(updated);
-    });
-    setStartQuery(name);
-    setMapPanTo([lat, lng]);
-    // Auto-fill city from reverse geocoding
-    reverseGeocodeCity(lat, lng).then(city => {
-      if (city) {
-        setCheckpoints(prev => {
-          const updated = [...prev];
-          const si = updated.findIndex(c => c.type === 'START');
-          if (si !== -1 && !updated[si].city) updated[si] = { ...updated[si], city };
-          return updated;
-        });
-      }
-    });
-  };
-
-  const addEndTerminal = (name: string, lng: number, lat: number) => {
-    const newEnd = {
-      name,
-      location: { type: 'Point', coordinates: [lng, lat] },
-      order: checkpoints.length + 1,
-      type: 'END' as const,
-      bufferTimeMinutes: 0,
-      geofenceRadiusMeters: 100,
-      minutesFromStart: 0,
-      city: '',
-      priceFromStartEGP: 0
-    };
-    setCheckpoints(prev => {
-      const updated = [...prev];
-      const endIdx = updated.findIndex(c => c.type === 'END');
-      if (endIdx !== -1) {
-        updated[endIdx] = newEnd;
-      } else {
-        updated.push(newEnd);
-      }
-      return syncCheckpointsList(updated);
-    });
-    setEndQuery(name);
-    setMapPanTo([lat, lng]);
-    // Auto-fill city from reverse geocoding
-    reverseGeocodeCity(lat, lng).then(city => {
-      if (city) {
-        setCheckpoints(prev => {
-          const updated = [...prev];
-          const ei = updated.findIndex(c => c.type === 'END');
-          if (ei !== -1 && !updated[ei].city) updated[ei] = { ...updated[ei], city };
-          return updated;
-        });
-      }
-    });
-  };
-
-  const handleMapClick = (lat: number, lng: number) => {
-    if (currentStep === 1) {
-      // Place start first, then end
-      const hasStart = checkpoints.some(c => c.type === 'START');
-      if (!hasStart) {
-        addStartTerminal(`Terminal Start (${lat.toFixed(4)}, ${lng.toFixed(4)})`, lng, lat);
-        message.success('Start terminal placed! Now select or click to place End terminal.');
-      } else {
-        addEndTerminal(`Terminal End (${lat.toFixed(4)}, ${lng.toFixed(4)})`, lng, lat);
-        message.success('End terminal placed! Click Next to configure intermediate checkpoints.');
-      }
-    } else if (currentStep === 2) {
-      // Add checkpoint intermediate
-      const newCp = {
-        name: `Checkpoint ${checkpoints.length}`,
-        location: { type: 'Point', coordinates: [lng, lat] },
-        order: checkpoints.length + 1,
-        type: 'CHECKPOINT' as const,
-        bufferTimeMinutes: 2,
-        geofenceRadiusMeters: 50,
-        minutesFromStart: 0,
-        city: '',
-        priceFromStartEGP: 0
-      };
-      setCheckpoints(prev => {
-        const updated = [...prev];
-        const endIdx = updated.findIndex(c => c.type === 'END');
-        if (endIdx !== -1) {
-          updated.splice(endIdx, 0, newCp);
-        } else {
-          updated.push(newCp);
-        }
-        return syncCheckpointsList(updated);
-      });
-      setMapPanTo([lat, lng]);
-      message.success('Checkpoint added!');
-    }
-  };
-
-  const handleMarkerDragEnd = (idx: number, lat: number, lng: number) => {
-    const updated = [...checkpoints];
-    updated[idx] = {
-      ...updated[idx],
-      location: {
-        type: 'Point',
-        coordinates: [lng, lat]
-      }
-    };
-    const synced = syncCheckpointsList(updated);
-    setCheckpoints(synced);
-    if (currentStep >= 3) {
-      generateSnappedRoute(synced);
-    }
-  };
 
   const moveCheckpoint = (idx: number, direction: 'up' | 'down') => {
     if (direction === 'up' && idx === 0) return;
@@ -986,40 +1120,7 @@ export function RoutesPage() {
   };
 
 
-  // OSRM snapped roadway router
-  const generateSnappedRoute = async (stops: any[]) => {
-    if (stops.length < 2) return;
-    setSnapping(true);
-    
-    const coordsString = stops
-      .map(s => `${s.location.coordinates[0]},${s.location.coordinates[1]}`)
-      .join(';');
-      
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
-    
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        const snappedCoords = route.geometry.coordinates; // number[][]
-        const latLngs = snappedCoords.map((c: number[]) => [c[1], c[0]] as [number, number]);
-        
-        setPoints(latLngs);
-        setDistanceKm(parseFloat((route.distance / 1000).toFixed(2)));
-        setDurationMinutes(Math.ceil(route.duration / 60));
-      }
-    } catch (error) {
-      console.warn('OSRM Route snapping failed, using straight-line fallback:', error);
-      // Fallback straight lines
-      const latLngs = stops.map(s => [s.location.coordinates[1], s.location.coordinates[0]] as [number, number]);
-      setPoints(latLngs);
-      setDistanceKm(15);
-      setDurationMinutes(25);
-    } finally {
-      setSnapping(false);
-    }
-  };
+
 
   const handleNextStep = async () => {
     if (currentStep === 0) {
@@ -1041,9 +1142,11 @@ export function RoutesPage() {
         message.error('Plot at least Start and End points.');
         return;
       }
-      // Merged step: trigger snap and move directly to review
-      await generateSnappedRoute(checkpoints);
       setCurrentStep(3);
+    } else if (currentStep === 3) {
+      // Trigger snap and move to review & snap stage
+      await generateSnappedRoute(checkpoints);
+      setCurrentStep(4);
     }
   };
 
@@ -1174,22 +1277,56 @@ export function RoutesPage() {
       title: 'Stops',
       dataIndex: 'checkpoints',
       key: 'checkpoints',
-      render: (list: any[]) => (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '300px' }}>
-          {list ? list.map((cp, i) => (
-            <span key={i} style={{ 
-              fontSize: '11px', 
-              background: cp.type === 'START' ? 'rgba(16,185,129,0.1)' : cp.type === 'END' ? 'rgba(239,68,68,0.1)' : 'var(--surface-hover)', 
-              color: cp.type === 'START' ? '#10B981' : cp.type === 'END' ? '#EF4444' : 'var(--text-secondary)', 
-              padding: '2px 6px', 
-              borderRadius: '4px',
-              border: '1px solid var(--border)'
-            }}>
-              {cp.name}
-            </span>
-          )) : '—'}
-        </div>
-      )
+      render: (list: any[]) => {
+        if (!list || list.length === 0) return '—';
+        const start = list.find((cp: any) => cp.type === 'START');
+        const end = list.find((cp: any) => cp.type === 'END');
+        const midCount = list.filter((cp: any) => cp.type !== 'START' && cp.type !== 'END').length;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+            {start && (
+              <span style={{
+                background: 'rgba(16,185,129,0.1)',
+                color: '#10B981',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(16,185,129,0.2)',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                maxWidth: '100px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {start.name?.replace(/\s*\(.*\)\s*$/, '') || 'Start'}
+              </span>
+            )}
+            {midCount > 0 && (
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                → {midCount} stop{midCount > 1 ? 's' : ''} →
+              </span>
+            )}
+            {!midCount && start && end && (
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>→</span>
+            )}
+            {end && (
+              <span style={{
+                background: 'rgba(239,68,68,0.1)',
+                color: '#EF4444',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(239,68,68,0.2)',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                maxWidth: '100px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {end.name?.replace(/\s*\(.*\)\s*$/, '') || 'End'}
+              </span>
+            )}
+          </div>
+        );
+      }
     },
     {
       title: 'Status',
@@ -1315,12 +1452,13 @@ export function RoutesPage() {
               { title: 'Setup' },
               { title: 'Terminals' },
               { title: 'Stops & Checkpoints' },
+              { title: 'Custom Fares' },
               { title: 'Review & Snap' }
             ]} 
           />
         </div>
 
-        <div className="wizard-content" style={{ minHeight: '600px', display: 'grid', gridTemplateColumns: currentStep > 0 ? '500px 1fr' : '1fr', gap: '24px' }}>
+        <div className="wizard-content" style={{ minHeight: '600px', display: 'grid', gridTemplateColumns: (currentStep > 0 && currentStep !== 3) ? '500px 1fr' : '1fr', gap: '24px' }}>
           
           {/* LEFT PANEL: CONFIGURATION CONTROLS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1378,30 +1516,6 @@ export function RoutesPage() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div>
-                    <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Default Ticket Price (EGP)</label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 150" 
-                      value={priceEGP || ''} 
-                      onChange={e => setPriceEGP(Math.max(0, parseFloat(e.target.value) || 0))} 
-                      size="large"
-                      min={0}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '6px' }}>Default VIP Seat Surcharge (EGP)</label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 40" 
-                      value={premiumSeatSurcharge || ''} 
-                      onChange={e => setPremiumSeatSurcharge(Math.max(0, parseFloat(e.target.value) || 0))} 
-                      size="large"
-                      min={0}
-                    />
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1424,6 +1538,7 @@ export function RoutesPage() {
                     value={startQuery}
                     onChange={setStartQuery}
                     onSelect={(name, lng, lat) => addStartTerminal(name, lng, lat)}
+                    favorites={favorites}
                   />
                   {checkpoints.some(c => c.type === 'START') && (
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -1439,11 +1554,66 @@ export function RoutesPage() {
                     value={endQuery}
                     onChange={setEndQuery}
                     onSelect={(name, lng, lat) => addEndTerminal(name, lng, lat)}
+                    favorites={favorites}
                   />
                   {checkpoints.some(c => c.type === 'END') && (
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                       Selected: <strong>{checkpoints.find(c => c.type === 'END')?.name}</strong>
                     </div>
+                  )}
+                </div>
+                {/* Favorite Locations List for Step 1 */}
+                <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(245, 183, 49, 0.04)', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Star size={13} fill="var(--primary-color)" /> Favorite Locations (Click to use)
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {favorites.map((fav, fIdx) => (
+                      <Tag 
+                        key={fIdx} 
+                        color="warning" 
+                        closable
+                        onClose={(e) => {
+                          e.preventDefault();
+                          confirm({
+                            title: 'Remove Favorite Location',
+                            description: `Are you sure you want to remove "${fav.internalName || fav.name}" from favorites?`,
+                            confirmText: 'Yes, Remove',
+                            cancelText: 'Cancel',
+                            danger: true,
+                            onConfirm: () => {
+                              setFavorites(prev => prev.filter((_, idx) => idx !== fIdx));
+                              message.success('Removed from favorites');
+                            }
+                          });
+                        }}
+                        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', margin: 0, padding: '2px 8px', borderRadius: '4px' }}
+                        onClick={() => {
+                          const hasStart = checkpoints.some(c => c.type === 'START');
+                          if (!hasStart) {
+                            addStartTerminal(fav.name, fav.lng, fav.lat);
+                            message.success(`Set ${fav.name} as Start Terminal`);
+                          } else {
+                            addEndTerminal(fav.name, fav.lng, fav.lat);
+                            message.success(`Set ${fav.name} as End Terminal`);
+                          }
+                        }}
+                      >
+                        {fav.internalName || fav.name}
+                      </Tag>
+                    ))}
+                  </div>
+
+                  {lastMapClick && (
+                    <Button 
+                      size="small" 
+                      type="dashed"
+                      icon={<Star size={12} />} 
+                      onClick={() => handleSaveFavoriteLocation(lastMapClick.lat, lastMapClick.lng)}
+                      style={{ marginTop: '10px', width: '100%', fontSize: '11px', height: '28px', color: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
+                    >
+                      Add Last Map Click to Favorites
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1465,6 +1635,7 @@ export function RoutesPage() {
                     placeholder="Search & add a checkpoint..."
                     value={cpQuery}
                     onChange={setCpQuery}
+                    favorites={favorites}
                     onSelect={(name, lng, lat) => {
                       // Auto-calculate minutesFromStart based on distance interpolation
                       let autoMinutes = 0;
@@ -1784,25 +1955,109 @@ export function RoutesPage() {
                         })}
                       </div>
                     )}
+                    {/* Favorite Locations List for Step 2 */}
+                    <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(245, 183, 49, 0.04)', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Star size={13} fill="var(--primary-color)" /> Favorite Locations (Click to add as Stop)
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {favorites.map((fav, fIdx) => (
+                          <Tag 
+                            key={fIdx} 
+                            color="warning" 
+                            closable
+                            onClose={(e) => {
+                              e.preventDefault();
+                              confirm({
+                                title: 'Remove Favorite Location',
+                                description: `Are you sure you want to remove "${fav.internalName || fav.name}" from favorites?`,
+                                confirmText: 'Yes, Remove',
+                                cancelText: 'Cancel',
+                                danger: true,
+                                onConfirm: () => {
+                                  setFavorites(prev => prev.filter((_, idx) => idx !== fIdx));
+                                  message.success('Removed from favorites');
+                                }
+                              });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', margin: 0, padding: '2px 8px', borderRadius: '4px' }}
+                            onClick={() => {
+                              const name = fav.name;
+                              const lng = fav.lng;
+                              const lat = fav.lat;
+                              
+                              let autoMinutes = 0;
+                              const existingCps = [...checkpoints];
+                              const endIdx = existingCps.findIndex(c => c.type === 'END');
+                              const insertIdx = endIdx !== -1 ? endIdx : existingCps.length;
+                              if (insertIdx > 0) {
+                                const prevCp = existingCps[insertIdx - 1];
+                                const prevCoords = prevCp.location.coordinates;
+                                const distToPrev = haversineDistance(prevCoords[0], prevCoords[1], lng, lat);
+                                const estimatedMins = Math.round((distToPrev / 1000) * 2);
+                                autoMinutes = (prevCp.minutesFromStart || 0) + Math.max(1, estimatedMins);
+                              }
+
+                              const newCp = {
+                                name,
+                                location: { type: 'Point', coordinates: [lng, lat] },
+                                order: checkpoints.length + 1,
+                                type: 'CHECKPOINT' as const,
+                                bufferTimeMinutes: 2,
+                                geofenceRadiusMeters: 50,
+                                city: '',
+                                priceFromStartEGP: 0,
+                                minutesFromStart: autoMinutes
+                              };
+                              setCheckpoints(prev => {
+                                const updated = [...prev];
+                                const eIdx = updated.findIndex(c => c.type === 'END');
+                                if (eIdx !== -1) updated.splice(eIdx, 0, newCp);
+                                else updated.push(newCp);
+                                return syncCheckpointsList(updated);
+                              });
+                              message.success(`Added ${name} as Checkpoint`);
+                            }}
+                          >
+                            {fav.internalName || fav.name}
+                          </Tag>
+                        ))}
+                      </div>
+
+                      {lastMapClick && (
+                        <Button 
+                          size="small" 
+                          type="dashed"
+                          icon={<Star size={12} />} 
+                          onClick={() => handleSaveFavoriteLocation(lastMapClick.lat, lastMapClick.lng)}
+                          style={{ marginTop: '10px', width: '100%', fontSize: '11px', height: '28px', color: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
+                        >
+                          Add Last Map Click to Favorites
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* POINT-TO-POINT CUSTOM FARES EDITOR */}
+            {/* STEP 3: CUSTOM FARES CONFIGURATION */}
+            {currentStep === 3 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {checkpoints.length >= 2 && (
                   <div style={{ 
-                    padding: '12px', 
+                    padding: '16px', 
                     background: 'var(--surface-elevated)', 
                     border: '1px solid var(--border)', 
-                    borderRadius: '8px',
-                    marginTop: '12px'
+                    borderRadius: '12px',
                   }}>
-                    <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)' }}>
                       🔗 Customize Point-to-Point Fares (Optional)
                     </div>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                      Configure custom direct segment fares (e.g. Alex to Dahab).
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 15px 0' }}>
+                      Configure custom direct segment fares and premium seat surcharges (e.g. Olympic Club to Dahab).
                     </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto', paddingRight: '6px' }}>
                       {checkpoints.slice(0, -1).map((pickupCp, pIdx) => {
                         if (pickupCp.purpose === 'REST' || pickupCp.purpose === 'DROP_OFF') return null;
                         return checkpoints.slice(pIdx + 1).map((dropoffCp) => {
@@ -1816,46 +2071,46 @@ export function RoutesPage() {
                               display: 'flex', 
                               alignItems: 'center', 
                               justifyContent: 'space-between',
-                              gap: '10px',
-                              padding: '8px',
+                              gap: '12px',
+                              padding: '12px',
                               background: 'rgba(255, 255, 255, 0.02)',
                               border: '1px solid var(--border)',
-                              borderRadius: '6px'
+                              borderRadius: '8px'
                             }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                                <span style={{ fontSize: '11px', fontWeight: 600 }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                                   {pickupCp.name} ➔ {dropoffName}
                                 </span>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                 {/* Standard Fare */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Fare:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Standard Fare:</span>
                                   <Input 
                                     type="number"
                                     placeholder="0"
                                     value={customPrice !== undefined ? customPrice : ''}
                                     onChange={e => handleCustomSegmentPriceChange(pIdx, dropoffName, e.target.value)}
-                                    size="small"
-                                    style={{ width: '85px', textAlign: 'center', borderColor: customPrice !== undefined ? 'var(--primary-color)' : undefined }}
+                                    size="middle"
+                                    style={{ width: '100px', textAlign: 'center', borderColor: customPrice !== undefined ? 'var(--primary-color)' : undefined }}
                                     min={0}
                                   />
-                                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
                                 </div>
                                 
-                                {/* VIP Surcharge */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>VIP Extra:</span>
+                                {/* Premium Seat Surcharge */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Premium Seat Fare:</span>
                                   <Input 
                                     type="number"
                                     placeholder="0"
                                     value={customSurcharge !== undefined ? customSurcharge : ''}
                                     onChange={e => handleCustomSegmentPremiumSurchargeChange(pIdx, dropoffName, e.target.value)}
-                                    size="small"
-                                    style={{ width: '85px', textAlign: 'center', borderColor: customSurcharge !== undefined ? '#F5B731' : undefined }}
+                                    size="middle"
+                                    style={{ width: '100px', textAlign: 'center', borderColor: customSurcharge !== undefined ? '#F5B731' : undefined }}
                                     min={0}
                                   />
-                                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>EGP</span>
                                 </div>
                               </div>
                             </div>
@@ -1868,8 +2123,8 @@ export function RoutesPage() {
               </div>
             )}
 
-            {/* STEP 3: OSRM SNAPPING & REVIEW */}
-            {currentStep === 3 && (
+            {/* STEP 4: OSRM SNAPPING & REVIEW */}
+            {currentStep === 4 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div style={{ padding: '12px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
                   <CheckCircle2 size={32} style={{ color: '#10B981', margin: '0 auto 8px' }} />
@@ -1916,7 +2171,7 @@ export function RoutesPage() {
                   Back
                 </Button>
               )}
-              {currentStep < 3 ? (
+              {currentStep < 4 ? (
                 <Button 
                   type="primary" 
                   icon={<ArrowRight size={16} />} 
@@ -1940,7 +2195,7 @@ export function RoutesPage() {
           </div>
 
           {/* RIGHT PANEL: INTERACTIVE MAPLIBRE MAP */}
-          {currentStep > 0 && (
+          {(currentStep > 0 && currentStep !== 3) && (
             <div style={{ height: '680px', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
               {snapping && (
                 <div style={{

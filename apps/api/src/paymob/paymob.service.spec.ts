@@ -73,7 +73,12 @@ describe('PaymobService', () => {
 
     mockPrismaService = {
       booking: { findUnique: jest.fn(), update: jest.fn() },
-      transaction: { findFirst: jest.fn(), create: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+      transaction: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        updateMany: jest.fn(),
+        findMany: jest.fn(),
+      },
       user: { findUnique: jest.fn(), update: jest.fn() },
       $transaction: jest.fn(),
     };
@@ -106,7 +111,13 @@ describe('PaymobService', () => {
     it('should throw BadRequestException for invalid HMAC', async () => {
       await expect(
         service.processWebhook(
-          { obj: { order: { id: 123 }, amount_cents: 10000, success: true } as any } as any,
+          {
+            obj: {
+              order: { id: 123 },
+              amount_cents: 10000,
+              success: true,
+            } as any,
+          },
           '',
         ),
       ).rejects.toThrow(BadRequestException);
@@ -116,26 +127,43 @@ describe('PaymobService', () => {
       const payload = {
         obj: {
           order: { id: 789, merchant_order_id: 'booking-1' },
-          amount_cents: 10000, success: true, id: 'txn-2',
+          amount_cents: 10000,
+          success: true,
+          id: 'txn-2',
           payment_key_claims: { pm: 'CARD' },
-          created_at: new Date().toISOString(), currency: 'EGP', error_occured: false,
-          has_parent_transaction: false, integration_id: '123', is_3d_secure: false,
-          is_auth: false, is_capture: true, is_refunded: false, is_standalone_payment: true,
-          is_voided: false, owner: 0, pending: false,
+          created_at: new Date().toISOString(),
+          currency: 'EGP',
+          error_occured: false,
+          has_parent_transaction: false,
+          integration_id: '123',
+          is_3d_secure: false,
+          is_auth: false,
+          is_capture: true,
+          is_refunded: false,
+          is_standalone_payment: true,
+          is_voided: false,
+          owner: 0,
+          pending: false,
           source_data: { pan: '****', sub_type: 'CARD', type: 'CREDIT' },
         } as any,
       } as any;
 
-      mockPrismaService.$transaction.mockImplementation(async (cb: any) => cb(makeMockTx()));
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) =>
+        cb(makeMockTx()),
+      );
 
       mockPrismaService.booking.findUnique
         .mockResolvedValueOnce(mockBooking)
         .mockResolvedValueOnce({
-          ...mockBooking, status: 'CONFIRMED', user: mockUser,
+          ...mockBooking,
+          status: 'CONFIRMED',
+          user: mockUser,
           trip: { route: { name: 'Test Route' }, departureTime: new Date() },
         });
 
-      await expect(service.processWebhook(payload, 'valid-hmac')).resolves.toBeUndefined();
+      await expect(
+        service.processWebhook(payload, 'valid-hmac'),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -144,7 +172,9 @@ describe('PaymobService', () => {
       mockPrismaService.booking.findUnique.mockResolvedValue(mockBooking);
 
       const result = await service.initializeCheckout({
-        bookingId: 'booking-1', amountCents: 10000, paymentMethod: 'CARD',
+        bookingId: 'booking-1',
+        amountCents: 10000,
+        paymentMethod: 'CARD',
       });
 
       expect(result.paymentKey).toContain('pk_test_');

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Table, Card, Tag, Button, Spin, Empty, Alert, Typography, Tooltip } from 'antd';
-import { Search, Radio, Navigation, MapPin, Battery, RefreshCw, LocateFixed } from 'lucide-react';
+import { Search, Radio, Navigation, Battery, RefreshCw, LocateFixed } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { io } from 'socket.io-client';
@@ -61,6 +61,45 @@ function getStatusTag(status: string) {
   if (s === 'OFFLINE' || !s) return <Tag>Offline</Tag>;
   if (s === 'OUT_OF_SERVICE') return <Tag color="error">Out of Service</Tag>;
   return <Tag>{status}</Tag>;
+}
+
+function renderLicensePlate(plate: string) {
+  if (!plate || plate === 'N/A') return <span style={{ color: 'var(--text-muted)' }}>No Plate</span>;
+  const isArabic = /[\u0600-\u06FF]/.test(plate);
+  return (
+    <div style={{
+      display: 'inline-flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      border: '1px solid rgba(255, 255, 255, 0.15)',
+      borderRadius: '4px',
+      background: 'rgba(255, 255, 255, 0.05)',
+      overflow: 'hidden',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+      minWidth: '80px',
+      height: '26px',
+      verticalAlign: 'middle',
+    }}>
+      <div style={{
+        width: '100%',
+        height: '6px',
+        background: '#1d4ed8', // Egypt-style blue header
+      }} />
+      <div style={{
+        padding: '0 6px',
+        color: '#ffffff',
+        fontSize: '11px',
+        fontWeight: 700,
+        lineHeight: '18px',
+        textAlign: 'center',
+        direction: isArabic ? 'rtl' : 'ltr',
+        whiteSpace: 'nowrap',
+        letterSpacing: isArabic ? '1px' : '0.5px'
+      }}>
+        {plate}
+      </div>
+    </div>
+  );
 }
 
 export function LiveTrackingPage() {
@@ -315,111 +354,76 @@ export function LiveTrackingPage() {
 
   const columns = [
     {
-      title: 'Vehicle',
-      key: 'vehicle',
-      width: 200,
-      sorter: (a: LiveVehicle, b: LiveVehicle) => `${a.make} ${a.model}`.localeCompare(`${b.make} ${b.model}`),
-      render: (_: any, v: LiveVehicle) => (
-        <div>
-          <Text strong style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-            {v.make} {v.model}
-          </Text>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-            {v.licensePlate}
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: 'Driver',
-      key: 'driver',
-      width: 150,
-      render: (_: any, v: LiveVehicle) => (
-        <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-          {v.driver?.name || <Text type="secondary">Unassigned</Text>}
-        </span>
-      ),
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      width: 100,
-      filters: [
-        { text: 'Active', value: 'ACTIVE' },
-        { text: 'Idle', value: 'IDLE' },
-        { text: 'Offline', value: 'OFFLINE' },
-      ],
-      onFilter: (value: any, v: LiveVehicle) => {
-        const s = v.status?.toUpperCase() || '';
-        if (value === 'ACTIVE') return (s === 'ACTIVE' || s === 'ONLINE') && !!v.location;
-        if (value === 'IDLE') return s === 'IDLE';
-        return s === 'OFFLINE' || !v.location;
-      },
-      render: (_: any, v: LiveVehicle) => getStatusTag(v.status),
-    },
-    {
-      title: 'Speed',
-      dataIndex: ['location', 'speed'],
-      key: 'speed',
-      width: 80,
-      sorter: (a: LiveVehicle, b: LiveVehicle) => (a.location?.speed || 0) - (b.location?.speed || 0),
-      render: (speed: number, v: LiveVehicle) => (
-        <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-          {v.location ? `${speed.toFixed(0)} km/h` : '—'}
-        </span>
-      ),
-    },
-    {
-      title: 'Heading',
-      key: 'heading',
-      width: 80,
-      render: (_: any, v: LiveVehicle) => (
-        <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-          {v.location ? getHeading(v.location.heading) : '—'}
-        </span>
-      ),
-    },
-    {
-      title: 'Battery',
-      key: 'battery',
-      width: 80,
+      title: 'Vehicle Details',
+      key: 'details',
       render: (_: any, v: LiveVehicle) => {
-        const info = getBatteryInfo(v.location?.batteryLevel);
+        const isSelected = selectedVehicleId === v.id;
         return (
-          <span style={{ color: info.color, fontSize: 13, fontWeight: 600 }}>
-            {info.label}
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '12px', padding: '6px 0' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: v.location ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                color: v.location ? '#10b981' : 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                fontSize: '18px',
+                boxShadow: v.location ? '0 0 10px rgba(16, 185, 129, 0.2)' : 'none'
+              }}>
+                🚌
+              </div>
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <Text strong style={{ color: 'var(--text-primary)', fontSize: 14, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {v.make} {v.model}
+                </Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {renderLicensePlate(v.licensePlate)}
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    👤 {v.driver?.name || 'Unassigned'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                {getStatusTag(v.status)}
+                {v.location ? (
+                  <span style={{ fontSize: 11, fontWeight: 500, color: '#10b981' }}>
+                    {v.location.speed > 0 ? `${v.location.speed.toFixed(0)} km/h` : 'Stopped'}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Offline</span>
+                )}
+              </div>
+              <Tooltip title="Locate on map">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<LocateFixed size={16} />}
+                  onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
+                  disabled={!v.location}
+                  style={{ 
+                    color: isSelected ? '#10b981' : 'var(--primary-color)',
+                    background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                />
+              </Tooltip>
+            </div>
+          </div>
         );
       },
-    },
-    {
-      title: 'Last Updated',
-      key: 'lastUpdated',
-      width: 110,
-      sorter: (a: LiveVehicle, b: LiveVehicle) =>
-        new Date(a.location?.lastUpdated || 0).getTime() - new Date(b.location?.lastUpdated || 0).getTime(),
-      render: (_: any, v: LiveVehicle) => (
-        <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-          {v.location ? getRelativeTime(v.location.lastUpdated) : '—'}
-        </span>
-      ),
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 70,
-      render: (_: any, v: LiveVehicle) => (
-        <Tooltip title="Locate on map">
-          <Button
-            type="text"
-            size="small"
-            icon={<LocateFixed size={15} />}
-            onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
-            disabled={!v.location}
-            style={{ color: 'var(--primary-color)' }}
-          />
-        </Tooltip>
-      ),
     },
   ];
 
@@ -501,8 +505,8 @@ export function LiveTrackingPage() {
           ) : filteredVehicles.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
+                 image={Empty.PRESENTED_IMAGE_SIMPLE}
+                 description={searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
               />
             </div>
           ) : (
@@ -536,70 +540,127 @@ export function LiveTrackingPage() {
 
         {selectedVehicle && (
           <Card
-            styles={{ body: { padding: '14px 18px' } }}
+            styles={{ body: { padding: '16px 20px' } }}
             style={{
               position: 'absolute',
-              bottom: 20,
-              left: 20,
-              background: 'rgba(17,19,24,0.95)',
-              border: '1px solid var(--border, #1f2430)',
+              bottom: 24,
+              left: 24,
+              background: 'rgba(15, 23, 42, 0.9)', // Deep slate with high opacity
+              border: '1px solid rgba(245, 183, 49, 0.25)', // Primary colored border glow
               color: 'var(--text-primary)',
-              width: 340,
+              width: 360,
               zIndex: 20,
-              backdropFilter: 'blur(10px)',
-              borderRadius: 12,
+              backdropFilter: 'blur(12px)',
+              borderRadius: 16,
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 183, 49, 0.1)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 15, color: 'var(--text-primary)' }}>
-                <MapPin size={15} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle', color: 'var(--primary-color)' }} />
-                {selectedVehicle.make} {selectedVehicle.model}
-              </Text>
-              <Button type="text" size="small" onClick={() => setSelectedVehicleId(null)} style={{ color: 'var(--text-muted)', padding: 0, minWidth: 'auto', height: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'rgba(245, 183, 49, 0.15)',
+                  color: 'var(--primary-color, #F5B731)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '15px'
+                }}>
+                  🚌
+                </div>
+                <div>
+                  <Text strong style={{ fontSize: 15, color: '#ffffff', display: 'block', lineHeight: '1.2' }}>
+                    {selectedVehicle.make} {selectedVehicle.model}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                    Capacity: {selectedVehicle.capacity} seats
+                  </Text>
+                </div>
+              </div>
+              <Button 
+                type="text" 
+                size="small" 
+                onClick={() => setSelectedVehicleId(null)} 
+                style={{ 
+                  color: 'var(--text-secondary)', 
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              >
                 ✕
               </Button>
             </div>
 
             {selectedVehicle.location ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
-                  <span><Text type="secondary" style={{ fontSize: 11 }}>Plate</Text><br /><Text style={{ color: 'var(--text-primary)' }}>{selectedVehicle.licensePlate}</Text></span>
-                  <span><Text type="secondary" style={{ fontSize: 11 }}>Driver</Text><br /><Text style={{ color: 'var(--text-primary)' }}>{selectedVehicle.driver?.name || 'N/A'}</Text></span>
-                  <span><Text type="secondary" style={{ fontSize: 11 }}>Latitude</Text><br /><Text style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{selectedVehicle.location.lat.toFixed(5)}</Text></span>
-                  <span><Text type="secondary" style={{ fontSize: 11 }}>Longitude</Text><br /><Text style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{selectedVehicle.location.lng.toFixed(5)}</Text></span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px 14px', background: 'rgba(255, 255, 255, 0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Plate Number</Text>
+                    <div style={{ marginTop: '2px' }}>{renderLicensePlate(selectedVehicle.licensePlate)}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Driver Partner</Text>
+                    <Text strong style={{ color: '#ffffff', fontSize: 13 }}>{selectedVehicle.driver?.name || 'Unassigned'}</Text>
+                    {selectedVehicle.driver?.phone && <Text style={{ fontSize: 10, color: 'var(--text-muted)' }}>{selectedVehicle.driver.phone}</Text>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Latitude</Text>
+                    <Text style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: 12 }}>{selectedVehicle.location.lat.toFixed(6)}</Text>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Longitude</Text>
+                    <Text style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: 12 }}>{selectedVehicle.location.lng.toFixed(6)}</Text>
+                  </div>
                 </div>
 
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
-                  background: 'var(--surface-elevated, #0e1117)',
-                  padding: '10px 12px', borderRadius: 8, marginTop: 4,
+                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
+                  background: 'rgba(14, 17, 23, 0.6)',
+                  padding: '12px', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.05)'
                 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Speed</Text>
-                    <Text strong style={{ color: 'var(--text-primary)', fontSize: 16 }}>
+                  <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Speed</Text>
+                    <Text strong style={{ color: '#10b981', fontSize: 16 }}>
                       {selectedVehicle.location.speed.toFixed(0)}
                     </Text>
                     <Text style={{ color: 'var(--text-muted)', fontSize: 10 }}> km/h</Text>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Heading</Text>
-                    <Text strong style={{ color: 'var(--text-primary)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <Navigation size={14} style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)` }} />
+                  <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Heading</Text>
+                    <Text strong style={{ color: '#ffffff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <Navigation size={13} style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)`, color: 'var(--primary-color)' }} />
                       {getHeading(selectedVehicle.location.heading)}
                     </Text>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Battery</Text>
-                    <Text strong style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <Battery size={14} />
+                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Battery</Text>
+                    <Text strong style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <Battery size={13} />
                       {getBatteryInfo(selectedVehicle.location.batteryLevel).label}
                     </Text>
                   </div>
                 </div>
 
-                <Text type="secondary" style={{ fontSize: 11, textAlign: 'right', marginTop: 2 }}>
-                  Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
-                </Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Active telemetry</span>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
+                  </Text>
+                </div>
               </div>
             ) : (
               <Alert message="Vehicle offline" description="No live telemetry available." type="warning" showIcon style={{ fontSize: 12 }} />

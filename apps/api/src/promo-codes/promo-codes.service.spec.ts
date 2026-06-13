@@ -110,7 +110,13 @@ describe('PromoCodesService', () => {
       mockPrismaService.trip.findUnique.mockResolvedValue(mockTrip);
 
       await expect(
-        service.validatePromoCode('MIN_LIMIT', 'trip-1', [1], 'stop-1', 'stop-2'),
+        service.validatePromoCode(
+          'MIN_LIMIT',
+          'trip-1',
+          [1],
+          'stop-1',
+          'stop-2',
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 

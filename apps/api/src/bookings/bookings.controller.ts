@@ -55,7 +55,7 @@ export class BookingsController {
       ...data,
       userId: isAdmin && data.userId ? data.userId : req.user.sub,
     };
-    const booking = await this.bookingsService.create(bookingData as any);
+    const booking = await this.bookingsService.create(bookingData);
     return {
       success: true,
       data: booking,
@@ -168,11 +168,16 @@ export class BookingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('track-by-code/:code')
-  async trackByCode(@Request() req: any, @Param('code', ParseUUIDPipe) code: string) {
+  async trackByCode(
+    @Request() req: any,
+    @Param('code', ParseUUIDPipe) code: string,
+  ) {
     const userRole = req.user.role;
-    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(
+      userRole,
+    );
     const isDriver = userRole === 'DRIVER';
-    
+
     // Pass userId for ownership check (admins/drivers can track any)
     const trackingInfo = await this.bookingsService.trackByCode(
       code,

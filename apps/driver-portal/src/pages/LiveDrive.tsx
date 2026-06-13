@@ -4,15 +4,17 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { socketService } from '../services/socket';
 import { driverAPI } from '../services/api';
-import { ArrowLeft, Play, Square, AlertTriangle, Globe } from 'lucide-react';
+import { ArrowLeft, Play, Square, AlertTriangle, Globe, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LiveDrivePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -230,11 +232,7 @@ export default function LiveDrivePage() {
       });
     };
 
-    if (map.isStyleLoaded()) {
-      addMarkers();
-    } else {
-      map.on('load', addMarkers);
-    }
+    addMarkers();
   }, [trip, language]);
 
   // Update bus marker position when currentCoords changes

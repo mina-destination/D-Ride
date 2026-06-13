@@ -19,7 +19,10 @@ export class WhatsappController {
   @Post('restart')
   async restart() {
     await this.whatsappService.restart();
-    return { success: true, message: 'WhatsApp client session cleared and restarted.' };
+    return {
+      success: true,
+      message: 'WhatsApp client session cleared and restarted.',
+    };
   }
 
   @Roles('ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION')

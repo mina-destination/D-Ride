@@ -336,10 +336,13 @@ export default function RoutesPage() {
                         <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700 }}>{t('routesBookShuttles')}</span>
                       )}
                     </div>
-
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={14} /> {t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={14} /> {t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}
+                        </span>
+                        <span>•</span>
+                        <span>{route.distanceKm} km</span>
                       </span>
                       
                       <button 

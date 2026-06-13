@@ -56,7 +56,9 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'SUPER_ADMIN', 'ADMIN', 'OPERATION')
   @Get('locations/:vehicleId')
-  async getVehicleLocation(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
+  async getVehicleLocation(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+  ) {
     return this.vehiclesService.getLocationWithDetails(vehicleId);
   }
 
