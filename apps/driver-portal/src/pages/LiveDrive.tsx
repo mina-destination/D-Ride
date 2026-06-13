@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -35,7 +36,7 @@ export default function LiveDrivePage() {
   const [isMocking, setIsMocking] = useState(false);
   const [lockCenter, setLockCenter] = useState(true);
   
-  const geoWatchId = useRef<number | null>(null);
+  const geoWatchId = useRef<any>(null);
   const mockIntervalId = useRef<any>(null);
 
   // Load trip details
@@ -259,7 +260,11 @@ export default function LiveDrivePage() {
 
   const stopLocationStream = () => {
     if (geoWatchId.current !== null) {
-      navigator.geolocation.clearWatch(geoWatchId.current);
+      if (Capacitor.isNativePlatform()) {
+        Geolocation.clearWatch({ id: geoWatchId.current });
+      } else {
+        navigator.geolocation.clearWatch(geoWatchId.current);
+      }
       geoWatchId.current = null;
     }
     if (mockIntervalId.current !== null) {
@@ -317,35 +322,66 @@ export default function LiveDrivePage() {
     
     setCurrentCoords({ lat: startLat, lng: startLng });
 
-    // 1. Try real GPS via Geolocation API
-    if ('geolocation' in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setCurrentCoords({ lat, lng });
-          
-          // Send location update to WebSocket Server
-          socketService.sendLocation({
-            vehicleId: trip?.vehicleId?._id || 'mock-vehicle-123',
-            driverId: user?._id || 'mock-driver-123',
-            longitude: lng,
-            latitude: lat,
-          });
-        },
-        (error) => {
-          console.warn('GPS error, switching to simulator option:', error.message);
-          setGpsError(t('gpsNotAvailable'));
-          setIsMocking(true);
-          startMockSimulation(startLat, startLng);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-      geoWatchId.current = watchId;
-    } else {
-      setGpsError(t('geoNotSupported'));
+    const watchOptions = {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 0
+    };
+
+    const handleSuccess = (lat: number, lng: number) => {
+      setCurrentCoords({ lat, lng });
+      socketService.sendLocation({
+        vehicleId: trip?.vehicleId?._id || 'mock-vehicle-123',
+        driverId: user?._id || 'mock-driver-123',
+        longitude: lng,
+        latitude: lat,
+      });
+    };
+
+    const handleFailure = (errorMsg: string) => {
+      console.warn('GPS error, switching to simulator option:', errorMsg);
+      setGpsError(t('gpsNotAvailable'));
       setIsMocking(true);
       startMockSimulation(startLat, startLng);
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const watchId = await Geolocation.watchPosition(
+          watchOptions,
+          (position, err) => {
+            if (err) {
+              handleFailure(err.message || 'Native Geolocation error');
+              return;
+            }
+            if (position?.coords) {
+              handleSuccess(position.coords.latitude, position.coords.longitude);
+            } else {
+              handleFailure('No coordinates from native GPS');
+            }
+          }
+        );
+        geoWatchId.current = watchId;
+      } catch (err: any) {
+        handleFailure(err.message || 'Failed to watch native position');
+      }
+    } else {
+      if ('geolocation' in navigator) {
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            handleSuccess(position.coords.latitude, position.coords.longitude);
+          },
+          (error) => {
+            handleFailure(error.message);
+          },
+          watchOptions
+        );
+        geoWatchId.current = watchId;
+      } else {
+        setGpsError(t('geoNotSupported'));
+        setIsMocking(true);
+        startMockSimulation(startLat, startLng);
+      }
     }
   };
 
