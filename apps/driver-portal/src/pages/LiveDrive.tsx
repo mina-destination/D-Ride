@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import { useParams, useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -278,8 +279,28 @@ export default function LiveDrivePage() {
     };
   }, []);
 
-  const startLocationStream = () => {
+  const startLocationStream = async () => {
     if (isStreaming) return;
+
+    try {
+      const permStatus = await Geolocation.checkPermissions();
+      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      } else if (permStatus.location === 'denied') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Native Geolocation permission request failed, using browser fallback:', err);
+    }
+
     setIsStreaming(true);
     setGpsError(null);
 

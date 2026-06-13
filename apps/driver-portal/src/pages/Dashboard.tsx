@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import { driverAPI } from '../services/api';
 import { socketService } from '../services/socket';
 import { 
@@ -389,7 +390,26 @@ export default function DashboardPage() {
     }
   }
 
-  function triggerRealGPS() {
+  async function triggerRealGPS() {
+    try {
+      const permStatus = await Geolocation.checkPermissions();
+      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      } else if (permStatus.location === 'denied') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          setGpsError(t('gpsNotAvailable'));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Native Geolocation permission request failed, using browser fallback:', err);
+    }
+
     setIsStreaming(true);
     setGpsError(null);
     localStorage.setItem('dride_gps_permitted', 'true');
