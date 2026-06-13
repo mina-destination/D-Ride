@@ -561,4 +561,38 @@ export class VehiclesGateway
 
     return { event: 'checkpointUpdateAck', data: { success: true } };
   }
+
+  async getArrivedCheckpoints(vehicleId: string): Promise<string[]> {
+    const arrivedStr = await this.getRedisValue(
+      `d-ride:arrived-checkpoints:${vehicleId}`,
+    );
+    return arrivedStr ? JSON.parse(arrivedStr) : [];
+  }
+
+  async setArrivedCheckpoints(
+    vehicleId: string,
+    arrivedCheckpoints: string[],
+  ): Promise<void> {
+    await this.setRedisValue(
+      `d-ride:arrived-checkpoints:${vehicleId}`,
+      JSON.stringify(arrivedCheckpoints),
+    );
+    if (this.server) {
+      this.server.to(`vehicle_${vehicleId}`).emit('checkpointUpdate', {
+        vehicleId,
+        arrivedCheckpoints,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  emitTripStatusUpdate(
+    vehicleId: string,
+    data: { tripId: string; status: string },
+  ): void {
+    if (this.server) {
+      this.server.to(`vehicle_${vehicleId}`).emit('tripStatusUpdate', data);
+    }
+  }
 }
+

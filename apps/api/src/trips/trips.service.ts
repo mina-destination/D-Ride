@@ -12,11 +12,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 
+import { VehiclesGateway } from '../vehicles/vehicles.gateway';
+
 @Injectable()
 export class TripsService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private vehiclesGateway: VehiclesGateway,
   ) {}
 
   private mapTrip(
@@ -784,6 +787,37 @@ export class TripsService {
         driver: true,
       },
     });
+
+    if (updated.vehicleId) {
+      this.vehiclesGateway.emitTripStatusUpdate(updated.vehicleId, {
+        tripId: updated.id,
+        status: updated.status,
+      });
+    }
+
     return this.mapTrip(updated);
+  }
+
+  async getArrivedCheckpoints(tripId: string): Promise<string[]> {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) throw new NotFoundException('Trip not found');
+    if (!trip.vehicleId) return [];
+    return this.vehiclesGateway.getArrivedCheckpoints(trip.vehicleId);
+  }
+
+  async updateArrivedCheckpoints(
+    tripId: string,
+    arrivedCheckpoints: string[],
+  ): Promise<string[]> {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) throw new NotFoundException('Trip not found');
+    if (!trip.vehicleId) {
+      throw new BadRequestException('No vehicle assigned to this trip');
+    }
+    await this.vehiclesGateway.setArrivedCheckpoints(
+      trip.vehicleId,
+      arrivedCheckpoints,
+    );
+    return arrivedCheckpoints;
   }
 }

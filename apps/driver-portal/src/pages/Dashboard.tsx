@@ -19,7 +19,6 @@ import {
   Phone, 
   HelpCircle, 
   AlertTriangle,
-  LifeBuoy,
   Download,
   Bell,
   Trash2,
@@ -146,23 +145,39 @@ export default function DashboardPage() {
   useEffect(() => {
     if (activeTrip?._id) {
       const stored = localStorage.getItem(`dride_arrived_checkpoints_${activeTrip._id}`);
+      let initialCheckpoints: string[] = [];
       if (stored) {
         try {
-          const parsed = JSON.parse(stored);
-          setArrivedCheckpoints(parsed);
-          // Wait briefly for socket connect and broadcast
+          initialCheckpoints = JSON.parse(stored);
+          setArrivedCheckpoints(initialCheckpoints);
+        } catch {
+          // ignore
+        }
+      }
+
+      driverAPI.getArrivedCheckpoints(activeTrip._id)
+        .then(res => {
+          const serverCheckpoints = res || [];
+          setArrivedCheckpoints(serverCheckpoints);
+          localStorage.setItem(`dride_arrived_checkpoints_${activeTrip._id}`, JSON.stringify(serverCheckpoints));
+          
           setTimeout(() => {
             socketService.sendCheckpointUpdate({
               vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || 'mock-vehicle-123',
-              arrivedCheckpoints: parsed,
+              arrivedCheckpoints: serverCheckpoints,
             });
           }, 1000);
-        } catch {
-          setArrivedCheckpoints([]);
-        }
-      } else {
-        setArrivedCheckpoints([]);
-      }
+        })
+        .catch(() => {
+          if (initialCheckpoints.length > 0) {
+            setTimeout(() => {
+              socketService.sendCheckpointUpdate({
+                vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || 'mock-vehicle-123',
+                arrivedCheckpoints: initialCheckpoints,
+              });
+            }, 1000);
+          }
+        });
     } else {
       setArrivedCheckpoints([]);
     }
@@ -703,6 +718,37 @@ export default function DashboardPage() {
       socketService.disconnect();
     };
   }, []);
+
+  // Listen to WebSocket push updates for checkpoints & status overrides
+  useEffect(() => {
+    const handleCheckpointUpdate = (data: any) => {
+      const activeVehicleId = activeTrip?.vehicleId?._id || activeTrip?.vehicleId?.id;
+      if (activeTrip && activeVehicleId && data.vehicleId === activeVehicleId) {
+        console.log('Real-time checkpoint update received:', data.arrivedCheckpoints);
+        setArrivedCheckpoints(data.arrivedCheckpoints);
+        localStorage.setItem(`dride_arrived_checkpoints_${activeTrip._id}`, JSON.stringify(data.arrivedCheckpoints));
+      }
+    };
+
+    const handleTripStatusUpdate = (data: any) => {
+      if (activeTrip && (data.tripId === activeTrip._id || data.tripId === activeTrip.id)) {
+        console.log('Real-time trip status update received:', data.status);
+        fetchTrips(false, true);
+      }
+    };
+
+    if (socketService.socket) {
+      socketService.socket.on('checkpointUpdate', handleCheckpointUpdate);
+      socketService.socket.on('tripStatusUpdate', handleTripStatusUpdate);
+    }
+
+    return () => {
+      if (socketService.socket) {
+        socketService.socket.off('checkpointUpdate', handleCheckpointUpdate);
+        socketService.socket.off('tripStatusUpdate', handleTripStatusUpdate);
+      }
+    };
+  }, [activeTrip?._id, activeTrip?.vehicleId?._id, activeTrip?.vehicleId?.id, socketService.socket]);
 
   // Periodically refresh trips and active manifest silently (always refreshed)
   useEffect(() => {
@@ -1769,41 +1815,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* SECTION 10: Contact Support (Always Visible at Bottom) */}
-        <div id="help-section" style={{ marginTop: '30px' }}>
-          <h4 className="section-title">
-            <LifeBuoy size={16} style={{ color: 'var(--danger)' }} />
-            {t('help')} & Support Command
-          </h4>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Emergency Hotline */}
-            <a href="tel:19999" className="help-contact-card">
-              <div>
-                <h5 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  🚨 {t('emergencyContact')}
-                </h5>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
-                  {t('emergencyDesc')}
-                </p>
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--danger)' }}>19999</span>
-            </a>
 
-            {/* Standard Fleet Support */}
-            <a href="tel:+201012345678" className="help-contact-card secondary-help">
-              <div>
-                <h5 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  📞 {t('supportContact')}
-                </h5>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
-                  {t('supportDesc')}
-                </p>
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)' }}>+201012345678</span>
-            </a>
-          </div>
-        </div>
       </div>
 
       {/* Confirmation Transition Modal */}

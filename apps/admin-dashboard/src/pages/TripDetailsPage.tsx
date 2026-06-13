@@ -25,17 +25,22 @@ export function TripDetailsPage() {
   const [newPassengerEmail, setNewPassengerEmail] = useState('');
   const [newPassengerPhone, setNewPassengerPhone] = useState('');
   const [reviews, setReviews] = useState<any[]>([]);
+  const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [checkpointLoading, setCheckpointLoading] = useState(false);
 
   const fetchTripDetails = async () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [tripRes, manifestRes] = await Promise.all([
+      const [tripRes, manifestRes, arrivedRes] = await Promise.all([
         tripsAPI.getById(id),
-        bookingsAPI.getTripManifest(id)
+        bookingsAPI.getTripManifest(id),
+        tripsAPI.getArrivedCheckpoints(id).catch(() => [])
       ]);
       setTrip(tripRes);
       setBookings(manifestRes || []);
+      setArrivedCheckpoints(arrivedRes || []);
     } catch (error) {
       message.error('Failed to load trip manifest details');
       navigate('/trips');
@@ -48,6 +53,43 @@ export function TripDetailsPage() {
       // reviews are non-critical
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!id) return;
+    try {
+      setStatusLoading(true);
+      await tripsAPI.updateStatus(id, newStatus);
+      message.success(`Trip status successfully forced to ${newStatus}! 🚀`);
+      fetchTripDetails();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Failed to update status';
+      message.error(errMsg);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleToggleCheckpoint = async (checkpointName: string) => {
+    if (!id) return;
+    try {
+      setCheckpointLoading(true);
+      const isArrived = arrivedCheckpoints.includes(checkpointName);
+      let updatedList: string[];
+      if (isArrived) {
+        updatedList = arrivedCheckpoints.filter(name => name !== checkpointName);
+      } else {
+        updatedList = [...arrivedCheckpoints, checkpointName];
+      }
+      await tripsAPI.updateArrivedCheckpoints(id, updatedList);
+      message.success(`Checkpoint arrival status updated! 📍`);
+      setArrivedCheckpoints(updatedList);
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Failed to update checkpoints';
+      message.error(errMsg);
+    } finally {
+      setCheckpointLoading(false);
     }
   };
 
@@ -502,6 +544,103 @@ export function TripDetailsPage() {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={8}>
+          {/* Card 1: Admin Operations Override */}
+          <Card 
+            title={<strong style={{ color: 'var(--text-primary)' }}>Admin Operations Override</strong>} 
+            className="refund-card-glass"
+            style={{ marginBottom: '1.5rem' }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <div>
+                <span style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                  Force Trip Status:
+                </span>
+                <Space wrap>
+                  <Button 
+                    type={trip.status === 'SCHEDULED' ? 'primary' : 'default'} 
+                    size="small" 
+                    onClick={() => handleUpdateStatus('SCHEDULED')}
+                    loading={statusLoading}
+                  >
+                    Scheduled
+                  </Button>
+                  <Button 
+                    type={trip.status === 'BOARDING' ? 'primary' : 'default'} 
+                    size="small" 
+                    onClick={() => handleUpdateStatus('BOARDING')}
+                    loading={statusLoading}
+                  >
+                    Boarding
+                  </Button>
+                  <Button 
+                    type={trip.status === 'IN_TRANSIT' ? 'primary' : 'default'} 
+                    size="small" 
+                    onClick={() => handleUpdateStatus('IN_TRANSIT')}
+                    loading={statusLoading}
+                  >
+                    Transit
+                  </Button>
+                  <Button 
+                    type={trip.status === 'COMPLETED' ? 'primary' : 'default'} 
+                    size="small" 
+                    onClick={() => handleUpdateStatus('COMPLETED')}
+                    loading={statusLoading}
+                  >
+                    Complete
+                  </Button>
+                  <Button 
+                    danger 
+                    type={trip.status === 'CANCELLED' ? 'primary' : 'default'} 
+                    size="small" 
+                    onClick={() => handleUpdateStatus('CANCELLED')}
+                    loading={statusLoading}
+                  >
+                    Cancel
+                  </Button>
+                </Space>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.4 }} />
+
+              <div>
+                <span style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                  Force Checkpoint Arrivals:
+                </span>
+                {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 ? (
+                  <List
+                    size="small"
+                    dataSource={[...trip.routeId.checkpoints].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))}
+                    renderItem={(cp: any) => {
+                      const isArrived = arrivedCheckpoints.includes(cp.name);
+                      return (
+                        <List.Item 
+                          actions={[
+                            <Button 
+                              type={isArrived ? 'primary' : 'default'} 
+                              size="small" 
+                              style={isArrived ? { background: '#10b981', color: 'black', fontWeight: 'bold' } : {}}
+                              onClick={() => handleToggleCheckpoint(cp.name)}
+                              loading={checkpointLoading}
+                            >
+                              {isArrived ? 'Arrived ✓' : 'Mark Arrived'}
+                            </Button>
+                          ]}
+                        >
+                          <Text style={{ color: 'var(--text-primary)' }}>
+                            {cp.name}
+                          </Text>
+                        </List.Item>
+                      );
+                    }}
+                  />
+                ) : (
+                  <Text type="secondary" style={{ fontSize: '12px' }}>No checkpoints on this route</Text>
+                )}
+              </div>
+            </Space>
+          </Card>
+
+          {/* Card 2: Visual Seating Map */}
           <Card 
             title={<strong style={{ color: 'var(--text-primary)' }}>Visual Bus Seating Map</strong>} 
             className="refund-card-glass"
