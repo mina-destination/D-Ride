@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import LoginPage from './pages/Login';
 import MyTripsPage from './pages/MyTrips';
 import TripDetailPage from './pages/TripDetail';
@@ -79,6 +82,34 @@ function AnonymousRoute({ children }: { children: React.ReactNode }) {
 import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
+  useEffect(() => {
+    const requestNativePermissions = async () => {
+      if (!Capacitor.isNativePlatform()) return;
+
+      try {
+        // Request Geolocation permissions
+        const geoPerm = await Geolocation.checkPermissions();
+        if (geoPerm.location !== 'granted') {
+          await Geolocation.requestPermissions();
+        }
+      } catch (err) {
+        console.warn('Failed to check/request location permission:', err);
+      }
+
+      try {
+        // Request Camera permission by triggering a brief dummy stream request
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream.getTracks().forEach((track) => track.stop());
+        }
+      } catch (err) {
+        console.warn('Failed to check/request camera permission:', err);
+      }
+    };
+
+    requestNativePermissions();
+  }, []);
+
   return (
     <AuthProvider>
       <LanguageProvider>
