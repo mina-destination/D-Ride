@@ -73,20 +73,19 @@ export default function Header({
 
   return (
     <div className="floating-header" style={{
-      background: 'rgba(14, 14, 27, 0.7)',
+      background: 'rgba(14, 14, 27, 0.85)',
       backdropFilter: 'blur(20px) saturate(1.6)',
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      borderRadius: '100px',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       padding: '10px 16px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       position: 'sticky',
-      top: '0.5rem',
+      top: '0',
       zIndex: 100,
-      margin: '0.5rem 0.75rem 0 0.75rem',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+      margin: '0',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
       minWidth: 0
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
