@@ -787,6 +787,8 @@ export class BookingsService {
       if (!booking) throw new NotFoundException('Booking not found');
       if (booking.status === BookingStatus.CANCELLED)
         throw new BadRequestException('Booking already cancelled');
+      if (booking.status === BookingStatus.BOARDED || booking.status === BookingStatus.COMPLETED)
+        throw new BadRequestException('Cannot cancel a boarded or completed booking');
 
       const result = await tx.booking.update({
         where: { id },
