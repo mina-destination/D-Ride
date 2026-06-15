@@ -7,11 +7,10 @@
 .nav {
   position: fixed;
   top: 1.25rem;
-  left: 5%;
-  right: 5%;
+  left: 50%;
+  transform: translateX(-50%);
   width: 90%;
   max-width: 1200px;
-  margin: 0 auto;
   z-index: 1000;
   padding: 0.6rem 2rem;
   display: flex;
@@ -24,7 +23,6 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-full, 100px);
   will-change: transform;
-  transform: translateZ(0);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -1365,7 +1363,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  border-left: 1px dashed var(--border);
+  border-inline-start: 1px dashed var(--border);
   text-align: center;
 }
 
@@ -1542,12 +1540,12 @@
   }
   .pass-sidebar {
     width: 100%;
-    border-left: none;
+    border-inline-start: none;
     border-top: 1px dashed var(--border);
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    text-align: left;
+    text-align: start;
     padding: 1rem 1.25rem !important;
   }
   .pass-qr-mock {
@@ -2194,6 +2192,13 @@
     border-color: rgba(239, 68, 68, 0.25) !important;
     color: var(--danger) !important;
     transform: scale(1.01) translateX(4px);
+  }
+
+  html[dir="rtl"] .nav-links.mobile-open li .nav-mobile-logout:hover,
+  html[dir="rtl"] .nav-links.mobile-open li .nav-mobile-logout:active,
+  [dir="rtl"] .nav-links.mobile-open li .nav-mobile-logout:hover,
+  [dir="rtl"] .nav-links.mobile-open li .nav-mobile-logout:active {
+    transform: scale(1.01) translateX(-4px) !important;
   }
 
   .nav-links.mobile-open li .nav-mobile-logout:hover .nav-mobile-icon,
@@ -4197,6 +4202,402 @@ html[data-theme='light'] .tracking-sandbox-panel {
   .mobile-search-card {
     display: block !important;
   }
+}
+
+/* Premium mobile ticket styling */
+@media (max-width: 768px) {
+  .mobile-trip-card.premium-mobile-ticket {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl, 18px);
+    padding: 20px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    gap: 16px;
+    transition: var(--transition-spring);
+  }
+
+  [data-theme="dark"] .mobile-trip-card.premium-mobile-ticket {
+    background: var(--surface-elevated);
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .premium-mobile-ticket::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+    opacity: 0.85;
+  }
+
+  .premium-mobile-ticket .ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .premium-mobile-ticket .route-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .premium-mobile-ticket .route-icon {
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  .premium-mobile-ticket .route-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .premium-mobile-ticket .status-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .premium-mobile-ticket .status-badge.confirmed {
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+  }
+
+  .premium-mobile-ticket .status-badge.boarded,
+  .premium-mobile-ticket .status-badge.completed {
+    color: var(--info);
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+  }
+
+  .premium-mobile-ticket .status-badge.cancelled,
+  .premium-mobile-ticket .status-badge.refunded {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+  }
+
+  .premium-mobile-ticket .status-badge.pending_payment,
+  .premium-mobile-ticket .status-badge.pending {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+  }
+
+  .premium-mobile-ticket .ticket-journey {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-hover);
+    padding: 12px 16px;
+    border-radius: var(--radius-xl, 14px);
+    width: 100%;
+    gap: 8px;
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .ticket-journey {
+    background: var(--surface);
+  }
+
+  .premium-mobile-ticket .journey-point {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .premium-mobile-ticket .journey-point.dest {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .premium-mobile-ticket .journey-point .label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .premium-mobile-ticket .journey-point .value {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+
+  .premium-mobile-ticket .journey-point .time {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary-interactive);
+    margin-top: 2px;
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .journey-point .time {
+    color: var(--primary);
+  }
+
+  .premium-mobile-ticket .journey-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 60px;
+    flex-shrink: 0;
+  }
+
+  .premium-mobile-ticket .journey-arrow .line {
+    width: 100%;
+    height: 1px;
+    border-top: 1px dashed var(--border);
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+  }
+
+  .premium-mobile-ticket .journey-arrow .bus-icon {
+    color: var(--primary);
+    background: var(--surface-hover);
+    padding: 2px;
+    border-radius: 50%;
+    z-index: 2;
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .journey-arrow .bus-icon {
+    background: var(--surface);
+  }
+
+  .premium-mobile-ticket .ticket-details-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 14px;
+  }
+
+  .premium-mobile-ticket .grid-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .premium-mobile-ticket .grid-item .label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .premium-mobile-ticket .grid-item .value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .premium-mobile-ticket .grid-item .value.highlight {
+    color: var(--primary-interactive);
+    font-weight: 800;
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .grid-item .value.highlight {
+    color: var(--primary);
+  }
+
+  .premium-mobile-ticket .boarding-code-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(245, 183, 49, 0.06);
+    border: 1px solid rgba(245, 183, 49, 0.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    width: 100%;
+  }
+
+  .premium-mobile-ticket .boarding-code-banner strong {
+    font-size: 0.95rem;
+    color: var(--primary-interactive);
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .boarding-code-banner strong {
+    color: var(--primary);
+  }
+
+  /* Notched tear line */
+  .premium-mobile-ticket .ticket-tear-line {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: calc(100% + 40px);
+    margin-left: -20px;
+    height: 20px;
+    z-index: 5;
+  }
+
+  .premium-mobile-ticket .ticket-tear-line .notch {
+    width: 12px;
+    height: 24px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    position: absolute;
+    z-index: 10;
+  }
+
+  .premium-mobile-ticket .ticket-tear-line .notch.left {
+    left: -1px;
+    border-radius: 0 12px 12px 0;
+    border-left: none;
+  }
+
+  .premium-mobile-ticket .ticket-tear-line .notch.right {
+    right: -1px;
+    border-radius: 12px 0 0 12px;
+    border-right: none;
+  }
+
+  .premium-mobile-ticket .ticket-tear-line .dashed-border {
+    width: 100%;
+    height: 1px;
+    border-top: 1.5px dashed var(--border);
+  }
+
+  .premium-mobile-ticket .ticket-crew-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    width: 100%;
+    gap: 12px;
+    padding: 0 4px;
+  }
+
+  .premium-mobile-ticket .crew-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .premium-mobile-ticket .crew-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .premium-mobile-ticket .ticket-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  /* Customize buttons for ticket */
+  .premium-mobile-ticket .btn-ticket-main {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    color: var(--text-on-primary) !important;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(245, 183, 49, 0.2);
+    transition: var(--transition-base);
+    min-height: 42px;
+  }
+
+  .premium-mobile-ticket .btn-ticket-main:active {
+    transform: translateY(1px);
+  }
+
+  .premium-mobile-ticket .btn-ticket-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: var(--transition-base);
+    flex-shrink: 0;
+  }
+
+  [data-theme="dark"] .premium-mobile-ticket .btn-ticket-icon {
+    background: var(--surface);
+  }
+
+  .premium-mobile-ticket .btn-ticket-icon:active {
+    background: var(--surface-hover);
+  }
+
+  .premium-mobile-ticket .btn-ticket-cancel {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--danger);
+    transition: var(--transition-base);
+    flex-shrink: 0;
+  }
+
+  .premium-mobile-ticket .btn-ticket-cancel:active {
+    background: rgba(239, 68, 68, 0.15);
+  }
+}
+
+/* RTL Overrides for premium mobile ticket */
+[dir="rtl"] .premium-mobile-ticket .journey-point.dest {
+  align-items: flex-start;
+  text-align: left;
+}
+[dir="rtl"] .premium-mobile-ticket .journey-point:not(.dest) {
+  align-items: flex-end;
+  text-align: right;
+}
+[dir="rtl"] .premium-mobile-ticket .journey-arrow {
+  transform: scaleX(-1);
 }
 
 

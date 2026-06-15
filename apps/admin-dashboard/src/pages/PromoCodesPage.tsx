@@ -304,18 +304,23 @@ export function PromoCodesPage() {
             </Form.Item>
 
             <Form.Item
-              name="discountValue"
               label="Discount Value"
-              rules={[
-                { required: true, message: 'Enter discount value' },
-                { type: 'number', min: 0, message: 'Must be positive value' }
-              ]}
+              required
             >
               <Space.Compact style={{ width: '100%' }}>
-                <InputNumber
-                  style={{ flex: 1 }}
-                  placeholder={discountType === 'PERCENTAGE' ? 'e.g. 10' : 'e.g. 50'}
-                />
+                <Form.Item
+                  name="discountValue"
+                  noStyle
+                  rules={[
+                    { required: true, message: 'Enter discount value' },
+                    { type: 'number', min: 0, message: 'Must be positive value' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ flex: 1 }}
+                    placeholder={discountType === 'PERCENTAGE' ? 'e.g. 10' : 'e.g. 50'}
+                  />
+                </Form.Item>
                 <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', fontSize: '13px', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderInlineStart: 'none', borderRadius: '0 6px 6px 0' }}>
                   {discountType === 'PERCENTAGE' ? '%' : 'EGP'}
                 </span>
@@ -325,27 +330,36 @@ export function PromoCodesPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <Form.Item
-              name="minBookingAmountEGP"
               label="Min. Booking Amount (EGP)"
-              rules={[
-                { required: true, message: 'Enter min booking amount' },
-                { type: 'number', min: 0, message: 'Must be positive' }
-              ]}
+              required
             >
               <Space.Compact style={{ width: '100%' }}>
-                <InputNumber style={{ flex: 1 }} placeholder="e.g. 100" />
+                <Form.Item
+                  name="minBookingAmountEGP"
+                  noStyle
+                  rules={[
+                    { required: true, message: 'Enter min booking amount' },
+                    { type: 'number', min: 0, message: 'Must be positive' }
+                  ]}
+                >
+                  <InputNumber style={{ flex: 1 }} placeholder="e.g. 100" />
+                </Form.Item>
                 <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', fontSize: '13px', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderInlineStart: 'none', borderRadius: '0 6px 6px 0' }}>EGP</span>
               </Space.Compact>
             </Form.Item>
 
             {discountType === 'PERCENTAGE' && (
               <Form.Item
-                name="maxDiscountEGP"
                 label="Max. Discount Limit (EGP)"
-                rules={[{ type: 'number', min: 0, message: 'Must be positive' }]}
               >
                 <Space.Compact style={{ width: '100%' }}>
-                  <InputNumber style={{ flex: 1 }} placeholder="Unlimited" />
+                  <Form.Item
+                    name="maxDiscountEGP"
+                    noStyle
+                    rules={[{ type: 'number', min: 0, message: 'Must be positive' }]}
+                  >
+                    <InputNumber style={{ flex: 1 }} placeholder="Unlimited" />
+                  </Form.Item>
                   <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', fontSize: '13px', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderInlineStart: 'none', borderRadius: '0 6px 6px 0' }}>EGP</span>
                 </Space.Compact>
               </Form.Item>

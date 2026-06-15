@@ -12,7 +12,7 @@ export default function TermsPage() {
     : 'Review the D-Ride terms of service, passenger obligations, seating policies, and cancellation/refund policies.';
 
   return (
-    <div className="page-container" style={{ flexDirection: 'column', overflowX: 'clip' as any }}>
+    <div className="page-container" style={{ flexDirection: 'column', justifyContent: 'flex-start', overflowX: 'clip' as any }}>
       <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />

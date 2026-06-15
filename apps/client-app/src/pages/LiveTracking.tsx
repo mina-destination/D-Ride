@@ -271,7 +271,6 @@ export default function LiveTrackingPage() {
 
       // Trigger full broadcast via socket loop endpoint
       try {
-        const { default: api } = await import('../services/api');
         await api.post('/vehicles/location', {
           vehicleId: vehicleId || 'mock-vehicle-123',
           driverId: 'mock-driver-123',

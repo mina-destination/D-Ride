@@ -1,3 +1,4 @@
+import './patch-worker'
 import '@ant-design/v5-patch-for-react-19'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
@@ -6,13 +7,6 @@ import './index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './context/ThemeContext'
 import maplibregl from 'maplibre-gl'
-
-// Suppress antd v5 React 19 compatibility warning (antd v5 works fine with React 19)
-const origWarn = console.warn;
-console.warn = (...args: any[]) => {
-  if (typeof args[0] === 'string' && args[0].includes('[antd: compatible]')) return;
-  origWarn.apply(console, args);
-};
 
 // Setup RTL Text Plugin
 try {

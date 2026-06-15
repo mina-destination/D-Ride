@@ -256,17 +256,16 @@ export default function FamilyTrackingPage() {
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ position: 'relative' }}>
+            <div className="auth-field" style={{ position: 'relative' }}>
               <input
                 type="text"
                 value={inputCode}
                 onChange={e => setInputCode(e.target.value)}
                 placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-                className="input-field"
-                style={{ paddingRight: '40px' }}
+                style={{ paddingRight: isRtl ? '14px' : '40px', paddingLeft: isRtl ? '40px' : '14px', width: '100%' }}
                 required
               />
-              <Search size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <Search size={18} style={{ position: 'absolute', right: isRtl ? 'auto' : '14px', left: isRtl ? '14px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             </div>
             <button type="submit" className="auth-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               {isAr ? 'ابدأ التتبع المباشر 📡' : 'Start Live Tracking 📡'}

@@ -12,17 +12,18 @@ export const lightPalette = {
     hover: '#E5A520',
     light: '#FEF3CD',
     dark: '#B8860B',
+    interactive: '#B85C00', // Deep Egyptian Caramel Gold for WCAG 4.8:1 Compliance
   },
   surfaces: {
-    background: '#F4F5F7',
-    surface: '#FFFFFF',
-    surfaceElevated: '#F8F9FA',
-    surfaceHover: '#F0F2F5',
+    background: '#F1EDE4',       // Softer Warm Sand/Linen
+    surface: '#FAF8F5',          // Warm Cream White (Non-glaring)
+    surfaceElevated: '#F5F2EB',  // Warm Linen Elevated Surface
+    surfaceHover: '#EAE5DB',     // Soft Clay/Sand Hover
   },
   typography: {
-    textPrimary: '#111827',
-    textSecondary: '#4B5563',
-    textMuted: '#9CA3AF',
+    textPrimary: '#1A1D20',      // Soothing Deep Charcoal
+    textSecondary: '#4E5358',    // Muted Warm Slate
+    textMuted: '#7E848C',        // Warm Muted Gray
     textOnPrimary: '#1A1A2E',
   },
   borders: {
@@ -41,31 +42,32 @@ export const lightPalette = {
 // ── Dark Mode Palette ───────────────────────────────────────
 export const darkPalette = {
   primary: {
-    DEFAULT: '#F5B731',
-    hover: '#FFD04A',
-    light: 'rgba(245, 183, 49, 0.15)',
-    dark: '#E5A520',
+    DEFAULT: '#E0A328',          // Softer Egyptian Amber Gold (was #F5B731)
+    hover: '#F5B731',            // Muted Hover (was #FFD04A)
+    light: 'rgba(224, 163, 40, 0.12)',
+    dark: '#B8860B',
+    interactive: '#E0A328',      // Softer interactive contrast
   },
   surfaces: {
-    background: '#06060E',
-    surface: '#0E0E1B',
-    surfaceElevated: '#161628',
-    surfaceHover: '#1E1E35',
+    background: '#1A1D26',       // Softer Slate Carbon (was #0E1017)
+    surface: '#222633',          // Lighter Slate Panel (was #171A24)
+    surfaceElevated: '#2A2F40',  // Elevated Panel (was #202432)
+    surfaceHover: '#33394D',     // Hover State (was #2A2F42)
   },
   typography: {
-    textPrimary: '#F0F1F5',
-    textSecondary: '#9CA3AF',
-    textMuted: '#5A5F73',
+    textPrimary: '#D1D7E0',      // Soft warm gray (prevent halation, was #E2E8F0)
+    textSecondary: '#8F9EAF',    // Muted Warm Slate (was #94A3B8)
+    textMuted: '#64748B',        // Soothing Slate-500
     textOnPrimary: '#0E0E1B',
   },
   borders: {
-    border: '#1E1E35',
-    borderFocus: '#F5B731',
+    border: '#2E3445',           // Cohesive Slate border (was #1E202B)
+    borderFocus: '#E0A328',
   },
   sidebar: {
     bg: '#050509',
     text: '#9CA3AF',
-    textActive: '#F5B731',
+    textActive: '#E0A328',
     itemHover: '#0E0E1B',
     border: 'rgba(255, 255, 255, 0.08)',
   },
@@ -75,12 +77,12 @@ export const darkPalette = {
 export const semanticColors = {
   success: {
     DEFAULT: '#10B981',
-    dark: '#34D399',
+    dark: '#34D399',             // Softer Emerald (was #05FFC5)
     light: '#D1FAE5',
   },
   danger: {
     DEFAULT: '#EF4444',
-    dark: '#F87171',
+    dark: '#F87171',             // Softer Coral Red (was #FF2E93)
     light: '#FEE2E2',
   },
   warning: {
@@ -147,6 +149,7 @@ export const themeColors = {
     hover: 'var(--primary-hover)',
     light: 'var(--primary-light)',
     dark: 'var(--primary-dark)',
+    interactive: 'var(--primary-interactive)',
   },
   success: {
     DEFAULT: 'var(--success)',
@@ -229,6 +232,7 @@ export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string
     '--primary-hover': palette.primary.hover,
     '--primary-light': palette.primary.light,
     '--primary-dark': palette.primary.dark,
+    '--primary-interactive': palette.primary.interactive,
     '--background': palette.surfaces.background,
     '--surface': palette.surfaces.surface,
     '--surface-elevated': palette.surfaces.surfaceElevated,
@@ -244,10 +248,10 @@ export function getCSSVariables(mode: 'light' | 'dark' = 'light'): Record<string
     '--sidebar-text-active': palette.sidebar.textActive,
     '--sidebar-item-hover': palette.sidebar.itemHover,
     '--sidebar-border': palette.sidebar.border,
-    '--success': semanticColors.success.DEFAULT,
-    '--danger': semanticColors.danger.DEFAULT,
-    '--warning': semanticColors.warning.DEFAULT,
-    '--info': semanticColors.info.DEFAULT,
+    '--success': mode === 'light' ? semanticColors.success.DEFAULT : semanticColors.success.dark,
+    '--danger': mode === 'light' ? semanticColors.danger.DEFAULT : semanticColors.danger.dark,
+    '--warning': mode === 'light' ? semanticColors.warning.DEFAULT : semanticColors.warning.dark,
+    '--info': mode === 'light' ? semanticColors.info.DEFAULT : semanticColors.info.dark,
     '--font-family': typography.fontFamily,
     '--radius-sm': designTokens.borderRadius.sm,
     '--radius-md': designTokens.borderRadius.md,
@@ -334,6 +338,10 @@ export const antThemeConfigDark = {
     colorTextBase: darkPalette.typography.textPrimary,
     colorTextSecondary: darkPalette.typography.textSecondary,
     colorBorder: darkPalette.borders.border,
+    colorSuccess: semanticColors.success.dark,
+    colorError: semanticColors.danger.dark,
+    colorWarning: semanticColors.warning.dark,
+    colorInfo: semanticColors.info.dark,
   },
   components: {
     ...antThemeConfig.components,

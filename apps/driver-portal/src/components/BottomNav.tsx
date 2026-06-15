@@ -7,8 +7,8 @@ export default function BottomNav() {
   const location = useLocation();
   const { t } = useTranslation();
 
-  // Hide bottom nav on login page
-  if (location.pathname === '/login') {
+  // Hide bottom nav on login page and active driving view
+  if (location.pathname === '/login' || location.pathname.startsWith('/drive/')) {
     return null;
   }
 

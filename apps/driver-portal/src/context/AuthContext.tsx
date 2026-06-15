@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { driverAPI } from '../services/api';
+import { api, driverAPI } from '../services/api';
 import { socketService } from '../services/socket';
 
 interface AuthContextType {
@@ -21,9 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const refreshToken = localStorage.getItem('dride_driver_refresh_token');
     if (refreshToken) {
       // Fire and forget — revoke server-side
-      import('../services/api').then(({ api }) => {
-        api.post('/auth/logout', { refreshToken }).catch(() => {});
-      });
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
     }
     localStorage.removeItem('dride_driver_token');
     localStorage.removeItem('dride_driver_refresh_token');

@@ -184,7 +184,7 @@ export default function LiveDrivePage() {
       });
     };
 
-    if (map.isStyleLoaded()) {
+    if (map.getStyle() && map.isStyleLoaded()) {
       addRoute();
     } else {
       map.on('load', addRoute);

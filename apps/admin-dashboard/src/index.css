@@ -14,20 +14,21 @@
   /* Brand */
   --primary: #F5B731;
   --primary-color: var(--primary);
-  --primary-hover: #FFD04A;
+  --primary-hover: #E5A520;
   --primary-light: #FEF3CD;
   --primary-dark: #B8860B;
+  --primary-interactive: #B85C00; /* Deep high-contrast gold for light mode WCAG */
 
   /* Light Mode Surfaces */
-  --background: #F4F5F7;
-  --surface: #FFFFFF;
-  --surface-elevated: #F8F9FA;
-  --surface-hover: #F0F2F5;
+  --background: #F1EDE4; /* Softer Warm Sand/Linen */
+  --surface: #FAF8F5; /* Warm Cream White (Non-glaring) */
+  --surface-elevated: #F5F2EB; /* Warm Linen Elevated Surface */
+  --surface-hover: #EAE5DB; /* Soft Clay/Sand Hover */
 
   /* Typography */
-  --text-primary: #111827;
-  --text-secondary: #4B5563;
-  --text-muted: #9CA3AF;
+  --text-primary: #1A1D20;
+  --text-secondary: #4E5358;
+  --text-muted: #7E848C;
   --text-on-primary: #1A1A2E;
 
   /* Borders */
@@ -44,6 +45,7 @@
   /* Semantic */
   --success: #10B981;
   --danger: #EF4444;
+  --danger-color: var(--danger);
   --warning: #F59E0B;
   --info: #3B82F6;
 
@@ -67,32 +69,33 @@
 }
 
 [data-theme="dark"] {
-  --primary-hover: #FFD04A;
-  --primary-light: rgba(245, 183, 49, 0.15);
-  --primary-dark: #E5A520;
+  --primary-hover: #F5B731;
+  --primary-light: rgba(224, 163, 40, 0.12);
+  --primary-dark: #B8860B;
+  --primary-interactive: #E0A328;
 
-  --background: #06060E;
-  --surface: #0E0E1B;
-  --surface-elevated: #161628;
-  --surface-hover: #1E1E35;
+  --background: #1A1D26;
+  --surface: #222633;
+  --surface-elevated: #2A2F40;
+  --surface-hover: #33394D;
 
-  --text-primary: #F0F1F5;
-  --text-secondary: #9CA3AF;
-  --text-muted: #5A5F73;
+  --text-primary: #D1D7E0;
+  --text-secondary: #8F9EAF;
+  --text-muted: #64748B;
   --text-on-primary: #0E0E1B;
 
-  --border: #1E1E35;
+  --border: #2E3445;
 
   --sidebar-bg: #050509;
   --sidebar-text: #9CA3AF;
-  --sidebar-text-active: #F5B731;
+  --sidebar-text-active: #E0A328;
   --sidebar-item-hover: #0E0E1B;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --primary-color: var(--primary);
 
   /* Glass & Overlay dark mode fallbacks */
-  --glass-bg: rgba(14, 14, 27, 0.65);
-  --glass-border: rgba(245, 183, 49, 0.08);
+  --glass-bg: rgba(23, 26, 36, 0.7);
+  --glass-border: rgba(224, 163, 40, 0.08);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
 }
 
@@ -128,10 +131,8 @@ body {
 
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border: 1px solid var(--glass-border);
+  background: var(--sidebar-bg);
+  border: 1px solid var(--sidebar-border);
   border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
@@ -150,7 +151,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--sidebar-border);
   min-height: 72px;
 }
 
@@ -775,7 +776,67 @@ body {
   z-index: 1;
 }
 
+/* Live Tracking Desktop Layout */
+.live-tracking-container {
+  display: flex;
+  height: calc(100vh - 120px);
+  margin: -1rem -2rem;
+  overflow: hidden;
+}
+
+.live-tracking-sidebar {
+  width: 420px;
+  min-width: 420px;
+  background: var(--surface, #111318);
+  border-right: 1px solid var(--border, #1f2430);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.live-tracking-map-panel {
+  flex: 1;
+  position: relative;
+  background: #0d0f14;
+}
+
+.live-tracking-details-card {
+  position: absolute !important;
+  bottom: 24px !important;
+  left: 24px !important;
+  width: 360px !important;
+}
+
+/* Trip Playback Desktop Layout */
+.trip-playback-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: calc(100vh - 110px);
+}
+
+.trip-playback-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+.trip-playback-controls {
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  z-index: 10;
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
+
 
 /* ── 1200px: Large Tablets / Small Laptops ────────────────── */
 @media (max-width: 1200px) {
@@ -857,7 +918,8 @@ body {
     z-index: 1010;
     backdrop-filter: blur(24px) saturate(1.6);
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    background: rgba(14, 14, 27, 0.95);
+    background: var(--sidebar-bg);
+    border: 1px solid var(--sidebar-border);
   }
 
   .dashboard-layout:not(.sidebar-collapsed) .sidebar {
@@ -957,6 +1019,71 @@ body {
 
   .fleet-map-grid > div:last-child {
     height: 280px !important;
+  }
+
+  /* Live Tracking mobile layout */
+  .live-tracking-container {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: calc(100vh - 120px) !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .live-tracking-sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 350px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border, #1f2430) !important;
+  }
+
+  .live-tracking-map-panel {
+    height: 400px !important;
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  .live-tracking-details-card {
+    position: absolute !important;
+    bottom: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  /* Trip playback / history mobile layout */
+  .trip-playback-container {
+    height: auto !important;
+    gap: 12px !important;
+  }
+
+  .trip-playback-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 16px !important;
+  }
+
+  .trip-history-sidebar {
+    height: 320px !important;
+    overflow-y: auto !important;
+  }
+
+  .trip-history-map-panel {
+    height: 400px !important;
+  }
+
+  .trip-playback-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 10px 14px !important;
+  }
+
+  .trip-playback-controls > div {
+    width: 100% !important;
   }
 
   /* Charts grid mobile */

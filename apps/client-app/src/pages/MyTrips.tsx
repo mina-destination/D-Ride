@@ -782,212 +782,189 @@ export default function MyTripsPage() {
                     </div>
                   </div>
 
-                  {/* ── MOBILE: Compact Trip Card ── */}
-                  <div className="mobile-trip-card">
-                    {/* Header Line */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                        <span style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {/* ── MOBILE: Premium Wallet Boarding Pass ── */}
+                  <div className="mobile-trip-card premium-mobile-ticket">
+                    {/* Header */}
+                    <div className="ticket-header">
+                      <div className="route-info">
+                        <Compass className="route-icon" size={16} />
+                        <span className="route-name">
                           {booking.tripId?.routeId?.name || 'Standard Route'}
                         </span>
-                        <span style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          color: (booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'var(--danger)' : 'var(--success)',
-                          background: (booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
-                        </span>
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: '8px' }}>
-                        #{booking._id?.slice(-6).toUpperCase()}
+                      <span className={`status-badge ${(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'cancelled' : booking.status.toLowerCase()}`}>
+                        {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
                       </span>
                     </div>
 
-                    {/* Subheader Line */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', opacity: 0.75 }}>
-                        {formattedDate} • {formattedTime}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', opacity: 0.75 }}>
-                        {t('seatLabelShort')} #{booking.seatNumbers?.join(', ') || booking.seatNumber || 'N/A'}
-                      </span>
-                    </div>
-
-                    {/* Divider */}
-                    <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
-
-                    {/* Metadata Body */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      <span><strong style={{ color: 'var(--text-muted)' }}>{t('driverLabel')}:</strong> {booking.tripId?.driver?.name || booking.tripId?.driverId?.name || 'Captain'}</span>
-                      <span><strong style={{ color: 'var(--text-muted)' }}>{t('vehicleLabel')}:</strong> {booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
-                      {booking.pickupCheckpoint && (
-                        <span><strong style={{ color: 'var(--text-muted)' }}>Pick-up:</strong> {booking.pickupCheckpoint.name}</span>
-                      )}
-                    </div>
-
-                    {/* Action Footer */}
-                    {booking.status === 'CONFIRMED' && booking.tripId?.status !== 'CANCELLED' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-                        <Link
-                          to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`}
-                          style={{
-                            flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-                            color: 'var(--text-on-primary)',
-                            padding: '7px 12px',
-                            borderRadius: '6px',
-                            textDecoration: 'none',
-                            fontSize: '0.78rem',
-                            fontWeight: 700
-                          }}
-                        >
-                          {t('trackLive')} 📍
-                        </Link>
-                        {booking.pickupCheckpoint && (
-                          <button
-                            onClick={() => {
-                              const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates;
-                              if (coords && coords.length >= 2) {
-                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank');
-                              }
-                            }}
-                            title="Navigate"
-                            style={{
-                              background: 'var(--surface-hover)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '6px',
-                              padding: '6px 8px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              color: 'var(--text-secondary)'
-                            }}
-                          >
-                            <Compass size={14} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => shareTicketPdf(booking, user)}
-                          title="Share PDF"
-                          style={{
-                            background: 'var(--surface-hover)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
-                          <Share2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleCancel(booking._id)}
-                          title={t('cancelSeat')}
-                          style={{
-                            background: 'rgba(239,68,68,0.08)',
-                            border: '1px solid rgba(239,68,68,0.2)',
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: 'var(--danger)'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-
-                    {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && booking.tripId?.status !== 'CANCELLED' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-                        <button
-                          onClick={() => shareTicketPdf(booking, user)}
-                          style={{
-                            background: 'var(--surface-hover)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            padding: '6px 10px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.72rem',
-                            color: 'var(--text-secondary)',
-                            fontWeight: 600
-                          }}
-                        >
-                          <Share2 size={12} /> PDF
-                        </button>
-                        {!booking.review ? (
-                          <button
-                            onClick={() => handleOpenReviewModal(booking._id)}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '4px',
-                              background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-                              color: 'var(--text-on-primary)',
-                              padding: '7px 12px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Rate Trip <Star size={12} fill="var(--text-on-primary)" />
-                          </button>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star key={star} size={12} fill={star <= booking.review.rating ? '#f5b731' : 'none'} stroke="#f5b731" />
-                            ))}
+                    {/* Journey */}
+                    {(() => {
+                      const startStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'START') || booking.tripId?.routeId?.checkpoints?.[0];
+                      const endStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'END') || booking.tripId?.routeId?.checkpoints?.[booking.tripId?.routeId?.checkpoints?.length - 1];
+                      return (
+                        <div className="ticket-journey">
+                          <div className="journey-point">
+                            <span className="label">{t('pickup') || 'Pickup'}</span>
+                            <span className="value" title={booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}>
+                              {booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}
+                            </span>
+                            <span className="time">{formattedTime}</span>
                           </div>
-                        )}
+                          
+                          <div className="journey-arrow">
+                            <div className="line"></div>
+                            <Compass className="bus-icon" size={14} />
+                          </div>
+
+                          <div className="journey-point dest">
+                            <span className="label">{isAr ? 'الوجهة' : 'Destination'}</span>
+                            <span className="value" title={endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}>
+                              {endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}
+                            </span>
+                            <span className="time">{formattedTime}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Details Grid */}
+                    <div className="ticket-details-grid">
+                      <div className="grid-item">
+                        <span className="label">{t('dateLabel')}</span>
+                        <span className="value">{formattedDate}</span>
+                      </div>
+                      <div className="grid-item">
+                        <span className="label">{t('seatLabelShort')}</span>
+                        <span className="value highlight">#{booking.seatNumbers?.join(', ') || booking.seatNumber || 'N/A'}</span>
+                      </div>
+                      <div className="grid-item">
+                        <span className="label">{t('fareLabelShort')}</span>
+                        <span className="value">{booking.amountEGP} EGP</span>
+                      </div>
+                      <div className="grid-item">
+                        <span className="label">{isAr ? 'تذكرة' : 'ID'}</span>
+                        <span className="value">#{booking._id?.slice(-6).toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    {/* Notched Tear Line */}
+                    <div className="ticket-tear-line">
+                      <div className="notch left"></div>
+                      <div className="dashed-border"></div>
+                      <div className="notch right"></div>
+                    </div>
+
+                    {/* Express Boarding Code Banner */}
+                    {booking.boardingNumber && (
+                      <div className="boarding-code-banner">
+                        <span>{isAr ? 'رمز الصعود السريع' : 'Express Boarding Code'}:</span>
+                        <strong>#{booking.boardingNumber}</strong>
                       </div>
                     )}
 
-                    {(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') && (
-                      <div style={{ marginTop: '10px', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        No Actions Available
+                    {/* Crew Info */}
+                    <div className="ticket-crew-info">
+                      <div className="crew-item">
+                        <User size={12} />
+                        <span><strong>{t('driverLabel')}:</strong> {booking.tripId?.driver?.name || booking.tripId?.driverId?.name || 'Captain'}</span>
                       </div>
-                    )}
+                      <div className="crew-item">
+                        <Compass size={12} />
+                        <span><strong>{t('vehicleLabel')}:</strong> {booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
+                      </div>
+                    </div>
 
-                    {booking.status === 'PENDING_PAYMENT' && booking.tripId?.status !== 'CANCELLED' && (
-                      <div style={{ marginTop: '10px' }}>
+                    {/* Action Buttons */}
+                    <div className="ticket-actions">
+                      {booking.status === 'CONFIRMED' && booking.tripId?.status !== 'CANCELLED' && (
+                        <>
+                          <button
+                            onClick={() => handleShowQrModal(booking)}
+                            className="btn-ticket-icon"
+                            title="View QR Code"
+                          >
+                            <QrCode size={16} />
+                          </button>
+                          {booking.pickupCheckpoint && (
+                            <button
+                              onClick={() => {
+                                const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates;
+                                if (coords && coords.length >= 2) {
+                                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank');
+                                }
+                              }}
+                              className="btn-ticket-icon"
+                              title="Navigate to Pick-up"
+                            >
+                              <Compass size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => shareTicketPdf(booking, user)}
+                            className="btn-ticket-icon"
+                            title="Share PDF"
+                          >
+                            <Share2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleCancel(booking._id)}
+                            className="btn-ticket-cancel"
+                            title={t('cancelSeat')}
+                          >
+                            ✕
+                          </button>
+                          
+                          <Link
+                            to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`}
+                            className="btn-ticket-main"
+                          >
+                            {t('trackLive')} 📍
+                          </Link>
+                        </>
+                      )}
+
+                      {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && booking.tripId?.status !== 'CANCELLED' && (
+                        <>
+                          <button
+                            onClick={() => shareTicketPdf(booking, user)}
+                            className="btn-ticket-icon"
+                            title="Share PDF"
+                          >
+                            <Share2 size={16} />
+                          </button>
+                          {!booking.review ? (
+                            <button
+                              onClick={() => handleOpenReviewModal(booking._id)}
+                              className="btn-ticket-main"
+                            >
+                              Rate Trip <Star size={14} fill="var(--text-on-primary)" />
+                            </button>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginInlineStart: 'auto' }}>
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star key={star} size={14} fill={star <= booking.review.rating ? '#f5b731' : 'none'} stroke="#f5b731" />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, width: '100%', textAlign: 'center' }}>
+                          {isAr ? 'لا توجد إجراءات متاحة' : 'No Actions Available'}
+                        </div>
+                      )}
+
+                      {booking.status === 'PENDING_PAYMENT' && booking.tripId?.status !== 'CANCELLED' && (
                         <Link
                           to={`/checkout?tripId=${booking.tripId?._id}`}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            background: 'var(--primary)',
-                            color: 'black',
-                            padding: '7px 12px',
-                            borderRadius: '6px',
-                            textDecoration: 'none',
-                            fontSize: '0.78rem',
-                            fontWeight: 700
-                          }}
+                          className="btn-ticket-main"
+                          style={{ width: '100%' }}
                         >
                           {t('payNow')} <CreditCard size={14} />
                         </Link>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                 </div>

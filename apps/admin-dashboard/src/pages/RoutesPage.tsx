@@ -782,9 +782,16 @@ export function RoutesPage() {
         if (checkpoints.length > 0) {
           const bounds = new maplibregl.LngLatBounds();
           checkpoints.forEach(cp => {
-            bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+            if (cp.location?.coordinates && cp.location.coordinates.length >= 2) {
+              const [lng, lat] = cp.location.coordinates;
+              if (typeof lng === 'number' && typeof lat === 'number' && !isNaN(lng) && !isNaN(lat)) {
+                bounds.extend([lng, lat]);
+              }
+            }
           });
-          mapObj.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+          if (!bounds.isEmpty()) {
+            mapObj.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+          }
         }
 
         mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
@@ -819,7 +826,10 @@ export function RoutesPage() {
       markersRef.current = [];
 
       checkpoints.forEach((cp, idx) => {
-        const lngLat: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
+        if (!cp.location?.coordinates || cp.location.coordinates.length < 2) return;
+        const [lng, lat] = cp.location.coordinates;
+        if (typeof lng !== 'number' || typeof lat !== 'number' || isNaN(lng) || isNaN(lat)) return;
+        const lngLat: [number, number] = [lng, lat];
         const isStart = cp.type === 'START';
         const isEnd = cp.type === 'END';
         const isHovered = activeHoverIndex === idx;
@@ -868,7 +878,7 @@ export function RoutesPage() {
       });
     };
 
-    if (map.isStyleLoaded()) {
+    if (map.getStyle() && map.isStyleLoaded()) {
       syncMarkers();
     } else {
       map.on('load', syncMarkers);
@@ -931,7 +941,7 @@ export function RoutesPage() {
       }
     };
 
-    if (map.isStyleLoaded()) {
+    if (map.getStyle() && map.isStyleLoaded()) {
       updatePath();
     } else {
       map.on('load', updatePath);
@@ -952,11 +962,18 @@ export function RoutesPage() {
       const doBounds = () => {
         const bounds = new maplibregl.LngLatBounds();
         checkpoints.forEach(cp => {
-          bounds.extend([cp.location.coordinates[0], cp.location.coordinates[1]]);
+          if (cp.location?.coordinates && cp.location.coordinates.length >= 2) {
+            const [lng, lat] = cp.location.coordinates;
+            if (typeof lng === 'number' && typeof lat === 'number' && !isNaN(lng) && !isNaN(lat)) {
+              bounds.extend([lng, lat]);
+            }
+          }
         });
-        map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        }
       };
-      if (map.isStyleLoaded()) {
+      if (map.getStyle() && map.isStyleLoaded()) {
         doBounds();
       } else {
         map.on('load', doBounds);
