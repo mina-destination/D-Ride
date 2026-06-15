@@ -452,7 +452,7 @@ describe('BookingsService', () => {
         {
           ...mockBooking,
           trip: { ...mockTrip, vehicleId: 'vehicle-1' },
-        }
+        },
       ]);
       mockPrismaService.liveVehicleLocation.findUnique.mockResolvedValue({
         id: 'loc-1',

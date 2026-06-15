@@ -787,8 +787,13 @@ export class BookingsService {
       if (!booking) throw new NotFoundException('Booking not found');
       if (booking.status === BookingStatus.CANCELLED)
         throw new BadRequestException('Booking already cancelled');
-      if (booking.status === BookingStatus.BOARDED || booking.status === BookingStatus.COMPLETED)
-        throw new BadRequestException('Cannot cancel a boarded or completed booking');
+      if (
+        booking.status === BookingStatus.BOARDED ||
+        booking.status === BookingStatus.COMPLETED
+      )
+        throw new BadRequestException(
+          'Cannot cancel a boarded or completed booking',
+        );
 
       const result = await tx.booking.update({
         where: { id },
@@ -1221,7 +1226,10 @@ export class BookingsService {
 
   async trackByCode(code: string, userId?: string): Promise<any> {
     let booking = null;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        code,
+      );
 
     if (isUuid) {
       booking = await this.prisma.booking.findUnique({

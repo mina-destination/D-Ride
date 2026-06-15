@@ -257,8 +257,11 @@ export class VehiclesService {
           if (activeTrip.route && activeTrip.route.checkpoints) {
             const checkpoints = (activeTrip.route.checkpoints as any[]) || [];
             if (checkpoints.length > 0) {
-              const arrivedCheckpoints = await this.vehiclesGateway.getArrivedCheckpoints(data.vehicleId);
-              
+              const arrivedCheckpoints =
+                await this.vehiclesGateway.getArrivedCheckpoints(
+                  data.vehicleId,
+                );
+
               // Find the first checkpoint that is not arrived
               const nextCheckpoint = checkpoints.find(
                 (cp) => !arrivedCheckpoints.includes(cp.name),
@@ -266,19 +269,31 @@ export class VehiclesService {
 
               if (nextCheckpoint && nextCheckpoint.location?.coordinates) {
                 const [cpLng, cpLat] = nextCheckpoint.location.coordinates;
-                const distanceMeters = getDistance(data.longitude, data.latitude, cpLng, cpLat);
+                const distanceMeters = getDistance(
+                  data.longitude,
+                  data.latitude,
+                  cpLng,
+                  cpLat,
+                );
 
                 const routeDistKm = activeTrip.route.distanceKm || 15;
-                const routeDurationMin = activeTrip.route.estimatedDurationMinutes || 30;
-                let avgSpeedKmh = (routeDistKm / (routeDurationMin / 60)) || 45;
+                const routeDurationMin =
+                  activeTrip.route.estimatedDurationMinutes || 30;
+                let avgSpeedKmh = routeDistKm / (routeDurationMin / 60) || 45;
                 if (avgSpeedKmh < 15) avgSpeedKmh = 15;
                 if (avgSpeedKmh > 100) avgSpeedKmh = 100;
 
                 const currentSpeedKmh = data.speedKmh ?? 0;
-                const speedKmh = currentSpeedKmh < 10 ? avgSpeedKmh : Math.max(10, Math.min(currentSpeedKmh, 120));
-                
+                const speedKmh =
+                  currentSpeedKmh < 10
+                    ? avgSpeedKmh
+                    : Math.max(10, Math.min(currentSpeedKmh, 120));
+
                 const speedMetersPerMinute = (speedKmh * 1000) / 60;
-                const etaMinutes = Math.max(1, Math.round(distanceMeters / speedMetersPerMinute));
+                const etaMinutes = Math.max(
+                  1,
+                  Math.round(distanceMeters / speedMetersPerMinute),
+                );
 
                 this.vehiclesGateway.emitEtaUpdate(data.vehicleId, {
                   vehicleId: data.vehicleId,

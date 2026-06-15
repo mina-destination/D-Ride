@@ -240,7 +240,10 @@ export class VehiclesGateway
     // Prevent concurrent logins for DRIVER users
     if (client.user?.role === 'DRIVER') {
       const driverId = client.user.id;
-      for (const [socketId, socketInstance] of this.server.sockets.sockets.entries()) {
+      for (const [
+        socketId,
+        socketInstance,
+      ] of this.server.sockets.sockets.entries()) {
         const anySocketInstance = socketInstance as any;
         if (socketId !== client.id && anySocketInstance.user?.id === driverId) {
           this.logger.warn(
@@ -616,4 +619,3 @@ export class VehiclesGateway
     }
   }
 }
-
