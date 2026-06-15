@@ -442,9 +442,15 @@ export class AuthService {
 
   async generateRefreshToken(userId: string): Promise<string> {
     const rawToken = crypto.randomUUID();
-    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
 
-    const expiresIn = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
+    const expiresIn = this.configService.get<string>(
+      'jwt.refreshExpiresIn',
+      '7d',
+    );
     const expiresMs = this.parseDuration(expiresIn);
     const expiresAt = new Date(Date.now() + expiresMs);
 
@@ -460,7 +466,10 @@ export class AuthService {
   }
 
   async refreshAccessToken(rawRefreshToken: string) {
-    const hashedToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(rawRefreshToken)
+      .digest('hex');
 
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: hashedToken },
@@ -500,7 +509,10 @@ export class AuthService {
   }
 
   async revokeRefreshToken(rawRefreshToken: string): Promise<void> {
-    const hashedToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(rawRefreshToken)
+      .digest('hex');
     try {
       await this.prisma.refreshToken.delete({ where: { token: hashedToken } });
     } catch {
@@ -518,11 +530,16 @@ export class AuthService {
     const value = parseInt(match[1], 10);
     const unit = match[2];
     switch (unit) {
-      case 's': return value * 1000;
-      case 'm': return value * 60 * 1000;
-      case 'h': return value * 60 * 60 * 1000;
-      case 'd': return value * 24 * 60 * 60 * 1000;
-      default: return 7 * 24 * 60 * 60 * 1000;
+      case 's':
+        return value * 1000;
+      case 'm':
+        return value * 60 * 1000;
+      case 'h':
+        return value * 60 * 60 * 1000;
+      case 'd':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return 7 * 24 * 60 * 60 * 1000;
     }
   }
 }

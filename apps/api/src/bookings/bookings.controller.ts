@@ -168,10 +168,7 @@ export class BookingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('track-by-code/:code')
-  async trackByCode(
-    @Request() req: any,
-    @Param('code') code: string,
-  ) {
+  async trackByCode(@Request() req: any, @Param('code') code: string) {
     const userRole = req.user.role;
     const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OWNER', 'OPERATION'].includes(
       userRole,

@@ -11,7 +11,10 @@ export class HealthController {
 
   @Get()
   async check(@Res() res: Response) {
-    const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
+    const checks: Record<
+      string,
+      { status: string; latencyMs?: number; error?: string }
+    > = {};
     let allHealthy = true;
 
     // 1. PostgreSQL check
@@ -20,7 +23,11 @@ export class HealthController {
       await this.prisma.$queryRaw`SELECT 1`;
       checks.database = { status: 'healthy', latencyMs: Date.now() - dbStart };
     } catch (err: any) {
-      checks.database = { status: 'unhealthy', latencyMs: Date.now() - dbStart, error: err.message };
+      checks.database = {
+        status: 'unhealthy',
+        latencyMs: Date.now() - dbStart,
+        error: err.message,
+      };
       allHealthy = false;
     }
 
@@ -30,16 +37,30 @@ export class HealthController {
       const redisStart = Date.now();
       let redisClient: ReturnType<typeof createClient> | null = null;
       try {
-        redisClient = createClient({ url: redisUrl, socket: { connectTimeout: 3000 } });
+        redisClient = createClient({
+          url: redisUrl,
+          socket: { connectTimeout: 3000 },
+        });
         await redisClient.connect();
         await redisClient.ping();
-        checks.redis = { status: 'healthy', latencyMs: Date.now() - redisStart };
+        checks.redis = {
+          status: 'healthy',
+          latencyMs: Date.now() - redisStart,
+        };
       } catch (err: any) {
-        checks.redis = { status: 'unhealthy', latencyMs: Date.now() - redisStart, error: err.message };
+        checks.redis = {
+          status: 'unhealthy',
+          latencyMs: Date.now() - redisStart,
+          error: err.message,
+        };
         allHealthy = false;
       } finally {
         if (redisClient) {
-          try { await redisClient.disconnect(); } catch { /* ignore */ }
+          try {
+            await redisClient.disconnect();
+          } catch {
+            /* ignore */
+          }
         }
       }
     } else {
@@ -50,7 +71,9 @@ export class HealthController {
     const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
     const memUsage = process.memoryUsage();
 
-    const statusCode = allHealthy ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+    const statusCode = allHealthy
+      ? HttpStatus.OK
+      : HttpStatus.SERVICE_UNAVAILABLE;
 
     return res.status(statusCode).json({
       status: allHealthy ? 'healthy' : 'unhealthy',

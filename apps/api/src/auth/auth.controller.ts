@@ -101,6 +101,10 @@ export class AuthController {
   @Post('logout')
   async logout(@Body() data: RefreshTokenDto) {
     await this.authService.revokeRefreshToken(data.refreshToken);
-    return { success: true, message: 'Logged out successfully', timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      message: 'Logged out successfully',
+      timestamp: new Date().toISOString(),
+    };
   }
 }

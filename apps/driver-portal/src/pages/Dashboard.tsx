@@ -295,7 +295,9 @@ export default function DashboardPage() {
             if ('Notification' in window && Notification.permission === 'granted') {
               new window.Notification(title, { body: description });
             }
-          } catch (e) {}
+          } catch (e) {
+            /* ignore */
+          }
         } else if (tripCount > lastNotifiedCountRef.current) {
           // Real-time alert when new shifts are added
           const diff = tripCount - lastNotifiedCountRef.current;
@@ -308,7 +310,9 @@ export default function DashboardPage() {
             if ('Notification' in window && Notification.permission === 'granted') {
               new window.Notification(title, { body: description });
             }
-          } catch (e) {}
+          } catch (e) {
+            /* ignore */
+          }
         }
       }
       lastNotifiedCountRef.current = tripCount;

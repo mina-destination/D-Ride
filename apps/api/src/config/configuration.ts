@@ -50,7 +50,10 @@ export default () => {
     },
 
     defaults: {
-      vehicleCapacity: parseInt(process.env.DEFAULT_VEHICLE_CAPACITY || '14', 10),
+      vehicleCapacity: parseInt(
+        process.env.DEFAULT_VEHICLE_CAPACITY || '14',
+        10,
+      ),
       countryCode: process.env.DEFAULT_COUNTRY_CODE || '+20',
       lockedSeats: (() => {
         try {

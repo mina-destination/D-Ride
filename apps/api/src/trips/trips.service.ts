@@ -480,7 +480,10 @@ export class TripsService {
       data.availableSeats === null ||
       isNaN(finalSeats)
     ) {
-      let seats = this.configService.get<number>('defaults.vehicleCapacity', 14);
+      let seats = this.configService.get<number>(
+        'defaults.vehicleCapacity',
+        14,
+      );
       if (data.vehicleId) {
         const vehicle = await this.prisma.vehicle.findUnique({
           where: { id: data.vehicleId },
@@ -524,7 +527,9 @@ export class TripsService {
         premiumSeatSurcharge: finalPremiumSurcharge,
         availableSeats: finalSeats,
         bookedSeats: Number(data.bookedSeats || 0),
-        lockedSeats: data.lockedSeats || this.configService.get('defaults.lockedSeats', [14]),
+        lockedSeats:
+          data.lockedSeats ||
+          this.configService.get('defaults.lockedSeats', [14]),
       },
       include: {
         route: true,
