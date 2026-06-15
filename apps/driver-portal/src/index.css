@@ -14,30 +14,31 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   
   /* Brand Colors */
-  --primary: #f5b731;
-  --primary-hover: #ffd04a;
-  --primary-light: rgba(245, 183, 49, 0.15);
-  --primary-dark: #e5a520;
+  --primary: #E0A328;
+  --primary-hover: #f5b731;
+  --primary-light: rgba(224, 163, 40, 0.12);
+  --primary-dark: #B8860B;
+  --primary-interactive: #E0A328;
   
   /* Palette (Dark Theme Default for Drivers) */
-  --background: #06060e;
-  --surface: #0e0e1b;
-  --surface-elevated: #161628;
-  --surface-hover: #1e1e35;
+  --background: #1A1D26;
+  --surface: #222633;
+  --surface-elevated: #2A2F40;
+  --surface-hover: #33394D;
   
   /* Typography */
-  --text-primary: #f0f1f5;
-  --text-secondary: #9ca3af;
-  --text-muted: #5a5f73;
+  --text-primary: #D1D7E0;
+  --text-secondary: #8F9EAF;
+  --text-muted: #64748B;
   --text-on-primary: #0e0e1b;
   
   /* Borders */
-  --border: #1e1e35;
+  --border: #2E3445;
   --border-focus: #f5b731;
   
   /* Semantic */
-  --success: #10b981;
-  --danger: #ef4444;
+  --success: #34D399; /* Softer Emerald */
+  --danger: #F87171;  /* Softer Coral Red */
   --warning: #f59e0b;
   --info: #3b82f6;
   

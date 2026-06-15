@@ -151,21 +151,27 @@ export function TripHistoryPage() {
     if (map.getLayer('actual-route-layer')) map.removeLayer('actual-route-layer');
     if (map.getSource('actual-route')) map.removeSource('actual-route');
 
-    const plannedCoords = selectedTrip.routeId?.path?.coordinates || [];
+    const plannedCoordsRaw = selectedTrip.routeId?.path?.coordinates || [];
+    const plannedCoords = plannedCoordsRaw.filter(
+      (c: any) => Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])
+    );
     // Ensure actualPath coordinates are valid arrays
-    let actualCoords: [number, number][] = [];
+    let actualCoordsRaw: [number, number][] = [];
     if (selectedTrip.actualPath) {
       try {
-        actualCoords = typeof selectedTrip.actualPath === 'string'
+        actualCoordsRaw = typeof selectedTrip.actualPath === 'string'
           ? JSON.parse(selectedTrip.actualPath)
           : (selectedTrip.actualPath as any);
       } catch (e) {
-        actualCoords = [];
+        actualCoordsRaw = [];
       }
     }
-    if (!Array.isArray(actualCoords)) {
-      actualCoords = [];
+    if (!Array.isArray(actualCoordsRaw)) {
+      actualCoordsRaw = [];
     }
+    const actualCoords = actualCoordsRaw.filter(
+      (c: any) => Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])
+    );
 
     const bounds = new maplibregl.LngLatBounds();
     let hasCoords = false;
@@ -247,7 +253,9 @@ export function TripHistoryPage() {
       const isStart = cp.type === 'START';
       const isEnd = cp.type === 'END';
       const coords = cp.location?.coordinates;
-      if (!coords) return;
+      if (!coords || !Array.isArray(coords) || coords.length < 2) return;
+      const [lng, lat] = coords;
+      if (typeof lng !== 'number' || typeof lat !== 'number' || isNaN(lng) || isNaN(lat)) return;
 
       const el = document.createElement('div');
       el.className = isStart ? 'google-maps-start-pin' : isEnd ? 'google-maps-dest-pin' : 'google-maps-stop-pin';
@@ -461,12 +469,13 @@ export function TripHistoryPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 110px)' }}>
+    <div className="trip-playback-container">
       {/* 📊 Analytics Dashboard Style Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '20px', flex: 1, minHeight: 0 }}>
+      <div className="trip-playback-grid">
         
         {/* Left column: List & Search Panel */}
         <Card 
+          className="trip-history-sidebar"
           style={{ 
             background: 'var(--surface-elevated)', 
             border: '1px solid var(--border)',
@@ -581,7 +590,7 @@ export function TripHistoryPage() {
           )}
 
           {/* Map & Playback Interface */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+          <div className="trip-history-map-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
             
             {/* Map Container */}
             <div ref={mapContainerRef} style={{ width: '100%', flex: 1 }} />
@@ -613,7 +622,7 @@ export function TripHistoryPage() {
 
             {/* Playback Controls Panel */}
             {selectedTrip && getActualCoords(selectedTrip).length > 0 && (
-              <div style={{ 
+              <div className="trip-playback-controls" style={{ 
                 background: 'rgba(15, 23, 42, 0.9)', 
                 backdropFilter: 'blur(10px)',
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
@@ -675,7 +684,7 @@ export function TripHistoryPage() {
                     value={playbackSpeed} 
                     onChange={setPlaybackSpeed}
                     style={{ width: '80px' }}
-                    dropdownStyle={{ background: '#1e293b' }}
+                    styles={{ popup: { background: '#1e293b' } } as any}
                     options={[
                       { value: 1, label: '1x' },
                       { value: 2, label: '2x' },

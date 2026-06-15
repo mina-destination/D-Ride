@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { authAPI } from '../services/api';
+import api, { authAPI } from '../services/api';
 import { socketService } from '../services/socket';
 
 interface User {
@@ -95,9 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     const refreshToken = localStorage.getItem('dride_refresh_token');
     if (refreshToken) {
-      import('../services/api').then(({ default: api }) => {
-        api.post('/auth/logout', { refreshToken }).catch(() => {});
-      });
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
     }
     setUser(null);
     setToken(null);

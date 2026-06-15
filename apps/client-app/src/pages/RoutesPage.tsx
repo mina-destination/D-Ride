@@ -9,61 +9,41 @@ import {
   Map as MapIcon, 
   Clock, 
   ChevronRight, 
+  ChevronDown,
+  ChevronUp,
   Navigation, 
   Layers
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-export default function RoutesPage() {
-  const [routes, setRoutes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
-  const { t, language } = useTranslation();
-  const { theme } = useTheme();
-
+// Sub-component for each route card containing its details, map, and timeline
+function RouteCard({ 
+  route, 
+  trips, 
+  theme, 
+  language, 
+  t, 
+  onBook 
+}: { 
+  route: any; 
+  trips: any[]; 
+  theme: string; 
+  language: string; 
+  t: any; 
+  onBook: (id: string) => void;
+}) {
+  const [showTimeline, setShowTimeline] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const isAr = language === 'ar';
+  
+  const startStop = route.checkpoints?.find((c: any) => c.type === 'START') || route.checkpoints?.[0];
+  const endStop = route.checkpoints?.find((c: any) => c.type === 'END') || route.checkpoints?.[route.checkpoints?.length - 1];
 
   useEffect(() => {
-    routesAPI.getAll()
-      .then(async (data) => {
-        setRoutes(data);
-        if (data.length > 0) {
-          setActiveRouteId(data[0]._id);
-        }
-        
-        try {
-          const tripPromises = data.map((route: any) =>
-            tripsAPI.search(route._id)
-              .then((trips: any[]) => ({ routeId: route._id, trips }))
-              .catch(() => ({ routeId: route._id, trips: [] }))
-          );
-          const resolved = await Promise.all(tripPromises);
-          const mapMapping: Record<string, any[]> = {};
-          resolved.forEach((item) => {
-            mapMapping[item.routeId] = item.trips;
-          });
-          setTripsMap(mapMapping);
-        } catch (err) {
-          console.error('Error fetching trips for routes:', err);
-        }
-      })
-      .catch(err => console.error('Error fetching routes:', err))
-      .finally(() => setLoading(false));
-  }, []);
+    if (!mapContainerRef.current) return;
 
-  const activeRoute = routes.find(r => r._id === activeRouteId);
-
-  const handleBook = (routeId: string) => {
-    navigate(`/search?routeId=${routeId}`);
-  };
-
-  useEffect(() => {
-    if (!mapContainerRef.current || !activeRoute) return;
-
-    const routeCoords: [number, number][] = activeRoute.path?.coordinates || [];
+    const routeCoords: [number, number][] = route.path?.coordinates || [];
     const centerCoords: [number, number] = routeCoords[0] || [31.2357, 30.0444];
 
     const map = new maplibregl.Map({
@@ -71,14 +51,21 @@ export default function RoutesPage() {
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
       center: centerCoords,
       zoom: 12,
-      attributionControl: false
+      attributionControl: false,
+      scrollZoom: false,
+      boxZoom: false,
+      dragPan: false,
+      doubleClickZoom: false,
+      touchZoomRotate: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      keyboard: false
     });
 
-    // Suppress missing sprite image warnings by providing dummy transparent images
     map.on('styleimagemissing', (e) => {
       const width = 16;
       const height = 16;
-      const data = new Uint8Array(width * height * 4); // transparent pixels
+      const data = new Uint8Array(width * height * 4);
       if (!map.hasImage(e.id)) {
         map.addImage(e.id, { width, height, data });
       }
@@ -87,7 +74,6 @@ export default function RoutesPage() {
     mapRef.current = map;
 
     map.on('load', () => {
-      // Snapped roadway polyline path
       if (routeCoords.length > 0) {
         map.addSource('route-path', {
           type: 'geojson',
@@ -111,7 +97,7 @@ export default function RoutesPage() {
           },
           paint: {
             'line-color': theme === 'dark' ? '#174ea6' : '#ffffff',
-            'line-width': 8,
+            'line-width': 6,
             'line-opacity': 0.9
           }
         });
@@ -126,12 +112,11 @@ export default function RoutesPage() {
           },
           paint: {
             'line-color': theme === 'dark' ? '#8ab4f8' : '#1a73e8',
-            'line-width': 5,
+            'line-width': 3.5,
             'line-opacity': 0.95
           }
         });
 
-        // Fit bounds
         const bounds = routeCoords.reduce(
           (acc, coord) => {
             return [
@@ -142,17 +127,16 @@ export default function RoutesPage() {
           [[routeCoords[0][0], routeCoords[0][1]], [routeCoords[0][0], routeCoords[0][1]]]
         ) as [[number, number], [number, number]];
 
-        map.fitBounds(bounds, { padding: 40, duration: 1000 });
+        map.fitBounds(bounds, { padding: 25, duration: 1000 });
       }
 
-      // Checkpoints
-      activeRoute.checkpoints?.forEach((cp: any, idx: number) => {
+      route.checkpoints?.forEach((cp: any, idx: number) => {
         const latLng: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
         const isStart = cp.type === 'START';
         const isEnd = cp.type === 'END';
 
         const el = document.createElement('div');
-        const pinSize = isStart || isEnd ? '32px' : '22px';
+        const pinSize = isStart || isEnd ? '26px' : '18px';
         el.style.width = pinSize;
         el.style.height = pinSize;
 
@@ -164,16 +148,18 @@ export default function RoutesPage() {
         } else {
           pinEl.className = 'google-maps-stop-pin';
           pinEl.innerText = String(idx);
+          pinEl.style.fontSize = '9px';
+          pinEl.style.lineHeight = '18px';
         }
         el.appendChild(pinEl);
 
         const popupHtml = `
-          <div style="color:var(--text-primary); font-family: Inter, sans-serif; font-size:12px; font-weight:500; padding:6px; min-width:140px;">
+          <div style="color:var(--text-primary); font-family: Inter, sans-serif; font-size:11px; font-weight:500; padding:4px; min-width:120px;">
             <div style="font-weight:700; color:var(--primary); margin-bottom:2px;">${isStart ? t('departureTerminal') : isEnd ? t('destinationStation') : `${t('waypointStation')} ${idx}`}</div>
-            <div style="font-size:11px; opacity:0.9;">${cp.name}</div>
+            <div style="font-size:10px; opacity:0.9;">${cp.name}</div>
           </div>
         `;
-        const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
+        const popup = new maplibregl.Popup({ offset: 8 }).setHTML(popupHtml);
 
         new maplibregl.Marker({ element: el, anchor: isStart || isEnd ? 'bottom' : 'center' })
           .setLngLat(latLng)
@@ -183,9 +169,289 @@ export default function RoutesPage() {
     });
 
     return () => {
-      map.remove();
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
-  }, [activeRoute, theme, loading]);
+  }, [route, theme]);
+
+  const minPrice = trips && trips.length > 0
+    ? Math.min(...trips.map(t => t.priceEGP))
+    : (route.baseFareEGP || 45);
+
+  return (
+    <div 
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)',
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
+      }}
+      className="route-card-hover"
+    >
+      {/* 1. CARD HEADER */}
+      <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+          <span style={{
+            background: 'rgba(59, 130, 246, 0.1)',
+            color: '#3B82F6',
+            padding: '5px 12px',
+            borderRadius: '10px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.03em'
+          }}>
+            🚌 {route.routeCode || `LINE ${route.name.split(' ')[0] || ''}`}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isAr ? 'flex-start' : 'flex-end' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+              {minPrice} <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{isAr ? 'ج.م' : 'EGP'}</span>
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25, textAlign: isAr ? 'right' : 'left' }}>
+            {isAr ? route.nameAr || route.name : route.name}
+          </h3>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: isAr ? 'flex-end' : 'flex-start', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+            <span>📍</span> <span>{startStop?.name || 'Origin'} ➔ {endStop?.name || 'Destination'}</span>
+          </p>
+        </div>
+
+        {/* METADATA CHIPS */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+            <Clock size={14} style={{ color: 'var(--primary)' }} />
+            <span>{t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}</span>
+          </div>
+          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+            <span>📏</span>
+            <span>{route.distanceKm} km</span>
+          </div>
+          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+            <span>🗓️</span>
+            <span>{trips && trips.length > 0 ? t('routesTripsScheduled', { count: trips.length }) : t('routesNoTripsScheduled')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. MAP CONTROLLER CONTAINER */}
+      <div style={{ height: '220px', width: '100%', position: 'relative', background: 'var(--background)' }}>
+        <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+        {/* Floating marker counts badge */}
+        <div style={{
+          position: 'absolute',
+          bottom: '12px',
+          left: isAr ? 'auto' : '12px',
+          right: isAr ? '12px' : 'auto',
+          background: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(4px)',
+          color: '#fff',
+          padding: '4px 10px',
+          borderRadius: '20px',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          zIndex: 5,
+          border: '1px solid rgba(255,255,255,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          flexDirection: isAr ? 'row-reverse' : 'row'
+        }}>
+          <Layers size={12} style={{ color: 'var(--primary)' }} />
+          <span>{route.checkpoints?.length || 0} {isAr ? 'محطات' : 'Stations'}</span>
+        </div>
+      </div>
+
+      {/* 3. COLLAPSIBLE TIMELINE / CHECKPOINTS */}
+      <div style={{ borderBottom: '1px solid var(--border)' }}>
+        <button
+          onClick={() => setShowTimeline(!showTimeline)}
+          style={{
+            width: '100%',
+            padding: '1rem 1.5rem',
+            background: 'none',
+            border: 'none',
+            outline: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.9rem',
+            fontWeight: 700,
+            color: 'var(--text-secondary)',
+            transition: 'background 0.2s',
+            flexDirection: isAr ? 'row-reverse' : 'row'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--background)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+            <Navigation size={16} style={{ color: 'var(--primary)' }} />
+            {isAr ? 'عرض تفاصيل المحطات ومخطط الخط' : 'Show Stop Details & Timeline'}
+          </span>
+          {showTimeline ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {showTimeline && (
+          <div style={{
+            padding: '1.5rem',
+            background: 'var(--background)',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+          }}>
+            {/* Timeline Connecting Line */}
+            <div style={{
+              position: 'absolute',
+              top: '2.25rem',
+              bottom: '2.25rem',
+              left: isAr ? 'auto' : '2.5rem',
+              right: isAr ? '2.5rem' : 'auto',
+              width: '2px',
+              background: 'repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)'
+            }} />
+
+            {route.checkpoints?.map((cp: any, idx: number) => {
+              const isStart = cp.type === 'START';
+              const isEnd = cp.type === 'END';
+              
+              return (
+                <div 
+                  key={`timeline-cp-${route._id}-${idx}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '1rem',
+                    marginBottom: idx === (route.checkpoints?.length - 1) ? 0 : '1.5rem',
+                    position: 'relative',
+                    zIndex: 1,
+                    flexDirection: isAr ? 'row-reverse' : 'row'
+                  }}
+                >
+                  {/* Bullet indicator */}
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: isStart 
+                      ? 'rgba(16, 185, 129, 0.15)' 
+                      : isEnd 
+                        ? 'rgba(239, 68, 68, 0.15)' 
+                        : 'rgba(59, 130, 246, 0.1)',
+                    border: `2px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
+                    color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    flexShrink: 0
+                  }}>
+                    {isStart ? 'S' : isEnd ? 'E' : String(idx)}
+                  </div>
+
+                  {/* Text info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexGrow: 1, textAlign: isAr ? 'right' : 'left' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {isAr ? cp.nameAr || cp.name : cp.name}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)', justifyContent: isAr ? 'flex-end' : 'flex-start', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+                      <span>⏱️ {cp.bufferTimeMinutes} {t('routesBufferMins')}</span>
+                      <span>•</span>
+                      <span>🌐 Radius: {cp.geofenceRadiusMeters}m</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 4. BOOKING ACTION BUTTON FOOTER */}
+      <div style={{ padding: '1.25rem 1.5rem', background: 'var(--surface-hover)', display: 'flex', justifyContent: isAr ? 'flex-start' : 'flex-end', marginTop: 'auto' }}>
+        <button 
+          onClick={() => onBook(route._id)}
+          style={{
+            background: 'var(--primary)',
+            border: 'none',
+            color: '#000',
+            fontWeight: 700,
+            padding: '10px 20px',
+            borderRadius: '12px',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'transform 0.2s ease, opacity 0.2s ease',
+            boxShadow: '0 4px 15px rgba(245, 183, 49, 0.15)',
+            flexDirection: isAr ? 'row-reverse' : 'row'
+          }}
+          className="button-hover-scale"
+          onMouseEnter={e => {
+            e.currentTarget.style.opacity = '0.9';
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          {t('routesBookRideBtn')} 
+          <ChevronRight size={16} style={{ transform: isAr ? 'rotate(180deg)' : 'none' }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function RoutesPage() {
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [tripsMap, setTripsMap] = useState<Record<string, any[]>>({});
+  const { t, language } = useTranslation();
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    routesAPI.getAll()
+      .then(async (data) => {
+        setRoutes(data);
+        
+        try {
+          const tripPromises = data.map((route: any) =>
+            tripsAPI.search(route._id)
+              .then((trips: any[]) => ({ routeId: route._id, trips }))
+              .catch(() => ({ routeId: route._id, trips: [] }))
+          );
+          const resolved = await Promise.all(tripPromises);
+          const mapMapping: Record<string, any[]> = {};
+          resolved.forEach((item) => {
+            mapMapping[item.routeId] = item.trips;
+          });
+          setTripsMap(mapMapping);
+        } catch (err) {
+          console.error('Error fetching trips for routes:', err);
+        }
+      })
+      .catch(err => console.error('Error fetching routes:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleBook = (routeId: string) => {
+    navigate(`/search?routeId=${routeId}`);
+  };
 
   const seoTitle = language === 'ar' ? 'مستكشف مسارات النقل في مصر | دي-رايد' : 'Egypt Transit Routes Explorer | D-Ride';
   const seoDescription = language === 'ar'
@@ -246,246 +512,50 @@ export default function RoutesPage() {
           </p>
         </div>
       ) : (
-        <div className="routes-explorer-grid">
-          
-          {/* LEFT COLUMN: ROUTE CARDS LIST */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('routesAvailableLines', { count: routes.length })}
-            </h3>
-            
-            {routes.map(route => {
-              const isActive = route._id === activeRouteId;
-              const startStop = route.checkpoints?.find((c: any) => c.type === 'START') || route.checkpoints?.[0];
-              const endStop = route.checkpoints?.find((c: any) => c.type === 'END') || route.checkpoints?.[route.checkpoints?.length - 1];
-
-              return (
-                <div 
-                  key={route._id}
-                  onClick={() => setActiveRouteId(route._id)}
-                  style={{
-                    background: isActive ? 'var(--surface-elevated)' : 'var(--surface)',
-                    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    borderRadius: '16px',
-                    padding: '1.25rem',
-                    cursor: 'pointer',
-                    boxShadow: isActive ? '0 4px 20px rgba(245, 183, 49, 0.08)' : 'none',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        color: '#3B82F6',
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.02em'
-                      }}>
-                        🚌 {route.routeCode || `LINE ${route.name.split(' ')[0] || ''}`}
-                      </span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>
-                        {language === 'ar' ? 'ج.م' : 'EGP'} {tripsMap[route._id] && tripsMap[route._id].length > 0
-                          ? Math.min(...tripsMap[route._id].map(t => t.priceEGP))
-                          : (route.baseFareEGP || 45)
-                        }
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {language === 'ar' ? route.nameAr || route.name : route.name}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        📍 {startStop?.name || 'Origin'} ➔ {endStop?.name || 'Destination'}
-                      </p>
-                    </div>
-
-                    <div 
-                      style={{
-                        background: 'var(--background)',
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        border: '1px solid var(--border)',
-                        transition: 'border-color 0.2s'
-                      }}
-                      onMouseEnter={e => {
-                        if (tripsMap[route._id] && tripsMap[route._id].length > 0) {
-                          e.currentTarget.style.borderColor = 'var(--primary)';
-                        }
-                      }}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                    >
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        ⏰ {tripsMap[route._id] && tripsMap[route._id].length > 0 ? (
-                          <span>{t('routesTripsScheduled', { count: tripsMap[route._id].length })}</span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>{t('routesNoTripsScheduled')}</span>
-                        )}
-                      </span>
-                      {tripsMap[route._id] && tripsMap[route._id].length > 0 && (
-                        <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700 }}>{t('routesBookShuttles')}</span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={14} /> {t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}
-                        </span>
-                        <span>•</span>
-                        <span>{route.distanceKm} km</span>
-                      </span>
-                      
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBook(route._id);
-                        }}
-                        style={{
-                          background: 'var(--primary)',
-                          border: 'none',
-                          color: '#000',
-                          fontWeight: 700,
-                          padding: '6px 14px',
-                          borderRadius: '10px',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'opacity 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                      >
-                        {t('routesBookRideBtn')} <ChevronRight size={14} style={{ transform: language === 'ar' ? 'rotate(180deg)' : 'none' }} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        <>
+          <style>{`
+            .routes-unified-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+              gap: 2.5rem;
+              padding: 4rem 2rem;
+              max-width: 1320px;
+              margin: 0 auto;
+            }
+            @media (max-width: 968px) {
+              .routes-unified-grid {
+                grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+                gap: 2rem;
+                padding: 3rem 1.5rem;
+              }
+            }
+            @media (max-width: 480px) {
+              .routes-unified-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+                padding: 2rem 1rem;
+              }
+            }
+            .route-card-hover:hover {
+              transform: translateY(-6px);
+              box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12) !important;
+              border-color: var(--primary) !important;
+            }
+          `}</style>
+          <div className="routes-unified-grid">
+            {routes.map(route => (
+              <RouteCard 
+                key={route._id}
+                route={route}
+                trips={tripsMap[route._id] || []}
+                theme={theme}
+                language={language}
+                t={t}
+                onBook={handleBook}
+              />
+            ))}
           </div>
-
-          {/* RIGHT COLUMN: ACTIVE ROUTE MAP & TIMELINE */}
-          {activeRoute && (
-            <div className="routes-explorer-sidebar">
-              
-              {/* INTERACTIVE MAP */}
-              <div style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '24px',
-                overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.04)'
-              }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <MapIcon size={20} style={{ color: 'var(--primary)' }} /> {t('routesInteractiveTrack')}
-                  </h3>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Layers size={14} /> {t('routesSnappedRoadways')}
-                  </span>
-                </div>
-                
-                <div style={{ height: '320px', width: '100%' }}>
-                  <div ref={mapContainerRef} style={{ height: '100%', width: '100%', zIndex: 1 }} />
-                </div>
-              </div>
-
-              {/* TIMELINE SECTION */}
-              <div style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '24px',
-                padding: '1.5rem',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.04)'
-              }}>
-                <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Navigation size={20} style={{ color: 'var(--primary)' }} /> {t('routesTimelineTitle')}
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                  
-                  {/* Timeline Connecting Line */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '12px',
-                    bottom: '12px',
-                    left: language === 'ar' ? 'auto' : '15px',
-                    right: language === 'ar' ? '15px' : 'auto',
-                    width: '2px',
-                    background: 'repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)'
-                  }} />
-
-                  {activeRoute.checkpoints?.map((cp: any, idx: number) => {
-                    const isStart = cp.type === 'START';
-                    const isEnd = cp.type === 'END';
-                    
-                    return (
-                      <div 
-                        key={`timeline-cp-${idx}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '1rem',
-                          marginBottom: idx === (activeRoute.checkpoints?.length - 1) ? 0 : '1.5rem',
-                          position: 'relative',
-                          zIndex: 1
-                        }}
-                      >
-                        {/* Bullet indicator */}
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: isStart 
-                            ? 'rgba(16, 185, 129, 0.15)' 
-                            : isEnd 
-                              ? 'rgba(239, 68, 68, 0.15)' 
-                              : 'rgba(59, 130, 246, 0.1)',
-                          border: `2px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
-                          color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          flexShrink: 0
-                        }}>
-                          {isStart ? 'S' : isEnd ? 'E' : String(idx)}
-                        </div>
-
-                        {/* Text info */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexGrow: 1 }}>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {language === 'ar' ? cp.nameAr || cp.name : cp.name}
-                          </span>
-                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            <span>⏱️ {cp.bufferTimeMinutes} {t('routesBufferMins')}</span>
-                            <span>•</span>
-                            <span>🌐 Radius: {cp.geofenceRadiusMeters}m</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-            </div>
-          )}
-
-        </div>
+        </>
       )}
     </div>
   );

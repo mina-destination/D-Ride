@@ -18,21 +18,22 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   /* Brand Colors */
   --primary: #F5B731;
-  --primary-hover: #FFD04A;
+  --primary-hover: #E5A520;
   --primary-light: #FEF3CD;
   --primary-dark: #B8860B;
+  --primary-interactive: #B85C00; /* Deep high-contrast gold for light mode WCAG */
   --primary-color: var(--primary);
 
   /* Light Surfaces */
-  --background: #F4F5F7;
-  --surface: #FFFFFF;
-  --surface-elevated: #F8F9FA;
-  --surface-hover: #F0F2F5;
+  --background: #F1EDE4; /* Softer Warm Sand/Linen */
+  --surface: #FAF8F5; /* Warm Cream White (Non-glaring) */
+  --surface-elevated: #F5F2EB; /* Warm Linen Elevated Surface */
+  --surface-hover: #EAE5DB; /* Soft Clay/Sand Hover */
 
   /* Typography */
-  --text-primary: #111827;
-  --text-secondary: #4B5563;
-  --text-muted: #9CA3AF;
+  --text-primary: #1A1D20; /* Soothing Deep Charcoal */
+  --text-secondary: #4E5358; /* Muted Warm Slate */
+  --text-muted: #7E848C; /* Warm Muted Gray */
   --text-on-primary: #1A1A2E;
 
   /* Borders */
@@ -73,37 +74,46 @@
 
   /* Font */
   --font-family: 'Roboto', 'Inter', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Custom Active Search Card Colors */
+  --active-card-bg: linear-gradient(135deg, #FFF9EB 0%, #FFF2D1 100%);
+  --active-card-border: #F5B731;
 }
 
 [data-theme="dark"] {
-  --background: #06060E;
-  --surface: #0E0E1B;
-  --surface-elevated: #161628;
-  --surface-hover: #1E1E35;
+  --background: #1A1D26;
+  --surface: #222633;
+  --surface-elevated: #2A2F40;
+  --surface-hover: #33394D;
 
-  --text-primary: #F0F1F5;
-  --text-secondary: #9CA3AF;
-  --text-muted: #5A5F73;
+  --text-primary: #D1D7E0;
+  --text-secondary: #8F9EAF;
+  --text-muted: #64748B;
   --text-on-primary: #0E0E1B;
 
-  --border: #1E1E35;
+  --border: #2E3445;
 
-  --nav-bg: rgba(6, 6, 14, 0.8);
-  --glass-bg: rgba(14, 14, 27, 0.65);
-  --glass-border: rgba(245, 183, 49, 0.08);
+  --nav-bg: rgba(14, 16, 23, 0.85);
+  --glass-bg: rgba(23, 26, 36, 0.7);
+  --glass-border: rgba(224, 163, 40, 0.08);
 
-  --glow-amber: rgba(245, 183, 49, 0.2);
-  --glow-blue: rgba(59, 130, 246, 0.12);
-  --glow-purple: rgba(168, 85, 247, 0.1);
+  --glow-amber: rgba(224, 163, 40, 0.12);
+  --glow-blue: rgba(59, 130, 246, 0.08);
+  --glow-purple: rgba(168, 85, 247, 0.08);
   --primary-color: var(--primary);
+  --primary-interactive: #E0A328;
 
   /* Dark mode semantic overrides */
-  --success: #34D399;
-  --danger: #F87171;
+  --success: #34D399; /* Softer Emerald */
+  --danger: #F87171;  /* Softer Coral Red */
   --warning: #FBBF24;
   --info: #60A5FA;
 
-  --focus-ring: 0 0 0 3px rgba(245, 183, 49, 0.25);
+  --focus-ring: 0 0 0 3px rgba(224, 163, 40, 0.2);
+
+  /* Custom Active Search Card Colors (Dark Mode) */
+  --active-card-bg: linear-gradient(135deg, #2D2619 0%, #1F222F 100%);
+  --active-card-border: #E0A328;
 }
 
 /* ── Reset & Base ──────────────────────────────────────────── */
@@ -657,6 +667,35 @@ textarea:focus-visible {
   }
 }
 
+/* Payment Page Card responsive styles */
+.payment-cards-wrapper {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
+.ticket-header-responsive {
+  background: linear-gradient(90deg, var(--surface-hover) 0%, rgba(245, 183, 49, 0.05) 100%);
+  border-bottom: 1px dashed var(--border);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ticket-body-responsive {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 @media (max-width: 480px) {
   .auth-page {
     padding: 0.75rem;
@@ -668,6 +707,20 @@ textarea:focus-visible {
   }
   .auth-container {
     padding: 0 !important;
+  }
+  .payment-cards-wrapper {
+    padding: 0 0.5rem !important;
+    gap: 1rem !important;
+  }
+  .premium-card {
+    padding: 1.25rem !important;
+    border-radius: var(--radius-xl) !important;
+  }
+  .ticket-header-responsive {
+    padding: 12px 14px !important;
+  }
+  .ticket-body-responsive {
+    padding: 14px 12px !important;
   }
   .seat-selector-container {
     padding: 1rem 0.5rem !important;
@@ -897,52 +950,58 @@ textarea:focus-visible {
 /* Visual timeline for checkpoints list */
 .checkpoint-timeline {
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
   position: relative;
-  padding-left: 1.5rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  padding: 0 0.5rem;
 }
 
 .checkpoint-timeline::before {
   content: '';
   position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 5px;
-  width: 2px;
-  background: var(--border);
+  top: 14px;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--border), var(--border) 3px, transparent 3px, transparent 6px);
+  z-index: 0;
 }
 
 .checkpoint-timeline-item {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   position: relative;
-  padding-left: 0.5rem;
+  flex: 1;
+  z-index: 1;
 }
 
 .checkpoint-timeline-dot {
-  position: absolute;
-  left: -20px;
-  top: 6px;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--background);
+  background: var(--surface);
   border: 2px solid var(--border);
-  z-index: 1;
+  margin-bottom: 6px;
+  position: relative;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
 }
 
 .checkpoint-timeline-item.pickup .checkpoint-timeline-dot {
   border-color: var(--primary);
   background: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
+  box-shadow: 0 0 6px var(--primary);
 }
 
 .checkpoint-timeline-item.dropoff .checkpoint-timeline-dot {
   border-color: var(--danger);
   background: var(--danger);
-  box-shadow: 0 0 8px var(--danger);
+  box-shadow: 0 0 6px var(--danger);
 }
 
 .checkpoint-timeline-label {
@@ -958,6 +1017,9 @@ textarea:focus-visible {
   font-weight: bold;
   color: var(--text-primary);
   margin-top: 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .checkpoint-timeline-value-ar {

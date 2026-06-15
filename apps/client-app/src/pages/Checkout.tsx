@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
 import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Phone, RefreshCw } from 'lucide-react';
@@ -32,7 +32,11 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const isSubmitting = useRef(false);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
-  const [occupiedSeats, setOccupiedSeats] = useState<number[]>([]);
+  const [myPendingSeats, setMyPendingSeats] = useState<number[]>([]);
+  const [occupiedSeatsRaw, setOccupiedSeatsRaw] = useState<number[]>([]);
+  const occupiedSeats = useMemo(() => {
+    return occupiedSeatsRaw.filter(s => !myPendingSeats.includes(s));
+  }, [occupiedSeatsRaw, myPendingSeats]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -107,6 +111,30 @@ export default function CheckoutPage() {
   }, [tripId, searchParams]);
 
   useEffect(() => {
+    if (!tripId || !user) return;
+
+    bookingsAPI.getMyBookings()
+      .then(bookings => {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const pending = bookings.find((b: any) => {
+          const bTripId = b.tripId?._id || b.tripId?.id || b.tripId;
+          const isThisTrip = bTripId === tripId;
+          const isPending = b.status === 'PENDING_PAYMENT' || b.status === 'PENDING';
+          const bCreatedAt = b.createdAt ? new Date(b.createdAt) : new Date();
+          const isRecent = bCreatedAt.getTime() >= tenMinutesAgo.getTime();
+          return isThisTrip && isPending && isRecent;
+        });
+
+        if (pending && pending.seatNumbers) {
+          const seats = pending.seatNumbers.map(Number);
+          setMyPendingSeats(seats);
+          setSelectedSeats(seats);
+        }
+      })
+      .catch(console.error);
+  }, [tripId, user]);
+
+  useEffect(() => {
     if (!tripId) return;
 
     const pickupName = selectedPickupCheckpoint?.name;
@@ -114,11 +142,21 @@ export default function CheckoutPage() {
 
     bookingsAPI.getOccupiedSeats(tripId, pickupName, dropoffName)
       .then(seats => {
-        setOccupiedSeats(seats);
-        setSelectedSeats(prev => prev.filter(s => !seats.includes(s)));
+        setOccupiedSeatsRaw(seats);
       })
       .catch(console.error);
   }, [tripId, selectedPickupCheckpoint, selectedDropoffCheckpoint]);
+
+  // Keep selectedSeats filtered: if any seat in selectedSeats becomes occupied (by someone else), remove it.
+  useEffect(() => {
+    if (occupiedSeats.length > 0) {
+      setSelectedSeats(prev => {
+        const next = prev.filter(s => !occupiedSeats.includes(s));
+        if (next.length !== prev.length) return next;
+        return prev;
+      });
+    }
+  }, [occupiedSeats]);
 
   useEffect(() => {
     if (!mapContainerRef.current || !trip?.routeId) return;
@@ -132,7 +170,15 @@ export default function CheckoutPage() {
       style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
       center: centerCoords,
       zoom: 11,
-      attributionControl: false
+      attributionControl: false,
+      scrollZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      dragPan: false,
+      dragRotate: false,
+      touchZoomRotate: false,
+      pitchWithRotate: false,
+      keyboard: false
     });
 
     // Suppress missing sprite image warnings by providing dummy transparent images
@@ -596,8 +642,8 @@ export default function CheckoutPage() {
             transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             minWidth: '48px',
             minHeight: '48px',
-            border: isPremiumSeat1 && !isSelected && !isOccupied ? '2px solid #f5b731' : undefined,
-            boxShadow: isPremiumSeat1 && !isSelected && !isOccupied ? '0 0 12px rgba(245, 183, 49, 0.45)' : undefined,
+            border: isPremiumSeat1 && !isSelected && !isOccupied ? '2px solid var(--primary-interactive)' : undefined,
+            boxShadow: isPremiumSeat1 && !isSelected && !isOccupied ? 'var(--shadow-glow)' : undefined,
             borderRadius: isPremiumSeat1 ? '10px' : undefined
           }}
           title={isLocked ? t('luggageHoldAreaLocked') : isOccupied ? t('seatOccupiedTitle', { num }) : t('seatTitle', { num })}
@@ -663,6 +709,7 @@ export default function CheckoutPage() {
             <Steps
               current={processing ? 2 : (selectedSeats.length > 0 ? 1 : 0)}
               titlePlacement="vertical"
+              responsive={false}
               className="premium-steps"
               items={[
                 { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
@@ -681,308 +728,310 @@ export default function CheckoutPage() {
             <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('loadingTripConfig')}</p>
           </div>
         ) : trip ? (
-          <div className="split-layout-container">
+          <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* Left Main Panel: Checkpoints and Seats */}
-            <div className="main-panel">
+            {/* Interactive Minibus Grid Card */}
+            <div className="premium-card">
+              <div className="premium-card-title">
+                <span>💺</span> {t('cabinLayoutTitle')}
+              </div>
               
-              {/* Checkpoint Selection Map */}
-              {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
-                <div className="premium-card">
-                  <div className="premium-card-title">
-                    <span>📍</span> {t('boardingAndDropoffTitle')}
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      {t('verifyStopsHelper')}
-                    </p>
-                  </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  {t('cabinLayoutDesc')}
+                </p>
+                <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {t('hiaceModelLabel')}
+                </span>
+              </div>
 
-                  <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem' }}>
-                    <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
-                  </div>
+              <div 
+                className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '2rem',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  fontSize: '0.88rem',
+                  fontWeight: 600
+                }}
+              >
+                <span>{t('requestedSeatsLabel')}:</span>
+                <span>
+                  {selectedSeats.length > 0 && <span style={{ color: 'var(--primary-interactive)', marginInlineEnd: '6px', fontWeight: 'bold' }}>({selectedSeats.map(s => `#${s}`).join(', ')})</span>}
+                  {t('requestedSeatsCountLabel', { count: selectedSeats.length, required: requiredSeatsCount })}
+                </span>
+              </div>
 
-                  {/* Checkpoint Stepper Progress bar */}
-                  {/* Ant Design Timeline */}
-                  {(() => {
-                    const checkpoints = trip.routeId.checkpoints || [];
-                    const pickupIdx = selectedPickupCheckpoint
-                      ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
-                      : 0;
-                    const dropoffIdx = selectedDropoffCheckpoint
-                      ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
-                      : checkpoints.length - 1;
-                    const startIdx = pickupIdx >= 0 ? pickupIdx : 0;
-                    const endIdx = dropoffIdx >= 0 ? dropoffIdx : checkpoints.length - 1;
-                    const journeyCps = checkpoints.slice(startIdx, endIdx + 1);
-
-                    const baseTripDepTime = new Date(trip.departureTime).getTime();
-
-                    return journeyCps.length > 0 ? (
-                      <div style={{ marginTop: '1.5rem', width: '100%' }}>
-                        <style>{`
-                          /* Ant Design Timeline Mock Style (Normal Timeline) */
-                          .ant-timeline {
-                            display: flex;
-                            width: 100%;
-                            position: relative;
-                            margin: 0;
-                            padding: 0;
-                            list-style: none;
-                          }
-                          .ant-timeline-item {
-                            flex: 1;
-                            position: relative;
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            text-align: center;
-                          }
-                          .ant-timeline-item-tail {
-                            position: absolute;
-                            top: 5px;
-                            left: 50%;
-                            width: 100%;
-                            height: 2px;
-                            background: var(--border);
-                            z-index: 0;
-                          }
-                          .ant-timeline-item:last-child .ant-timeline-item-tail {
-                            display: none;
-                          }
-                          .ant-timeline-item-head {
-                            width: 10px;
-                            height: 10px;
-                            border-radius: 50%;
-                            background: var(--surface);
-                            border: 2px solid var(--primary);
-                            z-index: 1;
-                            box-shadow: 0 0 6px var(--primary);
-                          }
-                          .ant-timeline-item-content {
-                            margin-top: 6px;
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                          }
-                          .ant-timeline-item-title {
-                            font-size: 0.68rem;
-                            font-weight: 600;
-                            color: var(--text-primary);
-                          }
-                          .ant-timeline-item-time {
-                            font-size: 0.6rem;
-                            color: var(--text-muted);
-                            margin-top: 1px;
-                          }
-                          
-                          /* RTL Layout Support */
-                          [dir="rtl"] .ant-timeline-item-tail {
-                            right: 50%;
-                            left: auto;
-                          }
-                        `}</style>
-
-                        <ul className="ant-timeline ant-timeline-horizontal">
-                          {journeyCps.map((cp: any, idx: number) => {
-                            const cpEstimatedTime = cp.minutesFromStart !== undefined
-                              ? new Date(baseTripDepTime + cp.minutesFromStart * 60 * 1000)
-                              : null;
-                            const cpTimeStr = cpEstimatedTime
-                              ? cpEstimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                              : '';
-                            const cpDateStr = cpEstimatedTime
-                              ? cpEstimatedTime.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
-                              : '';
-
-                            // Highlight pickup (first) and dropoff (last) checkpoints
-                            const isFirst = idx === 0;
-                            const isLast = idx === journeyCps.length - 1;
-
-                            return (
-                              <li key={cp.name} className="ant-timeline-item">
-                                <div className="ant-timeline-item-tail"></div>
-                                <div 
-                                  className="ant-timeline-item-head"
-                                  style={{
-                                    borderColor: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--border)'),
-                                    boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px var(--danger)' : 'none'),
-                                  }}
-                                ></div>
-                                <div className="ant-timeline-item-content">
-                                  <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--text-primary)') }}>
-                                    {isRtl ? (cp.nameAr || cp.name) : cp.name}
-                                  </div>
-                                  {(isFirst || isLast) && cpDateStr && (
-                                    <div className="ant-timeline-item-time" style={{ fontWeight: 650, color: 'var(--text-muted)', marginBottom: '1px' }}>
-                                      {cpDateStr}
-                                    </div>
-                                  )}
-                                  <div className="ant-timeline-item-time">
-                                    {cpTimeStr}
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ) : null;
-                  })()}
+              {selectedSeats.length > 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', marginTop: '-1.25rem', padding: '0 4px', lineHeight: 1.4 }}>
+                  💡 {selectedSeats.length === 1 
+                    ? `${getSeatLabel(selectedSeats[0]).label}: ${getSeatLabel(selectedSeats[0]).desc}`
+                    : t('bookingMultipleSeatsDesc')
+                  }
                 </div>
               )}
 
-              {/* Interactive Minibus Grid */}
-              <div className="premium-card">
-                <div className="premium-card-title">
-                  <span>💺</span> {t('cabinLayoutTitle')}
-                </div>
+              <div className="bus-cabin">
+                {/* Windshield */}
+                <div className="bus-windshield windshield-opaque" style={{ marginBottom: '1rem' }} />
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    {t('cabinLayoutDesc')}
-                  </p>
-                  <span style={{ fontSize: '11px', background: 'var(--surface-hover)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    {t('hiaceModelLabel')}
-                  </span>
+                {/* HiAce Dashboard */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                  <span title="Steering Wheel" style={{ opacity: 0.6 }}><Settings size={18} /></span>
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>{t('dashboardLabel')}</span>
+                  <span title={t('dashboardLabel')} style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
                 </div>
 
-                <div 
-                  className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '2rem',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    fontSize: '0.88rem',
-                    fontWeight: 600
-                  }}
-                >
-                  <span>{t('requestedSeatsLabel')}:</span>
-                  <span>{t('requestedSeatsCountLabel', { count: selectedSeats.length, required: requiredSeatsCount })}</span>
+                {/* Driver & VIP Row */}
+                <div className="cabin-row" style={{ marginBottom: '1rem' }}>
+                  <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     <User size={16} />
+                  </div>
+                  <div className="cabin-aisle" />
+                  {renderSeat(1)}
                 </div>
 
-                <div className="bus-cabin">
-                  {/* Windshield */}
-                  <div className="bus-windshield windshield-opaque" style={{ marginBottom: '1rem' }} />
-                  
-                  {/* HiAce Dashboard */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                    <span title="Steering Wheel" style={{ opacity: 0.6 }}><Settings size={18} /></span>
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>{t('dashboardLabel')}</span>
-                    <span title={t('dashboardLabel')} style={{ opacity: 0.5 }}><LayoutGrid size={16} /></span>
+                {/* Sliding Entry Door */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '2px 0 10px 0' }}>
+                  <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: 'var(--primary)', padding: '3px 8px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <ArrowRightToLine size={10} /> {t('slidingDoorEntryLabel')}
                   </div>
+                </div>
 
-                  {/* Driver & VIP Row */}
-                  <div className="cabin-row" style={{ marginBottom: '1rem' }}>
-                    <div className="bus-seat driver" style={{ border: '2px dashed var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       <User size={16} />
-                    </div>
-                    <div className="cabin-aisle" />
-                    {renderSeat(1)}
+                {/* Row 2 */}
+                <div className="cabin-row">
+                  {renderSeat(2)}
+                  {renderSeat(3)}
+                  <div className="cabin-aisle" />
+                  {renderSeat(4)}
+                </div>
+
+                {/* Row 3 */}
+                <div className="cabin-row">
+                  {renderSeat(5)}
+                  {renderSeat(6)}
+                  <div className="cabin-aisle" />
+                  {renderSeat(7)}
+                </div>
+
+                {/* Row 4 */}
+                <div className="cabin-row">
+                  {renderSeat(8)}
+                  {renderSeat(9)}
+                  <div className="cabin-aisle" />
+                  {renderSeat(10)}
+                </div>
+
+                {/* Row 5 - Rear */}
+                <div className="cabin-row" style={{ marginBottom: '0.5rem' }}>
+                  {renderSeat(11)}
+                  {renderSeat(12)}
+                  {renderSeat(13)}
+                  {renderSeat(14)}
+                </div>
+
+                {/* Rear bumper */}
+                <div style={{ 
+                  width: '60%', 
+                  height: '6px', 
+                  margin: '0.5rem auto 0', 
+                  background: 'var(--border)', 
+                  borderRadius: '0 0 4px 4px',
+                  opacity: 0.6
+                }} />
+
+                {/* Legends */}
+                <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--border)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('availableLegend')}</span>
                   </div>
-
-                  {/* Sliding Entry Door */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '2px 0 10px 0' }}>
-                    <div className="door-entry-opaque" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: 'var(--primary)', padding: '3px 8px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      <ArrowRightToLine size={10} /> {t('slidingDoorEntryLabel')}
-                    </div>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('selectedLegend')}</span>
                   </div>
-
-                  {/* Row 2 */}
-                  <div className="cabin-row">
-                    {renderSeat(2)}
-                    {renderSeat(3)}
-                    <div className="cabin-aisle" />
-                    {renderSeat(4)}
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', opacity: 0.5, fontWeight: 500 }}>{t('occupiedLegend')}</span>
                   </div>
-
-                  {/* Row 3 */}
-                  <div className="cabin-row">
-                    {renderSeat(5)}
-                    {renderSeat(6)}
-                    <div className="cabin-aisle" />
-                    {renderSeat(7)}
-                  </div>
-
-                  {/* Row 4 */}
-                  <div className="cabin-row">
-                    {renderSeat(8)}
-                    {renderSeat(9)}
-                    <div className="cabin-aisle" />
-                    {renderSeat(10)}
-                  </div>
-
-                  {/* Row 5 - Rear */}
-                  <div className="cabin-row" style={{ marginBottom: '0.5rem' }}>
-                    {renderSeat(11)}
-                    {renderSeat(12)}
-                    {renderSeat(13)}
-                    {renderSeat(14)}
-                  </div>
-
-                  {/* Rear bumper */}
-                  <div style={{ 
-                    width: '60%', 
-                    height: '6px', 
-                    margin: '0.5rem auto 0', 
-                    background: 'var(--border)', 
-                    borderRadius: '0 0 4px 4px',
-                    opacity: 0.6
-                  }} />
-
-                  {/* Legends */}
-                  <div className="seat-legend" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--border)' }}></div>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('availableLegend')}</span>
-                    </div>
-                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)' }}></div>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('selectedLegend')}</span>
-                    </div>
-                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                      <div className="legend-dot" style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}></div>
-                      <span style={{ color: 'var(--text-secondary)', opacity: 0.5, fontWeight: 500 }}>{t('occupiedLegend')}</span>
-                    </div>
-                    <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                      <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('luggageLegend')}</span>
-                    </div>
+                  <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}><Briefcase size={14} /></span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('luggageLegend')}</span>
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Right Sticky Sidebar Panel: Summary and Reservation Actions */}
-            <div className="sidebar-panel">
-              
-              {/* Booking Summary Card */}
+            {/* Checkpoint Selection Map Card */}
+            {trip.routeId?.checkpoints && trip.routeId.checkpoints.length > 0 && (
               <div className="premium-card">
                 <div className="premium-card-title">
-                  <span>📋</span> {t('commuteDetailsLabel')}
+                  <span>📍</span> {t('boardingAndDropoffTitle')}
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    {t('verifyStopsHelper')}
+                  </p>
+                </div>
+
+                <div style={{ height: '260px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 1, marginBottom: '1.5rem' }}>
+                  <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+                </div>
+
+                {/* Checkpoint Stepper Progress bar */}
+                {/* Ant Design Timeline */}
+                {(() => {
+                  const checkpoints = trip.routeId.checkpoints || [];
+                  const pickupIdx = selectedPickupCheckpoint
+                    ? checkpoints.findIndex((cp: any) => cp.name === selectedPickupCheckpoint.name)
+                    : 0;
+                  const dropoffIdx = selectedDropoffCheckpoint
+                    ? checkpoints.findIndex((cp: any) => cp.name === selectedDropoffCheckpoint.name)
+                    : checkpoints.length - 1;
+                  const startIdx = pickupIdx >= 0 ? pickupIdx : 0;
+                  const endIdx = dropoffIdx >= 0 ? dropoffIdx : checkpoints.length - 1;
+                  const journeyCps = checkpoints.slice(startIdx, endIdx + 1);
+
+                  const baseTripDepTime = new Date(trip.departureTime).getTime();
+
+                  return journeyCps.length > 0 ? (
+                    <div style={{ marginTop: '1.5rem', width: '100%' }}>
+                      <style>{`
+                        /* Ant Design Timeline Mock Style (Normal Timeline) */
+                        .ant-timeline {
+                          display: flex;
+                          width: 100%;
+                          position: relative;
+                          margin: 0;
+                          padding: 0;
+                          list-style: none;
+                        }
+                        .ant-timeline-item {
+                          flex: 1;
+                          position: relative;
+                          display: flex;
+                          flex-direction: column;
+                          align-items: center;
+                          text-align: center;
+                        }
+                        .ant-timeline-item-tail {
+                          position: absolute;
+                          top: 5px;
+                          left: 50%;
+                          width: 100%;
+                          height: 2px;
+                          background: var(--border);
+                          z-index: 0;
+                        }
+                        .ant-timeline-item:last-child .ant-timeline-item-tail {
+                          display: none;
+                        }
+                        .ant-timeline-item-head {
+                          width: 10px;
+                          height: 10px;
+                          border-radius: 50%;
+                          background: var(--surface);
+                          border: 2px solid var(--primary);
+                          z-index: 1;
+                          box-shadow: 0 0 6px var(--primary);
+                        }
+                        .ant-timeline-item-content {
+                          margin-top: 6px;
+                          display: flex;
+                          flex-direction: column;
+                          align-items: center;
+                        }
+                        .ant-timeline-item-title {
+                          font-size: 0.68rem;
+                          font-weight: 600;
+                          color: var(--text-primary);
+                        }
+                        .ant-timeline-item-time {
+                          font-size: 0.6rem;
+                          color: var(--text-muted);
+                          margin-top: 1px;
+                        }
+                        
+                        /* RTL Layout Support */
+                        [dir="rtl"] .ant-timeline-item-tail {
+                          right: 50%;
+                          left: auto;
+                        }
+                      `}</style>
+
+                      <ul className="ant-timeline ant-timeline-horizontal">
+                        {journeyCps.map((cp: any, idx: number) => {
+                          const cpEstimatedTime = cp.minutesFromStart !== undefined
+                            ? new Date(baseTripDepTime + cp.minutesFromStart * 60 * 1000)
+                            : null;
+                          const cpTimeStr = cpEstimatedTime
+                            ? cpEstimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '';
+                          const cpDateStr = cpEstimatedTime
+                            ? cpEstimatedTime.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : '';
+
+                          // Highlight pickup (first) and dropoff (last) checkpoints
+                          const isFirst = idx === 0;
+                          const isLast = idx === journeyCps.length - 1;
+
+                          return (
+                            <li key={cp.name} className="ant-timeline-item">
+                              <div className="ant-timeline-item-tail"></div>
+                              <div 
+                                className="ant-timeline-item-head"
+                                style={{
+                                  borderColor: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--border)'),
+                                  boxShadow: isFirst ? '0 0 6px var(--primary)' : (isLast ? '0 0 6px var(--danger)' : 'none'),
+                                }}
+                              ></div>
+                              <div className="ant-timeline-item-content">
+                                <div className="ant-timeline-item-title" style={{ color: isFirst ? 'var(--primary)' : (isLast ? 'var(--danger)' : 'var(--text-primary)') }}>
+                                  {isRtl ? (cp.nameAr || cp.name) : cp.name}
+                                </div>
+                                {(isFirst || isLast) && cpDateStr && (
+                                  <div className="ant-timeline-item-time" style={{ fontWeight: 650, color: 'var(--text-muted)', marginBottom: '1px' }}>
+                                    {cpDateStr}
+                                  </div>
+                                )}
+                                <div className="ant-timeline-item-time">
+                                  {cpTimeStr}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Commute Route & Cost Info Block */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  gap: '1rem', 
+                  borderTop: '1px solid var(--border)', 
+                  paddingTop: '1.25rem', 
+                  marginTop: '1.5rem', 
+                  flexWrap: 'wrap' 
+                }}>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('lineRouteLabel')}</div>
-                    <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem', marginTop: '2px' }}>
                       {trip.routeId?.name || t('standardRoute')}
                     </div>
                   </div>
-
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                      {selectedPickupCheckpoint?.localizedDepartureTime ? t('localizedBoardingTimeLabel') : t('departureTime')}
-                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('departureTime')}</div>
                     <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
                       {(() => {
                         const baseTime = new Date(trip.departureTime).getTime();
@@ -1004,163 +1053,41 @@ export default function CheckoutPage() {
                       })()}
                     </div>
                   </div>
-
-                  {/* Route Checkpoints Details */}
-                  <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
-                    <div className="checkpoint-timeline-item pickup">
-                      <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">{t('selectedPickup')}</span>
-                      <span className="checkpoint-timeline-value">
-                        {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('notSelectedLabel')) : (selectedPickupCheckpoint?.name || t('notSelectedLabel'))}
-                        {(() => {
-                          const baseTime = new Date(trip.departureTime).getTime();
-                          const timeToUse = selectedPickupCheckpoint?.localizedDepartureTime 
-                            ? new Date(selectedPickupCheckpoint.localizedDepartureTime)
-                            : (selectedPickupCheckpoint?.minutesFromStart !== undefined
-                                ? new Date(baseTime + selectedPickupCheckpoint.minutesFromStart * 60000)
-                                : null);
-                          if (!timeToUse) return null;
-                          return (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
-                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
-                            </span>
-                          );
-                        })()}
-                      </span>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                      {isRtl ? 'التكلفة الإجمالية' : 'Total Cost'}
                     </div>
-                    
-                    <div className="checkpoint-timeline-item dropoff">
-                      <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">{t('selectedDropoff')}</span>
-                      <span className="checkpoint-timeline-value">
-                        {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('notSelectedLabel')) : (selectedDropoffCheckpoint?.name || t('notSelectedLabel'))}
-                        {(() => {
-                          const baseTime = new Date(trip.departureTime).getTime();
-                          const timeToUse = selectedDropoffCheckpoint?.localizedArrivalTime 
-                            ? new Date(selectedDropoffCheckpoint.localizedArrivalTime)
-                            : (selectedDropoffCheckpoint?.minutesFromStart !== undefined
-                                ? new Date(baseTime + selectedDropoffCheckpoint.minutesFromStart * 60000)
-                                : null);
-                          if (!timeToUse) return null;
-                          return (
-                            <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
-                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
-                            </span>
-                          );
-                        })()}
-                      </span>
+                    <div style={{ fontWeight: 800, color: 'var(--primary-interactive)', fontSize: '1.15rem', marginTop: '2px' }}>
+                      {legSubTotalFare} EGP
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Reactive Seat details card */}
-              {selectedSeats.length > 0 && (
-                <div className="premium-card premium-card-solid-amber">
-                  <div className="premium-card-title" style={{ borderBottomColor: '#f5b731', color: 'var(--primary)' }}>
-                    <span>🎫</span> {t('selectedSlots')}
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '1rem' }}>
-                    {selectedSeats.map(num => (
-                      <span key={num} style={{
-                        background: 'var(--primary)',
-                        color: 'var(--text-on-primary)',
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold'
-                      }}>
-                        {t('seatTitle', { num })}
-                      </span>
-                    ))}
-                  </div>
-
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                    {selectedSeats.length === 1 
-                      ? getSeatLabel(selectedSeats[0]).desc
-                      : t('bookingMultipleSeatsDesc')
+                {/* Action Trigger Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                  <button 
+                    onClick={handleReserve} 
+                    className="auth-button" 
+                    disabled={
+                      processing || 
+                      selectedSeats.length !== requiredSeatsCount
                     }
+                    style={{ padding: '1rem' }}
+                  >
+                    {processing 
+                      ? t('reservingSeatsLoading')
+                      : selectedSeats.length !== requiredSeatsCount
+                        ? t('selectRequiredSeatsButton', { count: requiredSeatsCount })
+                        : t('confirmAndProceedBtn')
+                    }
+                  </button>
+                  
+                  <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <Lock size={12} /> {t('seatsTemporaryHoldInfo')}
                   </p>
                 </div>
-              )}
-
-              {/* Invoice breakdown card */}
-              <div className="premium-card">
-                <div className="premium-card-title">
-                  <span>🧾</span> {t('invoiceBreakdownLabel')}
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ color: 'var(--text-secondary)', flexShrink: 0 }}>{t('legSegmentLabel')}</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', textAlign: 'right', wordBreak: 'break-word', minWidth: 0 }}>
-                      {isRtl ? (selectedPickupCheckpoint?.nameAr || selectedPickupCheckpoint?.name || t('startLabel')) : (selectedPickupCheckpoint?.name || t('startLabel'))} ➔ {isRtl ? (selectedDropoffCheckpoint?.nameAr || selectedDropoffCheckpoint?.name || t('endLabel')) : (selectedDropoffCheckpoint?.name || t('endLabel'))}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{t('selectedSlots')} ({selectedSeats.length})</span>
-                    <span style={{ fontWeight: 'bold', color: selectedSeats.length > 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
-                      {selectedSeats.length > 0 ? selectedSeats.map(s => `#${s}`).join(', ') : t('notSelectedLabel')}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{t('baseFareLabel')}</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {Math.round(legSubTotalFare * 0.86)} EGP
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {legSubTotalFare - Math.round(legSubTotalFare * 0.86)} EGP
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{t('bookingFeeLabel')}</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>
-                      0.00 EGP (FREE)
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalFare')}</span>
-                    <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                      {legSubTotalFare} EGP
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              {/* Action Trigger Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button 
-                  onClick={handleReserve} 
-                  className="auth-button" 
-                  disabled={
-                    processing || 
-                    selectedSeats.length !== requiredSeatsCount
-                  }
-                  style={{ padding: '1rem' }}
-                >
-                  {processing 
-                    ? t('reservingSeatsLoading')
-                    : selectedSeats.length !== requiredSeatsCount
-                      ? t('selectRequiredSeatsButton', { count: requiredSeatsCount })
-                      : t('confirmAndProceedBtn')
-                  }
-                </button>
-                
-                <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  <Lock size={12} /> {t('seatsTemporaryHoldInfo')}
-                </p>
-              </div>
-
-            </div>
+            )}
 
           </div>
         ) : (
@@ -1191,14 +1118,14 @@ export default function CheckoutPage() {
         >
           <div 
             style={{
-              background: '#121224',
-              color: '#ffffff',
+              background: 'var(--surface-elevated)',
+              color: 'var(--text-primary)',
               borderRadius: '24px',
               padding: '2.5rem 2rem',
               maxWidth: '420px',
               width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+              border: '1px solid var(--border)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.4)',
               position: 'relative'
             }}
           >
@@ -1207,10 +1134,11 @@ export default function CheckoutPage() {
               style={{
                 position: 'absolute',
                 top: '16px',
-                right: '16px',
+                right: isRtl ? 'auto' : '16px',
+                left: isRtl ? '16px' : 'auto',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: 'none',
-                color: '#a3a3a3',
+                color: 'var(--text-muted)',
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
@@ -1229,13 +1157,13 @@ export default function CheckoutPage() {
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: '#f5b731' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: 'var(--primary-interactive)' }}>
                 <Phone size={40} />
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--primary-interactive)' }}>
                 {isAr ? 'أدخل رقم الهاتف' : 'Enter Phone Number'}
               </h2>
-              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0, lineHeight: 1.4 }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
                 {isAr 
                   ? 'يرجى تقديم رقم هاتف مصري صالح لتلقي تأكيد الحجز وإشعارات الرحلة عبر الرسائل القصيرة والواتساب.'
                   : 'Please provide a valid Egyptian phone number to receive your booking confirmation and trip notifications via SMS & WhatsApp.'}
@@ -1246,7 +1174,7 @@ export default function CheckoutPage() {
               <div style={{
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
+                color: 'var(--danger)',
                 padding: '10px 14px',
                 borderRadius: '12px',
                 fontSize: '0.85rem',
@@ -1259,7 +1187,7 @@ export default function CheckoutPage() {
 
             <form onSubmit={handlePromptPhoneSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label htmlFor="prompt-phone-input" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>
+                <label htmlFor="prompt-phone-input" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {isAr ? 'رقم الهاتف (11 رقم)' : 'Phone Number (11 digits)'}
                 </label>
                 <input
@@ -1272,11 +1200,11 @@ export default function CheckoutPage() {
                   style={{
                     width: '100%',
                     padding: '12px',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     fontSize: '0.95rem',
-                    background: 'rgba(255,255,255,0.03)',
-                    color: 'white',
+                    background: 'var(--surface-hover)',
+                    color: 'var(--text-primary)',
                     outline: 'none'
                   }}
                 />
@@ -1288,9 +1216,9 @@ export default function CheckoutPage() {
                   onClick={() => setShowPhonePrompt(false)}
                   style={{
                     flex: 1,
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'var(--surface-hover)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                     fontWeight: 600,
@@ -1305,8 +1233,8 @@ export default function CheckoutPage() {
                   disabled={promptLoading}
                   style={{
                     flex: 2,
-                    background: '#f5b731',
-                    color: '#06060e',
+                    background: 'var(--primary)',
+                    color: 'var(--text-on-primary)',
                     border: 'none',
                     borderRadius: '12px',
                     padding: '12px',

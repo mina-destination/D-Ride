@@ -201,7 +201,7 @@ export default function DashboardPage() {
       }
     };
 
-    if (map.isStyleLoaded()) {
+    if (map.getStyle() && map.isStyleLoaded()) {
       updatePath();
     } else {
       map.on('load', updatePath);
@@ -482,10 +482,14 @@ export default function DashboardPage() {
       let lat = 30.0444;
       let lng = 31.2357;
 
-      if (liveLoc && liveLoc.location?.coordinates) {
+      if (liveLoc && liveLoc.location?.coordinates && 
+          typeof liveLoc.location.coordinates[0] === 'number' && typeof liveLoc.location.coordinates[1] === 'number' &&
+          !isNaN(liveLoc.location.coordinates[0]) && !isNaN(liveLoc.location.coordinates[1])) {
         lat = liveLoc.location.coordinates[1];
         lng = liveLoc.location.coordinates[0];
-      } else if (routePath?.coordinates && routePath.coordinates.length > 0) {
+      } else if (routePath?.coordinates && routePath.coordinates.length > 0 &&
+                 typeof routePath.coordinates[0][0] === 'number' && typeof routePath.coordinates[0][1] === 'number' &&
+                 !isNaN(routePath.coordinates[0][0]) && !isNaN(routePath.coordinates[0][1])) {
         lng = routePath.coordinates[0][0];
         lat = routePath.coordinates[0][1];
       }
@@ -509,12 +513,14 @@ export default function DashboardPage() {
       };
     });
 
-    // Also include vehicles with live location data not linked to an active trip
     allVehicles.forEach((vh) => {
       const vId = vh._id || vh.id;
       if (!vId || usedVehicleIds.has(vId)) return;
       const liveLoc = vh.locations?.[0];
-      if (!liveLoc?.location?.coordinates) return;
+      if (!liveLoc?.location?.coordinates || liveLoc.location.coordinates.length < 2) return;
+      const lng = liveLoc.location.coordinates[0];
+      const lat = liveLoc.location.coordinates[1];
+      if (typeof lng !== 'number' || typeof lat !== 'number' || isNaN(lng) || isNaN(lat)) return;
 
       activeBuses.push({
         id: vId,
@@ -523,8 +529,8 @@ export default function DashboardPage() {
         route: 'Standalone',
         driver: vh.driver?.name || 'Unknown',
         driverId: vh.driverId || '',
-        lat: liveLoc.location.coordinates[1],
-        lng: liveLoc.location.coordinates[0],
+        lat,
+        lng,
         seats: 'N/A',
         speed: liveLoc.speedKmh || 0,
         status: 'ONLINE',
@@ -582,13 +588,16 @@ export default function DashboardPage() {
 
     socket.on('vehicleLocationUpdate', (data: any) => {
       if (data && data.vehicleId && data.location) {
+        const lat = data.location.latitude;
+        const lng = data.location.longitude;
+        if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
         setFleet((prevFleet) =>
           prevFleet.map((bus) => {
             if (bus.vehicleId === data.vehicleId) {
               return {
                 ...bus,
-                lat: data.location.latitude,
-                lng: data.location.longitude,
+                lat,
+                lng,
                 speed: data.speedKmh || 45,
               };
             }

@@ -135,14 +135,18 @@ export function LiveTrackingPage() {
 
         let loc: LiveVehicle['location'] | undefined;
         if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
-          loc = {
-            lng: coordinates[0],
-            lat: coordinates[1],
-            speed: locRecord?.speedKmh || locRecord?.speed || 0,
-            heading: locRecord?.heading,
-            batteryLevel: locRecord?.batteryLevel,
-            lastUpdated: locRecord?.lastUpdatedAt || locRecord?.timestamp || new Date().toISOString(),
-          };
+          const lng = coordinates[0];
+          const lat = coordinates[1];
+          if (typeof lng === 'number' && typeof lat === 'number' && !isNaN(lng) && !isNaN(lat)) {
+            loc = {
+              lng,
+              lat,
+              speed: locRecord?.speedKmh || locRecord?.speed || 0,
+              heading: locRecord?.heading,
+              batteryLevel: locRecord?.batteryLevel,
+              lastUpdated: locRecord?.lastUpdatedAt || locRecord?.timestamp || new Date().toISOString(),
+            };
+          }
         }
 
         return {
@@ -197,6 +201,9 @@ export function LiveTrackingPage() {
       if (!data?.vehicleId || !data?.location) return;
       const coords = data.location.coordinates || [data.location.longitude, data.location.latitude];
       if (!Array.isArray(coords) || coords.length < 2) return;
+      const lng = coords[0];
+      const lat = coords[1];
+      if (typeof lng !== 'number' || typeof lat !== 'number' || isNaN(lng) || isNaN(lat)) return;
 
       setVehicles(prev =>
         prev.map(v => {
@@ -204,8 +211,8 @@ export function LiveTrackingPage() {
             return {
               ...v,
               location: {
-                lng: coords[0],
-                lat: coords[1],
+                lng,
+                lat,
                 speed: data.location.speed !== undefined ? data.location.speed : (data.speedKmh || 0),
                 heading: data.location.heading !== undefined ? data.location.heading : (data.heading || 0),
                 batteryLevel: data.location.batteryLevel !== undefined ? data.location.batteryLevel : (data.batteryLevel || null),
@@ -293,6 +300,9 @@ export function LiveTrackingPage() {
     vehicles.forEach(v => {
       if (!v.location) return;
       const { lat, lng, speed, lastUpdated, heading } = v.location;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        return;
+      }
       const isSelected = selectedVehicleId === v.id;
 
       let marker = markersRef.current[v.id];
@@ -355,8 +365,10 @@ export function LiveTrackingPage() {
 
   const handleLocate = (v: LiveVehicle) => {
     if (!v.location || !mapRef.current) return;
+    const { lat, lng } = v.location;
+    if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
     setSelectedVehicleId(v.id);
-    mapRef.current.easeTo({ center: [v.location.lng, v.location.lat], zoom: 13, duration: 1000 });
+    mapRef.current.easeTo({ center: [lng, lat], zoom: 13, duration: 1000 });
   };
 
   const filteredVehicles = vehicles.filter(v => {
@@ -456,18 +468,10 @@ export function LiveTrackingPage() {
   const selectedRowKey = selectedVehicleId;
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', margin: '-1rem -2rem', overflow: 'hidden' }}>
+    <div className="live-tracking-container">
 
       {/* ── Sidebar Panel ── */}
-      <div style={{
-        width: 420,
-        minWidth: 420,
-        background: 'var(--surface, #111318)',
-        borderRight: '1px solid var(--border, #1f2430)',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 10,
-      }}>
+      <div className="live-tracking-sidebar">
         <div style={{ padding: '1.5rem 1.5rem 0.75rem', borderBottom: '1px solid var(--border, #1f2430)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
@@ -561,20 +565,17 @@ export function LiveTrackingPage() {
       </div>
 
       {/* ── Map Panel ── */}
-      <div style={{ flex: 1, position: 'relative', background: '#0d0f14' }}>
+      <div className="live-tracking-map-panel">
         <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
         {selectedVehicle && (
           <Card
             styles={{ body: { padding: '16px 20px' } }}
+            className="live-tracking-details-card"
             style={{
-              position: 'absolute',
-              bottom: 24,
-              left: 24,
               background: 'rgba(15, 23, 42, 0.9)', // Deep slate with high opacity
               border: '1px solid rgba(245, 183, 49, 0.25)', // Primary colored border glow
               color: 'var(--text-primary)',
-              width: 360,
               zIndex: 20,
               backdropFilter: 'blur(12px)',
               borderRadius: 16,

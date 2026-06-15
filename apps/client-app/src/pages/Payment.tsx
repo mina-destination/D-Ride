@@ -6,7 +6,12 @@ import SEO from '../components/SEO';
 import { Steps, ConfigProvider, theme as antdTheme } from 'antd';
 import { useTheme } from '../context/ThemeContext';
 
-import { Lock, Bus } from 'lucide-react';
+import { Lock, Bus, Calendar, MapPin, Ticket, Tag, Receipt, ShieldCheck, CreditCard } from 'lucide-react';
+
+const cleanStopName = (name: string) => {
+  if (!name) return '';
+  return name.replace(/\s*\([\d.,\s-]+\)/g, '').trim();
+};
 
 export default function PaymentPage() {
   const { t, isRtl, language } = useTranslation();
@@ -185,6 +190,7 @@ export default function PaymentPage() {
             <Steps
               current={processing ? 2 : 1}
               titlePlacement="vertical"
+              responsive={false}
               className="premium-steps"
               items={[
                 { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
@@ -195,278 +201,430 @@ export default function PaymentPage() {
           </ConfigProvider>
         </div>
 
-        <div className="split-layout-container">
+        <div className="payment-cards-wrapper">
           
-          {/* Left Panel: Payment Method Selection */}
-          <div className="main-panel">
+          {/* Card 1: Reservation Summary & Pricing Dossier */}
+          <div className="premium-card" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border)' }}>
             
-            <div className="premium-card">
-              <div className="premium-card-title">
-                <span>💳</span> {t('selectPaymentMethod')}
+            {/* Ticket Top header */}
+            <div className="ticket-header-responsive">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={18} color="var(--success)" style={{ flexShrink: 0 }} />
+                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {t('reservationDossier')}
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  background: 'rgba(52, 211, 153, 0.15)',
+                  color: '#34d399',
+                  padding: '2px 8px',
+                  borderRadius: '20px',
+                  textTransform: 'uppercase'
+                }}>
+                  {t('statusReady')}
+                </span>
               </div>
-              
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                {t('pciDssHelper')}
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                {/* Credit Card Card Option */}
-                <div 
-                  className={`payment-card-option active`}
-                >
-                  <div className="payment-card-radio">
-                    <div className="payment-card-radio-inner" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1.2rem' }}>💳</span>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{t('creditCardOptionTitle')}</strong>
-                    </div>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {t('creditCardOptionDesc')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dynamic instruction box based on choice */}
-              <div 
-                className="success-box-opaque"
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.4,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px'
-                }}
-              >
-                <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {t('passId')}: <strong style={{ color: 'var(--primary)', fontFamily: 'monospace', fontSize: '0.9rem' }}>#{bookingId?.slice(-6).toUpperCase()}</strong>
               </div>
             </div>
 
-          </div>
-
-          {/* Right Panel: Summary & Checkout invoice */}
-          <div className="sidebar-panel">
-            
-            {/* Reservation Summary */}
-            <div className="premium-card">
-              <div className="premium-card-title">
-                <span>📋</span> {t('reservationDossier')}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('routeLineLabel')}</div>
-                  <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem', marginTop: '2px' }}>
+            {/* Ticket Body Content */}
+            <div className="ticket-body-responsive">
+              
+              {/* Route details grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '12px',
+                width: '100%'
+              }}>
+                {/* Route Line Card */}
+                <div style={{
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={12} color="var(--primary)" /> {t('routeLineLabel')}
+                  </span>
+                  <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
                     {isRtl ? (trip?.routeId?.nameAr || trip?.routeId?.name || t('standardRoute')) : (trip?.routeId?.name || t('standardRoute'))}
-                  </div>
+                  </span>
                 </div>
 
-                <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('departureSchedule')}</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', marginTop: '2px' }}>
+                {/* Departure Card */}
+                <div style={{
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={12} color="var(--primary)" /> {t('departureSchedule')}
+                  </span>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
                     {trip?.departureTime ? new Date(trip.departureTime).toLocaleString(isRtl ? 'ar-EG' : 'en-US', {
-                      weekday: 'short',
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
                     }) : 'N/A'}
-                  </div>
+                  </span>
                 </div>
 
-                <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{t('assignedSeats')}</div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem', marginTop: '2px' }}>
+                {/* Assigned Seats Card */}
+                <div style={{
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Ticket size={12} color="var(--primary)" style={{ flexShrink: 0 }} /> {t('assignedSeats')}
+                  </span>
+                  <span style={{ fontWeight: 800, color: 'var(--primary-interactive)', fontSize: '0.95rem' }}>
                     {seatNumbers.length > 0 ? seatNumbers.map((s: any) => `#${s}`).join(', ') : (isRtl ? 'لا يوجد' : 'None')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stations Timeline */}
+              <div style={{
+                background: 'var(--surface)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border)',
+                marginTop: '0.25rem',
+                position: 'relative'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  position: 'relative',
+                  padding: '0 10px',
+                  marginBottom: '12px'
+                }}>
+                  {/* The connector bar behind the dots */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '20px',
+                    right: '20px',
+                    height: '2px',
+                    background: 'repeating-linear-gradient(90deg, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)',
+                    transform: 'translateY(-50%)',
+                    zIndex: 0
+                  }} />
+
+                  {/* Small Bus Icon in the exact center of the timeline connector */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '55%',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'var(--surface)',
+                    padding: '0 10px',
+                    zIndex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Bus size={14} color="var(--primary)" style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }} />
+                  </div>
+
+                  {/* Pickup dot */}
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    border: '3px solid var(--surface)',
+                    boxShadow: '0 0 0 2px var(--primary)',
+                    zIndex: 1
+                  }} />
+
+                  {/* Dropoff dot */}
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#EF4444',
+                    border: '3px solid var(--surface)',
+                    boxShadow: '0 0 0 2px #EF4444',
+                    zIndex: 1
+                  }} />
+                </div>
+
+                {/* Checkpoint text info row */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  {/* Pickup label and value */}
+                  <div style={{ flex: 1, textAlign: isRtl ? 'right' : 'left', minWidth: 0 }}>
+                    <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      {t('pickupHub')}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px', wordBreak: 'break-word' }}>
+                      {cleanStopName(isRtl ? (booking.pickupCheckpoint.nameAr || booking.pickupCheckpoint.name) : booking.pickupCheckpoint.name)}
+                    </div>
+                    {(() => {
+                      const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
+                      const timeToUse = booking.pickupCheckpoint.localizedDepartureTime 
+                        ? new Date(booking.pickupCheckpoint.localizedDepartureTime)
+                        : (booking.pickupCheckpoint.minutesFromStart !== undefined && baseTime
+                            ? new Date(baseTime + booking.pickupCheckpoint.minutesFromStart * 60000)
+                            : null);
+                      if (!timeToUse) return null;
+                      return (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
+                          {timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Dropoff label and value */}
+                  <div style={{ flex: 1, textAlign: isRtl ? 'left' : 'right', minWidth: 0 }}>
+                    <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      {t('dropoffHub')}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px', wordBreak: 'break-word' }}>
+                      {cleanStopName(isRtl ? (booking.dropoffCheckpoint.nameAr || booking.dropoffCheckpoint.name) : booking.dropoffCheckpoint.name)}
+                    </div>
+                    {(() => {
+                      const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
+                      const timeToUse = booking.dropoffCheckpoint.localizedArrivalTime 
+                        ? new Date(booking.dropoffCheckpoint.localizedArrivalTime)
+                        : (booking.dropoffCheckpoint.minutesFromStart !== undefined && baseTime
+                            ? new Date(baseTime + booking.dropoffCheckpoint.minutesFromStart * 60000)
+                            : null);
+                      if (!timeToUse) return null;
+                      return (
+                        <div style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 600, marginTop: '2px' }}>
+                          {timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
+              </div>
 
-                {/* Stations Timeline */}
-                <div className="checkpoint-timeline" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
-                  {booking.pickupCheckpoint && (
-                    <div className="checkpoint-timeline-item pickup">
-                      <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">{t('pickupHub')}</span>
-                      <span className="checkpoint-timeline-value">
-                        {isRtl ? (booking.pickupCheckpoint.nameAr || booking.pickupCheckpoint.name) : booking.pickupCheckpoint.name}
-                        {(() => {
-                          const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
-                          const timeToUse = booking.pickupCheckpoint.localizedDepartureTime 
-                            ? new Date(booking.pickupCheckpoint.localizedDepartureTime)
-                            : (booking.pickupCheckpoint.minutesFromStart !== undefined && baseTime
-                                ? new Date(baseTime + booking.pickupCheckpoint.minutesFromStart * 60000)
-                                : null);
-                          if (!timeToUse) return null;
-                          return (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '8px' }}>
-                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
-                            </span>
-                          );
-                        })()}
-                      </span>
-                    </div>
-                  )}
-                  {booking.dropoffCheckpoint && (
-                    <div className="checkpoint-timeline-item dropoff">
-                      <div className="checkpoint-timeline-dot" />
-                      <span className="checkpoint-timeline-label">{t('dropoffHub')}</span>
-                      <span className="checkpoint-timeline-value">
-                        {isRtl ? (booking.dropoffCheckpoint.nameAr || booking.dropoffCheckpoint.name) : booking.dropoffCheckpoint.name}
-                        {(() => {
-                          const baseTime = trip?.departureTime ? new Date(trip.departureTime).getTime() : 0;
-                          const timeToUse = booking.dropoffCheckpoint.localizedArrivalTime 
-                            ? new Date(booking.dropoffCheckpoint.localizedArrivalTime)
-                            : (booking.dropoffCheckpoint.minutesFromStart !== undefined && baseTime
-                                ? new Date(baseTime + booking.dropoffCheckpoint.minutesFromStart * 60000)
-                                : null);
-                          if (!timeToUse) return null;
-                          return (
-                            <span style={{ fontSize: '0.8rem', color: '#EF4444', marginLeft: '8px' }}>
-                              ({timeToUse.toLocaleString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
-                            </span>
-                          );
-                        })()}
-                      </span>
-                    </div>
-                  )}
+              {/* Promo Code Area */}
+              <div style={{ borderTop: '1px dashed var(--border)', padding: '1.25rem 0 0.25rem 0', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <Tag size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
+                  <span>{t('promoCodeLabel')}</span>
                 </div>
-              </div>
-            </div>
 
-            {/* Promo Code Card */}
-            <div className="premium-card">
-              <div className="premium-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🏷️</span> {t('promoCodeLabel')}
-              </div>
-
-              {booking.promoCodeId ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(245, 183, 49, 0.08)', border: '1px dashed var(--primary)', padding: '10px 14px', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.1rem' }}>🎫</span>
-                    <div>
-                      <strong style={{ color: 'var(--primary)', letterSpacing: '0.5px' }}>{booking.promoCode?.code || 'APPLIED'}</strong>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        {t('promoCodeApplied')}
+                {booking.promoCodeId ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(245, 183, 49, 0.08)', border: '1px dashed var(--primary)', padding: '10px 14px', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.1rem' }}>🎫</span>
+                      <div>
+                        <strong style={{ color: 'var(--primary)', letterSpacing: '0.5px' }}>{booking.promoCode?.code || 'APPLIED'}</strong>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {t('promoCodeApplied')}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={handleRemovePromo}
-                    disabled={applyingPromo}
-                    className="btn-link"
-                    style={{ color: '#EF4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
-                  >
-                    {applyingPromo ? '...' : t('removePromoCode')}
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder={t('enterPromoCode')}
-                      value={promoCodeInput}
-                      onChange={(e) => {
-                        setPromoCodeInput(e.target.value.toUpperCase());
-                        setPromoMessage(null);
-                        setPromoStatus(null);
-                      }}
-                      disabled={applyingPromo}
-                      style={{
-                        flex: 1,
-                        background: 'var(--surface)',
-                        border: promoStatus === 'error' ? '1px solid #EF4444' : (promoStatus === 'success' ? '1px solid var(--success)' : '1px solid var(--border)'),
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                        color: 'var(--text-primary)',
-                        textTransform: 'uppercase',
-                        outline: 'none',
-                        fontSize: '0.9rem'
-                      }}
-                    />
                     <button
-                      onClick={handleApplyPromo}
-                      disabled={applyingPromo || !promoCodeInput.trim()}
-                      style={{
-                        background: 'var(--primary)',
-                        color: 'black',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '8px 16px',
-                        fontWeight: 'bold',
-                        cursor: (applyingPromo || !promoCodeInput.trim()) ? 'not-allowed' : 'pointer',
-                        opacity: (applyingPromo || !promoCodeInput.trim()) ? 0.6 : 1,
-                        transition: 'opacity 0.2s',
-                        fontSize: '0.85rem'
-                      }}
+                      onClick={handleRemovePromo}
+                      disabled={applyingPromo}
+                      className="btn-link"
+                      style={{ color: '#EF4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
                     >
-                      {applyingPromo ? '...' : t('applyPromoCode')}
+                      {applyingPromo ? '...' : t('removePromoCode')}
                     </button>
                   </div>
-                  {promoMessage && (
-                    <div style={{
-                      marginTop: '8px',
-                      fontSize: '0.78rem',
-                      color: promoStatus === 'error' ? '#EF4444' : 'var(--success)',
-                      fontWeight: 500
-                    }}>
-                      {promoMessage}
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder={t('enterPromoCode')}
+                        value={promoCodeInput}
+                        onChange={(e) => {
+                          setPromoCodeInput(e.target.value.toUpperCase());
+                          setPromoMessage(null);
+                          setPromoStatus(null);
+                        }}
+                        disabled={applyingPromo}
+                        style={{
+                          flex: 1,
+                          background: 'var(--surface)',
+                          border: promoStatus === 'error' ? '1px solid #EF4444' : (promoStatus === 'success' ? '1px solid var(--success)' : '1px solid var(--border)'),
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          color: 'var(--text-primary)',
+                          textTransform: 'uppercase',
+                          outline: 'none',
+                          fontSize: '0.9rem'
+                        }}
+                      />
+                      <button
+                        onClick={handleApplyPromo}
+                        disabled={applyingPromo || !promoCodeInput.trim()}
+                        style={{
+                          background: 'var(--primary)',
+                          color: 'black',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '8px 16px',
+                          fontWeight: 'bold',
+                          cursor: (applyingPromo || !promoCodeInput.trim()) ? 'not-allowed' : 'pointer',
+                          opacity: (applyingPromo || !promoCodeInput.trim()) ? 0.6 : 1,
+                          transition: 'opacity 0.2s',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {applyingPromo ? '...' : t('applyPromoCode')}
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Cost breakdown */}
-            <div className="premium-card">
-              <div className="premium-card-title">
-                <span>🧾</span> {t('billingDetails')}
-              </div>
-
-              {(() => {
-                const discount = booking.discountEGP || 0;
-                const originalAmount = booking.amountEGP + discount;
-
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>{t('seatReservationCost', { count: seatNumbers.length })}</span>
-                      <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{originalAmount} {isRtl ? 'ج.م' : 'EGP'}</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
-                      <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{Math.round(originalAmount * 0.14)} {isRtl ? 'ج.م' : 'EGP'}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>{t('processingFee')}</span>
-                      <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{t('freeProcessing')}</span>
-                    </div>
-
-                    {discount > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: 'var(--primary)' }}>{t('promoDiscount', { code: booking.promoCode?.code || 'PROMO' })}</span>
-                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>-{discount} {isRtl ? 'ج.م' : 'EGP'}</span>
+                    {promoMessage && (
+                      <div style={{
+                        marginTop: '8px',
+                        fontSize: '0.78rem',
+                        color: promoStatus === 'error' ? '#EF4444' : 'var(--success)',
+                        fontWeight: 500
+                      }}>
+                        {promoMessage}
                       </div>
                     )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
-                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>{booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}</span>
-                    </div>
                   </div>
-                );
-              })()}
+                )}
+              </div>
+
+              {/* Billing breakdown */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <Receipt size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
+                  <span>{t('billingDetails')}</span>
+                </div>
+
+                {(() => {
+                  const discount = booking.discountEGP || 0;
+                  const originalAmount = booking.amountEGP + discount;
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{t('seatReservationCost', { count: seatNumbers.length })}</span>
+                        <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{originalAmount} {isRtl ? 'ج.م' : 'EGP'}</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
+                        <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{Math.round(originalAmount * 0.14)} {isRtl ? 'ج.م' : 'EGP'}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{t('processingFee')}</span>
+                        <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{t('freeProcessing')}</span>
+                      </div>
+
+                      {discount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                          <span style={{ color: 'var(--primary)' }}>{t('promoDiscount', { code: booking.promoCode?.code || 'PROMO' })}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>-{discount} {isRtl ? 'ج.م' : 'EGP'}</span>
+                        </div>
+                      )}
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'linear-gradient(135deg, rgba(245, 183, 49, 0.08) 0%, rgba(245, 183, 49, 0.02) 100%)',
+                        border: '1px solid rgba(245, 183, 49, 0.25)',
+                        borderRadius: '12px',
+                        padding: '16px 20px',
+                        marginTop: '1.25rem',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                        transition: 'transform 0.2s',
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <ShieldCheck size={12} color="var(--success)" /> {t('vatIncluded')}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.02em', textShadow: '0 0 1px rgba(245, 183, 49, 0.1)' }}>
+                            {booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Card 2: Select Payment Method & Action triggers */}
+          <div className="premium-card">
+            <div className="premium-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CreditCard size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <span>{t('selectPaymentMethod')}</span>
+            </div>
+            
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+              {t('pciDssHelper')}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              {/* Credit Card Option */}
+              <div className="payment-card-option active">
+                <div className="payment-card-radio">
+                  <div className="payment-card-radio-inner" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>💳</span>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{t('creditCardOptionTitle')}</strong>
+                  </div>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {t('creditCardOptionDesc')}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Checkout Action Button */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Redirection disclaimer instruction box */}
+            <div 
+              className="success-box-opaque"
+              style={{
+                padding: '14px 16px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                lineHeight: 1.4,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                marginBottom: '2rem'
+              }}
+            >
+              <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
+            </div>
+
+            {/* Action Checkout buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
               <button 
                 onClick={handleCheckout} 
                 className="auth-button" 
@@ -483,7 +641,6 @@ export default function PaymentPage() {
                 <Lock size={12} /> {t('encryptedOnlineCheckoutInfo')}
               </p>
             </div>
-
           </div>
 
         </div>

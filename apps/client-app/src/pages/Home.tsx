@@ -2,33 +2,15 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-import { routesAPI, partnersAPI, tripsAPI } from '../services/api';
+import { routesAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X, Globe, Building } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { cleanGoogleDriveLink } from '../utils/google-drive';
 import { useTheme } from '../context/ThemeContext';
-
-function PartnerImage({ src, alt }: { src: string; alt: string }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed || !src) {
-    return <Building size={36} style={{ opacity: 0.5, color: '#f5b731' }} />;
-  }
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className="partner-logo"
-      onError={() => setFailed(true)}
-    />
-  );
-}
 
 function RouteSearchForm() {
   const { t, isRtl } = useTranslation();
@@ -1304,22 +1286,7 @@ function RouteSearchForm() {
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const { t, language } = useTranslation();
-  const [partners, setPartners] = useState<any[]>([]);
 
-  useEffect(() => {
-    partnersAPI.getActive()
-      .then(data => {
-        if (Array.isArray(data)) {
-          setPartners(data);
-        } else {
-          setPartners([]);
-        }
-      })
-      .catch(err => {
-        console.error('Failed to load partners:', err);
-        setPartners([]);
-      });
-  }, []);
 
   const seoTitle = language === 'ar'
     ? 'دي-رايد | حجز أتوبيسات السفر في مصر'
@@ -1489,55 +1456,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Partners Section ──────────────────────────────── */}
-      {partners.length > 0 && (
-        <section className="section" id="partners" style={{ paddingBottom: '3rem' }}>
-          <div className="section-header">
-            <div className="section-badge">{t('trustedCollaborations')}</div>
-            <h2 className="section-title">{t('ourPartnersTitle')}</h2>
-            <p className="section-subtitle">
-              {t('partnersSub')}
-            </p>
-          </div>
 
-          <div className="partner-grid">
-            {partners.map((partner) => {
-              const hasLink = !!partner.websiteUrl;
-              return hasLink ? (
-                <a
-                  key={partner._id || partner.id}
-                  href={partner.websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="partner-card has-link"
-                >
-                  <Globe size={14} className="partner-link-indicator" />
-                  <div className="partner-logo-wrapper">
-                    <PartnerImage
-                      src={cleanGoogleDriveLink(partner.logoUrl)}
-                      alt={partner.name}
-                    />
-                  </div>
-                  <span className="partner-name">{partner.name}</span>
-                </a>
-              ) : (
-                <div
-                  key={partner._id || partner.id}
-                  className="partner-card"
-                >
-                  <div className="partner-logo-wrapper">
-                    <PartnerImage
-                      src={cleanGoogleDriveLink(partner.logoUrl)}
-                      alt={partner.name}
-                    />
-                  </div>
-                  <span className="partner-name">{partner.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* ── Footer ────────────────────────────────────────── */}
       <footer className="footer">
