@@ -263,11 +263,9 @@ export default function DashboardPage() {
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [isMocking, setIsMocking] = useState(false);
   const [lockCenter, setLockCenter] = useState(true);
   
   const geoWatchId = useRef<any>(null);
-  const mockIntervalId = useRef<any>(null);
 
   // Generate 7 days for the calendar strip (today +/- 3 days)
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
@@ -550,10 +548,9 @@ export default function DashboardPage() {
     };
 
     const handleFailure = (errorMsg: string) => {
-      console.warn('GPS failed, fallback to simulator:', errorMsg);
+      console.warn('GPS failed:', errorMsg);
       setGpsError(t('gpsNotAvailable'));
-      setIsMocking(true);
-      startMockSimulation(startLat, startLng);
+      setIsStreaming(false);
     };
 
     if (Capacitor.isNativePlatform()) {
@@ -590,8 +587,7 @@ export default function DashboardPage() {
         geoWatchId.current = watchId;
       } else {
         setGpsError(t('geoNotSupported'));
-        setIsMocking(true);
-        startMockSimulation(startLat, startLng);
+        setIsStreaming(false);
       }
     }
   }
@@ -605,39 +601,10 @@ export default function DashboardPage() {
       }
       geoWatchId.current = null;
     }
-    if (mockIntervalId.current !== null) {
-      clearInterval(mockIntervalId.current);
-      mockIntervalId.current = null;
-    }
     setIsStreaming(false);
-    setIsMocking(false);
   }
 
-  function startMockSimulation(initLat: number, initLng: number) {
-    let lat = initLat;
-    let lng = initLng;
-    let step = 0;
 
-    const mockRoutePath = streetPath.length > 0
-      ? streetPath.map(c => [c[1], c[0]])
-      : (activeTrip?.routeId?.path?.coordinates || [[31.2357, 30.0444]]);
-
-    mockIntervalId.current = setInterval(() => {
-      const nextCoord = mockRoutePath[step % mockRoutePath.length];
-      lng = nextCoord[0];
-      lat = nextCoord[1];
-      step++;
-
-      setCurrentCoords({ lat, lng });
-
-      socketService.sendLocation({
-        vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
-        driverId: user?._id || 'mock-driver-123',
-        longitude: lng,
-        latitude: lat,
-      });
-    }, 3000);
-  }
 
   // Status transitions
   async function handleUpdateTripStatus(newStatus: string) {
@@ -1434,7 +1401,7 @@ export default function DashboardPage() {
                       boxShadow: isStreaming ? '0 0 8px var(--success)' : 'none',
                     }} />
                     <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {isStreaming ? (isMocking ? t('simulatedTelemetry') : t('liveGpsBroadcast')) : t('gpsStandby')}
+                      {isStreaming ? t('liveGpsBroadcast') : t('gpsStandby')}
                     </span>
                   </div>
 

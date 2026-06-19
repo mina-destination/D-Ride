@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { bookingsAPI, reviewsAPI } from '../services/api';
-import { MessageCircle, MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star, Share2 } from 'lucide-react';
+import { MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star, Share2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -23,9 +23,7 @@ export default function MyTripsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming');
 
-  // WhatsApp Push Simulation Toast States
-  const [showWhatsAppToast, setShowWhatsAppToast] = useState(false);
-  const [recentBooking, setRecentBooking] = useState<any>(null);
+
 
   // Flipped state tracker for 3D flip card effect
   const [flippedBookings, setFlippedBookings] = useState<Record<string, boolean>>({});
@@ -176,22 +174,6 @@ export default function MyTripsPage() {
           (b: any) => b.status !== 'PENDING_PAYMENT' && b.status !== 'PENDING'
         );
         setBookings(paidOrFinalized);
-        
-        // Find first confirmed booking to trigger simulation
-        const now = new Date();
-        const upcomingConfirmed = paidOrFinalized.find((b: any) => {
-          const departureTime = b.tripId?.departureTime ? new Date(b.tripId.departureTime) : null;
-          const isPast = departureTime ? departureTime <= now : true;
-          return b.status === 'CONFIRMED' && b.tripId?.status !== 'CANCELLED' && !isPast;
-        });
-        if (upcomingConfirmed) {
-          setRecentBooking(upcomingConfirmed);
-          // Show simulated push notification after 2 seconds
-          const timer = setTimeout(() => {
-            setShowWhatsAppToast(true);
-          }, 2000);
-          return () => clearTimeout(timer);
-        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -278,39 +260,7 @@ export default function MyTripsPage() {
     <>
       <SEO title={seoTitle} description={seoDescription} />
 
-      {/* ── WhatsApp Push Notification Simulation Toast ────── */}
-      {showWhatsAppToast && recentBooking && (
-        <div className="whatsapp-toast">
-          <div className="whatsapp-toast-avatar">
-            <MessageCircle size={24} color="#075E54" />
-          </div>
-          <div className="whatsapp-toast-content">
-            <div className="whatsapp-toast-header">
-              <span className="whatsapp-toast-title">
-                WhatsApp Dispatch • D-Ride Hub
-              </span>
-              <button 
-                onClick={() => setShowWhatsAppToast(false)}
-                className="whatsapp-toast-close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="whatsapp-toast-body">
-              Hi <strong>{user?.name || 'Rider'}</strong>! Your ticket is confirmed. Assigned <strong>Seat #{recentBooking.seatNumbers?.join(', ') || recentBooking.seatNumber || 1}</strong> on route <strong>{recentBooking.tripId?.routeId?.name}</strong>. Pickup from <strong>{recentBooking.pickupCheckpoint?.name || 'Route Start'}</strong>.
-            </p>
-            <div className="whatsapp-toast-actions">
-              <Link 
-                to={`/track?vehicleId=${recentBooking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${recentBooking.tripId?._id || ''}`}
-                onClick={() => setShowWhatsAppToast(false)}
-                className="whatsapp-toast-link"
-              >
-                Track Live Ride <MapPin size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <section className="section bookings-page-container">
         <div className="section-header">

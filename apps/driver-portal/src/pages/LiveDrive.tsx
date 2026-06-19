@@ -32,12 +32,9 @@ export default function LiveDrivePage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   
-  // Simulation fallback state (in case browser denies geolocation or local testing on desktop)
-  const [isMocking, setIsMocking] = useState(false);
   const [lockCenter, setLockCenter] = useState(true);
   
   const geoWatchId = useRef<any>(null);
-  const mockIntervalId = useRef<any>(null);
 
   // Load trip details
   useEffect(() => {
@@ -267,12 +264,7 @@ export default function LiveDrivePage() {
       }
       geoWatchId.current = null;
     }
-    if (mockIntervalId.current !== null) {
-      clearInterval(mockIntervalId.current);
-      mockIntervalId.current = null;
-    }
     setIsStreaming(false);
-    setIsMocking(false);
   };
 
   // Connect socket on mount, disconnect on unmount
@@ -360,10 +352,9 @@ export default function LiveDrivePage() {
     };
 
     const handleFailure = (errorMsg: string) => {
-      console.warn('GPS error, switching to simulator option:', errorMsg);
+      console.warn('GPS error:', errorMsg);
       setGpsError(t('gpsNotAvailable'));
-      setIsMocking(true);
-      startMockSimulation(startLat, startLng);
+      setIsStreaming(false);
     };
 
     if (Capacitor.isNativePlatform()) {
@@ -410,51 +401,12 @@ export default function LiveDrivePage() {
         geoWatchId.current = watchId;
       } else {
         setGpsError(t('geoNotSupported'));
-        setIsMocking(true);
-        startMockSimulation(startLat, startLng);
+        setIsStreaming(false);
       }
     }
   };
 
-  // Mock drive coordinate simulation along the route checkpoints or Cairo street path
-  const startMockSimulation = (initLat: number, initLng: number) => {
-    let lat = initLat;
-    let lng = initLng;
-    let step = 0;
 
-    // Use OSM streetPath coordinates if fetched successfully, otherwise fallback
-    const mockRoutePath = streetPath.length > 0
-      ? streetPath.map(c => [c[1], c[0]])
-      : (trip?.routeId?.path?.coordinates || [
-          [31.2357, 30.0444],
-          [31.2320, 30.0455],
-          [31.2290, 30.0470],
-          [31.2250, 30.0490],
-          [31.2210, 30.0520],
-          [31.2170, 30.0560],
-          [31.2140, 30.0600],
-          [31.2160, 30.0640],
-          [31.2210, 30.0660],
-          [31.2250, 30.0630],
-        ]);
-
-    mockIntervalId.current = setInterval(() => {
-      const nextCoord = mockRoutePath[step % mockRoutePath.length];
-      lng = nextCoord[0];
-      lat = nextCoord[1];
-      step++;
-
-      setCurrentCoords({ lat, lng });
-
-      // Stream to WebSocket
-      socketService.sendLocation({
-        vehicleId: trip?.vehicleId?._id || 'mock-vehicle-123',
-        driverId: user?._id || 'mock-driver-123',
-        longitude: lng,
-        latitude: lat,
-      });
-    }, 3000);
-  };
 
   if (loading) {
     return (
@@ -603,7 +555,7 @@ export default function LiveDrivePage() {
                 animation: isStreaming ? 'pulse-opacity 1.5s infinite' : 'none'
               }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                {isStreaming ? (isMocking ? t('simulatedTelemetry') : t('liveGpsBroadcast')) : t('gpsStandby')}
+                {isStreaming ? t('liveGpsBroadcast') : t('gpsStandby')}
               </span>
             </div>
             {currentCoords && (
