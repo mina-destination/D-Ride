@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700;900&family=Montserrat:wght@600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -81,39 +81,39 @@
 }
 
 [data-theme="dark"] {
-  --background: #1A1D26;
-  --surface: #222633;
-  --surface-elevated: #2A2F40;
-  --surface-hover: #33394D;
+  --background: #080808;
+  --surface: #121212;
+  --surface-elevated: #1c1b1b;
+  --surface-hover: #20201f;
 
-  --text-primary: #D1D7E0;
-  --text-secondary: #8F9EAF;
-  --text-muted: #64748B;
-  --text-on-primary: #0E0E1B;
+  --text-primary: #e5e2e1;
+  --text-secondary: #d2c5ab;
+  --text-muted: #9a9078;
+  --text-on-primary: #3d2f00;
 
-  --border: #2E3445;
+  --border: rgba(255, 255, 255, 0.08);
 
-  --nav-bg: rgba(14, 16, 23, 0.85);
-  --glass-bg: rgba(23, 26, 36, 0.7);
-  --glass-border: rgba(224, 163, 40, 0.08);
+  --nav-bg: rgba(8, 8, 8, 0.6);
+  --glass-bg: rgba(30, 30, 30, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
 
-  --glow-amber: rgba(224, 163, 40, 0.12);
+  --glow-amber: rgba(255, 204, 0, 0.15);
   --glow-blue: rgba(59, 130, 246, 0.08);
   --glow-purple: rgba(168, 85, 247, 0.08);
   --primary-color: var(--primary);
-  --primary-interactive: #E0A328;
+  --primary-interactive: #ffcc00;
 
   /* Dark mode semantic overrides */
   --success: #34D399; /* Softer Emerald */
   --danger: #F87171;  /* Softer Coral Red */
-  --warning: #FBBF24;
+  --warning: #ffcc00;
   --info: #60A5FA;
 
-  --focus-ring: 0 0 0 3px rgba(224, 163, 40, 0.2);
+  --focus-ring: 0 0 0 3px rgba(255, 204, 0, 0.2);
 
   /* Custom Active Search Card Colors (Dark Mode) */
-  --active-card-bg: linear-gradient(135deg, #2D2619 0%, #1F222F 100%);
-  --active-card-border: #E0A328;
+  --active-card-bg: linear-gradient(135deg, #1c1b1b 0%, #121212 100%);
+  --active-card-border: #ffcc00;
 }
 
 /* ── Reset & Base ──────────────────────────────────────────── */
@@ -1327,6 +1327,86 @@ textarea:focus-visible {
 
 .padding-pb3 {
   padding-bottom: 3rem !important;
+}
+
+/* ============================================================
+   Stitch Redesign Styling
+   ============================================================ */
+
+.glass-card {
+  background: rgba(18, 18, 18, 0.55) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.feature-card:hover {
+  backdrop-filter: blur(40px) !important;
+  -webkit-backdrop-filter: blur(40px) !important;
+  border-color: #ffcc00 !important;
+}
+
+.primary-glow {
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.25) !important;
+  transition: all 0.3s ease !important;
+}
+
+.primary-glow:hover {
+  box-shadow: 0 0 35px rgba(255, 204, 0, 0.6) !important;
+  transform: scale(1.02) !important;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite !important;
+}
+
+@keyframes pulse-map {
+  0% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 0.5; }
+}
+
+.map-node-pulse {
+  animation: pulse-map 3s ease-in-out infinite !important;
+}
+
+/* Reveal Animations */
+.reveal-scale {
+  animation: revealScale 1s cubic-bezier(0.23, 1, 0.32, 1) forwards !important;
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+@keyframes revealScale {
+  to { opacity: 1; transform: scale(1); }
+}
+
+.reveal-slide-right {
+  animation: revealSlideRight 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+@keyframes revealSlideRight {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.staggered-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: staggerReveal 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards !important;
+}
+
+@keyframes staggerReveal {
+  to { opacity: 1; transform: translateY(0); }
 }
 
 

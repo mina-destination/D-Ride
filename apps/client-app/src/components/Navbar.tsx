@@ -69,8 +69,9 @@ export default function Navbar() {
   return (
     <nav className="nav">
       <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} onClick={() => setIsOpen(false)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logo} alt="D-Ride Logo" style={{ height: '38px', width: 'auto', borderRadius: '6px', objectFit: 'contain', boxShadow: '0 0 15px rgba(245, 183, 49, 0.4)', flexShrink: 0 }} />
+          <span className="font-headline-md text-headline-md font-extrabold text-[#F5B731] tracking-tighter cursor-pointer select-none">D-<span className="text-white">RIDE</span></span>
         </div>
       </Link>
 
