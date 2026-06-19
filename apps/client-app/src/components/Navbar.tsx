@@ -69,17 +69,16 @@ export default function Navbar() {
   return (
     <nav className="nav">
       <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} onClick={() => setIsOpen(false)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src={logo} alt="D-Ride Logo" style={{ height: '38px', width: 'auto', borderRadius: '6px', objectFit: 'contain', boxShadow: '0 0 15px rgba(245, 183, 49, 0.4)', flexShrink: 0 }} />
-          <span className="font-headline-md text-headline-md font-extrabold text-[#F5B731] tracking-tighter cursor-pointer select-none">D-<span className="text-white">RIDE</span></span>
         </div>
       </Link>
 
       <div className="nav-right-actions">
         {isAuthenticated && (
           <div className="notification-dropdown-container" ref={notificationRef}>
-            <button 
-              className="notification-bell-btn" 
+            <button
+              className="notification-bell-btn"
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
               aria-label="Notifications"
               aria-expanded={isNotificationOpen}
@@ -90,11 +89,11 @@ export default function Navbar() {
                 <span className="notification-badge" />
               )}
             </button>
-            
+
             <div className={`notification-dropdown ${isNotificationOpen ? 'open' : ''}`}>
               <div className="notification-dropdown-header">
                 <span>{t('notifications')}</span>
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); markAllRead(); }}
                   className="mark-all-read-btn"
                 >
@@ -107,8 +106,8 @@ export default function Navbar() {
                   <li className="notification-empty">{t('noNotifications')}</li>
                 ) : (
                   notifications.map(item => (
-                    <li 
-                      key={item.id} 
+                    <li
+                      key={item.id}
                       className={`notification-dropdown-item ${item.read ? 'read' : 'unread'}`}
                       onClick={() => markRead(item.id)}
                     >
@@ -123,8 +122,8 @@ export default function Navbar() {
           </div>
         )}
 
-        <button 
-          className="mobile-menu-toggle" 
+        <button
+          className="mobile-menu-toggle"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle Menu"
           aria-expanded={isOpen}
@@ -135,8 +134,8 @@ export default function Navbar() {
 
       <ul className={`nav-links ${isOpen ? 'mobile-open' : ''}`}>
         <li>
-          <Link 
-            to="/#how-it-works" 
+          <Link
+            to="/#how-it-works"
             onClick={(e) => handleAnchorClick(e, '#how-it-works')}
             className={isHashActive('#how-it-works') ? 'nav-link-active' : ''}
           >
@@ -145,8 +144,8 @@ export default function Navbar() {
           </Link>
         </li>
         <li>
-          <Link 
-            to="/#features" 
+          <Link
+            to="/#features"
             onClick={(e) => handleAnchorClick(e, '#features')}
             className={isHashActive('#features') ? 'nav-link-active' : ''}
           >
@@ -155,8 +154,8 @@ export default function Navbar() {
           </Link>
         </li>
         <li>
-          <Link 
-            to="/routes" 
+          <Link
+            to="/routes"
             onClick={() => setIsOpen(false)}
             className={isRouteActive('/routes') ? 'nav-link-active' : ''}
           >
@@ -165,8 +164,8 @@ export default function Navbar() {
           </Link>
         </li>
         <li>
-          <Link 
-            to="/partners" 
+          <Link
+            to="/partners"
             onClick={() => setIsOpen(false)}
             className={isRouteActive('/partners') ? 'nav-link-active' : ''}
           >
@@ -175,8 +174,8 @@ export default function Navbar() {
           </Link>
         </li>
         <li>
-          <Link 
-            to="/contact" 
+          <Link
+            to="/contact"
             onClick={() => setIsOpen(false)}
             className={isRouteActive('/contact') ? 'nav-link-active' : ''}
           >
@@ -188,15 +187,15 @@ export default function Navbar() {
           <>
             {/* Desktop-only Profile dropdown */}
             <li className="profile-dropdown-container desktop-only" ref={dropdownRef}>
-              <button 
-                className="profile-avatar-btn" 
+              <button
+                className="profile-avatar-btn"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 aria-label="User profile"
                 aria-expanded={isDropdownOpen}
               >
                 {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
               </button>
-              
+
               <div className={`profile-dropdown ${isDropdownOpen ? 'open' : ''}`}>
                 <div className="profile-dropdown-header">
                   <div className="profile-dropdown-avatar">
@@ -210,8 +209,8 @@ export default function Navbar() {
                 <hr className="profile-divider" />
                 <ul className="profile-dropdown-menu">
                   <li>
-                    <Link 
-                      to="/my-trips" 
+                    <Link
+                      to="/my-trips"
                       onClick={() => {
                         setIsDropdownOpen(false);
                         setIsOpen(false);
@@ -225,8 +224,8 @@ export default function Navbar() {
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      to="/profile" 
+                    <Link
+                      to="/profile"
                       onClick={() => {
                         setIsDropdownOpen(false);
                         setIsOpen(false);
@@ -240,8 +239,8 @@ export default function Navbar() {
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      to="/track-family" 
+                    <Link
+                      to="/track-family"
                       onClick={() => {
                         setIsDropdownOpen(false);
                         setIsOpen(false);
@@ -256,7 +255,7 @@ export default function Navbar() {
                   </li>
 
                   <li>
-                    <button 
+                    <button
                       onClick={() => {
                         setIsDropdownOpen(false);
                         setIsOpen(false);
@@ -276,8 +275,8 @@ export default function Navbar() {
 
             {/* Mobile-only Profile items */}
             <li className="mobile-only">
-              <Link 
-                to="/my-trips" 
+              <Link
+                to="/my-trips"
                 onClick={() => setIsOpen(false)}
                 className={isRouteActive('/my-trips') ? 'nav-link-active' : ''}
               >
@@ -286,8 +285,8 @@ export default function Navbar() {
               </Link>
             </li>
             <li className="mobile-only">
-              <Link 
-                to="/profile" 
+              <Link
+                to="/profile"
                 onClick={() => setIsOpen(false)}
                 className={isRouteActive('/profile') ? 'nav-link-active' : ''}
               >
@@ -296,8 +295,8 @@ export default function Navbar() {
               </Link>
             </li>
             <li className="mobile-only">
-              <Link 
-                to="/track-family" 
+              <Link
+                to="/track-family"
                 onClick={() => setIsOpen(false)}
                 className={isRouteActive('/track-family') ? 'nav-link-active' : ''}
               >
@@ -306,7 +305,7 @@ export default function Navbar() {
               </Link>
             </li>
             <li className="mobile-only">
-              <button 
+              <button
                 onClick={() => {
                   setIsOpen(false);
                   handleLogout();
@@ -325,16 +324,16 @@ export default function Navbar() {
           </>
         )}
         <li className="nav-actions-item">
-          <button 
+          <button
             className="theme-toggle-btn"
-            onClick={toggleTheme} 
+            onClick={toggleTheme}
             title="Toggle Theme"
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button 
+          <button
             className="lang-toggle-btn"
-            onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} 
+            onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
             title="Switch Language / تغيير اللغة"
           >
             <Globe size={14} />
