@@ -455,10 +455,10 @@ function RouteSearchForm() {
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
@@ -1116,7 +1116,7 @@ function RouteSearchForm() {
             </div>
           </div>
         </div>
-                             {/* ROW 3: DATE */}
+        {/* ROW 3: DATE */}
         <div className="from-to-row">
           <div className="from-to-field full-width">
             <label className="field-label">{t('travelDateLabel')}</label>
@@ -1172,8 +1172,8 @@ function RouteSearchForm() {
                   <span>Checking seat availability...</span>
                 ) : (
                   <span>
-                    {maxAvailableSeats < 10 
-                      ? `⚠️ Only ${maxAvailableSeats} seats left on this date!` 
+                    {maxAvailableSeats < 10
+                      ? `⚠️ Only ${maxAvailableSeats} seats left on this date!`
                       : `✅ Up to ${maxAvailableSeats} seats available`}
                   </span>
                 )}
@@ -1224,7 +1224,7 @@ function RouteSearchForm() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="map-picker-container">
               <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
             </div>
@@ -1235,10 +1235,10 @@ function RouteSearchForm() {
                   {t('nearestMatchedStationMap')}
                 </span>
                 <span className="map-picker-info-value">
-                  {isRtl 
+                  {isRtl
                     ? (nearestStationFromMap.checkpoint.nameAr || nearestStationFromMap.checkpoint.name)
                     : nearestStationFromMap.checkpoint.name
-                  } 
+                  }
                   <span style={{ opacity: 0.6, fontSize: '0.8em', marginLeft: '6px' }}>
                     ({nearestStationFromMap.distanceMeters} {t('metersAway')})
                   </span>
@@ -1256,14 +1256,14 @@ function RouteSearchForm() {
             )}
 
             <div className="map-picker-actions">
-              <button 
-                className="map-picker-btn-cancel" 
+              <button
+                className="map-picker-btn-cancel"
                 onClick={() => setIsMapModalOpen(false)}
               >
                 {t('cancelBtn')}
               </button>
-              <button 
-                className="map-picker-btn-confirm" 
+              <button
+                className="map-picker-btn-confirm"
                 onClick={handleConfirmMapSelection}
                 disabled={!nearestStationFromMap || mapLoading}
               >
@@ -1287,6 +1287,7 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const { t, language } = useTranslation();
 
+
   const seoTitle = language === 'ar'
     ? 'دي-رايد | حجز أتوبيسات السفر في مصر'
     : 'D-Ride | Smart Mass-Transit & Bus Booking in Egypt';
@@ -1297,208 +1298,180 @@ export default function HomePage() {
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} keywords="cairo, alexandria, sharm el sheikh, dahab, nuweiba, taba, القاهرة, الاسكندرية, شرم الشيخ, دهب, نويبع, طابا" />
-      
       {/* ── Hero Section ─────────────────────────────────── */}
-      <section className="relative min-h-[90vh] flex items-center pt-28 pb-20 overflow-hidden" id="hero">
-        <div className="max-w-7xl mx-auto px-container-margin w-full grid md:grid-cols-12 gap-12 md:gap-16 items-center relative z-10">
-          
-          {/* Left: Brand message & details */}
-          <div className="md:col-span-7 flex flex-col items-start gap-6 md:gap-8 text-left">
-            <div className="reveal-scale">
-              <div className="flex items-center gap-2 px-4 py-2 glass-card rounded-full border border-white/10 select-none">
-                <span className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse" />
-                <span className="font-label-sm text-label-sm text-white">{t('liveRouteTelemetryBadge')}</span>
-              </div>
+      <section className="hero-section" id="hero">
+        <div className="hero-bg-gradient" />
+        <div className="hero-bg-gradient-2" />
+
+        <div className="hero-content">
+          <div className="hero-text">
+            <div className="hero-badge">
+              <span className="hero-badge-dot" />
+              {t('liveRouteTelemetryBadge')}
             </div>
-            
-            <h1 className="font-display-lg text-display-lg text-white leading-[1.05] reveal-scale">
-              <span className="staggered-word" style={{ animationDelay: '0.4s' }}>
-                {t('heroTitlePart1')}
-              </span>
-              <br />
-              <span className="text-primary italic staggered-word" style={{ animationDelay: '0.6s' }}>
-                {t('heroTitlePart2')} {t('heroTitleAccent')}
-              </span>
+            <h1 className="hero-title">
+              {t('heroTitlePart1')}<br />
+              {t('heroTitlePart2')}{' '}
+              <span className="hero-title-accent">{t('heroTitleAccent')}</span>
             </h1>
-            
-            <p className="font-body-lg text-body-lg text-text-secondary max-w-xl leading-relaxed staggered-word" style={{ animationDelay: '0.8s' }}>
+            <p className="hero-subtitle">
               {t('heroSubtitle')}
             </p>
-            
-            <div className="flex flex-wrap gap-4 mt-2 staggered-word" style={{ animationDelay: '0.9s' }}>
-              <div className="flex items-center gap-3 glass-card px-5 py-3 rounded-xl border border-white/10">
-                <Zap size={16} className="text-primary" />
-                <span className="font-label-lg text-label-lg">{t('liveRouteTelemetryBadge')}</span>
-              </div>
-              <div className="flex items-center gap-3 glass-card px-5 py-3 rounded-xl border border-white/10">
-                <Ticket size={16} className="text-primary" />
-                <span className="font-label-lg text-label-lg">{t('simpleAndFast')}</span>
-              </div>
-            </div>
-            
-            <div className="flex gap-4 mt-4 staggered-word" style={{ animationDelay: '1.0s' }}>
+            <div className="hero-actions">
               {isAuthenticated ? (
-                <Link to="/my-trips" className="search-btn primary-glow min-w-[160px] !py-3 !rounded-full">
-                  <Ticket size={18} /> {t('myTrips')}
+                <Link to="/my-trips" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Ticket size={20} /> {t('myTrips')}
                 </Link>
               ) : (
-                <Link to="/register" className="search-btn primary-glow min-w-[160px] !py-3 !rounded-full">
-                  <Bus size={18} /> {t('bookARideBtn')}
+                <Link to="/register" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Bus size={20} /> {t('bookARideBtn')}
                 </Link>
               )}
-              <a href="#how-it-works" className="px-6 py-3 border border-white/10 text-white rounded-full hover:bg-white/5 hover:border-white/20 transition-all font-semibold flex items-center justify-center">
+              <a href="#how-it-works" className="btn-secondary">
                 {t('learnMoreBtn')}
               </a>
             </div>
           </div>
 
-          {/* Right: Autocomplete Booking Form */}
-          <div className="md:col-span-5 reveal-slide-right w-full" style={{ animationDelay: '0.3s' }}>
-            <div className="glass-card p-6 md:p-8 rounded-3xl flex flex-col gap-6 w-full border border-white/10 relative overflow-hidden animate-float">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl -mr-16 -mt-16 pointer-events-none" />
-              <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                <h2 className="font-headline-md text-headline-md text-white uppercase tracking-wider">{t('findYourRouteCardTitle')}</h2>
-                <span className="font-label-sm text-label-sm text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">{t('selectYourDestinationCardSub')}</span>
+          <div className="hero-visual">
+            <div className="hero-card glass">
+              <div className="hero-card-header">
+                <div className="hero-card-icon"><MapPin size={24} /></div>
+                <div>
+                  <div className="hero-card-title">{t('findYourRouteCardTitle')}</div>
+                  <div className="hero-card-subtitle">{t('selectYourDestinationCardSub')}</div>
+                </div>
               </div>
               <RouteSearchForm />
             </div>
           </div>
-
         </div>
       </section>
 
       {/* ── Stats Bar ────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-container-margin py-12 grid grid-cols-2 md:grid-cols-4 gap-6 relative z-10">
-        <div className="glass-card p-6 rounded-2xl text-center border border-white/5 flex flex-col gap-2 hover:scale-[1.03] transition-all duration-300">
-          <div className="font-headline-lg text-headline-lg text-primary">{t('dailyRoutesVal')}</div>
-          <div className="font-label-lg text-label-lg text-text-secondary">{t('dailyRoutesLbl')}</div>
+      <div className="stats-bar">
+        <div className="stat-card glass delay-1 animate-fade-in-up">
+          <div className="stat-value">{t('dailyRoutesVal')}</div>
+          <div className="stat-label">{t('dailyRoutesLbl')}</div>
         </div>
-        <div className="glass-card p-6 rounded-2xl text-center border border-white/5 flex flex-col gap-2 hover:scale-[1.03] transition-all duration-300">
-          <div className="font-headline-lg text-headline-lg text-primary">{t('happyRidersVal')}</div>
-          <div className="font-label-lg text-label-lg text-text-secondary">{t('happyRidersLbl')}</div>
+        <div className="stat-card glass delay-2 animate-fade-in-up">
+          <div className="stat-value">{t('happyRidersVal')}</div>
+          <div className="stat-label">{t('happyRidersLbl')}</div>
         </div>
-        <div className="glass-card p-6 rounded-2xl text-center border border-white/5 flex flex-col gap-2 hover:scale-[1.03] transition-all duration-300">
-          <div className="font-headline-lg text-headline-lg text-primary">{t('vehiclesVal')}</div>
-          <div className="font-label-lg text-label-lg text-text-secondary">{t('vehiclesLbl')}</div>
+        <div className="stat-card glass delay-3 animate-fade-in-up">
+          <div className="stat-value">{t('vehiclesVal')}</div>
+          <div className="stat-label">{t('vehiclesLbl')}</div>
         </div>
-        <div className="glass-card p-6 rounded-2xl text-center border border-white/5 flex flex-col gap-2 hover:scale-[1.03] transition-all duration-300">
-          <div className="font-headline-lg text-headline-lg text-primary">{t('avgRatingVal')}</div>
-          <div className="font-label-lg text-label-lg text-text-secondary">{t('avgRatingLbl')}</div>
+        <div className="stat-card glass delay-4 animate-fade-in-up">
+          <div className="stat-value">{t('avgRatingVal')}</div>
+          <div className="stat-label">{t('avgRatingLbl')}</div>
         </div>
       </div>
 
       {/* ── How It Works ─────────────────────────────────── */}
-      <section className="py-24 bg-[#080808]/40 relative overflow-hidden border-y border-white/5" id="how-it-works">
-        <div className="max-w-7xl mx-auto px-container-margin relative z-10">
-          <div className="text-center mb-16 space-y-4">
-            <span className="text-primary font-label-lg text-label-lg tracking-[0.4em] uppercase font-bold">{t('simpleAndFast')}</span>
-            <h2 className="font-display-lg text-display-lg text-white">{t('howItWorksTitle')}</h2>
-            <p className="text-text-secondary font-body-lg text-body-lg max-w-2xl mx-auto leading-relaxed">{t('howItWorksDesc')}</p>
-          </div>
+      <section className="section" id="how-it-works">
+        <div className="section-header">
+          <div className="section-badge">{t('simpleAndFast')}</div>
+          <h2 className="section-title">{t('howItWorksTitle')}</h2>
+          <p className="section-subtitle">
+            {t('howItWorksDesc')}
+          </p>
+        </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="feature-card glass-card p-10 rounded-[2rem] border border-white/5 group relative hover:scale-[1.02] transition-all duration-300">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-500">
-                <Search size={32} className="text-primary" />
-              </div>
-              <h3 className="font-headline-md text-headline-md text-white mb-4 tracking-tight">{t('step1Title')}</h3>
-              <p className="text-text-secondary font-body-md text-body-md leading-relaxed opacity-80">{t('step1Desc')}</p>
-            </div>
-            
-            {/* Feature 2 */}
-            <div className="feature-card glass-card p-10 rounded-[2rem] border border-white/5 group relative hover:scale-[1.02] transition-all duration-300">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-500">
-                <Ticket size={32} className="text-primary" />
-              </div>
-              <h3 className="font-headline-md text-headline-md text-white mb-4 tracking-tight">{t('step2Title')}</h3>
-              <p className="text-text-secondary font-body-md text-body-md leading-relaxed opacity-80">{t('step2Desc')}</p>
-            </div>
-            
-            {/* Feature 3 */}
-            <div className="feature-card glass-card p-10 rounded-[2rem] border border-white/5 group relative hover:scale-[1.02] transition-all duration-300">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-500">
-                <Bus size={32} className="text-primary" />
-              </div>
-              <h3 className="font-headline-md text-headline-md text-white mb-4 tracking-tight">{t('step3Title')}</h3>
-              <p className="text-text-secondary font-body-md text-body-md leading-relaxed opacity-80">{t('step3Desc')}</p>
-            </div>
+        <div className="steps-grid">
+          <div className="step-card glass delay-1 animate-fade-in-up">
+            <div className="step-number">1</div>
+            <div className="step-icon"><Search size={32} /></div>
+            <h3 className="step-title">{t('step1Title')}</h3>
+            <p className="step-desc">
+              {t('step1Desc')}
+            </p>
+          </div>
+          <div className="step-card glass delay-2 animate-fade-in-up">
+            <div className="step-number">2</div>
+            <div className="step-icon"><Ticket size={32} /></div>
+            <h3 className="step-title">{t('step2Title')}</h3>
+            <p className="step-desc">
+              {t('step2Desc')}
+            </p>
+          </div>
+          <div className="step-card glass delay-3 animate-fade-in-up">
+            <div className="step-number">3</div>
+            <div className="step-icon"><Bus size={32} /></div>
+            <h3 className="step-title">{t('step3Title')}</h3>
+            <p className="step-desc">
+              {t('step3Desc')}
+            </p>
           </div>
         </div>
       </section>
 
       {/* ── Features ──────────────────────────────────────── */}
-      <section className="py-24" id="features">
-        <div className="max-w-7xl mx-auto px-container-margin relative z-10">
-          <div className="text-center mb-16 space-y-4">
-            <span className="text-primary font-label-lg text-label-lg tracking-[0.4em] uppercase font-bold">{t('whyDride')}</span>
-            <h2 className="font-display-lg text-display-lg text-white">{t('builtForCairoStreets')}</h2>
-            <p className="text-text-secondary font-body-lg text-body-lg max-w-2xl mx-auto leading-relaxed">{t('builtForCairoStreetsDesc')}</p>
+      <section className="section" id="features">
+        <div className="section-header">
+          <div className="section-badge">{t('whyDride')}</div>
+          <h2 className="section-title">{t('builtForCairoStreets')}</h2>
+          <p className="section-subtitle">
+            {t('builtForCairoStreetsDesc')}
+          </p>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card glass delay-1 animate-fade-in-up">
+            <div className="feature-icon"><MapPin size={28} /></div>
+            <div>
+              <h3 className="feature-title">{t('featureGpsTitle')}</h3>
+              <p className="feature-desc">
+                {t('featureGpsDesc')}
+              </p>
+            </div>
           </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="glass-card p-8 rounded-2xl border border-white/5 flex gap-6 hover:scale-[1.01] transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <MapPin size={24} className="text-primary" />
-              </div>
-              <div>
-                <h3 className="font-headline-md text-headline-md text-white mb-2">{t('featureGpsTitle')}</h3>
-                <p className="text-text-secondary font-body-md text-body-md leading-relaxed">{t('featureGpsDesc')}</p>
-              </div>
+          <div className="feature-card glass delay-2 animate-fade-in-up">
+            <div className="feature-icon"><CreditCard size={28} /></div>
+            <div>
+              <h3 className="feature-title">{t('featurePaymentTitle')}</h3>
+              <p className="feature-desc">
+                {t('featurePaymentDesc')}
+              </p>
             </div>
-
-            <div className="glass-card p-8 rounded-2xl border border-white/5 flex gap-6 hover:scale-[1.01] transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <CreditCard size={24} className="text-primary" />
-              </div>
-              <div>
-                <h3 className="font-headline-md text-headline-md text-white mb-2">{t('featurePaymentTitle')}</h3>
-                <p className="text-text-secondary font-body-md text-body-md leading-relaxed">{t('featurePaymentDesc')}</p>
-              </div>
+          </div>
+          <div className="feature-card glass delay-3 animate-fade-in-up">
+            <div className="feature-icon"><Snowflake size={28} /></div>
+            <div>
+              <h3 className="feature-title">{t('featureComfortTitle')}</h3>
+              <p className="feature-desc">
+                {t('featureComfortDesc')}
+              </p>
             </div>
-
-            <div className="glass-card p-8 rounded-2xl border border-white/5 flex gap-6 hover:scale-[1.01] transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <Snowflake size={24} className="text-primary" />
-              </div>
-              <div>
-                <h3 className="font-headline-md text-headline-md text-white mb-2">{t('featureComfortTitle')}</h3>
-                <p className="text-text-secondary font-body-md text-body-md leading-relaxed">{t('featureComfortDesc')}</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-8 rounded-2xl border border-white/5 flex gap-6 hover:scale-[1.01] transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <Zap size={24} className="text-primary" />
-              </div>
-              <div>
-                <h3 className="font-headline-md text-headline-md text-white mb-2">{t('featurePricingTitle')}</h3>
-                <p className="text-text-secondary font-body-md text-body-md leading-relaxed">{t('featurePricingDesc')}</p>
-              </div>
+          </div>
+          <div className="feature-card glass delay-4 animate-fade-in-up">
+            <div className="feature-icon"><Zap size={28} /></div>
+            <div>
+              <h3 className="feature-title">{t('featurePricingTitle')}</h3>
+              <p className="feature-desc">
+                {t('featurePricingDesc')}
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ────────────────────────────────────────── */}
-      <footer className="w-full bg-[#080808]/80 border-t border-white/5 py-12 relative z-10">
-        <div className="max-w-7xl mx-auto px-container-margin flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
-          <div className="flex flex-col items-center md:items-start gap-3">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="D-Ride" className="h-8 w-auto rounded-md object-contain" />
-              <span className="font-headline-md text-headline-md font-extrabold text-[#F5B731] tracking-tighter cursor-pointer select-none">D-<span className="text-white">RIDE</span></span>
-            </div>
-            <p className="text-text-muted text-xs">{t('operatedBy')}</p>
-          </div>
-          
-          <ul className="flex flex-wrap gap-6 text-sm font-medium justify-center">
-            <li><Link to="/about" className="text-text-secondary hover:text-primary transition">{t('about')}</Link></li>
-            <li><Link to="/terms" className="text-text-secondary hover:text-primary transition">{t('terms')}</Link></li>
-            <li><Link to="/privacy" className="text-text-secondary hover:text-primary transition">{t('privacy')}</Link></li>
-            <li><Link to="/contact" className="text-text-secondary hover:text-primary transition">{t('contact')}</Link></li>
-          </ul>
 
-          <span className="text-text-muted text-xs">© {new Date().getFullYear()} D-Ride. {t('allRightsReserved')}</span>
+
+      {/* ── Footer ────────────────────────────────────────── */}
+      <footer className="footer">
+        <div className="footer-content">
+          <div className="footer-brand">
+            <img src={logo} alt="D-Ride" className="footer-logo" />
+            <span className="footer-tagline">{t('operatedBy')}</span>
+          </div>
+          <ul className="footer-links">
+            <li><Link to="/about">{t('about')}</Link></li>
+            <li><Link to="/terms">{t('terms')}</Link></li>
+            <li><Link to="/privacy">{t('privacy')}</Link></li>
+            <li><Link to="/contact">{t('contact')}</Link></li>
+          </ul>
+          <span className="footer-copyright">{t('allRightsReserved')}</span>
         </div>
       </footer>
     </>

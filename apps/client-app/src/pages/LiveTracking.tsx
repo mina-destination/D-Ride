@@ -176,7 +176,7 @@ export default function LiveTrackingPage() {
         const timeFraction = Math.min((now - start) / duration, 1);
         // Easing function (easeInOutQuad)
         const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
-        
+
         const currentLat = from.lat + (to.lat - from.lat) * t;
         const currentLng = from.lng + (to.lng - from.lng) * t;
 
@@ -196,6 +196,21 @@ export default function LiveTrackingPage() {
   }, [location]);
 
 
+
+  if (!vehicleId) {
+    return (
+      <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
+        <div className="auth-card glass" style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
+          <p>{t('selectTripToTrack')}</p>
+          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Default center (Cairo) if location is not yet received
 
   useEffect(() => {
     if (!vehicleId) return;
@@ -233,24 +248,11 @@ export default function LiveTrackingPage() {
     };
   }, [vehicleId]);
 
-  if (!vehicleId) {
-    return (
-      <div className="auth-page">
-        <SEO title={seoTitle} description={seoDescription} />
-        <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
-          <p>{t('selectTripToTrack')}</p>
-          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <SEO title={seoTitle} description={seoDescription} />
       <div style={{ flex: 1, position: 'relative' }}>
-        
+
         {/* Floating Trip Status Info Drawer Card */}
         <div style={{
           position: 'absolute',
@@ -312,7 +314,7 @@ export default function LiveTrackingPage() {
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
 
-           {/* Fallback Info for Offline State */}
+          {/* Fallback Info for Offline State */}
           {!location ? (
             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
               ℹ️ {t('minibusDetailsWillUpdate')}
@@ -322,7 +324,7 @@ export default function LiveTrackingPage() {
               <div style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 600 }}>
                 🟢 {t('minibusOnRoute')}
               </div>
-              
+
               {etaInfo && (
                 <div style={{
                   background: 'var(--surface-elevated)',
@@ -384,8 +386,8 @@ export default function LiveTrackingPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-            <a 
-              href="tel:+201001234567" 
+            <a
+              href="tel:+201001234567"
               style={{
                 flex: 1,
                 padding: '10px',
@@ -404,7 +406,7 @@ export default function LiveTrackingPage() {
             >
               📞 {t('callOperator')}
             </a>
-            <button 
+            <button
               onClick={() => alert(t('supportTicketCreatedAlert'))}
               style={{
                 flex: 1,

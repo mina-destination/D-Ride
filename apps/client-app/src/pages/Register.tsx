@@ -77,10 +77,13 @@ export default function RegisterPage() {
 
     const initializeGoogle = () => {
       try {
-        (window as any).google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleCredentialResponse,
-        });
+        if (!(window as any).__google_gsi_initialized) {
+          (window as any).google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse,
+          });
+          (window as any).__google_gsi_initialized = true;
+        }
 
         const btnContainer = document.getElementById('google-signin-btn');
         if (btnContainer) {
