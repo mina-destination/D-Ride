@@ -4,7 +4,7 @@ import { socketService } from '../services/socket';
 import api from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
-import { Microscope, Square, Rocket } from 'lucide-react';
+
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
@@ -195,9 +195,22 @@ export default function LiveTrackingPage() {
     map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });
   }, [location]);
 
-  // Dev tools sandbox telemetry simulator
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simInterval, setSimInterval] = useState<any>(null);
+
+
+  if (!vehicleId) {
+    return (
+      <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
+        <div className="auth-card glass" style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
+          <p>{t('selectTripToTrack')}</p>
+          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Default center (Cairo) if location is not yet received
 
   useEffect(() => {
     if (!vehicleId) return;
@@ -234,82 +247,6 @@ export default function LiveTrackingPage() {
       socketService.disconnect();
     };
   }, [vehicleId]);
-
-  useEffect(() => {
-    return () => {
-      if (simInterval) clearInterval(simInterval);
-    };
-  }, [simInterval]);
-
-  const startLocalSimulation = () => {
-    if (isSimulating) return;
-    setIsSimulating(true);
-
-    // Mock Cairo path (starts downtown, drives through Zamalek / Ring Road)
-    const mockPath = [
-      [30.0444, 31.2357],
-      [30.0455, 31.2320],
-      [30.0470, 31.2290],
-      [30.0490, 31.2250],
-      [30.0520, 31.2210],
-      [30.0560, 31.2170],
-      [30.0600, 31.2140],
-      [30.0640, 31.2160],
-      [30.0660, 31.2210],
-      [30.0630, 31.2250],
-    ];
-
-    let index = 0;
-    const interval = setInterval(async () => {
-      if (index >= mockPath.length) {
-        index = 0; // loop coordinates
-      }
-      const [lat, lng] = mockPath[index];
-
-      // Update locally immediately
-      setLocation({ lat, lng });
-
-      // Trigger full broadcast via socket loop endpoint
-      try {
-        await api.post('/vehicles/location', {
-          vehicleId: vehicleId || 'mock-vehicle-123',
-          driverId: 'mock-driver-123',
-          latitude: lat,
-          longitude: lng,
-        });
-      } catch (e) {
-        console.error('Failed sandbox location broadcast', e);
-      }
-      index++;
-    }, 2000);
-
-    setSimInterval(interval);
-  };
-
-  const stopLocalSimulation = () => {
-    if (simInterval) {
-      clearInterval(simInterval);
-    }
-    setIsSimulating(false);
-    setSimInterval(null);
-  };
-
-  if (!vehicleId) {
-    return (
-      <div className="auth-page">
-        <SEO title={seoTitle} description={seoDescription} />
-        <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
-          <p>{t('selectTripToTrack')}</p>
-          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Default center (Cairo) if location is not yet received
-
-  const isSandboxEnabled = searchParams.get('sandbox') === 'true';
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -491,38 +428,7 @@ export default function LiveTrackingPage() {
 
         <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
 
-        {/* Floating Developer Sandbox Controller (conditional) */}
-        {isSandboxEnabled && (
-          <div className="tracking-sandbox-panel">
-            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span><Microscope size={14} /></span> TELEMETRY SANDBOX
-            </div>
-            <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
-              No admin tab open? Run a local simulated telemetry feed loop.
-            </p>
-            {isSimulating ? (
-              <button 
-                onClick={stopLocalSimulation}
-                className="btn-danger-outline"
-                style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  Stop Sandbox <Square size={12} fill="currentColor" />
-                </span>
-              </button>
-            ) : (
-              <button 
-                onClick={startLocalSimulation}
-                className="btn-primary"
-                style={{ minHeight: '36px', fontSize: '11px', padding: '6px 12px' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  Simulate Live Drive <Rocket size={12} />
-                </span>
-              </button>
-            )}
-          </div>
-        )}
+
       </div>
     </div>
   );

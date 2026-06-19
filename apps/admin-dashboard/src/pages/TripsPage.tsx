@@ -1,19 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Modal, Form, Select, Space, DatePicker, Progress, Badge, Checkbox, Input, Card, List, Tooltip } from 'antd';
+import { Table, Button, Modal, Form, Select, Space, DatePicker, Badge, Checkbox, Input, Card, List, Tooltip } from 'antd';
 import { Popconfirm } from '../components/Popconfirm';
 import { message } from '../utils/antdGlobal';
 import { tripsAPI, routesAPI, vehiclesAPI, usersAPI, reviewsAPI } from '../services/api';
 import dayjs from 'dayjs';
-import { Bus, User, Briefcase, Unlock, Square, Rocket, Lock, Download, Trash2, Star } from 'lucide-react';
+import { Bus, User, Briefcase, Unlock, Lock, Download, Trash2, Star } from 'lucide-react';
 import { exportToCSV } from '../utils/csv';
-
-interface ActiveSimulation {
-  tripId: string;
-  intervalId: any;
-  currentIndex: number;
-  totalCoordinates: number;
-}
 
 const DAYS = [
   { label: 'Sun', value: 0 },
@@ -40,14 +33,6 @@ export function TripsPage() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-
-  // Real-time trip simulation state
-  const [activeSims, setActiveSims] = useState<Record<string, ActiveSimulation>>({});
-  const activeSimsRef = useRef(activeSims);
-  
-  useEffect(() => {
-    activeSimsRef.current = activeSims;
-  }, [activeSims]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -105,10 +90,6 @@ export function TripsPage() {
 
   useEffect(() => {
     fetchData();
-    return () => {
-      // Cleanup all simulation intervals on unmount using the ref to avoid stale closure
-      Object.values(activeSimsRef.current).forEach(sim => clearInterval(sim.intervalId));
-    };
   }, []);
 
   const handleOpenModal = (trip?: any) => {
@@ -258,90 +239,7 @@ export function TripsPage() {
     }
   };
 
-  // --- Real-time Simulator Core Logic ---
-  const startSimulation = async (trip: any) => {
-    const vId = trip.vehicleId?._id || trip.vehicleId;
-    const dId = trip.driverId?._id || trip.driverId;
 
-    if (!vId || !dId) {
-      message.error('Cannot run GPS simulation: Please assign both a vehicle and a driver operator to this trip first!');
-      return;
-    }
-
-    if (activeSims[trip._id]) {
-      message.warning('Simulation is already actively running for this trip.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const fullTrip = await tripsAPI.getById(trip._id);
-      const coordinates = fullTrip.routeId?.path?.coordinates;
-      if (!coordinates || coordinates.length === 0) {
-        message.error('This route has no coordinate path defined! Plot coordinates first.');
-        return;
-      }
-
-      message.success(`Starting live location feed for Trip ${trip._id.slice(-6)}...`);
-
-      let currentIndex = 0;
-      const intervalId = setInterval(async () => {
-        if (currentIndex >= coordinates.length) {
-          clearInterval(intervalId);
-          setActiveSims(prev => {
-            const next = { ...prev };
-            delete next[trip._id];
-            return next;
-          });
-          message.success(`Trip ${trip._id.slice(-6)} has arrived at destination!`);
-          return;
-        }
-
-        const [lng, lat] = coordinates[currentIndex];
-        try {
-          await vehiclesAPI.updateLocation(vId, dId, lat, lng);
-          setActiveSims(prev => ({
-            ...prev,
-            [trip._id]: {
-              ...prev[trip._id],
-              currentIndex,
-            }
-          }));
-        } catch (e) {
-          console.error('Failed to update live coordinates', e);
-        }
-        currentIndex++;
-      }, 2000);
-
-      setActiveSims(prev => ({
-        ...prev,
-        [trip._id]: {
-          tripId: trip._id,
-          intervalId,
-          currentIndex: 0,
-          totalCoordinates: coordinates.length,
-        }
-      }));
-    } catch (error) {
-      message.error('Failed to retrieve route path coordinates for simulation');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const stopSimulation = (tripId: string) => {
-    const sim = activeSims[tripId];
-    if (sim) {
-      clearInterval(sim.intervalId);
-      setActiveSims(prev => {
-        const next = { ...prev };
-        delete next[tripId];
-        return next;
-      });
-      message.info('Simulation paused.');
-    }
-  };
 
   const columns = [
     {
@@ -430,38 +328,7 @@ export function TripsPage() {
         </div>
       ),
     },
-    {
-      title: 'Live Simulator',
-      key: 'simulator',
-      render: (_: any, record: any) => {
-        const sim = activeSims[record._id];
-        const isRunning = !!sim;
-        const progress = isRunning ? Math.round((sim.currentIndex / sim.totalCoordinates) * 100) : 0;
 
-        return (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            {isRunning ? (
-              <Space>
-                <Progress type="circle" percent={progress} size={30} />
-                <Button type="primary" danger size="small" onClick={() => stopSimulation(record._id)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  Stop <Square size={12} fill="currentColor" />
-                </Button>
-              </Space>
-            ) : (
-              <Button 
-                type="primary" 
-                size="small" 
-                onClick={() => startSimulation(record)}
-                style={{ background: 'var(--primary-color)', color: 'black', display: 'flex', alignItems: 'center', gap: '4px' }}
-                disabled={record.status === 'COMPLETED'}
-              >
-                Live GPS Run <Rocket size={12} />
-              </Button>
-            )}
-          </Space>
-        );
-      }
-    },
     {
       title: 'Actions',
       key: 'actions',
@@ -602,8 +469,8 @@ export function TripsPage() {
     <div style={{ padding: '2rem 0' }}>
       <div className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bus size={28} /> Trips Management & Simulation</h1>
-          <p>Schedule trips and trigger live GPS route simulations to passenger app trackers</p>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bus size={28} /> Trips Management</h1>
+          <p>Schedule and manage trips for all routes</p>
         </div>
         <Space wrap>
           <Input.Search
