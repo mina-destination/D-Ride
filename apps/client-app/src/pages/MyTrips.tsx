@@ -742,108 +742,113 @@ export default function MyTripsPage() {
                     </div>
                   </div>
 
-                  {/* ── MOBILE: Premium Wallet Boarding Pass ── */}
+                  {/* ── MOBILE: Premium Boarding Pass Ticket ── */}
                   <div 
                     className="mobile-trip-card premium-mobile-ticket" 
-                    style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
                     onClick={() => toggleExpand(booking._id)}
                   >
-                    {/* Header */}
-                    <div className="ticket-header">
-                      <div className="route-info">
-                        <Compass className="route-icon" size={16} />
-                        <span className="route-name">
-                          {booking.tripId?.routeId?.name || 'Standard Route'}
-                        </span>
+                    {/* ── Branded Ticket Header Strip ── */}
+                    <div className="ticket-brand-strip">
+                      <div className="ticket-brand-left">
+                        <Ticket size={14} className="ticket-brand-icon" />
+                        <span className="ticket-brand-name">D-Ride</span>
+                        <span className="ticket-brand-type">{isAr ? 'بطاقة صعود' : 'BOARDING PASS'}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className={`status-badge ${(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'cancelled' : booking.status.toLowerCase()}`}>
-                          {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
-                        </span>
-                        {expandedTickets[booking._id] ? (
-                          <ChevronUp size={16} color="var(--text-secondary)" />
-                        ) : (
-                          <ChevronDown size={16} color="var(--text-secondary)" />
-                        )}
-                      </div>
+                      <span className={`ticket-status-pill ${(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'cancelled' : booking.status.toLowerCase()}`}>
+                        {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
+                      </span>
                     </div>
 
-                    {/* Journey */}
+                    {/* ── Route & Journey Section ── */}
                     {(() => {
                       const startStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'START') || booking.tripId?.routeId?.checkpoints?.[0];
                       const endStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'END') || booking.tripId?.routeId?.checkpoints?.[booking.tripId?.routeId?.checkpoints?.length - 1];
                       return (
-                        <div className="ticket-journey">
-                          <div className="journey-point">
-                            <span className="label">{t('pickup') || 'Pickup'}</span>
-                            <span className="value" title={booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}>
-                              {booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}
-                            </span>
-                            <span className="time">{formattedTime}</span>
-                          </div>
-                          
-                          <div className="journey-arrow">
-                            <div className="line"></div>
-                            <Compass className="bus-icon" size={14} />
+                        <div className="ticket-route-section">
+                          <div className="ticket-city ticket-origin">
+                            <span className="ticket-city-code">{(booking.pickupCheckpoint?.name || startStop?.name || 'STA')?.substring(0, 3).toUpperCase()}</span>
+                            <span className="ticket-city-name">{booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}</span>
+                            <span className="ticket-city-time">{formattedTime}</span>
                           </div>
 
-                          <div className="journey-point dest">
-                            <span className="label">{isAr ? 'الوجهة' : 'Destination'}</span>
-                            <span className="value" title={endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}>
-                              {endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}
-                            </span>
-                            <span className="time">{formattedTime}</span>
+                          <div className="ticket-flight-line">
+                            <div className="ticket-dot start"></div>
+                            <div className="ticket-line-track"></div>
+                            <Compass className="ticket-vehicle-icon" size={16} />
+                            <div className="ticket-line-track"></div>
+                            <div className="ticket-dot end"></div>
+                          </div>
+
+                          <div className="ticket-city ticket-destination">
+                            <span className="ticket-city-code">{(endStop?.name || 'END')?.substring(0, 3).toUpperCase()}</span>
+                            <span className="ticket-city-name">{endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}</span>
+                            <span className="ticket-city-time">{formattedTime}</span>
                           </div>
                         </div>
                       );
                     })()}
 
+                    {/* ── Essential Info Strip (always visible) ── */}
+                    <div className="ticket-essentials">
+                      <div className="ticket-essential-item">
+                        <span className="te-label">{t('dateLabel')}</span>
+                        <span className="te-value">{formattedDate}</span>
+                      </div>
+                      <div className="ticket-essential-divider"></div>
+                      <div className="ticket-essential-item">
+                        <span className="te-label">{t('seatLabelShort')}</span>
+                        <span className="te-value te-highlight">#{booking.seatNumbers?.join(', ') || booking.seatNumber || 'N/A'}</span>
+                      </div>
+                      <div className="ticket-essential-divider"></div>
+                      <div className="ticket-essential-item">
+                        <span className="te-label">{t('fareLabelShort')}</span>
+                        <span className="te-value">{booking.amountEGP} EGP</span>
+                      </div>
+                    </div>
+
+                    {/* ── Expand Indicator ── */}
+                    <div className="ticket-expand-hint">
+                      {expandedTickets[booking._id] ? (
+                        <><ChevronUp size={14} /> <span>{isAr ? 'إخفاء التفاصيل' : 'Hide Details'}</span></>
+                      ) : (
+                        <><ChevronDown size={14} /> <span>{isAr ? 'عرض التفاصيل' : 'View Details'}</span></>
+                      )}
+                    </div>
+
+                    {/* ── Expandable Lower Stub ── */}
                     {expandedTickets[booking._id] && (
-                      <>
-                        {/* Details Grid */}
-                        <div className="ticket-details-grid">
-                          <div className="grid-item">
-                            <span className="label">{t('dateLabel')}</span>
-                            <span className="value">{formattedDate}</span>
-                          </div>
-                          <div className="grid-item">
-                            <span className="label">{t('seatLabelShort')}</span>
-                            <span className="value highlight">#{booking.seatNumbers?.join(', ') || booking.seatNumber || 'N/A'}</span>
-                          </div>
-                          <div className="grid-item">
-                            <span className="label">{t('fareLabelShort')}</span>
-                            <span className="value">{booking.amountEGP} EGP</span>
-                          </div>
-                          <div className="grid-item">
-                            <span className="label">{isAr ? 'تذكرة' : 'ID'}</span>
-                            <span className="value">#{booking._id?.slice(-6).toUpperCase()}</span>
-                          </div>
+                      <div className="ticket-stub-expanded">
+                        {/* Perforated Tear Line */}
+                        <div className="ticket-perforation">
+                          <div className="perf-notch perf-left"></div>
+                          <div className="perf-dashes"></div>
+                          <div className="perf-notch perf-right"></div>
                         </div>
 
-                        {/* Notched Tear Line */}
-                        <div className="ticket-tear-line">
-                          <div className="notch left"></div>
-                          <div className="dashed-border"></div>
-                          <div className="notch right"></div>
-                        </div>
-
-                        {/* Express Boarding Code Banner */}
+                        {/* Boarding Code */}
                         {booking.boardingNumber && (
-                          <div className="boarding-code-banner" onClick={e => e.stopPropagation()}>
-                            <span>{isAr ? 'رمز الصعود السريع' : 'Express Boarding Code'}:</span>
-                            <strong>#{booking.boardingNumber}</strong>
+                          <div className="ticket-boarding-code" onClick={e => e.stopPropagation()}>
+                            <div className="boarding-code-left">
+                              <span className="bc-label">{isAr ? 'رمز الصعود' : 'BOARDING CODE'}</span>
+                              <span className="bc-value">#{booking.boardingNumber}</span>
+                            </div>
+                            <QrCode size={24} className="bc-qr-hint" onClick={() => handleShowQrModal(booking)} />
                           </div>
                         )}
 
-                        {/* Crew Info */}
-                        <div className="ticket-crew-info" onClick={e => e.stopPropagation()}>
-                          <div className="crew-item">
-                            <User size={12} />
-                            <span><strong>{t('driverLabel')}:</strong> {booking.tripId?.driver?.name || booking.tripId?.driverId?.name || 'Captain'}</span>
+                        {/* Crew & Vehicle Info */}
+                        <div className="ticket-meta-row" onClick={e => e.stopPropagation()}>
+                          <div className="ticket-meta-item">
+                            <User size={11} />
+                            <span>{booking.tripId?.driver?.name || booking.tripId?.driverId?.name || 'Captain'}</span>
                           </div>
-                          <div className="crew-item">
-                            <Compass size={12} />
-                            <span><strong>{t('vehicleLabel')}:</strong> {booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
+                          <div className="ticket-meta-item">
+                            <Compass size={11} />
+                            <span>{booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
+                          </div>
+                          <div className="ticket-meta-item">
+                            <Ticket size={11} />
+                            <span>#{booking._id?.slice(-6).toUpperCase()}</span>
                           </div>
                         </div>
 
@@ -873,7 +878,7 @@ export default function MyTripsPage() {
                                   className="btn-ticket-icon"
                                   title="Navigate to Pick-up"
                                 >
-                                  <Compass size={16} />
+                                  <MapPin size={16} />
                                 </button>
                               )}
                               <button
@@ -956,7 +961,7 @@ export default function MyTripsPage() {
                             </Link>
                           )}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
