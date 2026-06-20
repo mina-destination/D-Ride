@@ -5,7 +5,7 @@ import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Pho
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
-import { Steps, ConfigProvider, theme as antdTheme } from 'antd';
+import { Steps } from '../components/ui/steps';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: centerCoords,
       zoom: 11,
       attributionControl: false,
@@ -697,27 +697,15 @@ export default function CheckoutPage() {
           margin: '0 auto 3.5rem auto',
           padding: '0 1.5rem'
         }}>
-          <ConfigProvider
-            direction={isRtl ? 'rtl' : 'ltr'}
-            theme={{
-              algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-              token: {
-                colorPrimary: '#f5b731',
-              }
-            }}
-          >
-            <Steps
-              current={processing ? 2 : (selectedSeats.length > 0 ? 1 : 0)}
-              titlePlacement="vertical"
-              responsive={false}
-              className="premium-steps"
-              items={[
-                { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
-                { title: <span className="stepper-label">{t('selectPaymentStepper')}</span> },
-                { title: <span className="stepper-label">{t('confirmSeatStepper')}</span> }
-              ]}
-            />
-          </ConfigProvider>
+          <Steps
+            current={processing ? 2 : (selectedSeats.length > 0 ? 1 : 0)}
+            isRtl={isRtl}
+            items={[
+              { title: <span className="stepper-label">{t('configureCommuteStepper')}</span> },
+              { title: <span className="stepper-label">{t('selectPaymentStepper')}</span> },
+              { title: <span className="stepper-label">{t('confirmSeatStepper')}</span> }
+            ]}
+          />
         </div>
 
         {loading ? (

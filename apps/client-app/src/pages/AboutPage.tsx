@@ -2,6 +2,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { Bus, ShieldCheck, Zap } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import SEO from '../components/SEO';
+import { Card, CardContent } from '../components/ui/card';
 
 export default function AboutPage() {
   const { language } = useTranslation();
@@ -13,31 +14,24 @@ export default function AboutPage() {
     : 'Learn about D-Ride, Egypt\'s smart transportation service connecting Alexandria, Cairo, Sharm, Dahab, Nuweiba, and Taba with premium passenger convenience.';
 
   return (
-    <div className="page-container" style={{ flexDirection: 'column', justifyContent: 'flex-start', overflowX: 'clip' as any }}>
+    <div className="page-container flex-col justify-start" style={{ overflowX: 'clip' as any }}>
       <SEO title={seoTitle} description={seoDescription} />
       {/* Floating neon background glows */}
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />
 
-      <div style={{
-        maxWidth: '1000px',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center'
-      }}>
+      <div className="max-w-[1000px] w-full flex flex-col items-center text-center">
         {/* Header Section */}
-        <div style={{ marginBottom: '3.5rem' }} className="animate-fade-in-up">
-          <span className="hero-badge" style={{ margin: '0 auto 1rem' }}>
+        <div className="mb-14 animate-fade-in-up">
+          <span className="hero-badge mx-auto mb-4">
             <span className="hero-badge-dot" />
             {isAr ? 'من نحن' : 'Our Story'}
           </span>
-          <h1 className="hero-title" style={{ fontSize: '3rem', marginBottom: '1.25rem', lineHeight: '1.2' }}>
+          <h1 className="hero-title text-5xl mb-5 leading-tight">
             {isAr ? 'حول ' : 'About '}<span className="hero-title-accent">D-Ride</span>
           </h1>
-          <p className="hero-subtitle" style={{ fontSize: '1.1rem', maxWidth: '700px', margin: '0 auto', opacity: 0.85 }}>
-            {isAr 
+          <p className="hero-subtitle text-lg max-w-[700px] mx-auto opacity-85">
+            {isAr
               ? 'دي-رايد هي المنصة الرائدة للنقل الجماعي الذكي في مصر، نسعى لإعادة تعريف رحلتك اليومية بمستويات غير مسبوقة من الراحة والتكنولوجيا.'
               : 'D-Ride is Egypt\'s leading smart mass-transit platform, redefining daily commutes with modern tech, real-time telemetry, and premium comfort.'
             }
@@ -45,163 +39,99 @@ export default function AboutPage() {
         </div>
 
         {/* Mission Section (Glass Card) */}
-        <div className="glass" style={{
-          padding: '2.5rem',
-          borderRadius: 'var(--radius-2xl)',
-          width: '100%',
-          marginBottom: '3rem',
-          textAlign: isAr ? 'right' : 'left',
-          position: 'relative'
-        }}>
-          <div style={{ display: 'flex', gap: '1.5rem', flexDirection: isAr ? 'row-reverse' : 'row', flexWrap: 'wrap' }}>
-            <div style={{
-              flex: 1,
-              minWidth: '280px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <h2 style={{ color: 'var(--text-primary)', fontSize: '1.8rem', fontWeight: 800, marginBottom: '1rem' }}>
-                {isAr ? 'رسالتنا ورؤيتنا' : 'Our Mission & Vision'}
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', fontSize: '0.95rem', marginBottom: '1rem' }}>
-                {isAr
-                  ? 'نسعى جاهدين لحل أزمة النقل اليومية في القاهرة الكبرى من خلال تقديم شبكة حافلات ذكية ومريحة وموثوقة بنسبة 100%. نجمع بين تكنولوجيا التتبع المباشر وحلول الدفع الرقمية الآمنة لنوفر لعملائنا تجربة نقل متكاملة وبأسعار معقولة.'
-                  : 'We aim to ease the daily transport bottleneck in Greater Cairo by delivering a highly reliable, 100% scheduled minibus network. By integrating live telemetry, digital ticket passes, and secure payment solutions, we empower commuters with a stress-free and cost-efficient transit alternative.'
-                }
-              </p>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', fontSize: '0.95rem', margin: 0 }}>
-                {isAr
-                  ? 'رؤيتنا هي أن نصبح الخيار الأول والذكي للنقل الجماعي في المدن الكبرى بالشرق الأوسط وأفريقيا، مع الحفاظ على البيئة وتقليل التكدس المروري.'
-                  : 'Our vision is to become the premier smart transit provider across major metropolitan areas in the Middle East and Africa, advocating for environment-friendly commutes and reduced traffic congestion.'
-                }
-              </p>
+        <Card className="w-full mb-12 bg-white/[0.03] backdrop-blur-xl border-white/10 rounded-2xl">
+          <CardContent className={`p-10 ${isAr ? 'text-right' : 'text-left'}`}>
+            <div className={`flex gap-6 ${isAr ? 'flex-row-reverse' : 'flex-row'} flex-wrap`}>
+              <div className="flex-1 min-w-[280px] flex flex-col justify-center">
+                <h2 className="text-[var(--text-primary)] text-3xl font-extrabold mb-4">
+                  {isAr ? 'رسالتنا ورؤيتنا' : 'Our Mission & Vision'}
+                </h2>
+                <p className="text-[var(--text-secondary)] leading-relaxed text-[0.95rem] mb-4">
+                  {isAr
+                    ? 'نسعى جاهدين لحل أزمة النقل اليومية في القاهرة الكبرى من خلال تقديم شبكة حافلات ذكية ومريحة وموثوقة بنسبة 100%. نجمع بين تكنولوجيا التتبع المباشر وحلول الدفع الرقمية الآمنة لنوفر لعملائنا تجربة نقل متكاملة وبأسعار معقولة.'
+                    : 'We aim to ease the daily transport bottleneck in Greater Cairo by delivering a highly reliable, 100% scheduled minibus network. By integrating live telemetry, digital ticket passes, and secure payment solutions, we empower commuters with a stress-free and cost-efficient transit alternative.'
+                  }
+                </p>
+                <p className="text-[var(--text-secondary)] leading-relaxed text-[0.95rem] m-0">
+                  {isAr
+                    ? 'رؤيتنا هي أن نصبح الخيار الأول والذكي للنقل الجماعي في المدن الكبرى بالشرق الأوسط وأفريقيا، مع الحفاظ على البيئة وتقليل التكدس المروري.'
+                    : 'Our vision is to become the premier smart transit provider across major metropolitan areas in the Middle East and Africa, advocating for environment-friendly commutes and reduced traffic congestion.'
+                  }
+                </p>
+              </div>
+              <div className="w-full max-w-[300px] mx-auto flex items-center justify-center rounded-xl overflow-hidden bg-[var(--primary)]/5 border border-[var(--border)] p-8">
+                <img src={logo} alt="D-Ride Logo" className="max-w-full h-auto rounded-lg" />
+              </div>
             </div>
-            <div style={{
-              width: '100%',
-              maxWidth: '300px',
-              margin: '0 auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 'var(--radius-xl)',
-              overflow: 'hidden',
-              background: 'rgba(245, 183, 49, 0.05)',
-              border: '1px solid var(--border)',
-              padding: '2rem'
-            }}>
-              <img src={logo} alt="D-Ride Logo" style={{ maxWidth: '100%', height: 'auto', borderRadius: 'var(--radius-md)' }} />
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Core Values Grid */}
-        <h2 className="section-title" style={{ fontSize: '2rem', marginBottom: '2.5rem' }}>
+        <h2 className="section-title text-3xl mb-10">
           {isAr ? 'القيم الأساسية التي نؤمن بها' : 'Our Core Values'}
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '2rem',
-          width: '100%',
-          marginBottom: '4rem'
-        }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full mb-16">
           {/* Comfort */}
-          <div className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', textAlign: isAr ? 'right' : 'left' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(245, 183, 49, 0.1)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1.25rem',
-              marginLeft: isAr ? 'auto' : '0',
-              marginRight: isAr ? '0' : 'auto'
-            }}>
-              <Bus size={24} />
-            </div>
-            <h3 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {isAr ? 'أقصى درجات الراحة' : 'Premium Comfort'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
-              {isAr
-                ? 'حافلاتنا حديثة ومكيفة، ومقاعدنا مصممة بعناية لتضمن لك رحلة مريحة وهادئة تتيح لك الاسترخاء أو إنجاز عملك أثناء الطريق.'
-                : 'All our minibuses are fully air-conditioned and cleaned daily, equipped with ergonomic seating, USB ports, and free WiFi.'
-              }
-            </p>
-          </div>
+          <Card className={`bg-white/[0.03] backdrop-blur-xl border-white/10 rounded-xl ${isAr ? 'text-right' : 'text-left'}`}>
+            <CardContent className="p-8">
+              <div className={`w-12 h-12 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-5 ${isAr ? 'ml-auto' : 'mr-auto'}`}>
+                <Bus size={24} />
+              </div>
+              <h3 className="text-[var(--text-primary)] text-xl font-bold mb-2">
+                {isAr ? 'أقصى درجات الراحة' : 'Premium Comfort'}
+              </h3>
+              <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+                {isAr
+                  ? 'حافلاتنا حديثة ومكيفة، ومقاعدنا مصممة بعناية لتضمن لك رحلة مريحة وهادئة تتيح لك الاسترخاء أو إنجاز عملك أثناء الطريق.'
+                  : 'All our minibuses are fully air-conditioned and cleaned daily, equipped with ergonomic seating, USB ports, and free WiFi.'
+                }
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Technology */}
-          <div className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', textAlign: isAr ? 'right' : 'left' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(59, 130, 246, 0.1)',
-              color: 'var(--info)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1.25rem',
-              marginLeft: isAr ? 'auto' : '0',
-              marginRight: isAr ? '0' : 'auto'
-            }}>
-              <Zap size={24} />
-            </div>
-            <h3 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {isAr ? 'التكنولوجيا والسرعة' : 'Smart Technology'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
-              {isAr
-                ? 'تتبع حافلتك مباشرة على الخريطة بفضل تقنيات تحديد المواقع المتقدمة، واحجز مقعدك واحصل على تذكرتك الرقمية بضغطة زر.'
-                : 'Track your shuttle in real-time, view live ETAs for every checkpoint, and book or cancel trips seamlessly within seconds.'
-              }
-            </p>
-          </div>
+          <Card className={`bg-white/[0.03] backdrop-blur-xl border-white/10 rounded-xl ${isAr ? 'text-right' : 'text-left'}`}>
+            <CardContent className="p-8">
+              <div className={`w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-5 ${isAr ? 'ml-auto' : 'mr-auto'}`}>
+                <Zap size={24} />
+              </div>
+              <h3 className="text-[var(--text-primary)] text-xl font-bold mb-2">
+                {isAr ? 'التكنولوجيا والسرعة' : 'Smart Technology'}
+              </h3>
+              <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+                {isAr
+                  ? 'تتبع حافلتك مباشرة على الخريطة بفضل تقنيات تحديد المواقع المتقدمة، واحجز مقعدك واحصل على تذكرتك الرقمية بضغطة زر.'
+                  : 'Track your shuttle in real-time, view live ETAs for every checkpoint, and book or cancel trips seamlessly within seconds.'
+                }
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Safety */}
-          <div className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', textAlign: isAr ? 'right' : 'left' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(16, 185, 129, 0.1)',
-              color: 'var(--success)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1.25rem',
-              marginLeft: isAr ? 'auto' : '0',
-              marginRight: isAr ? '0' : 'auto'
-            }}>
-              <ShieldCheck size={24} />
-            </div>
-            <h3 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {isAr ? 'الأمان التام والاعتمادية' : 'Absolute Safety'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
-              {isAr
-                ? 'سائقونا مدربون ومؤهلون بمستويات عالية، ونضمن الأمان الكامل بفضل المراقبة وتأكيد الحجز برمز الاستجابة السريعة عند الصعود.'
-                : 'Drivers undergo thorough background checks and training, and trips are secured via unique QR ticket check-ins.'
-              }
-            </p>
-          </div>
+          <Card className={`bg-white/[0.03] backdrop-blur-xl border-white/10 rounded-xl ${isAr ? 'text-right' : 'text-left'}`}>
+            <CardContent className="p-8">
+              <div className={`w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-5 ${isAr ? 'ml-auto' : 'mr-auto'}`}>
+                <ShieldCheck size={24} />
+              </div>
+              <h3 className="text-[var(--text-primary)] text-xl font-bold mb-2">
+                {isAr ? 'الأمان التام والاعتمادية' : 'Absolute Safety'}
+              </h3>
+              <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+                {isAr
+                  ? 'سائقونا مدربون ومؤهلون بمستويات عالية، ونضمن الأمان الكامل بفضل المراقبة وتأكيد الحجز برمز الاستجابة السريعة عند الصعود.'
+                  : 'Drivers undergo thorough background checks and training, and trips are secured via unique QR ticket check-ins.'
+                }
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Operating Partners Callout */}
-        <div style={{
-          borderTop: '1px solid var(--border)',
-          width: '100%',
-          paddingTop: '3rem',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ color: 'var(--text-primary)', fontSize: '1.4rem', fontWeight: 800, marginBottom: '1rem' }}>
+        <div className="border-t border-[var(--border)] w-full pt-12 text-center">
+          <h3 className="text-[var(--text-primary)] text-xl font-extrabold mb-4">
             {isAr ? 'شراكات موثوقة لحمايتك' : 'Backed by Trusted Partnerships'}
           </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto 1.5rem' }}>
+          <p className="text-[var(--text-secondary)] text-sm max-w-[600px] mx-auto mb-6">
             {isAr
               ? 'نعمل يداً بيد مع كبرى الجامعات المصرية لتوفير حلول النقل الآمنة للطلاب، وبوابات الدفع الوطنية مثل Paymob لضمان حماية بياناتك المصرفية.'
               : 'D-Ride works with prominent universities for student commutes and processes all ticket bookings via secure Paymob payment tunnels.'

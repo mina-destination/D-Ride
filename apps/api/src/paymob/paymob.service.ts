@@ -97,6 +97,8 @@ export class PaymobService implements OnModuleInit {
       // Retrieve userId and tripId from booking if available
       let userId = '';
       let bookingTripId = '';
+      let isWalletDeposit = false;
+
       if (bookingId) {
         const booking = await tx.booking.findUnique({
           where: { id: bookingId },
@@ -104,22 +106,56 @@ export class PaymobService implements OnModuleInit {
         if (booking) {
           userId = booking.userId;
           bookingTripId = booking.tripId;
+        } else {
+          // Check if this reference is a WALLET_DEPOSIT transaction
+          const walletTx = await tx.transaction.findUnique({
+            where: { id: bookingId },
+          });
+          if (walletTx) {
+            userId = walletTx.userId;
+            isWalletDeposit = true;
+          }
         }
       }
 
-      // Record the transaction inside the transaction boundary
-      await tx.transaction.create({
-        data: {
-          paymobOrderId: orderId,
-          amountEGP: amountCents / 100,
-          status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-          paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
-          paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
-          userId: userId,
-          bookingId: bookingId || null,
-          rawResponse: payload as any,
-        },
-      });
+      if (isWalletDeposit) {
+        // Update the existing deposit transaction
+        await tx.transaction.update({
+          where: { id: bookingId },
+          data: {
+            paymobOrderId: orderId,
+            status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
+            paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
+            rawResponse: payload as any,
+          },
+        });
+
+        // Increment the user's wallet balance on success
+        if (success) {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              walletBalance: {
+                increment: amountCents / 100,
+              },
+            },
+          });
+        }
+      } else {
+        // Record direct booking payment transaction inside the transaction boundary
+        await tx.transaction.create({
+          data: {
+            paymobOrderId: orderId,
+            amountEGP: amountCents / 100,
+            status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
+            paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+            paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
+            userId: userId,
+            bookingId: bookingId || null,
+            rawResponse: payload as any,
+          },
+        });
+      }
 
       this.logger.log(
         `Transaction recorded inside transaction: order=${orderId}, status=${success ? 'SUCCESS' : 'FAILED'}`,
@@ -209,11 +245,23 @@ export class PaymobService implements OnModuleInit {
       `Initializing checkout for booking: ${data.bookingId} using method: ${paymentMethod}`,
     );
 
-    // Get userId from booking
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: data.bookingId },
-    });
-    const userId = booking ? booking.userId : '';
+    // Get userId from booking or transaction (for wallet deposits)
+    let userId = '';
+    if (data.bookingId) {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: data.bookingId },
+      });
+      if (booking) {
+        userId = booking.userId;
+      } else {
+        const txRecord = await this.prisma.transaction.findUnique({
+          where: { id: data.bookingId },
+        });
+        if (txRecord) {
+          userId = txRecord.userId;
+        }
+      }
+    }
 
     const isProduction =
       this.configService.get<string>('nodeEnv') === 'production' ||
@@ -277,7 +325,11 @@ export class PaymobService implements OnModuleInit {
         'clientUrl',
         'http://localhost:5173',
       );
-      const redirectionUrl = `${clientUrl}/payment/callback?bookingId=${data.bookingId}`;
+      const bookingExists = await this.prisma.booking.findUnique({
+        where: { id: data.bookingId },
+        select: { id: true },
+      });
+      const redirectionUrl = `${clientUrl}/payment/callback?bookingId=${data.bookingId}${!bookingExists ? '&type=wallet' : ''}`;
 
       const intentionRes = await axios.post(
         `${this.apiBaseUrl}/v1/intention/`,
@@ -450,7 +502,34 @@ export class PaymobService implements OnModuleInit {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
     });
-    if (!booking || booking.status === 'CONFIRMED') {
+    if (!booking) {
+      // Check if it is a wallet deposit transaction
+      const walletTx = await this.prisma.transaction.findUnique({
+        where: { id: bookingId },
+      });
+      if (walletTx && walletTx.status !== PaymentStatus.SUCCESS) {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.transaction.update({
+            where: { id: bookingId },
+            data: {
+              status: PaymentStatus.SUCCESS,
+              paymobPaymentId: transactionId ? transactionId.toString() : null,
+            },
+          });
+          await tx.user.update({
+            where: { id: walletTx.userId },
+            data: {
+              walletBalance: {
+                increment: walletTx.amountEGP,
+              },
+            },
+          });
+        });
+        this.logger.log(`Confirmed wallet deposit ${bookingId} via client redirect.`);
+      }
+      return;
+    }
+    if (booking.status === 'CONFIRMED') {
       return;
     }
 

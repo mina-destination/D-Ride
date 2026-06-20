@@ -1,13 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Table, Card, Tag, Button, Spin, Empty, Alert, Typography, Tooltip } from 'antd';
-import { Search, Radio, Navigation, Battery, RefreshCw, LocateFixed } from 'lucide-react';
+import { Search, Navigation, Battery, RefreshCw, LocateFixed } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { io } from 'socket.io-client';
 import { vehiclesAPI } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
-const { Title, Text } = Typography;
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const REFRESH_INTERVAL = 10000;
 
@@ -60,48 +63,25 @@ function getBatteryInfo(level?: number): { label: string; color: string } {
   return { label: `${level}%`, color: '#ef4444' };
 }
 
-function getStatusTag(status: string) {
+function getStatusBadge(status: string) {
   const s = status?.toUpperCase() || '';
-  if (s === 'ACTIVE' || s === 'ONLINE') return <Tag color="success">Active</Tag>;
-  if (s === 'IDLE') return <Tag color="warning">Idle</Tag>;
-  if (s === 'OFFLINE' || !s) return <Tag>Offline</Tag>;
-  if (s === 'OUT_OF_SERVICE') return <Tag color="error">Out of Service</Tag>;
-  return <Tag>{status}</Tag>;
+  if (s === 'ACTIVE' || s === 'ONLINE') return <Badge variant="success">Active</Badge>;
+  if (s === 'IDLE') return <Badge variant="warning">Idle</Badge>;
+  if (s === 'OFFLINE' || !s) return <Badge variant="secondary">Offline</Badge>;
+  if (s === 'OUT_OF_SERVICE') return <Badge variant="destructive">Out of Service</Badge>;
+  return <Badge variant="outline">{status}</Badge>;
 }
 
 function renderLicensePlate(plate: string) {
-  if (!plate || plate === 'N/A') return <span style={{ color: 'var(--text-muted)' }}>No Plate</span>;
+  if (!plate || plate === 'N/A') return <span className="text-text-muted text-xs">No Plate</span>;
   const isArabic = /[\u0600-\u06FF]/.test(plate);
   return (
-    <div style={{
-      display: 'inline-flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      border: '1px solid rgba(255, 255, 255, 0.15)',
-      borderRadius: '4px',
-      background: 'rgba(255, 255, 255, 0.05)',
-      overflow: 'hidden',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-      minWidth: '80px',
-      height: '26px',
-      verticalAlign: 'middle',
-    }}>
-      <div style={{
-        width: '100%',
-        height: '6px',
-        background: '#1d4ed8', // Egypt-style blue header
-      }} />
-      <div style={{
-        padding: '0 6px',
-        color: '#ffffff',
-        fontSize: '11px',
-        fontWeight: 700,
-        lineHeight: '18px',
-        textAlign: 'center',
-        direction: isArabic ? 'rtl' : 'ltr',
-        whiteSpace: 'nowrap',
-        letterSpacing: isArabic ? '1px' : '0.5px'
-      }}>
+    <div className="inline-flex flex-col items-center border border-border/25 rounded bg-black/10 dark:bg-white/5 overflow-hidden shadow-sm min-w-[72px] h-[24px] align-middle">
+      <div className="w-full h-1 bg-blue-600" />
+      <div
+        className="px-1.5 text-[10px] font-extrabold leading-[18px] text-text-primary text-center whitespace-nowrap"
+        style={{ direction: isArabic ? 'rtl' : 'ltr', letterSpacing: isArabic ? '1px' : '0.5px' }}
+      >
         {plate}
       </div>
     </div>
@@ -123,7 +103,6 @@ export function LiveTrackingPage() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
   const socketRef = useRef<any>(null);
-  const mapInitialized = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -165,7 +144,6 @@ export function LiveTrackingPage() {
       });
       setVehicles(mapped);
     } catch (err: any) {
-      // Only show error if there's no cached data to display
       setVehicles(prev => {
         if (prev.length === 0) {
           setError(err?.message || 'Failed to load vehicle locations');
@@ -248,7 +226,7 @@ export function LiveTrackingPage() {
     return () => { socket.disconnect(); socketRef.current = null; };
   }, []);
 
-  // Subscribe to vehicles when the list changes (without reconnecting the socket)
+  // Subscribe to vehicles when the list changes
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
@@ -256,19 +234,18 @@ export function LiveTrackingPage() {
   }, [vehicles.length]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapInitialized.current) return;
-    mapInitialized.current = true;
+    if (!mapContainerRef.current) return;
 
-    const mapObj = new maplibregl.Map({
+    let mapObj: maplibregl.Map | null = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: [31.2357, 30.0444],
       zoom: 11,
       attributionControl: false,
     });
 
     mapObj.on('styleimagemissing', (e) => {
-      if (!mapObj.hasImage(e.id)) {
+      if (mapObj && !mapObj.hasImage(e.id)) {
         mapObj.addImage(e.id, { width: 16, height: 16, data: new Uint8Array(16 * 16 * 4) });
       }
     });
@@ -276,12 +253,17 @@ export function LiveTrackingPage() {
     mapObj.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
     mapObj.on('load', () => {
-      mapRef.current = mapObj;
+      if (mapObj) {
+        mapRef.current = mapObj;
+      }
     });
 
     return () => {
-      mapInitialized.current = false;
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      if (mapObj) {
+        mapObj.remove();
+        mapObj = null;
+      }
+      mapRef.current = null;
     };
   }, [theme]);
 
@@ -304,21 +286,25 @@ export function LiveTrackingPage() {
         return;
       }
       const isSelected = selectedVehicleId === v.id;
+      const rotation = heading !== undefined ? heading : 0;
+      const markerColor = isSelected ? '#10b981' : '#F5B731';
 
       let marker = markersRef.current[v.id];
       if (!marker) {
         const el = document.createElement('div');
         el.className = 'live-vehicle-marker';
         el.style.cssText = `
-          width: 36px; height: 36px; border-radius: 50%;
-          background: ${isSelected ? '#10b981' : 'var(--primary-color, #F5B731)'};
-          border: 3px solid #1e293b;
-          display: flex; align-items: center; justify-content: center;
-          color: ${isSelected ? 'white' : 'black'};
-          box-shadow: ${isSelected ? '0 0 15px rgba(16,185,129,0.8)' : '0 0 10px rgba(245,183,49,0.5)'};
-          cursor: pointer; font-size: 16px;
+          width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer;
         `;
-        el.innerHTML = '🚌';
+        el.innerHTML = `
+          <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
+            <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.15" />
+            <circle cx="24" cy="24" r="14" fill="${markerColor}" stroke="#1e293b" stroke-width="2.5" />
+            <g id="vehicle-chevron" transform="translate(24, 24) rotate(${rotation}) translate(-24, -24)">
+              <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+            </g>
+          </svg>
+        `;
 
         marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
         el.addEventListener('click', () => {
@@ -329,14 +315,20 @@ export function LiveTrackingPage() {
       } else {
         marker.setLngLat([lng, lat]);
         const el = marker.getElement();
-        el.style.background = isSelected ? '#10b981' : 'var(--primary-color, #F5B731)';
-        el.style.color = isSelected ? 'white' : 'black';
-        el.style.boxShadow = isSelected ? '0 0 15px rgba(16,185,129,0.8)' : '0 0 10px rgba(245,183,49,0.5)';
+        el.innerHTML = `
+          <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
+            <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.15" />
+            <circle cx="24" cy="24" r="14" fill="${markerColor}" stroke="#1e293b" stroke-width="2.5" />
+            <g id="vehicle-chevron" transform="translate(24, 24) rotate(${rotation}) translate(-24, -24)">
+              <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+            </g>
+          </svg>
+        `;
       }
 
       const popupHtml = `
         <div style="min-width:200px;padding:4px;font-family:Inter,sans-serif;">
-          <h4 style="margin:0 0 6px 0;color:#F5B731;font-size:0.95rem;font-weight:bold;">🚌 ${v.make} ${v.model}</h4>
+          <h4 style="margin:0 0 6px 0;color:#F5B731;font-size:0.95rem;font-weight:bold;">⚡ ${v.make} ${v.model}</h4>
           <span style="display:block;font-size:11px;margin-bottom:6px;">Plate: <strong>${v.licensePlate}</strong></span>
           <hr style="margin:6px 0;border:none;border-bottom:1px solid #2e374a;" />
           <div style="display:flex;flex-direction:column;gap:4px;font-size:0.8rem;">
@@ -390,131 +382,48 @@ export function LiveTrackingPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const columns = [
-    {
-      title: 'Vehicle Details',
-      key: 'details',
-      render: (_: any, v: LiveVehicle) => {
-        const isSelected = selectedVehicleId === v.id;
-        return (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '12px', padding: '6px 0' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
-              <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: v.location ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                color: v.location ? '#10b981' : 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                fontSize: '18px',
-                boxShadow: v.location ? '0 0 10px rgba(16, 185, 129, 0.2)' : 'none'
-              }}>
-                🚌
-              </div>
-              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <Text strong style={{ color: 'var(--text-primary)', fontSize: 14, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {v.make} {v.model}
-                </Text>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {renderLicensePlate(v.licensePlate)}
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    👤 {v.driver?.name || 'Unassigned'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                {getStatusTag(v.status)}
-                {v.location ? (
-                  <span style={{ fontSize: 11, fontWeight: 500, color: '#10b981' }}>
-                    {v.location.speed > 0 ? `${v.location.speed.toFixed(0)} km/h` : 'Stopped'}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Offline</span>
-                )}
-              </div>
-              <Tooltip title="Locate on map">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<LocateFixed size={16} />}
-                  onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
-                  disabled={!v.location}
-                  style={{ 
-                    color: isSelected ? '#10b981' : 'var(--primary-color)',
-                    background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                />
-              </Tooltip>
-            </div>
-          </div>
-        );
-      },
-    },
-  ];
-
-  const selectedRowKey = selectedVehicleId;
-
   return (
-    <div className="live-tracking-container">
-
+    <div className="live-tracking-container flex flex-col lg:flex-row h-[calc(100vh-120px)] m-[-1rem_-2rem] overflow-hidden">
       {/* ── Sidebar Panel ── */}
-      <div className="live-tracking-sidebar">
-        <div style={{ padding: '1.5rem 1.5rem 0.75rem', borderBottom: '1px solid var(--border, #1f2430)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
-              <Radio color="#10b981" size={24} style={{ animation: 'pulse 1.5s infinite' }} />
+      <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
+        <div className="p-6 pb-3 border-b border-border">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary">
+              <span className="w-3.5 h-3.5 rounded-full bg-success animate-pulse inline-block" />
               Live Vehicle Tracking
-            </Title>
-            <Tooltip title="Auto-refreshes every 10s">
-              <span style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <RefreshCw size={12} /> live
-              </span>
-            </Tooltip>
+            </h2>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[11px] text-text-muted flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin duration-1000" /> live
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>Auto-refreshes every 10s</span>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          <Text style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          <p className="text-xs text-text-secondary mt-1">
             {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} · {vehicles.filter(v => v.location).length} online
-          </Text>
+          </p>
         </div>
 
-        <div style={{ padding: '0.75rem 1.5rem', display: 'flex', gap: 8, borderBottom: '1px solid var(--border, #1f2430)' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div className="p-3 px-6 flex gap-2 border-b border-border bg-surface-elevated/40">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               placeholder="Search vehicles, drivers..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', padding: '6px 10px 6px 30px', borderRadius: 6,
-                background: 'var(--surface-elevated, #171a23)',
-                border: '1px solid var(--border, #2e374a)',
-                color: 'var(--text-primary)', fontSize: 13,
-                outline: 'none',
-              }}
+              className="w-full py-1.5 pl-9 pr-3 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors"
             />
           </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as any)}
-            style={{
-              padding: '6px 8px', borderRadius: 6,
-              background: 'var(--surface-elevated, #171a23)',
-              border: '1px solid var(--border, #2e374a)',
-              color: 'var(--text-primary)', fontSize: 13,
-              outline: 'none',
-            }}
+            className="px-2 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors cursor-pointer"
           >
             <option value="ALL">All</option>
             <option value="ACTIVE">Active</option>
@@ -523,236 +432,214 @@ export function LiveTrackingPage() {
           </select>
         </div>
 
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div className="flex-1 overflow-hidden flex flex-col">
           {loading && vehicles.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Spin size="large" />
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : error && vehicles.length === 0 ? (
-            <div style={{ padding: '1.5rem' }}>
-              <Alert message="Error" description={error} type="error" showIcon />
+            <div className="p-6">
+              <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">
+                <span>⚠️ {error}</span>
+              </div>
             </div>
           ) : filteredVehicles.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Empty
-                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                 description={searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
-              />
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <span className="text-lg text-text-muted mb-1">🔍</span>
+              <span className="text-sm font-semibold text-text-secondary">
+                {searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
+              </span>
             </div>
           ) : (
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <Table
-                dataSource={filteredVehicles}
-                columns={columns}
-                rowKey="id"
-                pagination={false}
-                size="small"
-                showHeader={false}
-                rowClassName={(record) => `live-tracking-row ${selectedRowKey === record.id ? 'selected' : ''}`}
-                onRow={(record) => ({
-                  onClick: () => handleLocate(record),
-                  style: {
-                    cursor: 'pointer',
-                    background: selectedRowKey === record.id ? 'var(--surface-hover, #1b2230)' : 'transparent',
-                    transition: 'background 0.2s',
-                  },
-                })}
-                style={{ minHeight: 200 }}
-              />
+            <div className="flex-1 overflow-y-auto divide-y divide-border">
+              {filteredVehicles.map(v => {
+                const isSelected = selectedVehicleId === v.id;
+                return (
+                  <div
+                    key={v.id}
+                    onClick={() => handleLocate(v)}
+                    className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${
+                      isSelected ? "bg-surface-hover" : "hover:bg-surface-hover/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg shadow-sm ${
+                          v.location
+                            ? "bg-success/10 text-success"
+                            : "bg-surface-elevated text-text-muted"
+                        }`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-text-primary text-sm block truncate">
+                          {v.make} {v.model}
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                          {renderLicensePlate(v.licensePlate)}
+                          <span className="text-xs text-text-secondary truncate">
+                            👤 {v.driver?.name || 'Unassigned'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-1">
+                        {getStatusBadge(v.status)}
+                        {v.location ? (
+                          <span className="text-xs font-semibold text-success">
+                            {v.location.speed > 0 ? `${v.location.speed.toFixed(0)} km/h` : 'Stopped'}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-text-muted">Offline</span>
+                        )}
+                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={!v.location}
+                              onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
+                              className={`w-8 h-8 rounded-full ${isSelected ? "text-success bg-success/10" : "text-primary"}`}
+                            >
+                              <LocateFixed className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <span>Locate on map</span>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
       {/* ── Map Panel ── */}
-      <div className="live-tracking-map-panel">
-        <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+      <div className="live-tracking-map-panel flex-1 relative bg-[#0d0f14]">
+        <div ref={mapContainerRef} className="w-full h-full" />
 
         {selectedVehicle && (
-          <Card
-            styles={{ body: { padding: '16px 20px' } }}
-            className="live-tracking-details-card"
-            style={{
-              background: 'rgba(15, 23, 42, 0.9)', // Deep slate with high opacity
-              border: '1px solid rgba(245, 183, 49, 0.25)', // Primary colored border glow
-              color: 'var(--text-primary)',
-              zIndex: 20,
-              backdropFilter: 'blur(12px)',
-              borderRadius: 16,
-              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 183, 49, 0.1)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: 'rgba(245, 183, 49, 0.15)',
-                  color: 'var(--primary-color, #F5B731)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '15px'
-                }}>
-                  🚌
+          <Card className="live-tracking-details-card absolute bottom-5 right-5 w-[380px] max-w-[calc(100%-40px)] z-20 bg-slate-900/90 dark:bg-slate-950/90 border border-primary/20 text-white backdrop-blur-md rounded-2xl shadow-2xl">
+            <CardContent className="p-4 sm:p-5 flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm text-white block leading-tight">
+                      {selectedVehicle.make} {selectedVehicle.model}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Capacity: {selectedVehicle.capacity} seats
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <Text strong style={{ fontSize: 15, color: '#ffffff', display: 'block', lineHeight: '1.2' }}>
-                    {selectedVehicle.make} {selectedVehicle.model}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Capacity: {selectedVehicle.capacity} seats
-                  </Text>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedVehicleId(null)}
+                  className="w-6 h-6 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-none"
+                >
+                  ✕
+                </Button>
               </div>
-              <Button 
-                type="text" 
-                size="small" 
-                onClick={() => setSelectedVehicleId(null)} 
-                style={{ 
-                  color: 'var(--text-secondary)', 
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-              >
-                ✕
-              </Button>
-            </div>
 
-            {selectedVehicle.location ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px 14px', background: 'rgba(255, 255, 255, 0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Plate Number</Text>
-                    <div style={{ marginTop: '2px' }}>{renderLicensePlate(selectedVehicle.licensePlate)}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Driver Partner</Text>
-                    <Text strong style={{ color: '#ffffff', fontSize: 13 }}>{selectedVehicle.driver?.name || 'Unassigned'}</Text>
-                    {selectedVehicle.driver?.phone && <Text style={{ fontSize: 10, color: 'var(--text-muted)' }}>{selectedVehicle.driver.phone}</Text>}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Latitude</Text>
-                    <Text style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: 12 }}>{selectedVehicle.location.lat.toFixed(6)}</Text>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <Text type="secondary" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Longitude</Text>
-                    <Text style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: 12 }}>{selectedVehicle.location.lng.toFixed(6)}</Text>
-                  </div>
-                </div>
-
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
-                  background: 'rgba(14, 17, 23, 0.6)',
-                  padding: '12px', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Speed</Text>
-                    <Text strong style={{ color: '#10b981', fontSize: 16 }}>
-                      {selectedVehicle.location.speed.toFixed(0)}
-                    </Text>
-                    <Text style={{ color: 'var(--text-muted)', fontSize: 10 }}> km/h</Text>
-                  </div>
-                  <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Heading</Text>
-                    <Text strong style={{ color: '#ffffff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <Navigation size={13} style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)`, color: 'var(--primary-color)' }} />
-                      {getHeading(selectedVehicle.location.heading)}
-                    </Text>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 10, display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Battery</Text>
-                    <Text strong style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <Battery size={13} />
-                      {getBatteryInfo(selectedVehicle.location.batteryLevel).label}
-                    </Text>
-                  </div>
-                </div>
-
-                {selectedVehicle.etaInfo && (
-                  <div style={{
-                    background: 'rgba(24, 144, 255, 0.05)',
-                    border: '1px solid rgba(24, 144, 255, 0.15)',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    margin: '4px 0',
-                    fontSize: '12px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <Text type="secondary">Next Checkpoint:</Text>
-                      <Text strong style={{ color: '#ffffff' }}>{selectedVehicle.etaInfo.nextCheckpoint}</Text>
+              {selectedVehicle.location ? (
+                <div className="flex flex-col gap-3 text-xs text-slate-300">
+                  <div className="grid grid-cols-2 gap-3 bg-white/5 p-3 rounded-lg border border-white/5">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Plate Number</span>
+                      <div className="mt-0.5">{renderLicensePlate(selectedVehicle.licensePlate)}</div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <Text type="secondary">ETA:</Text>
-                      <Text strong style={{ color: '#1890ff' }}>{selectedVehicle.etaInfo.etaMinutes} min</Text>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Driver Partner</span>
+                      <span className="font-semibold text-white truncate text-xs">{selectedVehicle.driver?.name || 'Unassigned'}</span>
+                      {selectedVehicle.driver?.phone && <span className="text-[10px] text-slate-400">{selectedVehicle.driver.phone}</span>}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">Distance:</Text>
-                      <Text strong style={{ color: '#ffffff' }}>{(selectedVehicle.etaInfo.distanceMeters / 1000).toFixed(2)} km</Text>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Latitude</span>
+                      <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lat.toFixed(6)}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Longitude</span>
+                      <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lng.toFixed(6)}</span>
                     </div>
                   </div>
-                )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Active telemetry</span>
+                  <div className="grid grid-cols-3 gap-2 bg-black/25 p-3 rounded-lg border border-white/5">
+                    <div className="text-center border-r border-white/10">
+                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Speed</span>
+                      <span className="font-bold text-success text-sm">
+                        {selectedVehicle.location.speed.toFixed(0)}
+                      </span>
+                      <span className="text-[10px] text-slate-400"> km/h</span>
+                    </div>
+                    <div className="text-center border-r border-white/10 flex flex-col items-center justify-center">
+                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Heading</span>
+                      <span className="font-bold text-white text-sm flex items-center gap-1">
+                        <Navigation className="w-3 h-3 text-primary" style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)` }} />
+                        {getHeading(selectedVehicle.location.heading)}
+                      </span>
+                    </div>
+                    <div className="text-center flex flex-col items-center justify-center">
+                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Battery</span>
+                      <span className="font-bold text-sm flex items-center gap-1" style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color }}>
+                        <Battery className="w-3.5 h-3.5" />
+                        {getBatteryInfo(selectedVehicle.location.batteryLevel).label}
+                      </span>
+                    </div>
                   </div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
-                  </Text>
+
+                  {selectedVehicle.etaInfo && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex flex-col gap-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-[11px]">Next Checkpoint:</span>
+                        <span className="font-bold text-white text-[11px]">{selectedVehicle.etaInfo.nextCheckpoint}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-[11px]">ETA:</span>
+                        <span className="font-bold text-blue-400 text-[11px]">{selectedVehicle.etaInfo.etaMinutes} min</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-[11px]">Distance:</span>
+                        <span className="font-bold text-white text-[11px]">{(selectedVehicle.etaInfo.distanceMeters / 1000).toFixed(2)} km</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center mt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-success animate-pulse inline-block" />
+                      <span className="text-[11px] text-success font-semibold">Active telemetry</span>
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <Alert message="Vehicle offline" description="No live telemetry available." type="warning" showIcon style={{ fontSize: 12 }} />
-            )}
+              ) : (
+                <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-xs font-semibold flex items-center gap-2">
+                  <span>⚠️ Vehicle offline. No live telemetry available.</span>
+                </div>
+              )}
+            </CardContent>
           </Card>
         )}
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .live-tracking-row {
-          transition: background 0.2s !important;
-        }
-        .live-tracking-row:hover {
-          background: var(--surface-hover) !important;
-        }
-        .live-tracking-row.selected {
-          background: var(--surface-hover) !important;
-        }
-        .live-tracking-row td {
-          padding: 8px 12px !important;
-          border-bottom: 1px solid var(--border, #232938) !important;
-        }
-        .ant-table-wrapper {
-          background: transparent !important;
-        }
-        .ant-table {
-          background: transparent !important;
-        }
-        .ant-table-thead > tr > th {
-          display: none !important;
-        }
-        .ant-table-tbody > tr > td {
-          background: transparent !important;
-        }
-      `}</style>
-
     </div>
   );
 }

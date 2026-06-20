@@ -18,6 +18,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { HealthModule } from './health/health.module';
+import { WalletModule } from './wallet/wallet.module';
 import configuration from './config/configuration';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -64,6 +65,7 @@ import {
     PromoCodesModule,
     TransactionsModule,
     HealthModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService],

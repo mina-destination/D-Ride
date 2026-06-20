@@ -25,7 +25,7 @@ export default function LiveTrackingPage() {
 
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get('vehicleId');
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number; heading?: number } | null>(null);
   const [trip, setTrip] = useState<any>(null);
   const [etaInfo, setEtaInfo] = useState<{ nextCheckpoint: string; etaMinutes: number; distanceMeters: number } | null>(null);
   const [speed, setSpeed] = useState<number | null>(null);
@@ -60,7 +60,7 @@ export default function LiveTrackingPage() {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: centerCoords,
       zoom: 14,
       attributionControl: false
@@ -81,15 +81,19 @@ export default function LiveTrackingPage() {
     map.on('load', () => {
       // Add static markers for start and end terminals if coordinates exist
       if (routeCoords.length > 0) {
-        // Add static markers for start and end terminals using Google Maps pins with wrappers
+        // Add static markers for start and end terminals using custom SVG pins
         const startEl = document.createElement('div');
         startEl.style.width = '32px';
-        startEl.style.height = '32px';
-        const startPin = document.createElement('div');
-        startPin.className = 'google-maps-start-pin';
-        startEl.appendChild(startPin);
+        startEl.style.height = '40px';
+        startEl.innerHTML = `
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 0C7.16 0 0 7.16 0 16C0 26 16 38 16 38C16 38 32 26 32 16C32 7.16 24.84 0 16 0Z" fill="#10B981"/>
+            <circle cx="16" cy="16" r="12" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5" />
+            <circle cx="16" cy="16" r="4" fill="#FFFFFF"/>
+          </svg>
+        `;
 
-        const startPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🏁 ${t('departureTerminal')}</div>`);
+        const startPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🟢 ${t('departureTerminal')}</div>`);
         new maplibregl.Marker({ element: startEl, anchor: 'bottom' })
           .setLngLat(routeCoords[0])
           .setPopup(startPopup)
@@ -97,12 +101,16 @@ export default function LiveTrackingPage() {
 
         const endEl = document.createElement('div');
         endEl.style.width = '32px';
-        endEl.style.height = '32px';
-        const endPin = document.createElement('div');
-        endPin.className = 'google-maps-dest-pin';
-        endEl.appendChild(endPin);
+        endEl.style.height = '40px';
+        endEl.innerHTML = `
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 0C7.16 0 0 7.16 0 16C0 26 16 38 16 38C16 38 32 26 32 16C32 7.16 24.84 0 16 0Z" fill="#EF4444"/>
+            <circle cx="16" cy="16" r="12" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5" />
+            <circle cx="16" cy="16" r="4" fill="#FFFFFF"/>
+          </svg>
+        `;
 
-        const endPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🏁 ${t('destinationStation')}</div>`);
+        const endPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`<div style="color:#000; font-size:11px; font-weight:bold; padding:2px;">🔴 ${t('destinationStation')}</div>`);
         new maplibregl.Marker({ element: endEl, anchor: 'bottom' })
           .setLngLat(routeCoords[routeCoords.length - 1])
           .setPopup(endPopup)
@@ -135,16 +143,26 @@ export default function LiveTrackingPage() {
     if (!map || !location) return;
 
     const busCoords: [number, number] = [location.lng, location.lat];
+    const heading = location.heading !== undefined ? location.heading : 0;
 
     if (!busMarkerRef.current) {
-      // Create custom Google Maps bus marker HTML element with outer wrapper
+      // Create custom Google Navigation vehicle marker
       const el = document.createElement('div');
-      el.style.width = '38px';
-      el.style.height = '38px';
+      el.style.width = '48px';
+      el.style.height = '48px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
 
-      const busEl = document.createElement('div');
-      busEl.className = 'google-maps-bus-pointer';
-      el.appendChild(busEl);
+      el.innerHTML = `
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.3));">
+          <circle cx="24" cy="24" r="20" fill="rgba(245, 183, 49, 0.2)" />
+          <circle cx="24" cy="24" r="14" fill="#F5B731" stroke="#FFFFFF" stroke-width="2.5" />
+          <g id="vehicle-chevron" transform="translate(24, 24) rotate(${heading}) translate(-24, -24)">
+            <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+          </g>
+        </svg>
+      `;
 
       const busPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="color:#000; font-family: Inter, sans-serif; font-size:11px; padding:4px;">
@@ -164,6 +182,12 @@ export default function LiveTrackingPage() {
       const fromCoords = busMarkerRef.current.getLngLat();
       const from = { lat: fromCoords.lat, lng: fromCoords.lng };
       const to = { lat: location.lat, lng: location.lng };
+
+      // Update rotation immediately
+      const chevron = busMarkerRef.current.getElement().querySelector('#vehicle-chevron');
+      if (chevron) {
+        chevron.setAttribute('transform', `translate(24, 24) rotate(${heading}) translate(-24, -24)`);
+      }
 
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
@@ -220,7 +244,11 @@ export default function LiveTrackingPage() {
 
     const handleLocationUpdate = (data: any) => {
       if (data.vehicleId === vehicleId && data.location) {
-        setLocation({ lat: data.location.latitude, lng: data.location.longitude });
+        setLocation({
+          lat: data.location.latitude,
+          lng: data.location.longitude,
+          heading: data.location.heading
+        });
         if (data.location.speed !== undefined) {
           setSpeed(data.location.speed);
         }

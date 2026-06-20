@@ -15,6 +15,9 @@ import {
   Layers
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { Card } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 
 // Sub-component for each route card containing its details, map, and timeline
 function RouteCard({ 
@@ -48,7 +51,7 @@ function RouteCard({
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: centerCoords,
       zoom: 12,
       attributionControl: false,
@@ -130,6 +133,7 @@ function RouteCard({
         map.fitBounds(bounds, { padding: 25, duration: 1000 });
       }
 
+      // Map markers — inline styles required (DOM API)
       route.checkpoints?.forEach((cp: any, idx: number) => {
         const latLng: [number, number] = [cp.location.coordinates[0], cp.location.coordinates[1]];
         const isStart = cp.type === 'START';
@@ -181,62 +185,40 @@ function RouteCard({
     : (route.baseFareEGP || 45);
 
   return (
-    <div 
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)',
-        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%'
-      }}
-      className="route-card-hover"
-    >
+    <Card className="overflow-hidden flex flex-col h-full transition-transform duration-[250ms] ease-out route-card-hover shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
       {/* 1. CARD HEADER */}
-      <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isAr ? 'row-reverse' : 'row' }}>
-          <span style={{
-            background: 'rgba(59, 130, 246, 0.1)',
-            color: '#3B82F6',
-            padding: '5px 12px',
-            borderRadius: '10px',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em'
-          }}>
+      <div className={`p-6 flex flex-col gap-3 border-b border-[var(--border)]`}>
+        <div className={`flex justify-between items-center ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 px-3 py-1 rounded-[10px] text-xs font-bold uppercase tracking-wide">
             🚌 {route.routeCode || `LINE ${route.name.split(' ')[0] || ''}`}
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isAr ? 'flex-start' : 'flex-end' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
-              {minPrice} <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{isAr ? 'ج.م' : 'EGP'}</span>
+          </Badge>
+          <div className={`flex flex-col ${isAr ? 'items-start' : 'items-end'}`}>
+            <span className="text-xl font-extrabold text-[var(--primary)]">
+              {minPrice} <span className="text-sm font-semibold">{isAr ? 'ج.م' : 'EGP'}</span>
             </span>
           </div>
         </div>
 
         <div>
-          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25, textAlign: isAr ? 'right' : 'left' }}>
+          <h3 className={`m-0 mb-1 text-[1.35rem] font-extrabold text-[var(--text-primary)] leading-tight ${isAr ? 'text-right' : 'text-left'}`}>
             {isAr ? route.nameAr || route.name : route.name}
           </h3>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: isAr ? 'flex-end' : 'flex-start', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+          <p className={`m-0 text-sm text-[var(--text-secondary)] flex items-center gap-1 ${isAr ? 'justify-end flex-row-reverse' : 'justify-start flex-row'}`}>
             <span>📍</span> <span>{startStop?.name || 'Origin'} ➔ {endStop?.name || 'Destination'}</span>
           </p>
         </div>
 
         {/* METADATA CHIPS */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem', flexDirection: isAr ? 'row-reverse' : 'row' }}>
-          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
-            <Clock size={14} style={{ color: 'var(--primary)' }} />
+        <div className={`flex flex-wrap gap-2 mt-1 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
+          <div className={`bg-[var(--background)] border border-[var(--border)] px-3 py-1.5 rounded-xl text-xs text-[var(--text-secondary)] flex items-center gap-1.5 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
+            <Clock size={14} className="text-[var(--primary)]" />
             <span>{t('routesDurationMins', { count: route.estimatedDurationMinutes || 30 })}</span>
           </div>
-          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+          <div className={`bg-[var(--background)] border border-[var(--border)] px-3 py-1.5 rounded-xl text-xs text-[var(--text-secondary)] flex items-center gap-1.5 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
             <span>📏</span>
             <span>{route.distanceKm} km</span>
           </div>
-          <div style={{ background: 'var(--background)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+          <div className={`bg-[var(--background)] border border-[var(--border)] px-3 py-1.5 rounded-xl text-xs text-[var(--text-secondary)] flex items-center gap-1.5 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
             <span>🗓️</span>
             <span>{trips && trips.length > 0 ? t('routesTripsScheduled', { count: trips.length }) : t('routesNoTripsScheduled')}</span>
           </div>
@@ -244,82 +226,35 @@ function RouteCard({
       </div>
 
       {/* 2. MAP CONTROLLER CONTAINER */}
-      <div style={{ height: '220px', width: '100%', position: 'relative', background: 'var(--background)' }}>
-        <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+      <div className="h-[220px] w-full relative bg-[var(--background)]">
+        <div ref={mapContainerRef} className="h-full w-full" />
         {/* Floating marker counts badge */}
-        <div style={{
-          position: 'absolute',
-          bottom: '12px',
-          left: isAr ? 'auto' : '12px',
-          right: isAr ? '12px' : 'auto',
-          background: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(4px)',
-          color: '#fff',
-          padding: '4px 10px',
-          borderRadius: '20px',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          zIndex: 5,
-          border: '1px solid rgba(255,255,255,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          flexDirection: isAr ? 'row-reverse' : 'row'
-        }}>
-          <Layers size={12} style={{ color: 'var(--primary)' }} />
+        <div className={`absolute bottom-3 ${isAr ? 'right-3' : 'left-3'} bg-slate-900/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-xs font-semibold z-[5] border border-white/10 flex items-center gap-1.5 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
+          <Layers size={12} className="text-[var(--primary)]" />
           <span>{route.checkpoints?.length || 0} {isAr ? 'محطات' : 'Stations'}</span>
         </div>
       </div>
 
       {/* 3. COLLAPSIBLE TIMELINE / CHECKPOINTS */}
-      <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="border-b border-[var(--border)]">
         <button
           onClick={() => setShowTimeline(!showTimeline)}
-          style={{
-            width: '100%',
-            padding: '1rem 1.5rem',
-            background: 'none',
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            color: 'var(--text-secondary)',
-            transition: 'background 0.2s',
-            flexDirection: isAr ? 'row-reverse' : 'row'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--background)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          className={`w-full px-6 py-4 bg-transparent border-none outline-none cursor-pointer flex justify-between items-center text-sm font-bold text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--background)] ${isAr ? 'flex-row-reverse' : 'flex-row'}`}
         >
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isAr ? 'row-reverse' : 'row' }}>
-            <Navigation size={16} style={{ color: 'var(--primary)' }} />
+          <span className={`flex items-center gap-2 ${isAr ? 'flex-row-reverse' : 'flex-row'}`}>
+            <Navigation size={16} className="text-[var(--primary)]" />
             {isAr ? 'عرض تفاصيل المحطات ومخطط الخط' : 'Show Stop Details & Timeline'}
           </span>
           {showTimeline ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </button>
 
         {showTimeline && (
-          <div style={{
-            padding: '1.5rem',
-            background: 'var(--background)',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative'
-          }}>
+          <div className="p-6 bg-[var(--background)] border-t border-[var(--border)] flex flex-col relative">
             {/* Timeline Connecting Line */}
-            <div style={{
-              position: 'absolute',
-              top: '2.25rem',
-              bottom: '2.25rem',
-              left: isAr ? 'auto' : '2.5rem',
-              right: isAr ? '2.5rem' : 'auto',
-              width: '2px',
-              background: 'repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)'
-            }} />
+            <div
+              className={`absolute top-9 bottom-9 w-[2px] ${isAr ? 'right-10' : 'left-10'}`}
+              style={{ background: 'repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 4px, transparent 4px, transparent 8px)' }}
+            />
 
             {route.checkpoints?.map((cp: any, idx: number) => {
               const isStart = cp.type === 'START';
@@ -328,44 +263,25 @@ function RouteCard({
               return (
                 <div 
                   key={`timeline-cp-${route._id}-${idx}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '1rem',
-                    marginBottom: idx === (route.checkpoints?.length - 1) ? 0 : '1.5rem',
-                    position: 'relative',
-                    zIndex: 1,
-                    flexDirection: isAr ? 'row-reverse' : 'row'
-                  }}
+                  className={`flex items-start gap-4 relative z-[1] ${isAr ? 'flex-row-reverse' : 'flex-row'} ${idx === (route.checkpoints?.length - 1) ? '' : 'mb-6'}`}
                 >
                   {/* Bullet indicator */}
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: isStart 
-                      ? 'rgba(16, 185, 129, 0.15)' 
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 ${
+                    isStart 
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-500' 
                       : isEnd 
-                        ? 'rgba(239, 68, 68, 0.15)' 
-                        : 'rgba(59, 130, 246, 0.1)',
-                    border: `2px solid ${isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6'}`,
-                    color: isStart ? '#10B981' : isEnd ? '#EF4444' : '#3B82F6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    flexShrink: 0
-                  }}>
+                        ? 'bg-red-500/15 border-red-500 text-red-500' 
+                        : 'bg-blue-500/10 border-blue-500 text-blue-500'
+                  }`}>
                     {isStart ? 'S' : isEnd ? 'E' : String(idx)}
                   </div>
 
                   {/* Text info */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexGrow: 1, textAlign: isAr ? 'right' : 'left' }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <div className={`flex flex-col gap-0.5 grow ${isAr ? 'text-right' : 'text-left'}`}>
+                    <span className="text-[0.95rem] font-bold text-[var(--text-primary)]">
                       {isAr ? cp.nameAr || cp.name : cp.name}
                     </span>
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)', justifyContent: isAr ? 'flex-end' : 'flex-start', flexDirection: isAr ? 'row-reverse' : 'row' }}>
+                    <div className={`flex gap-2 text-xs text-[var(--text-muted)] ${isAr ? 'justify-end flex-row-reverse' : 'justify-start flex-row'}`}>
                       <span>⏱️ {cp.bufferTimeMinutes} {t('routesBufferMins')}</span>
                       <span>•</span>
                       <span>🌐 Radius: {cp.geofenceRadiusMeters}m</span>
@@ -379,40 +295,16 @@ function RouteCard({
       </div>
 
       {/* 4. BOOKING ACTION BUTTON FOOTER */}
-      <div style={{ padding: '1.25rem 1.5rem', background: 'var(--surface-hover)', display: 'flex', justifyContent: isAr ? 'flex-start' : 'flex-end', marginTop: 'auto' }}>
-        <button 
+      <div className={`px-6 py-5 bg-[var(--surface-hover)] flex mt-auto ${isAr ? 'justify-start' : 'justify-end'}`}>
+        <Button 
           onClick={() => onBook(route._id)}
-          style={{
-            background: 'var(--primary)',
-            border: 'none',
-            color: '#000',
-            fontWeight: 700,
-            padding: '10px 20px',
-            borderRadius: '12px',
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'transform 0.2s ease, opacity 0.2s ease',
-            boxShadow: '0 4px 15px rgba(245, 183, 49, 0.15)',
-            flexDirection: isAr ? 'row-reverse' : 'row'
-          }}
-          className="button-hover-scale"
-          onMouseEnter={e => {
-            e.currentTarget.style.opacity = '0.9';
-            e.currentTarget.style.transform = 'scale(1.02)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.opacity = '1';
-            e.currentTarget.style.transform = 'none';
-          }}
+          className={`bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition-all duration-200 shadow-[0_4px_15px_rgba(245,183,49,0.15)] hover:scale-[1.02] ${isAr ? 'flex-row-reverse' : 'flex-row'}`}
         >
           {t('routesBookRideBtn')} 
-          <ChevronRight size={16} style={{ transform: isAr ? 'rotate(180deg)' : 'none' }} />
-        </button>
+          <ChevronRight size={16} className={isAr ? 'rotate-180' : ''} />
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -459,55 +351,36 @@ export default function RoutesPage() {
     : 'Explore fixed transit networks connecting Cairo, Alexandria, Sharm El Sheikh, Dahab, Nuweiba, and Taba with schedules and wait buffers.';
 
   return (
-    <div className="routes-explorer-container" style={{ minHeight: 'calc(100vh - 72px)', background: 'var(--background)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}>
+    <div className="min-h-[calc(100vh-72px)] bg-[var(--background)] text-[var(--text-primary)] font-[var(--font-family)]">
       <SEO title={seoTitle} description={seoDescription} keywords="egypt routes, bus routes, cairo to sharm, alex to dahab, nuweiba, taba" />
       
       {/* HEADER SECTION */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1A1A2E 0%, #0F0F1A 100%)',
-        padding: '8.5rem 2rem 3.5rem',
-        borderBottom: '1px solid var(--border)',
-        position: 'relative',
-        overflow: 'clip',
-        textAlign: 'center'
-      }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.05, backgroundImage: 'radial-gradient(#F5B731 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+      <div className="bg-gradient-to-br from-[#1A1A2E] to-[#0F0F1A] pt-[8.5rem] pb-14 px-8 border-b border-[var(--border)] relative overflow-clip text-center">
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(#F5B731 1px, transparent 0)', backgroundSize: '24px 24px' }} />
         
-        <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <span style={{
-            background: 'rgba(245, 183, 49, 0.15)',
-            color: 'var(--primary)',
-            padding: '6px 16px',
-            borderRadius: '20px',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            border: '1px solid rgba(245, 183, 49, 0.25)',
-            display: 'inline-block',
-            marginBottom: '1rem'
-          }}>
+        <div className="max-w-[800px] mx-auto relative z-[1]">
+          <Badge variant="outline" className="bg-[rgba(245,183,49,0.15)] text-[var(--primary)] border-[rgba(245,183,49,0.25)] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block">
             {t('routesCommuteNetworks')}
-          </span>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem', letterSpacing: '-0.02em' }}>
+          </Badge>
+          <h1 className="text-[2.5rem] font-extrabold text-white m-0 mb-2 tracking-tight">
             {t('routesExplorerTitle')}
           </h1>
-          <p style={{ fontSize: '1rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+          <p className="text-base text-[var(--text-muted)] m-0 leading-relaxed">
             {t('routesExplorerDesc')}
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '400px', gap: '1rem' }}>
-          <div className="app-loading-spinner" style={{ width: '40px', height: '40px', border: '3px solid rgba(245, 183, 49, 0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{t('routesLoading')}</span>
+        <div className="flex flex-col items-center justify-center h-[400px] gap-4">
+          <div className="app-loading-spinner w-10 h-10 border-[3px] border-[rgba(245,183,49,0.1)] border-t-[var(--primary)] rounded-full animate-spin" />
+          <span className="text-[var(--text-secondary)] font-medium">{t('routesLoading')}</span>
         </div>
       ) : routes.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', textAlign: 'center' }}>
-          <MapIcon size={64} style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{t('routesNoRegisteredTitle')}</h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: 0 }}>
+        <div className="flex flex-col items-center justify-center p-16 text-center">
+          <MapIcon size={64} className="text-[var(--text-muted)] mb-6" />
+          <h2 className="text-2xl font-bold m-0 mb-2">{t('routesNoRegisteredTitle')}</h2>
+          <p className="text-[var(--text-secondary)] max-w-[400px] m-0">
             {t('routesNoRegisteredDesc')}
           </p>
         </div>

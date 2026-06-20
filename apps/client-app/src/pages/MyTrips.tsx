@@ -8,6 +8,9 @@ import { useTranslation } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
 import { shareTicketPdf } from '../utils/pdfUtils';
 import SEO from '../components/SEO';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Label } from '../components/ui/label';
 
 export default function MyTripsPage() {
   const { user } = useAuth();
@@ -926,301 +929,222 @@ export default function MyTripsPage() {
 
       {/* ── QR CODE BOARDING PASS MODAL ────── */}
       {showQrModal && qrValue && (
-        <div className={`qr-modal-overlay ${isQrClosing ? 'closing' : ''}`} onClick={handleCloseQrModal}>
-          <div className={`qr-modal-content ${isQrClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
-            <button 
+        <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[10008] flex items-center justify-center p-4 qr-modal-overlay ${isQrClosing ? 'closing' : ''}`} onClick={handleCloseQrModal}>
+          <Card className={`max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative qr-modal-content ${isQrClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+            <Button 
               onClick={handleCloseQrModal}
-              className="qr-modal-close-btn"
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <h3 className="qr-modal-title">
-              Boarding Pass QR 🎫
-            </h3>
-            <p className="qr-modal-subtitle">
-              Present this QR code to the D-Ride driver upon boarding the minibus.
-            </p>
+            <CardHeader className="text-center p-0 mb-6 flex flex-col gap-2">
+              <CardTitle className="text-xl font-bold text-amber-500 flex items-center justify-center gap-2">
+                {isAr ? 'رمز الصعود QR' : 'Boarding Pass QR'} 🎫
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                {isAr 
+                  ? 'قم بتقديم رمز QR هذا لسائق دي-رايد عند صعود الحافلة.' 
+                  : 'Present this QR code to the D-Ride driver upon boarding the minibus.'}
+              </CardDescription>
+            </CardHeader>
 
-            {/* QR Code Container */}
-            <div className="qr-modal-qr-container">
-              <img src={qrValue} alt="Ticket QR Code" />
-            </div>
-
-            <div className="qr-modal-info-panel">
-              <div className="qr-modal-info-row">
-                <span>Ticket ID:</span>
-                <strong className="qr-modal-info-value monospace">
-                  #{activeBookingId?.toUpperCase()}
-                </strong>
+            <CardContent className="p-0 flex flex-col gap-5">
+              {/* QR Code Container */}
+              <div className="bg-white p-4 rounded-2xl mx-auto flex items-center justify-center shadow-lg w-52 h-52">
+                <img src={qrValue} alt="Ticket QR Code" className="w-full h-full object-contain" />
               </div>
-              <div className="qr-modal-info-row">
-                <span>Verification Status:</span>
-                <strong className="qr-modal-info-value" style={{ 
-                  color: bookings.find(b => b._id === activeBookingId)?.status === 'BOARDED' 
-                    ? 'var(--success)' 
-                    : 'var(--primary)' 
-                }}>
-                  {bookings.find(b => b._id === activeBookingId)?.status === 'BOARDED' 
-                    ? 'Boarded & Checked In ✅' 
-                    : 'Ready to Board 🕒'}
-                </strong>
+
+              <div className="bg-white/[0.02] border border-border/40 rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{isAr ? 'رقم التذكرة:' : 'Ticket ID:'}</span>
+                  <span className="font-mono font-bold text-white">#{activeBookingId?.toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{isAr ? 'حالة التحقق:' : 'Verification Status:'}</span>
+                  <span className="font-bold" style={{ 
+                    color: bookings.find(b => b._id === activeBookingId)?.status === 'BOARDED' 
+                      ? '#22c55e' 
+                      : '#f5b731' 
+                  }}>
+                    {bookings.find(b => b._id === activeBookingId)?.status === 'BOARDED' 
+                      ? (isAr ? 'تم الصعود والتحقق ✅' : 'Boarded & Checked In ✅') 
+                      : (isAr ? 'جاهز للصعود 🕒' : 'Ready to Board 🕒')}
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* ── RATE & REVIEW TRIP MODAL ────── */}
       {showReviewModal && (
-        <div className={`qr-modal-overlay ${isReviewClosing ? 'closing' : ''}`} onClick={handleCloseReviewModal}>
-          <div className={`qr-modal-content ${isReviewClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
-            <button 
+        <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[10008] flex items-center justify-center p-4 qr-modal-overlay ${isReviewClosing ? 'closing' : ''}`} onClick={handleCloseReviewModal}>
+          <Card className={`max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative qr-modal-content ${isReviewClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+            <Button 
               onClick={handleCloseReviewModal}
-              className="qr-modal-close-btn"
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <h3 className="qr-modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              Rate Your Trip <Star size={22} fill="var(--primary)" color="var(--primary)" />
-            </h3>
-            <p className="qr-modal-subtitle">
-              How was your journey? Your rating helps us improve our service.
-            </p>
+            <CardHeader className="text-center p-0 mb-4 flex flex-col gap-2">
+              <CardTitle className="text-xl font-bold text-amber-500 flex items-center justify-center gap-2">
+                {isAr ? 'تقييم رحلتك' : 'Rate Your Trip'} <Star size={20} className="fill-amber-500 text-amber-500" />
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                {isAr 
+                  ? 'كيف كانت تجربتك؟ يساعدنا تقييمك في تحسين خدماتنا.' 
+                  : 'How was your journey? Your rating helps us improve our service.'}
+              </CardDescription>
+            </CardHeader>
 
-            {/* Stars Selector Container */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', margin: '1.5rem 0' }}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setRating(star)}
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    padding: '4px',
-                    transition: 'transform 0.15s ease'
-                  }}
-                  className="star-btn"
-                >
-                  <Star
-                    size={36}
-                    fill={star <= (hoverRating || rating) ? 'var(--primary)' : 'none'}
-                    stroke="var(--primary)"
-                    style={{
-                      transform: star <= (hoverRating || rating) ? 'scale(1.15)' : 'scale(1)',
-                      transition: 'transform 0.1s ease, fill 0.1s ease'
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
+            <CardContent className="p-0 flex flex-col gap-5">
+              {/* Stars Selector Container */}
+              <div className="flex gap-2 justify-center py-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="focus:outline-none transition-transform active:scale-95 duration-100 p-1"
+                  >
+                    <Star
+                      size={32}
+                      className={`text-amber-500 transition-all ${
+                        star <= (hoverRating || rating) ? 'fill-amber-500 scale-110' : 'fill-none scale-100'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
 
-            {/* Comment Area */}
-            <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-              <label 
-                htmlFor="review-comment" 
-                style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: '0.5rem',
-                  fontWeight: 600
-                }}
+              {/* Comment Area */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <Label htmlFor="review-comment" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  {isAr ? 'أضف تعليقاً (اختياري):' : 'Leave a comment (optional):'}
+                </Label>
+                <textarea
+                  id="review-comment"
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                  placeholder={isAr ? 'شاركنا تفاصيل تجربتك...' : 'Share details of your experience...'}
+                  rows={3}
+                  className="w-full bg-white/[0.03] border border-border/40 focus:border-amber-500/50 rounded-xl p-3 text-sm text-white placeholder-muted-foreground resize-none outline-none transition-colors"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                onClick={handleSubmitReview}
+                disabled={submittingReview}
+                className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-5 h-12 rounded-xl"
               >
-                Leave a comment (optional):
-              </label>
-              <textarea
-                id="review-comment"
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                placeholder="Share details of your experience..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                  fontFamily: 'inherit',
-                  resize: 'none',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--primary)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'}
-              />
-            </div>
-
-            {/* Submit Button */}
-            <button
-              onClick={handleSubmitReview}
-              disabled={submittingReview}
-              className="auth-button"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '12px',
-                fontSize: '0.95rem',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-                color: 'var(--text-on-primary)',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(245, 183, 49, 0.25)',
-                transition: 'opacity 0.2s'
-              }}
-            >
-              {submittingReview ? 'Submitting...' : 'Submit Feedback'}
-            </button>
+                {submittingReview 
+                  ? (isAr ? 'جاري الإرسال...' : 'Submitting...') 
+                  : (isAr ? 'إرسال التقييم' : 'Submit Feedback')}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
-      </div>
       )}
 
       {/* ── CARD CONFIRMATION MODAL ────── */}
       {showConfirmModal && confirmModalData && (
-        <div className={`qr-modal-overlay ${isConfirmClosing ? 'closing' : ''}`} onClick={handleCloseConfirmModal}>
-          <div className={`qr-modal-content ${isConfirmClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <button 
+        <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[10008] flex items-center justify-center p-4 qr-modal-overlay ${isConfirmClosing ? 'closing' : ''}`} onClick={handleCloseConfirmModal}>
+          <Card className={`max-w-[440px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative qr-modal-content ${isConfirmClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+            <Button 
               onClick={handleCloseConfirmModal}
-              className="qr-modal-close-btn"
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <h3 className="qr-modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              ⚠️ {confirmModalData.title}
-            </h3>
-            
-            <p className="qr-modal-subtitle" style={{ fontSize: '0.92rem', lineHeight: '1.5', margin: '1.25rem 0', color: 'var(--text-secondary)' }}>
-              {confirmModalData.message}
-            </p>
+            <CardHeader className="text-center p-0 mb-4 flex flex-col gap-2">
+              <CardTitle className="text-lg font-bold text-amber-500 flex items-center justify-center gap-2">
+                ⚠️ {confirmModalData.title}
+              </CardTitle>
+            </CardHeader>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '1.5rem' }}>
-              <button
-                onClick={handleCloseConfirmModal}
-                className="auth-button"
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  background: 'var(--surface-elevated, rgba(255,255,255,0.05))',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border)',
-                  cursor: 'pointer'
-                }}
-              >
-                {isAr ? 'إلغاء' : 'Cancel'}
-              </button>
-              
-              <button
-                onClick={async () => {
-                  await confirmModalData.onConfirm();
-                  handleCloseConfirmModal();
-                }}
-                className="auth-button"
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  background: 'var(--danger, #ef4444)',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.25)'
-                }}
-              >
-                {isAr ? 'نعم، إلغاء الحجز' : 'Yes, Cancel Trip'}
-              </button>
-            </div>
-          </div>
+            <CardContent className="p-0 flex flex-col gap-5">
+              <p className="text-xs text-muted-foreground leading-relaxed text-center">
+                {confirmModalData.message}
+              </p>
+
+              <div className="flex gap-3 mt-2">
+                <Button
+                  onClick={handleCloseConfirmModal}
+                  variant="outline"
+                  className="flex-1 bg-white/5 border-border text-white hover:bg-white/10 font-bold py-3 h-10 rounded-xl"
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </Button>
+                
+                <Button
+                  onClick={async () => {
+                    await confirmModalData.onConfirm();
+                    handleCloseConfirmModal();
+                  }}
+                  className="flex-1 bg-red-500 text-white hover:bg-red-600 font-bold py-3 h-10 rounded-xl border-none"
+                >
+                  {isAr ? 'نعم، إلغاء الحجز' : 'Yes, Cancel Trip'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* ── INFO / ALERT CARD MODAL ────── */}
       {showInfoModal && infoModalData && (
-        <div className={`qr-modal-overlay ${isInfoClosing ? 'closing' : ''}`} onClick={handleCloseInfoModal}>
-          <div className={`qr-modal-content ${isInfoClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
-            <button 
+        <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[10008] flex items-center justify-center p-4 qr-modal-overlay ${isInfoClosing ? 'closing' : ''}`} onClick={handleCloseInfoModal}>
+          <Card className={`max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative qr-modal-content ${isInfoClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+            <Button 
               onClick={handleCloseInfoModal}
-              className="qr-modal-close-btn"
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                margin: '0 auto 1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.75rem',
-                background: infoModalData.type === 'success'
-                  ? 'rgba(34, 197, 94, 0.12)'
-                  : infoModalData.type === 'error'
-                    ? 'rgba(239, 68, 68, 0.12)'
-                    : 'rgba(245, 183, 49, 0.12)',
-                boxShadow: infoModalData.type === 'success'
-                  ? '0 0 20px rgba(34, 197, 94, 0.15)'
-                  : infoModalData.type === 'error'
-                    ? '0 0 20px rgba(239, 68, 68, 0.15)'
-                    : '0 0 20px rgba(245, 183, 49, 0.15)',
-              }}>
-                {infoModalData.type === 'success' ? '✅' : infoModalData.type === 'error' ? '❌' : 'ℹ️'}
+            <CardContent className="p-0 flex flex-col items-center gap-4 text-center">
+              <div 
+                className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-md ${
+                  infoModalData.type === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-500 shadow-emerald-500/10'
+                    : infoModalData.type === 'error'
+                      ? 'bg-red-500/10 text-red-500 shadow-red-500/10'
+                      : 'bg-amber-500/10 text-amber-500 shadow-amber-500/10'
+                }`}
+              >
+                {infoModalData.type === 'success' ? '✓' : infoModalData.type === 'error' ? '✕' : 'i'}
               </div>
 
-              <h3 className="qr-modal-title" style={{ marginBottom: '0.5rem' }}>
-                {infoModalData.title}
-              </h3>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-base font-bold text-white">
+                  {infoModalData.title}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {infoModalData.message}
+                </p>
+              </div>
 
-              <p className="qr-modal-subtitle" style={{
-                fontSize: '0.92rem',
-                lineHeight: '1.6',
-                margin: '0.75rem 0 1.5rem',
-                color: 'var(--text-secondary)'
-              }}>
-                {infoModalData.message}
-              </p>
-
-              <button
+              <Button
                 onClick={handleCloseInfoModal}
-                className="auth-button"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  background: infoModalData.type === 'success'
-                    ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                className={`w-full font-bold py-3 h-11 rounded-xl mt-2 ${
+                  infoModalData.type === 'success'
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 border-none'
                     : infoModalData.type === 'error'
-                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                      : 'linear-gradient(135deg, var(--primary), var(--primary-dark, #d4a017))',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-                  transition: 'opacity 0.2s'
-                }}
+                      ? 'bg-red-500 text-white hover:bg-red-600 border-none'
+                      : 'bg-amber-500 text-black hover:bg-amber-600 border-none'
+                }`}
               >
                 {isAr ? 'حسناً' : 'OK'}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
     </>

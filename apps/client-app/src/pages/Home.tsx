@@ -185,7 +185,7 @@ function RouteSearchForm() {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: centerCoords,
       zoom: 13,
       attributionControl: false
@@ -248,7 +248,7 @@ function RouteSearchForm() {
   // Handle dynamic map style updates when theme toggles
   useEffect(() => {
     if (mapRef.current) {
-      mapRef.current.setStyle(theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright');
+      mapRef.current.setStyle(theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron');
     }
   }, [theme]);
 

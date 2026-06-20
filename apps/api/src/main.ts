@@ -156,7 +156,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = process.env.PORT ?? 3000;
-  const server = await app.listen(port);
+  const server = await app.listen(port, '0.0.0.0');
 
   // Set server timeouts
   if (typeof server.setTimeout === 'function') {

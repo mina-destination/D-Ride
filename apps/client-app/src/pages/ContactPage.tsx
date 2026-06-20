@@ -4,6 +4,10 @@ import { supportAPI, settingsAPI } from '../services/api';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Button } from '../components/ui/button';
 
 export default function ContactPage() {
   const { user } = useAuth();
@@ -81,196 +85,165 @@ export default function ContactPage() {
       <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
       <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />
 
-      <div style={{
-        maxWidth: '1000px',
-        width: '100%',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.2fr',
-        gap: '3rem',
-        alignItems: 'start'
-      }} className="contact-container">
-        
-        {/* Left: Contact Info Info Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-12 items-start contact-container">
+
+        {/* Left: Contact Info Panel */}
+        <div className="flex flex-col gap-8">
           <div>
             <span className="hero-badge">
               <span className="hero-badge-dot" />
               {t('contactSupportHelpDeskBadge')}
             </span>
-            <h1 className="hero-title" style={{ fontSize: '2.5rem', marginBottom: '1rem', lineHeight: '1.2' }}>
+            <h1 className="hero-title text-[2.5rem] mb-4 leading-tight">
               {t('contactGetInTouch')}
             </h1>
-            <p className="hero-subtitle" style={{ fontSize: '1rem', marginBottom: '0', opacity: 0.85 }}>
+            <p className="hero-subtitle text-base mb-0 opacity-85">
               {t('contactSubtitle')}
             </p>
           </div>
 
-          <div className="glass" style={{
-            padding: '2rem',
-            borderRadius: 'var(--radius-xl)',
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--glass-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.5rem',
-            backdropFilter: 'blur(10px)'
-          }}>
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div className="feature-icon" style={{ flexShrink: 0 }}>
-                <Mail size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('contactEmailSupport')}</div>
-                <a href={`mailto:${supportInfo.email}`} style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)' }}>
-                  {supportInfo.email}
-                </a>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div className="feature-icon" style={{ flexShrink: 0 }}>
-                <Phone size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('contactPhoneHotline')}</div>
-                <a href={`tel:${supportInfo.phone}`} style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)' }}>
-                  {supportInfo.phone}
-                </a>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div className="feature-icon" style={{ flexShrink: 0 }}>
-                <MapPin size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('contactHqLocation')}</div>
-                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {t('contactHqLocationVal')}
+          <Card className="bg-[var(--surface-elevated)]/80 backdrop-blur-xl border-white/10">
+            <CardContent className="p-6 flex flex-col gap-6">
+              <div className="flex gap-5 items-center">
+                <div className="feature-icon shrink-0">
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--text-muted)] font-semibold uppercase tracking-wider">{t('contactEmailSupport')}</div>
+                  <a href={`mailto:${supportInfo.email}`} className="text-base font-bold text-[var(--primary)]">
+                    {supportInfo.email}
+                  </a>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div className="feature-icon" style={{ flexShrink: 0 }}>
-                <Clock size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('contactWorkingHours')}</div>
-                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {t('contactWorkingHoursVal')}
+              <div className="flex gap-5 items-center">
+                <div className="feature-icon shrink-0">
+                  <Phone size={20} />
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--text-muted)] font-semibold uppercase tracking-wider">{t('contactPhoneHotline')}</div>
+                  <a href={`tel:${supportInfo.phone}`} className="text-base font-bold text-[var(--primary)]">
+                    {supportInfo.phone}
+                  </a>
                 </div>
               </div>
-            </div>
-          </div>
+
+              <div className="flex gap-5 items-center">
+                <div className="feature-icon shrink-0">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--text-muted)] font-semibold uppercase tracking-wider">{t('contactHqLocation')}</div>
+                  <div className="text-base font-semibold text-[var(--text-primary)]">
+                    {t('contactHqLocationVal')}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-5 items-center">
+                <div className="feature-icon shrink-0">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--text-muted)] font-semibold uppercase tracking-wider">{t('contactWorkingHours')}</div>
+                  <div className="text-base font-semibold text-[var(--text-primary)]">
+                    {t('contactWorkingHoursVal')}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right: Submission Form */}
-        <div className="auth-card glass" style={{ margin: 0, padding: '2.5rem', width: '100%', maxWidth: '100%' }}>
-          {success ? (
-            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-              <div style={{
-                color: 'var(--success)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(16, 185, 129, 0.1)',
-                padding: '1rem',
-                borderRadius: '50%',
-                marginBottom: '1.5rem'
-              }}>
-                <CheckCircle2 size={48} />
-              </div>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{t('contactTicketSubmitted')}</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem' }}>
-                {t('contactTicketSuccessDesc')}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSuccess(false)}
-                className="btn-primary"
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                {t('contactSubmitAnother')}
-              </button>
-            </div>
-          ) : (
-            <>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('contactOpenSupportTicket')}</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{t('contactDetailIssue')}</p>
-              </div>
-
-              {error && <div className="auth-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
-
-              {/* Read Only Passenger Details card */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '1rem',
-                marginBottom: '1.5rem',
-                background: 'rgba(255, 255, 255, 0.02)',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>{t('contactPassengerName')}</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.name || t('contactLoadingProfile')}</div>
+        <Card className="bg-[#121224]/80 backdrop-blur-xl border-white/10 shadow-2xl">
+          <CardContent className="p-8">
+            {success ? (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center justify-center bg-emerald-500/10 text-emerald-400 p-4 rounded-full mb-6">
+                  <CheckCircle2 size={48} />
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>{t('contactEmailAddress')}</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-all' }}>{user?.email || 'N/A'}</div>
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit} className="auth-form" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div className="auth-field">
-                  <label htmlFor="subject" style={{ fontWeight: 600, fontSize: '0.85rem' }}>{t('contactSubject')}</label>
-                  <input
-                    id="subject"
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder={t('contactSubjectPlaceholder')}
-                    required
-                  />
-                </div>
-
-                <div className="auth-field">
-                  <label htmlFor="message" style={{ fontWeight: 600, fontSize: '0.85rem' }}>{t('contactMessageDetail')}</label>
-                  <textarea
-                    id="message"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder={t('contactMessagePlaceholder')}
-                    required
-                    rows={5}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn-primary auth-btn"
-                  disabled={loading}
+                <h2 className="text-3xl font-extrabold mb-2 text-[var(--text-primary)]">{t('contactTicketSubmitted')}</h2>
+                <p className="text-[var(--text-secondary)] mb-8 text-sm">
+                  {t('contactTicketSuccessDesc')}
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setSuccess(false)}
+                  className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold"
                 >
-                  {loading ? (
-                    <>
-                      <span className="btn-loading-spinner" /> {t('contactSubmitting')}
-                    </>
-                  ) : (
-                    <>
-                      <Send size={16} /> {t('contactSubmitTicketBtn')}
-                    </>
-                  )}
-                </button>
-              </form>
-            </>
-          )}
-        </div>
+                  {t('contactSubmitAnother')}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">{t('contactOpenSupportTicket')}</h2>
+                  <p className="text-[var(--text-secondary)] text-sm">{t('contactDetailIssue')}</p>
+                </div>
+
+                {error && <div className="auth-error mb-5">{error}</div>}
+
+                {/* Read Only Passenger Details card */}
+                <div className="grid grid-cols-2 gap-4 mb-6 bg-white/[0.02] p-4 rounded-lg border border-[var(--border)]">
+                  <div>
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold tracking-wider">{t('contactPassengerName')}</div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">{user?.name || t('contactLoadingProfile')}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold tracking-wider">{t('contactEmailAddress')}</div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)] break-all">{user?.email || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="subject" className="font-semibold text-sm text-[var(--text-primary)]">{t('contactSubject')}</Label>
+                    <Input
+                      id="subject"
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder={t('contactSubjectPlaceholder')}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="message" className="font-semibold text-sm text-[var(--text-primary)]">{t('contactMessageDetail')}</Label>
+                    <textarea
+                      id="message"
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      placeholder={t('contactMessagePlaceholder')}
+                      required
+                      rows={5}
+                      className="flex w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/50 focus-visible:border-[var(--primary)]/50 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="btn-loading-spinner" /> {t('contactSubmitting')}
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} /> {t('contactSubmitTicketBtn')}
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-
     </div>
   );
 }

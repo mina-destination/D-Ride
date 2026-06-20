@@ -1087,7 +1087,8 @@ return `${y}-${m}-${d}` === date;
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '4px'
+                                        gap: '3px',
+                                        boxShadow: '0 2px 8px rgba(224, 163, 40, 0.2)'
                                       }}
                                     >
                                       <span>{t('bookSeatTicket')}</span>
@@ -1098,120 +1099,175 @@ return `${y}-${m}-${d}` === date;
 
                             {/* MOBILE SEARCH CARD */}
                              <div className="mobile-search-card glass" style={{
-                               background: activeTripId === trip._id 
-                                 ? 'var(--active-card-bg)' 
-                                 : 'var(--surface)',
-                               border: activeTripId === trip._id ? '2px solid var(--active-card-border)' : '1px solid var(--border)',
-                               borderRadius: '16px',
-                               padding: '12px 14px',
-                               marginBottom: '0.75rem',
-                               boxSizing: 'border-box',
-                               display: 'flex',
-                               flexDirection: 'column',
-                               gap: '12px',
-                               position: 'relative',
-                               transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                               boxShadow: activeTripId === trip._id 
-                                 ? '0 8px 25px rgba(245, 183, 49, 0.12)' 
-                                 : '0 2px 10px rgba(0, 0, 0, 0.02)'
-                             }} onClick={() => setActiveTripId(trip._id)}>
-                               
+                                background: activeTripId === trip._id 
+                                  ? 'linear-gradient(135deg, rgba(245, 183, 49, 0.1) 0%, rgba(20, 24, 33, 0.95) 100%)' 
+                                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(13, 17, 23, 0.8) 100%)',
+                                border: activeTripId === trip._id ? '2.5px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '20px',
+                                padding: '16px 18px',
+                                marginBottom: '1rem',
+                                boxSizing: 'border-box',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '14px',
+                                position: 'relative',
+                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                                boxShadow: activeTripId === trip._id 
+                                  ? '0 16px 35px rgba(245, 183, 49, 0.18), inset 0 0 15px rgba(245, 183, 49, 0.05)' 
+                                  : '0 4px 20px rgba(0, 0, 0, 0.35)',
+                                backdropFilter: 'blur(20px)',
+                                transform: activeTripId === trip._id ? 'translateY(-2px)' : 'none',
+                                cursor: 'pointer'
+                              }} onClick={() => setActiveTripId(trip._id)}>
+                                
                                {/* Card Header: Route Name & Seats Left & Date badge */}
                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-end' : 'flex-start' }}>
                                    <span style={{ 
-                                     fontSize: '0.9rem', 
+                                     fontSize: '0.98rem', 
                                      fontWeight: 800, 
-                                     color: 'var(--text-primary)'
+                                     color: '#FFFFFF',
+                                     letterSpacing: '0.01em',
+                                     display: 'flex',
+                                     alignItems: 'center',
+                                     gap: '6px'
                                    }}>
-                                     🚐 {isRtl ? (currentRoute?.nameAr || currentRoute?.name) : currentRoute?.name}
+                                     <span style={{ textShadow: '0 0 15px rgba(245, 183, 49, 0.4)' }}>🚐</span> {isRtl ? (currentRoute?.nameAr || currentRoute?.name) : currentRoute?.name}
                                    </span>
-                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
-                                     <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 650 }}>
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
+                                     <span style={{ 
+                                       fontSize: '0.68rem', 
+                                       color: 'var(--text-muted)', 
+                                       fontWeight: 650,
+                                       background: 'rgba(255, 255, 255, 0.04)',
+                                       padding: '2px 8px',
+                                       borderRadius: '6px',
+                                       border: '1px solid rgba(255, 255, 255, 0.05)'
+                                     }}>
                                        📅 {boardingDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                      </span>
-                                     <span style={{ color: 'var(--border)', fontSize: '0.62rem' }}>•</span>
-                                     <div style={{ display: 'flex', gap: '3px' }}>
-                                       <span title="AC"><Snowflake size={10} style={{ color: 'var(--text-muted)' }} /></span>
-                                       <span title="WiFi"><Wifi size={10} style={{ color: 'var(--text-muted)' }} /></span>
-                                       <span title="USB"><Zap size={10} style={{ color: 'var(--text-muted)' }} /></span>
+                                     <span style={{ color: 'rgba(255, 255, 255, 0.15)', fontSize: '0.62rem' }}>•</span>
+                                     <div style={{ display: 'flex', gap: '5px' }}>
+                                       <span title="AC" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Snowflake size={10} style={{ color: 'var(--text-muted)' }} /></span>
+                                       <span title="WiFi" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Wifi size={10} style={{ color: 'var(--text-muted)' }} /></span>
+                                       <span title="USB" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Zap size={10} style={{ color: 'var(--text-muted)' }} /></span>
                                      </div>
                                    </div>
                                  </div>
 
                                  <span className="trip-seats" style={{ 
-                                   fontSize: '0.65rem', 
+                                   fontSize: '0.68rem', 
                                    color: seatsLeft <= 5 ? '#F87171' : '#34D399', 
-                                   fontWeight: 800,
-                                   background: seatsLeft <= 5 ? 'rgba(248, 113, 113, 0.06)' : 'rgba(52, 211, 153, 0.06)',
-                                   padding: '3px 8px',
-                                   borderRadius: '6px',
-                                   border: seatsLeft <= 5 ? '1px solid rgba(248, 113, 113, 0.12)' : '1px solid rgba(52, 211, 153, 0.12)',
+                                   fontWeight: 900,
+                                   background: seatsLeft <= 5 ? 'rgba(248, 113, 113, 0.1)' : 'rgba(52, 211, 153, 0.1)',
+                                   padding: '4px 10px',
+                                   borderRadius: '8px',
+                                   border: seatsLeft <= 5 ? '1px solid rgba(248, 113, 113, 0.2)' : '1px solid rgba(52, 211, 153, 0.2)',
                                    display: 'inline-flex',
                                    alignItems: 'center',
-                                   gap: '2px',
-                                   whiteSpace: 'nowrap'
+                                   gap: '4px',
+                                   whiteSpace: 'nowrap',
+                                   boxShadow: seatsLeft <= 5 ? '0 0 10px rgba(248, 113, 113, 0.05)' : '0 0 10px rgba(52, 211, 153, 0.05)',
+                                   textTransform: 'uppercase'
                                  }}>
-                                   🔥 {seatsLeft} {isRtl ? 'متبقية' : 'left'}
+                                   <span style={{ fontSize: '0.75rem' }}>🔥</span> {seatsLeft} {isRtl ? 'متبقية' : 'left'}
                                  </span>
                                </div>
 
-                               {/* Timings & Stops Horizontal Timeline Layout */}
-                               <div style={{ 
-                                 display: 'flex', 
-                                 flexDirection: isRtl ? 'row-reverse' : 'row', 
-                                 alignItems: 'center',
-                                 justifyContent: 'space-between',
-                                 background: 'rgba(120, 120, 120, 0.05)',
-                                 borderRadius: '10px',
-                                 padding: '10px 12px',
-                                 gap: '10px',
-                                 width: '100%',
-                                 boxSizing: 'border-box'
-                               }}>
-                                 {/* Left: Pickup Stop Info */}
-                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-end' : 'flex-start', flex: 1, minWidth: 0 }}>
-                                   <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#34D399', textTransform: 'uppercase', marginBottom: '2px' }}>
-                                     {isRtl ? 'الركوب' : 'Pickup'}
-                                   </span>
-                                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--primary-interactive)', whiteSpace: 'nowrap' }}>
-                                     {pickupTimeStr}
-                                   </span>
-                                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', textAlign: isRtl ? 'right' : 'left' }}>
-                                     {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
-                                   </span>
-                                 </div>
+                               {/* Timings & Stops Vertical Timeline Layout */}
+                               <div className="flex flex-col bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 gap-4 w-full relative overflow-hidden backdrop-blur-sm">
+                                 {/* Vertical timeline line (Gradient neon glow) */}
+                                 <div 
+                                   className="absolute w-[2px] bg-gradient-to-b from-[#34D399] via-[#F5B731] to-[#F87171] z-[1]"
+                                   style={{
+                                     left: isRtl ? 'auto' : '24px',
+                                     right: isRtl ? '24px' : 'auto',
+                                     top: '27px',
+                                     bottom: '49px'
+                                   }} 
+                                 />
+                                 
+                                 {/* Faint blur glow layer behind the main timeline line */}
+                                 <div 
+                                   className="absolute w-[6px] bg-gradient-to-b from-[#34D399]/20 via-[#F5B731]/20 to-[#F87171]/20 blur-[2px] z-[1]"
+                                   style={{
+                                     left: isRtl ? 'auto' : '22px',
+                                     right: isRtl ? '22px' : 'auto',
+                                     top: '27px',
+                                     bottom: '49px'
+                                   }} 
+                                 />
 
-                                 {/* Center: Connecting Line & Duration */}
-                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '60px', flexShrink: 0 }}>
-                                   <span style={{ fontSize: '0.58rem', color: 'var(--primary)', fontWeight: 800, whiteSpace: 'nowrap', marginBottom: '2px' }}>
-                                     ⏱️ {durationMinutes}m
-                                   </span>
-                                   <div style={{ display: 'flex', alignItems: 'center', width: '100%', position: 'relative', justifyContent: 'center' }}>
-                                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34D399' }} />
-                                     <div style={{ flex: 1, height: '1.5px', background: 'repeating-linear-gradient(90deg, var(--border), var(--border) 2px, transparent 2px, transparent 4px)' }} />
-                                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F87171' }} />
+                                 {/* Pickup Stop Info Row */}
+                                 <div className={`flex gap-3.5 items-start relative z-[2] ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                   <div 
+                                     className="w-[16px] h-[16px] rounded-full bg-[#0D1117] border-2 flex items-center justify-center shrink-0 mt-[3px] z-[2]"
+                                     style={{
+                                       borderColor: '#34D399',
+                                       boxShadow: '0 0 8px rgba(52, 211, 153, 0.3)'
+                                     }}
+                                   >
+                                     <div className="w-[6px] h-[6px] rounded-full bg-[#34D399]" />
                                    </div>
-                                 </div>
-
-                                 {/* Right: Dropoff Stop Info */}
-                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-start' : 'flex-end', flex: 1, minWidth: 0 }}>
-                                   <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#F87171', textTransform: 'uppercase', marginBottom: '2px' }}>
-                                     {isRtl ? 'النزول' : 'Dropoff'}
-                                   </span>
-                                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
-                                     <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                       {dropoffTimeStr}
-                                     </span>
-                                     {isNextDayDropoff && (
-                                       <span style={{ fontSize: '0.52rem', color: 'var(--danger)', fontWeight: 750 }}>
-                                         {isRtl ? 'غداً' : '+1d'}
+                                   <div className={`flex flex-col flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
+                                     <div className={`flex items-center justify-between flex-wrap gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                       <span className="text-[12px] font-extrabold text-[#34D399] bg-[#34D399]/5 border border-[#34D399]/15 px-2 py-0.5 rounded-md tracking-wider">
+                                         {pickupTimeStr}
                                        </span>
-                                     )}
+                                       <span className="text-[9px] font-black text-[#34D399] uppercase bg-[#34D399]/10 border border-[#34D399]/15 px-2 py-0.5 rounded-md tracking-wider">
+                                         {isRtl ? 'الركوب' : 'Pickup'}
+                                       </span>
+                                     </div>
+                                     <span className="text-[13px] font-bold text-zinc-100 mt-1.5 leading-snug">
+                                       {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
+                                     </span>
                                    </div>
-                                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', textAlign: isRtl ? 'left' : 'right' }}>
-                                     {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
+                                 </div>
+
+                                 {/* Middle: Duration divider badge (Indented inline) */}
+                                 <div 
+                                   className="flex items-center relative z-[2]"
+                                   style={{
+                                     paddingLeft: isRtl ? 0 : '32px',
+                                     paddingRight: isRtl ? '32px' : 0
+                                   }}
+                                 >
+                                   <span className="text-[10px] font-extrabold text-[#f5b731] bg-[#f5b731]/10 border border-[#f5b731]/30 rounded-full px-3 py-0.5 flex items-center gap-1 backdrop-blur-sm shadow-[0_2px_8px_rgba(245,183,49,0.15)]">
+                                     ⏱️ {durationMinutes}m {isRtl ? 'رحلة' : 'ride'}
                                    </span>
+                                 </div>
+
+                                 {/* Dropoff Stop Info Row */}
+                                 <div className={`flex gap-3.5 items-start relative z-[2] ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                   <div 
+                                     className="w-[16px] h-[16px] rounded-full bg-[#0D1117] border-2 flex items-center justify-center shrink-0 mt-[3px] z-[2]"
+                                     style={{
+                                       borderColor: '#F87171',
+                                       boxShadow: '0 0 8px rgba(248, 113, 113, 0.3)'
+                                     }}
+                                   >
+                                     <div className="w-[6px] h-[6px] rounded-full bg-[#F87171]" />
+                                   </div>
+                                   <div className={`flex flex-col flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
+                                     <div className={`flex items-center justify-between flex-wrap gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                       <div className={`flex items-baseline gap-1.5 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                         <span className="text-[12px] font-extrabold text-[#F87171] bg-[#F87171]/5 border border-[#F87171]/15 px-2 py-0.5 rounded-md tracking-wider">
+                                           {dropoffTimeStr}
+                                         </span>
+                                         {isNextDayDropoff && (
+                                           <span className="text-[9px] text-[#F87171] font-black bg-[#F87171]/10 px-1.5 py-0.5 rounded-md">
+                                             {isRtl ? 'غداً' : '+1d'}
+                                           </span>
+                                         )}
+                                       </div>
+                                       <span className="text-[9px] font-black text-[#F87171] uppercase bg-[#F87171]/10 border border-[#F87171]/15 px-2 py-0.5 rounded-md tracking-wider">
+                                         {isRtl ? 'النزول' : 'Dropoff'}
+                                       </span>
+                                     </div>
+                                     <span className="text-[13px] font-bold text-zinc-100 mt-1.5 leading-snug">
+                                       {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
+                                     </span>
+                                   </div>
                                  </div>
                                </div>
 
@@ -1262,40 +1318,46 @@ return `${y}-${m}-${d}` === date;
                                              requestGPS();
                                            }}
                                            style={{
-                                             fontSize: '0.62rem',
-                                             background: 'rgba(224, 163, 40, 0.04)',
+                                             fontSize: '0.68rem',
+                                             background: 'rgba(245, 183, 49, 0.04)',
                                              color: 'var(--primary)',
-                                             padding: '3px 8px',
-                                             borderRadius: '6px',
-                                             border: '1px dashed rgba(224, 163, 40, 0.25)',
-                                             fontWeight: 700,
+                                             padding: '6px 12px',
+                                             borderRadius: '8px',
+                                             border: '1px dashed rgba(245, 183, 49, 0.3)',
+                                             fontWeight: 800,
                                              cursor: 'pointer',
                                              outline: 'none',
                                              width: '100%',
-                                             textAlign: 'center'
+                                             textAlign: 'center',
+                                             transition: 'all 0.2s ease',
+                                             display: 'flex',
+                                             alignItems: 'center',
+                                             justifyContent: 'center',
+                                             gap: '4px'
                                            }}
                                          >
                                            📍 {isRtl ? 'اضغط لمشاركة الموقع وحساب المسافة' : 'Tap to share location & see distance'}
                                          </button>
                                        ) : (
                                          <div style={{
-                                           fontSize: '0.62rem',
-                                           background: 'rgba(255, 255, 255, 0.01)',
+                                           fontSize: '0.68rem',
+                                           background: 'rgba(255, 255, 255, 0.02)',
                                            color: 'var(--primary)',
-                                           padding: '2px 6px',
-                                           borderRadius: '6px',
-                                           border: '1px solid rgba(224, 163, 40, 0.12)',
-                                           fontWeight: 700,
+                                           padding: '6px 12px',
+                                           borderRadius: '8px',
+                                           border: '1px solid rgba(245, 183, 49, 0.15)',
+                                           fontWeight: 800,
                                            display: 'flex',
                                            alignItems: 'center',
-                                           gap: '4px',
+                                           gap: '6px',
                                            width: '100%',
-                                           justifyContent: 'center'
+                                           justifyContent: 'center',
+                                           boxShadow: 'inset 0 0 8px rgba(245, 183, 49, 0.02)'
                                          }}>
-                                           <span>{isRtl ? '📍 الركوب:' : '📍 Pickup Stop:'}</span>
-                                           <span>🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})</span>
-                                           <span style={{ color: 'rgba(255,255,255,0.08)' }}>|</span>
-                                           <span>🚗 {formatMinsCompact(firstMileTimeCar)}</span>
+                                           <span style={{ opacity: 0.85 }}>{isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}</span>
+                                           <span style={{ color: '#FFFFFF' }}>🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})</span>
+                                           <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+                                           <span style={{ color: '#FFFFFF' }}>🚗 {formatMinsCompact(firstMileTimeCar)}</span>
                                          </div>
                                        )}
                                      </div>
@@ -1320,7 +1382,7 @@ return `${y}-${m}-${d}` === date;
                                  </div>
                                )}
 
-                               <div style={{ borderTop: '1px dashed var(--border)', margin: '1px 0' }} />
+                               <div style={{ borderTop: '1px dashed rgba(255, 255, 255, 0.1)', margin: '4px 0' }} />
 
                                {/* Bottom Section: Price & Booking Button (Flex row side-by-side) */}
                                <div style={{ 
@@ -1331,14 +1393,14 @@ return `${y}-${m}-${d}` === date;
                                 }}>
                                  {/* Price Group */}
                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                   <span style={{ fontSize: '0.52rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 800 }}>
+                                   <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 800 }}>
                                      {isRtl ? 'سعر التذكرة' : 'Fare'}
                                    </span>
-                                   <div className="trip-price" style={{ display: 'flex', alignItems: 'baseline', gap: '1px' }}>
-                                     <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary-interactive)', fontFamily: 'Outfit, sans-serif' }}>
+                                   <div className="trip-price" style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                                     <span style={{ fontSize: '1.45rem', fontWeight: 950, color: 'var(--primary)', fontFamily: 'Outfit, sans-serif', textShadow: '0 0 15px rgba(245, 183, 49, 0.15)' }}>
                                        {dynamicLegPrice}
                                      </span>
-                                     <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--primary-interactive)' }}>
+                                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)' }}>
                                        {isRtl ? ' ج.م' : ' EGP'}
                                      </span>
                                    </div>
@@ -1357,24 +1419,34 @@ return `${y}-${m}-${d}` === date;
                                    className="auth-button" 
                                    style={{ 
                                      width: 'auto',
-                                     minWidth: '100px',
-                                     minHeight: '34px',
-                                     padding: '6px 12px', 
-                                     fontSize: '0.78rem', 
-                                     fontWeight: 800,
-                                     borderRadius: '6px',
-                                     background: 'var(--primary)',
-                                     color: '#000',
+                                     minWidth: '110px',
+                                     minHeight: '38px',
+                                     padding: '8px 16px', 
+                                     fontSize: '0.82rem', 
+                                     fontWeight: 900,
+                                     borderRadius: '10px',
+                                     background: 'linear-gradient(135deg, #F5B731 0%, #E5A520 100%)',
+                                     color: '#000000',
                                      border: 'none',
                                      cursor: 'pointer',
                                      display: 'flex',
                                      alignItems: 'center',
                                      justifyContent: 'center',
-                                     gap: '3px',
-                                     boxShadow: '0 2px 8px rgba(224, 163, 40, 0.2)'
+                                     gap: '4px',
+                                     boxShadow: '0 4px 14px rgba(245, 183, 49, 0.3)',
+                                     transition: 'all 0.2s ease'
+                                   }}
+                                   onMouseEnter={(e) => {
+                                     e.currentTarget.style.transform = 'scale(1.03)';
+                                     e.currentTarget.style.boxShadow = '0 6px 18px rgba(245, 183, 49, 0.4)';
+                                   }}
+                                   onMouseLeave={(e) => {
+                                     e.currentTarget.style.transform = 'none';
+                                     e.currentTarget.style.boxShadow = '0 4px 14px rgba(245, 183, 49, 0.3)';
                                    }}
                                  >
                                    <span>{t('bookSeatTicket')}</span>
+                                   <span style={{ fontSize: '0.9rem' }}>🎫</span>
                                  </button>
                                </div>
                              </div>
