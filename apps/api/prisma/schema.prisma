@@ -22,6 +22,7 @@ model User {
   updatedAt     DateTime        @updatedAt
   resetPasswordOtp        String?
   resetPasswordOtpExpires DateTime?
+  walletBalance           Float           @default(0)
   bookings      Booking[]
   chatMessages  ChatMessage[]   @relation("UserChatMessages")
   reviews       Review[]

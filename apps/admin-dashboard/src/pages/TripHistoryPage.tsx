@@ -88,7 +88,7 @@ export function TripHistoryPage() {
 
     const mapObj = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: isDark ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: isDark ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: [31.2357, 30.0444], // Cairo Default
       zoom: 10,
       attributionControl: false

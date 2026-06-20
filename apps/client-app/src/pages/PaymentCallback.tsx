@@ -5,6 +5,8 @@ import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
 import SEO from '../components/SEO';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
 export default function PaymentCallbackPage() {
   const { t, language } = useTranslation();
@@ -28,6 +30,7 @@ export default function PaymentCallbackPage() {
     const bookingId = searchParams.get('bookingId');
     const amountStr = searchParams.get('amount');
     const transactionId = searchParams.get('id');
+    const type = searchParams.get('type');
     
     // In local development, the backend runs on localhost, so Paymob webhooks cannot reach it directly.
     // Therefore, we confirm the transaction on the backend directly via this redirect callback.
@@ -40,7 +43,14 @@ export default function PaymentCallbackPage() {
       })
       .then(() => {
         setStatus('success');
-        addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
+        if (type === 'wallet') {
+          addNotification(
+            isAr ? 'تم شحن المحفظة بنجاح' : 'Wallet Topped Up Successfully',
+            isAr ? 'تمت إضافة الرصيد إلى محفظتك بنجاح.' : 'Funds have been added to your prepaid balance.'
+          );
+        } else {
+          addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
+        }
       })
       .catch((err) => {
         console.error('Failed to confirm payment on backend:', err);
@@ -48,45 +58,68 @@ export default function PaymentCallbackPage() {
       });
     } else if (isSuccess) {
       setStatus('success');
-      addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
+      if (type === 'wallet') {
+        addNotification(
+          isAr ? 'تم شحن المحفظة بنجاح' : 'Wallet Topped Up Successfully',
+          isAr ? 'تمت إضافة الرصيد إلى محفظتك بنجاح.' : 'Funds have been added to your prepaid balance.'
+        );
+      } else {
+        addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
+      }
     } else {
       setStatus('failed');
     }
-  }, [searchParams, addNotification, t]);
+  }, [searchParams, addNotification, t, isAr]);
 
   return (
     <div className="auth-page">
       <SEO title={seoTitle} description={seoDescription} />
-      <div className="auth-card glass" style={{ textAlign: 'center', maxWidth: '500px', paddingTop: '2.5rem' }}>
-        {status === 'loading' && <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{t('verifyingPayment')}</h1>}
+      <Card className="max-w-[500px] w-full text-center bg-[#121224]/80 backdrop-blur-xl border-white/10 shadow-2xl">
+        <CardContent className="p-10">
+          {status === 'loading' && <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{t('verifyingPayment')}</h1>}
 
-        {status === 'success' && (
-          <>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('paymentSuccessful')}</h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
-              {t('paymentSuccessDesc')}
-            </p>
-            <button onClick={() => navigate('/my-trips')} className="auth-button">
-              {t('viewMyTrips')}
-            </button>
-          </>
-        )}
+          {status === 'success' && (
+            <>
+              <div className="text-6xl mb-4">✅</div>
+              <h1 className="text-3xl font-bold text-[var(--text-primary)]">
+                {searchParams.get('type') === 'wallet'
+                  ? (isAr ? 'تم شحن الرصيد بنجاح!' : 'Top Up Successful!')
+                  : t('paymentSuccessful')}
+              </h1>
+              <p className="text-[var(--text-secondary)] mt-4 mb-8">
+                {searchParams.get('type') === 'wallet'
+                  ? (isAr ? 'تم تحديث رصيد محفظتك مسبقة الدفع بنجاح.' : 'Your prepaid wallet balance has been updated successfully.')
+                  : t('paymentSuccessDesc')}
+              </p>
+              <Button
+                onClick={() => navigate(searchParams.get('type') === 'wallet' ? '/wallet' : '/my-trips')}
+                className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold"
+              >
+                {searchParams.get('type') === 'wallet'
+                  ? (isAr ? 'الذهاب إلى المحفظة' : 'Go to Wallet')
+                  : t('viewMyTrips')}
+              </Button>
+            </>
+          )}
 
-        {status === 'failed' && (
-          <>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❌</div>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('paymentFailed')}</h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
-              {t('paymentFailedDesc')}
-            </p>
-            <button onClick={() => navigate('/')} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-              {t('returnToHome')}
-            </button>
-          </>
-        )}
-      </div>
+          {status === 'failed' && (
+            <>
+              <div className="text-6xl mb-4">❌</div>
+              <h1 className="text-3xl font-bold text-[var(--text-primary)]">{t('paymentFailed')}</h1>
+              <p className="text-[var(--text-secondary)] mt-4 mb-8">
+                {t('paymentFailedDesc')}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => navigate(searchParams.get('type') === 'wallet' ? '/wallet' : '/')}
+                className="w-full border-white/10 text-[var(--text-primary)] hover:bg-white/5"
+              >
+                {searchParams.get('type') === 'wallet' ? (isAr ? 'العودة إلى المحفظة' : 'Return to Wallet') : t('returnToHome')}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

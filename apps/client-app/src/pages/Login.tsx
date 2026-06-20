@@ -6,7 +6,11 @@ import logo from '../assets/d-ride-logo.jpeg';
 import { LogIn, RefreshCw } from 'lucide-react';
 import { authAPI } from '../services/api';
 import SEO from '../components/SEO';
-
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
 function decodeJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -40,6 +44,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(false);
 
   // Forgot Password States
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -217,126 +222,177 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} } .fade-in{animation:fadeIn 0.5s ease-out forwards;}`}</style>
       <SEO title={seoTitle} description={seoDescription} />
-      <div className="auth-card glass">
-        <div className="auth-header">
-          <img src={logo} alt="D-Ride" className="auth-logo" />
-          <h1 className="auth-title">{t('loginTitle')}</h1>
-          <p className="auth-subtitle">{t('loginSubtitle')}</p>
-        </div>
+      <Card className="w-full max-w-[440px] p-6 glass border-amber-500/20 backdrop-blur-2xl transition-all duration-300 hover:border-amber-500/30 hover:shadow-[0_12px_40px_rgba(245,183,49,0.1)] transform hover:scale-105 relative z-10 fade-in">
+        <CardHeader className="auth-header text-center flex flex-col items-center p-0 mb-6">
+          <img src={logo} alt="D-Ride" className="auth-logo h-16 w-auto mb-4 rounded-xl shadow-[0_0_30px_var(--glow-amber)] transition-transform duration-300 hover:scale-108" />
+          <CardTitle className="auth-title text-2xl font-extrabold tracking-tight text-white">{t('loginTitle')}</CardTitle>
+          <CardDescription className="auth-subtitle text-sm text-muted-foreground mt-1">{t('loginSubtitle')}</CardDescription>
+        </CardHeader>
 
-        {error && <div className="auth-error">{error}</div>}
+        <CardContent className="p-0">
+          {error && <div className="auth-error mb-4">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="auth-field">
-            <label htmlFor="email">{t('loginEmailLabel')}</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('loginEmailPlaceholder')}
-              required
-            />
+          <form onSubmit={handleSubmit} className="auth-form flex flex-col gap-4">
+            <div className="auth-field flex flex-col gap-1.5">
+              <Label htmlFor="email" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t('loginEmailLabel')}</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('loginEmailPlaceholder')}
+                required
+                className="bg-transparent border-border focus-visible:ring-amber-500/20"
+              />
+            </div>
+            <div className="auth-field flex flex-col gap-1.5">
+              <div className="flex justify-between items-center mb-1">
+                <Label htmlFor="password" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t('loginPasswordLabel')}</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPasswordModal(true);
+                    setForgotPasswordStep(1);
+                    setForgotPasswordEmail('');
+                    setForgotPasswordOtp('');
+                    setForgotPasswordNewPassword('');
+                    setForgotPasswordError('');
+                    setForgotPasswordSuccess('');
+                  }}
+                  className="bg-transparent border-none text-[#f5b731] cursor-pointer text-xs font-semibold hover:underline"
+                  id="forgot-password-link"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t('loginPasswordPlaceholder')}
+                required
+                className="bg-transparent border-border focus-visible:ring-amber-500/20"
+              />
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+               <Checkbox id="remember" checked={remember} onCheckedChange={setRemember} className="text-amber-500" />
+               <Label htmlFor="remember" className="text-[10px] font-medium text-muted-foreground">Remember me</Label>
+            </div>
+            
+            <Button type="submit" className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold gap-2 py-5" disabled={loading} id="login-submit-btn">
+              {loading ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  {t('loggingIn')}
+                </>
+              ) : (
+                <>
+                  <LogIn size={18} />
+                  {t('loginBtn')}
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Divider OR */}
+          <div className="flex items-center my-6 w-full">
+            <div className="flex-1 h-[1px] bg-border" />
+            <span className="mx-3 text-[11px] text-muted-foreground font-bold uppercase tracking-wider">OR</span>
+            <div className="flex-1 h-[1px] bg-border" />
           </div>
-          <div className="auth-field">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label htmlFor="password" style={{ margin: 0 }}>{t('loginPasswordLabel')}</label>
+
+          {/* Google G-Button */}
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && 
+           import.meta.env.VITE_GOOGLE_CLIENT_ID !== 'your_google_client_id_here' ? (
+            <div 
+              onMouseEnter={() => setIsGoogleHovered(true)}
+              onMouseLeave={() => setIsGoogleHovered(false)}
+              style={{ 
+                position: 'relative', 
+                width: '100%', 
+                height: '44px', 
+                marginTop: '0.5rem' 
+              }}
+            >
+              {/* Custom Styled Google Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setShowForgotPasswordModal(true);
-                  setForgotPasswordStep(1);
-                  setForgotPasswordEmail('');
-                  setForgotPasswordOtp('');
-                  setForgotPasswordNewPassword('');
-                  setForgotPasswordError('');
-                  setForgotPasswordSuccess('');
-                }}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--accent, #f5b731)',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  background: isGoogleHovered ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                  border: isGoogleHovered ? '1px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.95rem',
                   cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  padding: 0,
-                  outline: 'none'
+                  pointerEvents: 'none',
+                  transition: 'all 0.2s ease',
+                  transform: isGoogleHovered ? 'translateY(-1px)' : 'none',
+                  boxShadow: isGoogleHovered ? '0 4px 12px rgba(245, 183, 49, 0.15)' : 'none'
                 }}
-                id="forgot-password-link"
               >
-                Forgot Password?
+                <svg width="20" height="20" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
+                  <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
+                  <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
+                </svg>
+                <span>{isAr ? 'المواصلة باستخدام Google' : 'Continue with Google'}</span>
               </button>
+
+              {/* Invisible Real Google SDK Overlay */}
+              <div 
+                id="google-signin-btn" 
+                style={{ 
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0.01,
+                  cursor: 'pointer',
+                  zIndex: 10,
+                  overflow: 'hidden',
+                  borderRadius: '12px'
+                }}
+              />
             </div>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('loginPasswordPlaceholder')}
-              required
-            />
-          </div>
-          <button type="submit" className="btn-primary auth-btn" disabled={loading} id="login-submit-btn">
-            {loading ? (
-              <>
-                <RefreshCw size={18} className="animate-spin" />
-                {t('loggingIn')}
-              </>
-            ) : (
-              <>
-                <LogIn size={18} />
-                {t('loginBtn')}
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Divider OR */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', width: '100%' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span style={{ margin: '0 10px', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>OR</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-        </div>
-
-        {/* Google G-Button */}
-        {import.meta.env.VITE_GOOGLE_CLIENT_ID && 
-         import.meta.env.VITE_GOOGLE_CLIENT_ID !== 'your_google_client_id_here' ? (
-          <div 
-            onMouseEnter={() => setIsGoogleHovered(true)}
-            onMouseLeave={() => setIsGoogleHovered(false)}
-            style={{ 
-              position: 'relative', 
-              width: '100%', 
-              height: '44px', 
-              marginTop: '0.5rem' 
-            }}
-          >
-            {/* Custom Styled Google Button */}
-            <button
-              type="button"
+          ) : (
+            <button 
+              type="button" 
+              onClick={handleOpenGoogleChooser}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '12px',
+                width: '100%',
+                padding: '0.75rem',
                 background: isGoogleHovered ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
                 border: isGoogleHovered ? '1px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '12px',
-                color: 'white',
                 fontWeight: 'bold',
                 fontSize: '0.95rem',
+                color: 'white',
                 cursor: 'pointer',
-                pointerEvents: 'none',
                 transition: 'all 0.2s ease',
                 transform: isGoogleHovered ? 'translateY(-1px)' : 'none',
                 boxShadow: isGoogleHovered ? '0 4px 12px rgba(245, 183, 49, 0.15)' : 'none'
               }}
+              onMouseEnter={() => setIsGoogleHovered(true)}
+              onMouseLeave={() => setIsGoogleHovered(false)}
             >
               <svg width="20" height="20" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
                 <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
@@ -346,119 +402,27 @@ export default function LoginPage() {
               </svg>
               <span>{isAr ? 'المواصلة باستخدام Google' : 'Continue with Google'}</span>
             </button>
+          )}
 
-            {/* Invisible Real Google SDK Overlay */}
-            <div 
-              id="google-signin-btn" 
-              style={{ 
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0.01,
-                cursor: 'pointer',
-                zIndex: 10,
-                overflow: 'hidden',
-                borderRadius: '12px'
-              }}
-            />
+          <div className="auth-switch mt-6">
+            {t('dontHaveAccount')} <Link to="/register">{t('signUpNow')}</Link>
           </div>
-        ) : (
-          <button 
-            type="button" 
-            onClick={handleOpenGoogleChooser}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '0.75rem',
-              background: isGoogleHovered ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-              border: isGoogleHovered ? '1px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              fontWeight: 'bold',
-              fontSize: '0.95rem',
-              color: 'white',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              transform: isGoogleHovered ? 'translateY(-1px)' : 'none',
-              boxShadow: isGoogleHovered ? '0 4px 12px rgba(245, 183, 49, 0.15)' : 'none'
-            }}
-            onMouseEnter={() => setIsGoogleHovered(true)}
-            onMouseLeave={() => setIsGoogleHovered(false)}
-          >
-            <svg width="20" height="20" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
-              <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7v2.24h2.9c1.69-1.55 2.69-3.85 2.69-6.57z"/>
-              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.23l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.34 0-4.33-1.58-5.03-3.7H.95v2.3C2.43 15.89 5.48 18 9 18z"/>
-              <path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5H.95C.34 6.2.0 7.56.0 9s.34 2.8.95 4H3.97z"/>
-              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.02C13.46.59 11.43 0 9 0 5.48 0 2.43 2.11.95 5.1L3.97 7.4c.7-2.12 2.69-3.7 5.03-3.7z"/>
-            </svg>
-            <span>{isAr ? 'المواصلة باستخدام Google' : 'Continue with Google'}</span>
-          </button>
-        )}
-
-        <div className="auth-switch">
-          {t('dontHaveAccount')} <Link to="/register">{t('signUpNow')}</Link>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Simulated Google Accounts Chooser Overlay */}
       {showGoogleChooser && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(6, 6, 14, 0.85)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 10005,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div 
-            style={{
-              background: '#ffffff',
-              color: '#1f2937',
-              borderRadius: '24px',
-              padding: '2.5rem 2rem',
-              maxWidth: '420px',
-              width: '100%',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
-              position: 'relative'
-            }}
-          >
-            <button 
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[10007] flex items-center justify-center p-6">
+          <Card className="max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative animate-none">
+            <Button 
               onClick={handleCloseGoogleChooser}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: '#f3f4f6',
-                border: 'none',
-                color: '#4b5563',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '14px'
-              }}
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
                 <svg width="40" height="40" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -466,25 +430,17 @@ export default function LoginPage() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
               </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#111827' }}>Choose an account</h2>
-              <p style={{ fontSize: '0.9rem', color: '#4b5563', margin: 0 }}>to continue to <strong>D-Ride Commuter</strong></p>
+              <h2 className="text-xl font-bold text-white mb-1">Choose an account</h2>
+              <p className="text-xs text-muted-foreground">to continue to <strong className="text-amber-500">D-Ride Commuter</strong></p>
             </div>
 
             {googleLoading ? (
-              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  border: '3px solid #e5e7eb',
-                  borderTopColor: '#4285F4',
-                  borderRadius: '50%',
-                  margin: '0 auto 1.5rem auto',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                <p style={{ fontSize: '0.9rem', color: '#4b5563', fontWeight: 600 }}>Securing single sign-on connection...</p>
+              <div className="text-center py-8">
+                <div className="w-9 h-9 border-3 border-white/15 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-xs text-muted-foreground font-semibold">Securing single sign-on connection...</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="flex flex-col gap-3">
                 {!showCustomForm ? (
                   <>
                     {[
@@ -494,407 +450,193 @@ export default function LoginPage() {
                       <button
                         key={acc.email}
                         onClick={() => handleSelectGoogleAccount(acc.email, acc.name)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          width: '100%',
-                          padding: '12px 16px',
-                          background: '#f9fafb',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                        className="flex items-center gap-3 w-full p-3.5 bg-white/[0.01] border border-border/40 hover:bg-white/[0.03] transition-colors rounded-xl text-left"
                       >
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: '#4285F4',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 'bold',
-                          fontSize: '0.85rem'
-                        }}>
+                        <div className="w-9 h-9 rounded-full bg-[#4285F4] text-white flex items-center justify-center font-bold text-xs">
                           {acc.avatar}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>{acc.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#4b5563' }}>{acc.email}</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-white">{acc.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{acc.email}</span>
                         </div>
                       </button>
                     ))}
 
-                    <button
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setShowCustomForm(true)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '12px',
-                        background: 'transparent',
-                        border: '1px dashed #d1d5db',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '0.88rem',
-                        color: '#4b5563',
-                        marginTop: '0.25rem',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f9fafb';
-                        e.currentTarget.style.borderColor = '#9ca3af';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.borderColor = '#d1d5db';
-                      }}
+                      className="w-full bg-transparent border-dashed border-border text-muted-foreground hover:text-white hover:bg-white/5 font-bold h-11 rounded-xl mt-1"
                     >
                       Use another account
-                    </button>
+                    </Button>
                   </>
                 ) : (
-                  <form onSubmit={handleCustomGoogleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563' }}>Google Name</label>
-                      <input
+                  <form onSubmit={handleCustomGoogleSubmit} className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <Label htmlFor="custom-google-name" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Google Name</Label>
+                      <Input
+                        id="custom-google-name"
                         type="text"
                         value={customName}
                         onChange={(e) => setCustomName(e.target.value)}
                         placeholder="Ahmed Hassan"
                         required
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem',
-                          background: 'white',
-                          color: '#1f2937',
-                          outline: 'none'
-                        }}
+                        className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
                       />
                     </div>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563' }}>Google Email Address</label>
-                      <input
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <Label htmlFor="custom-google-email" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Google Email Address</Label>
+                      <Input
+                        id="custom-google-email"
                         type="email"
                         value={customEmail}
                         onChange={(e) => setCustomEmail(e.target.value)}
                         placeholder="you@gmail.com"
                         required
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem',
-                          background: 'white',
-                          color: '#1f2937',
-                          outline: 'none'
-                        }}
+                        className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
                       />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
-                      <button
+                    <div className="flex gap-3 mt-2">
+                      <Button
                         type="button"
+                        variant="outline"
                         onClick={() => setShowCustomForm(false)}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          background: '#f3f4f6',
-                          color: '#4b5563',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          fontSize: '0.88rem'
-                        }}
+                        className="flex-1 bg-white/5 border-white/10 text-white hover:bg-white/10 font-bold py-3 h-10 rounded-xl"
                       >
                         Back
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
-                        style={{
-                          flex: 2,
-                          padding: '10px',
-                          background: '#4285F4',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          fontSize: '0.88rem'
-                        }}
+                        className="flex-[2] bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-3 h-10 rounded-xl"
                       >
                         Verify & Continue
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 )}
               </div>
             )}
             
-            <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '2rem', paddingTop: '1rem', fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', lineHeight: 1.4 }}>
+            <div className="border-t border-white/10 mt-6 pt-4 text-[10px] text-muted-foreground text-center leading-normal">
               To continue, Google will share your name, email address, and profile picture with D-Ride.
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(6, 6, 14, 0.85)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 10006,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div 
-            style={{
-              background: '#121224',
-              color: '#ffffff',
-              borderRadius: '24px',
-              padding: '2.5rem 2rem',
-              maxWidth: '420px',
-              width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
-              position: 'relative'
-            }}
-          >
-            <button 
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[10008] flex items-center justify-center p-6">
+          <Card className="max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative animate-none">
+            <Button 
               onClick={() => setShowForgotPasswordModal(false)}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: 'none',
-                color: '#a3a3a3',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>Forgot Password</h2>
-              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0 }}>
+            <CardHeader className="text-center p-0 mb-6 flex flex-col gap-2">
+              <CardTitle className="text-xl font-bold text-amber-500">Forgot Password</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
                 {forgotPasswordStep === 1 
                   ? 'Enter your email to receive a 6-digit verification code.' 
                   : 'Enter the 6-digit code sent to your email and your new password.'}
-              </p>
-            </div>
+              </CardDescription>
+            </CardHeader>
 
-            {forgotPasswordError && (
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.5rem',
-                fontWeight: 500
-              }}>
-                {forgotPasswordError}
-              </div>
-            )}
-
-            {forgotPasswordSuccess && (
-              <div style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#34d399',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.5rem',
-                fontWeight: 500
-              }}>
-                {forgotPasswordSuccess}
-              </div>
-            )}
-
-            {forgotPasswordStep === 1 ? (
-              <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="fp-email" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>Email Address</label>
-                  <input
-                    id="fp-email"
-                    type="email"
-                    value={forgotPasswordEmail}
-                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '0.95rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: 'white',
-                      outline: 'none',
-                      transition: 'border-color 0.2s'
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#f5b731'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                  />
+            <CardContent className="p-0">
+              {forgotPasswordError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {forgotPasswordError}
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={forgotPasswordLoading}
-                  style={{
-                    background: '#f5b731',
-                    color: '#06060e',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    transition: 'opacity 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                  id="fp-request-otp-btn"
-                >
-                  {forgotPasswordLoading ? 'Sending...' : 'Send Reset Code'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="fp-otp" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>6-Digit Code</label>
-                  <input
-                    id="fp-otp"
-                    type="text"
-                    maxLength={6}
-                    value={forgotPasswordOtp}
-                    onChange={(e) => setForgotPasswordOtp(e.target.value)}
-                    placeholder="123456"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '1.1rem',
-                      letterSpacing: '6px',
-                      textAlign: 'center',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: '#f5b731',
-                      fontWeight: 'bold',
-                      outline: 'none'
-                    }}
-                  />
+              {forgotPasswordSuccess && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {forgotPasswordSuccess}
                 </div>
+              )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="fp-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>New Password</label>
-                  <input
-                    id="fp-password"
-                    type="password"
-                    value={forgotPasswordNewPassword}
-                    onChange={(e) => setForgotPasswordNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '0.95rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: 'white',
-                      outline: 'none',
-                      transition: 'border-color 0.2s'
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#f5b731'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                  />
-                </div>
+              {forgotPasswordStep === 1 ? (
+                <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="fp-email" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Email Address</Label>
+                    <Input
+                      id="fp-email"
+                      type="email"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      required
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                    />
+                  </div>
 
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setForgotPasswordStep(1)}
-                    style={{
-                      flex: 1,
-                      background: 'rgba(255,255,255,0.05)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Back
-                  </button>
-                  
-                  <button
+                  <Button
                     type="submit"
                     disabled={forgotPasswordLoading}
-                    style={{
-                      flex: 2,
-                      background: '#f5b731',
-                      color: '#06060e',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      opacity: forgotPasswordLoading ? 0.7 : 1
-                    }}
-                    id="fp-reset-btn"
+                    className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-5 h-12 rounded-xl mt-2"
+                    id="fp-request-otp-btn"
                   >
-                    {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+                    {forgotPasswordLoading ? 'Sending...' : 'Send Reset Code'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="fp-otp" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">6-Digit Code</Label>
+                    <Input
+                      id="fp-otp"
+                      type="text"
+                      maxLength={6}
+                      value={forgotPasswordOtp}
+                      onChange={(e) => setForgotPasswordOtp(e.target.value)}
+                      placeholder="123456"
+                      required
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-center font-black text-amber-500 tracking-[6px] text-lg py-5 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="fp-password" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">New Password</Label>
+                    <Input
+                      id="fp-password"
+                      type="password"
+                      value={forgotPasswordNewPassword}
+                      onChange={(e) => setForgotPasswordNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setForgotPasswordStep(1)}
+                      className="flex-1 bg-white/5 border-white/10 text-white hover:bg-white/10 font-bold py-5 h-12 rounded-xl"
+                    >
+                      Back
+                    </Button>
+                    
+                    <Button
+                      type="submit"
+                      disabled={forgotPasswordLoading}
+                      className="flex-[2] bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-5 h-12 rounded-xl"
+                      id="fp-reset-btn"
+                    >
+                      {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

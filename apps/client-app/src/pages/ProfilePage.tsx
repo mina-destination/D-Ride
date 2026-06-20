@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Phone, Calendar, ShieldCheck, LogOut, Award, Navigation, Leaf, Lock } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Calendar, ShieldCheck, LogOut, Award, Navigation, Leaf, Lock, Edit2 } from 'lucide-react';
 import { authAPI } from '../services/api';
 import SEO from '../components/SEO';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const { t, language } = useTranslation();
   const navigate = useNavigate();
 
@@ -16,6 +21,38 @@ export default function ProfilePage() {
   const seoDescription = isAr
     ? 'عرض وتحديث إعدادات ملفك الشخصي كراكب، وكلمة مرور الأمان، وإحصاءات توفير الكربون على دي-رايد.'
     : 'View and update your passenger profile settings, security password credentials, and carbon emission stats on D-Ride.';
+
+  // Edit Profile States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
+
+  const handleStartEdit = () => {
+    setEditName(user?.name || '');
+    setEditPhone(user?.phone || '');
+    setSaveError('');
+    setSaveSuccess('');
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveError('');
+    setSaveSuccess('');
+    setSaveLoading(true);
+    try {
+      await updateProfile({ name: editName, phone: editPhone });
+      setSaveSuccess(isAr ? 'تم تحديث الملف الشخصي بنجاح!' : 'Profile updated successfully!');
+      setIsEditing(false);
+    } catch (err: any) {
+      setSaveError(err?.message || (isAr ? 'فشل تحديث الملف الشخصي.' : 'Failed to update profile.'));
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   // Change Password States
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -85,497 +122,384 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container min-h-[85vh] pb-12 relative">
       <SEO title={seoTitle} description={seoDescription} />
+      
       {/* Dynamic background glows */}
-      <div className="hero-bg-gradient" style={{ top: '-10%', right: '-5%' }} />
-      <div className="hero-bg-gradient-2" style={{ bottom: '-10%', left: '-5%' }} />
+      <div className="hero-bg-gradient absolute top-[-10%] right-[-5%] z-0" />
+      <div className="hero-bg-gradient-2 absolute bottom-[-10%] left-[-5%] z-0" />
 
-      <div style={{
-        maxWidth: '850px',
-        width: '100%',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.3fr',
-        gap: '2.5rem',
-        alignItems: 'start'
-      }} className="contact-container">
+      <div className="contact-container max-w-[850px] w-full grid grid-cols-1 md:grid-cols-[1fr_1.3fr] gap-10 items-start relative z-10 mx-auto px-6">
         
         {/* Left Card: Avatar & Brand Tag */}
-        <div className="auth-card glass" style={{ margin: 0, padding: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1.5rem' }}>
-          <div style={{ alignSelf: 'flex-start' }}>
-            <button
+        <Card className="p-6 bg-white/[0.02] border-border/60 flex flex-col items-center text-center gap-6">
+          <div className="self-start">
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => navigate(-1)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border)',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
+              className="bg-white/[0.03] border-border text-white hover:bg-white/5 rounded-full w-9 h-9 flex items-center justify-center"
               title="Go Back"
-              className="btn-back"
             >
-              <ArrowLeft size={16} style={{ transform: language === 'ar' ? 'rotate(180deg)' : 'none' }} />
-            </button>
+              <ArrowLeft size={16} className={language === 'ar' ? 'rotate-180' : ''} />
+            </Button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '96px',
-              height: '96px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-              color: 'var(--text-on-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '36px',
-              fontWeight: 800,
-              boxShadow: '0 0 25px rgba(245, 183, 49, 0.45)',
-              border: '2px solid rgba(255, 255, 255, 0.1)'
-            }}>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-black flex items-center justify-center text-3xl font-black shadow-[0_0_25px_rgba(245,183,49,0.45)] border-2 border-white/10">
               {getInitials()}
             </div>
-            <h2 className="title-outfit" style={{ margin: '8px 0 0 0', fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+            <h2 className="text-xl font-bold tracking-tight text-white mt-2">
               {user?.name || 'Commuter'}
             </h2>
-            <span style={{
-              fontSize: '10px',
-              fontWeight: 800,
-              color: 'black',
-              background: 'var(--primary)',
-              padding: '4px 12px',
-              borderRadius: '100px',
-              textTransform: 'uppercase',
-              letterSpacing: '1.5px',
-              boxShadow: '0 4px 10px rgba(245, 183, 49, 0.2)'
-            }}>
+            <Badge className="bg-amber-500 text-black hover:bg-amber-500 font-bold px-3 py-1 text-[10px] tracking-wider uppercase">
               {user?.role || 'PASSENGER'}
-            </span>
+            </Badge>
           </div>
 
-          <div style={{ 
-            width: '100%', 
-            borderTop: '1px solid var(--border)', 
-            paddingTop: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              <ShieldCheck size={16} style={{ color: 'var(--success)' }} />
-              <span>Verified Account Status</span>
+          <div className="w-full border-t border-border/40 pt-6 flex flex-col gap-3">
+            <div className="flex items-center gap-2.5 text-muted-foreground text-xs justify-center md:justify-start">
+              <ShieldCheck size={16} className="text-emerald-500" />
+              <span>{isAr ? 'حالة الحساب موثقة' : 'Verified Account Status'}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              <Calendar size={16} style={{ color: 'var(--primary)' }} />
-              <span>Member Since May 2026</span>
+            <div className="flex items-center gap-2.5 text-muted-foreground text-xs justify-center md:justify-start">
+              <Calendar size={16} className="text-amber-500" />
+              <span>{isAr ? 'عضو منذ مايو 2026' : 'Member Since May 2026'}</span>
             </div>
           </div>
 
-          <button
+          <Button
             onClick={handleLogout}
-            className="btn btn-danger btn-block"
-            style={{ 
-              marginTop: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '12px'
-            }}
+            variant="destructive"
+            className="w-full flex items-center justify-center gap-2 font-bold py-5 h-12 rounded-xl mt-4"
           >
             <LogOut size={16} />
             {t('signOut') || 'Sign Out'}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         {/* Right Card: Account Details & Ride Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div className="flex flex-col gap-6">
           {/* User Information */}
-          <div className="auth-card glass" style={{ margin: 0, padding: '2.5rem', width: '100%' }}>
-            <h3 className="title-outfit" style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 1.5rem 0', color: 'var(--text-primary)' }}>
-              Account Settings
-            </h3>
+          <Card className="p-6 bg-white/[0.02] border-border/60">
+            <CardHeader className="p-0 mb-5 flex flex-row justify-between items-center space-y-0">
+              <CardTitle className="text-lg font-bold text-white">
+                {isAr ? 'إعدادات الحساب' : 'Account Settings'}
+              </CardTitle>
+              {!isEditing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleStartEdit}
+                  className="text-amber-500 hover:text-amber-400 hover:bg-white/5 gap-1.5 h-8 font-bold"
+                >
+                  <Edit2 size={14} />
+                  {isAr ? 'تعديل' : 'Edit'}
+                </Button>
+              )}
+            </CardHeader>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  Full Name
-                </label>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}>
-                  <User size={16} style={{ color: 'var(--primary)' }} />
-                  <span>{user?.name || 'Commuter'}</span>
+            <CardContent className="p-0">
+              {saveError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {saveError}
                 </div>
-              </div>
+              )}
+              {saveSuccess && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {saveSuccess}
+                </div>
+              )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  Email Address
-                </label>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  wordBreak: 'break-all'
-                }}>
-                  <Mail size={16} style={{ color: 'var(--primary)' }} />
-                  <span>{user?.email || 'N/A'}</span>
-                </div>
-              </div>
+              {isEditing ? (
+                <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="edit-name" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'الاسم الكامل' : 'Full Name'}
+                    </Label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500" />
+                      <Input
+                        id="edit-name"
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                        className="pl-12 bg-transparent border-border focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  Phone Number
-                </label>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}>
-                  <Phone size={16} style={{ color: 'var(--primary)' }} />
-                  <span>{user?.phone || 'N/A'}</span>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                    </Label>
+                    <div className="bg-white/[0.01] border border-border/20 rounded-xl px-4 py-3 text-sm font-semibold text-muted-foreground flex items-center gap-2.5 break-all cursor-not-allowed">
+                      <Mail size={16} className="text-muted-foreground/60" />
+                      <span>{user?.email || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="edit-phone" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'رقم الهاتف' : 'Phone Number'}
+                    </Label>
+                    <div className="relative">
+                      <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500" />
+                      <Input
+                        id="edit-phone"
+                        type="text"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        required
+                        className="pl-12 bg-transparent border-border focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                      className="flex-1 bg-white/5 border-border text-white hover:bg-white/10 font-bold py-3 h-10 rounded-xl"
+                    >
+                      {isAr ? 'إلغاء' : 'Cancel'}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={saveLoading}
+                      className="flex-1 bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-3 h-10 rounded-xl"
+                    >
+                      {saveLoading ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ التغييرات' : 'Save Changes')}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <Label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      {isAr ? 'الاسم الكامل' : 'Full Name'}
+                    </Label>
+                    <div className="bg-white/[0.02] border border-border/40 rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center gap-2.5">
+                      <User size={16} className="text-amber-500" />
+                      <span>{user?.name || 'Commuter'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      {isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                    </Label>
+                    <div className="bg-white/[0.02] border border-border/40 rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center gap-2.5 break-all">
+                      <Mail size={16} className="text-amber-500" />
+                      <span>{user?.email || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      {isAr ? 'رقم الهاتف' : 'Phone Number'}
+                    </Label>
+                    <div className="bg-white/[0.02] border border-border/40 rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center gap-2.5">
+                      <Phone size={16} className="text-amber-500" />
+                      <span>{user?.phone || 'N/A'}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Security & Password Card */}
-          <div className="auth-card glass" style={{ margin: 0, padding: '2.5rem', width: '100%' }}>
-            <h3 className="title-outfit" style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 1rem 0', color: 'var(--text-primary)' }}>
-              Security & Password
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.4 }}>
-              To ensure your account safety, D-Ride requires verifying a 6-digit OTP code sent to your registered email before updating your login credentials.
-            </p>
-            <button
-              onClick={() => {
-                setShowChangePasswordModal(true);
-                setChangePasswordStep(1);
-                setChangePasswordOtp('');
-                setChangePasswordNewPassword('');
-                setChangePasswordConfirmPassword('');
-                setChangePasswordError('');
-                setChangePasswordSuccess('');
-              }}
-              className="btn btn-primary btn-block"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '12px',
-                fontWeight: 700
-              }}
-              id="change-password-trigger"
-            >
-              <Lock size={16} />
-              Change Account Password
-            </button>
-          </div>
+          <Card className="p-6 bg-white/[0.02] border-border/60">
+            <CardHeader className="p-0 mb-3">
+              <CardTitle className="text-lg font-bold text-white">
+                {isAr ? 'الأمان وكلمة المرور' : 'Security & Password'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex flex-col gap-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {isAr
+                  ? 'لضمان أمان حسابك، يتطلب دي-رايد التحقق من رمز OTP المكون من 6 أرقام المرسل إلى بريدك الإلكتروني المسجل قبل تحديث بيانات تسجيل الدخول الخاصة بك.'
+                  : 'To ensure your account safety, D-Ride requires verifying a 6-digit OTP code sent to your registered email before updating your login credentials.'}
+              </p>
+              <Button
+                onClick={() => {
+                  setShowChangePasswordModal(true);
+                  setChangePasswordStep(1);
+                  setChangePasswordOtp('');
+                  setChangePasswordNewPassword('');
+                  setChangePasswordConfirmPassword('');
+                  setChangePasswordError('');
+                  setChangePasswordSuccess('');
+                }}
+                className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold gap-2 py-5 h-12 rounded-xl"
+                id="change-password-trigger"
+              >
+                <Lock size={16} />
+                {isAr ? 'تغيير كلمة مرور الحساب' : 'Change Account Password'}
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Loyalty & Impact stats */}
-          <div className="glass" style={{
-            padding: '2rem',
-            borderRadius: 'var(--radius-xl)',
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '1.5rem',
-            backdropFilter: 'blur(10px)'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(245, 183, 49, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+          <Card className="p-6 bg-white/[0.02] border-border/60 grid grid-cols-3 gap-4 items-center">
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
                 <Navigation size={20} />
               </div>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>12</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Rides Booked</span>
+              <span className="text-lg font-black text-white">12</span>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
+                {isAr ? 'الرحلات المحجوزة' : 'Rides Booked'}
+              </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <Leaf size={20} />
               </div>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>4.8 kg</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>CO₂ Saved</span>
+              <span className="text-lg font-black text-white">{isAr ? '٤.٨ كجم' : '4.8 kg'}</span>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
+                {isAr ? 'توفير CO₂' : 'CO₂ Saved'}
+              </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Award size={20} />
               </div>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>Gold</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Rider Tier</span>
+              <span className="text-lg font-black text-white">{isAr ? 'ذهبي' : 'Gold'}</span>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
+                {isAr ? 'فئة الراكب' : 'Rider Tier'}
+              </span>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
       {/* Change Password Modal */}
       {showChangePasswordModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(6, 6, 14, 0.85)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 10007,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div 
-            style={{
-              background: '#121224',
-              color: '#ffffff',
-              borderRadius: '24px',
-              padding: '2.5rem 2rem',
-              maxWidth: '420px',
-              width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
-              position: 'relative'
-            }}
-          >
-            <button 
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[10007] flex items-center justify-center p-6">
+          <Card className="max-w-[420px] w-full p-8 bg-[#121224] text-white border border-white/10 shadow-2xl relative animate-none">
+            <Button 
               onClick={() => setShowChangePasswordModal(false)}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: 'none',
-                color: '#a3a3a3',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              className="absolute top-4 right-4 bg-white/5 border-none text-muted-foreground hover:bg-white/10 hover:text-white rounded-full w-8 h-8 p-0 flex items-center justify-center text-xs font-bold transition-all duration-200"
             >
               ✕
-            </button>
+            </Button>
 
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#f5b731' }}>Change Password</h2>
-              <p style={{ fontSize: '0.9rem', color: '#a3a3a3', margin: 0 }}>
+            <CardHeader className="text-center p-0 mb-6 flex flex-col gap-2">
+              <CardTitle className="text-xl font-bold text-amber-500">
+                {isAr ? 'تغيير كلمة المرور' : 'Change Password'}
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
                 {changePasswordStep === 1 
-                  ? 'Request a security verification OTP to your registered email.' 
-                  : 'Enter the 6-digit verification code and configure your new password.'}
-              </p>
-            </div>
+                  ? (isAr ? 'طلب رمز OTP للأمان على بريدك الإلكتروني المسجل.' : 'Request a security verification OTP to your registered email.') 
+                  : (isAr ? 'أدخل الرمز المكون من 6 أرقام وقم بتعيين كلمة المرور الجديدة.' : 'Enter the 6-digit verification code and configure your new password.')}
+              </CardDescription>
+            </CardHeader>
 
-            {changePasswordError && (
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.5rem',
-                fontWeight: 500
-              }}>
-                {changePasswordError}
-              </div>
-            )}
-
-            {changePasswordSuccess && (
-              <div style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#34d399',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.5rem',
-                fontWeight: 500
-              }}>
-                {changePasswordSuccess}
-              </div>
-            )}
-
-            {changePasswordStep === 1 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
-                <p style={{ fontSize: '0.9rem', color: '#d1d5db', margin: 0 }}>
-                  A verification code will be sent to: <strong style={{ color: '#f5b731' }}>{user?.email}</strong>
-                </p>
-                <button
-                  onClick={handleChangePasswordRequest}
-                  disabled={changePasswordLoading}
-                  style={{
-                    background: '#f5b731',
-                    color: '#06060e',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    opacity: changePasswordLoading ? 0.7 : 1
-                  }}
-                  id="request-change-otp-btn"
-                >
-                  {changePasswordLoading ? 'Sending OTP...' : 'Send Verification OTP'}
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleChangePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="cp-otp" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>6-Digit Code</label>
-                  <input
-                    id="cp-otp"
-                    type="text"
-                    maxLength={6}
-                    value={changePasswordOtp}
-                    onChange={(e) => setChangePasswordOtp(e.target.value)}
-                    placeholder="123456"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '1.1rem',
-                      letterSpacing: '6px',
-                      textAlign: 'center',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: '#f5b731',
-                      fontWeight: 'bold',
-                      outline: 'none'
-                    }}
-                  />
+            <CardContent className="p-0">
+              {changePasswordError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {changePasswordError}
                 </div>
+              )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="cp-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>New Password</label>
-                  <input
-                    id="cp-password"
-                    type="password"
-                    value={changePasswordNewPassword}
-                    onChange={(e) => setChangePasswordNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '0.95rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: 'white',
-                      outline: 'none'
-                    }}
-                  />
+              {changePasswordSuccess && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-semibold mb-4 text-center">
+                  {changePasswordSuccess}
                 </div>
+              )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="cp-confirm-password" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e5e7eb' }}>Confirm Password</label>
-                  <input
-                    id="cp-confirm-password"
-                    type="password"
-                    value={changePasswordConfirmPassword}
-                    onChange={(e) => setChangePasswordConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '0.95rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: 'white',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setChangePasswordStep(1)}
-                    style={{
-                      flex: 1,
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      color: 'white',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Back
-                  </button>
-                  
-                  <button
-                    type="submit"
+              {changePasswordStep === 1 ? (
+                <div className="flex flex-col gap-4 text-center">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isAr ? 'سيتم إرسال رمز التحقق إلى:' : 'A verification code will be sent to:'} <strong className="text-amber-500">{user?.email}</strong>
+                  </p>
+                  <Button
+                    onClick={handleChangePasswordRequest}
                     disabled={changePasswordLoading}
-                    style={{
-                      flex: 2,
-                      background: '#f5b731',
-                      color: '#06060e',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      opacity: changePasswordLoading ? 0.7 : 1
-                    }}
-                    id="change-password-submit-btn"
+                    className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-5 h-12 rounded-xl mt-2"
+                    id="request-change-otp-btn"
                   >
-                    {changePasswordLoading ? 'Updating...' : 'Update Password'}
-                  </button>
+                    {changePasswordLoading ? (isAr ? 'جاري الإرسال...' : 'Sending OTP...') : (isAr ? 'إرسال رمز التحقق' : 'Send Verification OTP')}
+                  </Button>
                 </div>
-              </form>
-            )}
-          </div>
+              ) : (
+                <form onSubmit={handleChangePasswordSubmit} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="cp-otp" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'رمز التحقق (٦ أرقام)' : '6-Digit Code'}
+                    </Label>
+                    <Input
+                      id="cp-otp"
+                      type="text"
+                      maxLength={6}
+                      value={changePasswordOtp}
+                      onChange={(e) => setChangePasswordOtp(e.target.value)}
+                      placeholder="123456"
+                      required
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-center font-black text-amber-500 tracking-[6px] text-lg py-5 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="cp-password" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'كلمة المرور الجديدة' : 'New Password'}
+                    </Label>
+                    <Input
+                      id="cp-password"
+                      type="password"
+                      value={changePasswordNewPassword}
+                      onChange={(e) => setChangePasswordNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="cp-confirm-password" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+                    </Label>
+                    <Input
+                      id="cp-confirm-password"
+                      type="password"
+                      value={changePasswordConfirmPassword}
+                      onChange={(e) => setChangePasswordConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full bg-white/[0.03] border-white/10 focus-visible:ring-amber-500/20 text-white rounded-xl text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setChangePasswordStep(1)}
+                      className="flex-1 bg-white/5 border-white/10 text-white hover:bg-white/10 font-bold py-5 h-12 rounded-xl"
+                    >
+                      {isAr ? 'رجوع' : 'Back'}
+                    </Button>
+                    
+                    <Button
+                      type="submit"
+                      disabled={changePasswordLoading}
+                      className="flex-[2] bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold py-5 h-12 rounded-xl"
+                      id="change-password-submit-btn"
+                    >
+                      {changePasswordLoading ? (isAr ? 'جاري التحديث...' : 'Updating...') : (isAr ? 'تحديث كلمة المرور' : 'Update Password')}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

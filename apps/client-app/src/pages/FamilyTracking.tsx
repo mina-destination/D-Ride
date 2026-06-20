@@ -5,6 +5,10 @@ import api from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { Compass, Search, AlertCircle, Phone } from 'lucide-react';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
@@ -83,7 +87,7 @@ export default function FamilyTrackingPage() {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: centerCoords,
       zoom: 14,
       attributionControl: false
@@ -229,49 +233,40 @@ export default function FamilyTrackingPage() {
   // 1. Initial State: Code Entry Screen
   if (!code) {
     return (
-      <div className="auth-page" style={{ padding: '80px 24px' }}>
+      <div className="auth-page py-20 px-6">
         <SEO title={seoTitle} description={seoDescription} />
-        <div className="auth-card glass" style={{ maxWidth: '460px', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'rgba(245, 183, 49, 0.1)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.5rem auto',
-            border: '1.5px solid var(--primary)',
-            boxShadow: '0 0 15px rgba(245, 183, 49, 0.2)'
-          }}>
-            <Compass size={28} style={{ color: 'var(--primary)' }} />
-          </div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-            {isAr ? 'تتبع رحلة عائلتك' : 'Track Family Ride'}
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-            {isAr 
-              ? 'أدخل رمز تذكرة (UUID) أحد أفراد عائلتك لتتبع موقع حافلتهم الجغرافي بشكل مباشر وفي الوقت الفعلي.' 
-              : 'Enter your family member\'s shared ticket ID (UUID) to follow their shuttle bus location on the map in real-time.'}
-          </p>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="auth-field" style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={inputCode}
-                onChange={e => setInputCode(e.target.value)}
-                placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-                style={{ paddingRight: isRtl ? '14px' : '40px', paddingLeft: isRtl ? '40px' : '14px', width: '100%' }}
-                required
-              />
-              <Search size={18} style={{ position: 'absolute', right: isRtl ? 'auto' : '14px', left: isRtl ? '14px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <Card className="max-w-[460px] mx-auto text-center bg-[#121224]/80 backdrop-blur-xl border-white/10 shadow-2xl">
+          <CardContent className="p-8">
+            <div className="w-16 h-16 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/40 flex items-center justify-center mx-auto mb-6 shadow-[0_0_15px_rgba(245,183,49,0.2)]">
+              <Compass size={28} className="text-[var(--primary)]" />
             </div>
-            <button type="submit" className="auth-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              {isAr ? 'ابدأ التتبع المباشر 📡' : 'Start Live Tracking 📡'}
-            </button>
-          </form>
-        </div>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+              {isAr ? 'تتبع رحلة عائلتك' : 'Track Family Ride'}
+            </h1>
+            <p className="text-[var(--text-muted)] text-sm mb-6 leading-relaxed">
+              {isAr
+                ? 'أدخل رمز تذكرة (UUID) أحد أفراد عائلتك لتتبع موقع حافلتهم الجغرافي بشكل مباشر وفي الوقت الفعلي.'
+                : 'Enter your family member\'s shared ticket ID (UUID) to follow their shuttle bus location on the map in real-time.'}
+            </p>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={inputCode}
+                  onChange={e => setInputCode(e.target.value)}
+                  placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+                  className={`${isRtl ? 'pl-10 pr-4' : 'pr-10 pl-4'} w-full bg-white/5 border-white/10 text-white placeholder:text-white/30`}
+                  required
+                />
+                <Search size={18} className={`absolute top-1/2 -translate-y-1/2 text-[var(--text-muted)] ${isRtl ? 'left-3' : 'right-3'}`} />
+              </div>
+              <Button type="submit" className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold gap-2">
+                {isAr ? 'ابدأ التتبع المباشر 📡' : 'Start Live Tracking 📡'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -279,38 +274,35 @@ export default function FamilyTrackingPage() {
   // 2. Error State
   if (error) {
     return (
-      <div className="auth-page" style={{ padding: '80px 24px' }}>
+      <div className="auth-page py-20 px-6">
         <SEO title={seoTitle} description={seoDescription} />
-        <div className="auth-card glass" style={{ maxWidth: '460px', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.5rem auto',
-            border: '1.5px solid var(--danger)',
-            boxShadow: '0 0 15px rgba(239, 68, 68, 0.2)'
-          }}>
-            <AlertCircle size={28} style={{ color: 'var(--danger)' }} />
-          </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-            {isAr ? 'عذراً، فشل التحميل' : 'Tracking Failed'}
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-            {error}
-          </p>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => { setCode(null); setSearchParams({}); }} className="auth-button" style={{ flex: 1, background: 'var(--surface-hover)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-              {isAr ? 'محاولة رمز آخر' : 'Try Another Code'}
-            </button>
-            <Link to="/" className="auth-button" style={{ flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isAr ? 'العودة للرئيسية' : 'Back Home'}
-            </Link>
-          </div>
-        </div>
+        <Card className="max-w-[460px] mx-auto text-center bg-[#121224]/80 backdrop-blur-xl border-white/10 shadow-2xl">
+          <CardContent className="p-8">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-6 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+              <AlertCircle size={28} className="text-[var(--danger)]" />
+            </div>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+              {isAr ? 'عذراً، فشل التحميل' : 'Tracking Failed'}
+            </h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
+              {error}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => { setCode(null); setSearchParams({}); }}
+                className="flex-1 border-white/10 text-[var(--text-primary)] hover:bg-white/5"
+              >
+                {isAr ? 'محاولة رمز آخر' : 'Try Another Code'}
+              </Button>
+              <Button asChild className="flex-1 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold">
+                <Link to="/">
+                  {isAr ? 'العودة للرئيسية' : 'Back Home'}
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -320,8 +312,8 @@ export default function FamilyTrackingPage() {
     return (
       <div className="auth-page">
         <SEO title={seoTitle} description={seoDescription} />
-        <div style={{ textAlign: 'center', padding: '100px 24px', color: 'var(--text-muted)' }}>
-          <div className="app-loading-spinner" style={{ margin: '0 auto 1.5rem auto' }} />
+        <div className="text-center py-24 px-6 text-[var(--text-muted)]">
+          <div className="app-loading-spinner mx-auto mb-6" />
           <span>{isAr ? 'جاري تحميل تفاصيل التذكرة...' : 'Loading ticket details...'}</span>
         </div>
       </div>
@@ -330,164 +322,114 @@ export default function FamilyTrackingPage() {
 
   // 4. Live Map Telemetry Interface
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div className="h-screen flex flex-col relative">
       <SEO title={seoTitle} description={seoDescription} />
-      <div style={{ flex: 1, position: 'relative' }}>
-        
+      <div className="flex-1 relative">
+
         {/* Floating Family Member Details Card */}
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          width: '320px',
-          maxHeight: 'calc(100% - 40px)',
-          overflowY: 'auto',
-          zIndex: 1000,
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '1.25rem',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          textAlign: 'left'
-        }} className="animate-fade-in-up">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{
-              fontSize: '10px',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              background: location ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              color: location ? 'var(--success)' : 'var(--danger)',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              border: `1px solid ${location ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: location ? 'var(--success)' : 'var(--danger)',
-                animation: location ? 'pulse 2s infinite' : 'none'
-              }} />
-              {location ? (isAr ? 'بث الموقع نشط 📡' : 'Live Tracking') : (isAr ? 'غير متصل بالبث 🕒' : 'Offline')}
-            </span>
-            <button 
-              onClick={() => { setCode(null); setSearchParams({}); }}
-              style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-            >
-              {isAr ? 'تغيير الرمز ✕' : 'Change Code ✕'}
-            </button>
-          </div>
-
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0', lineHeight: 1.3 }}>
-            {isRtl ? (booking.tripId?.routeId?.nameAr || booking.tripId?.routeId?.name || 'رحلة حافلة') : (booking.tripId?.routeId?.name || 'Bus Route')}
-          </h1>
-
-          <div style={{ background: 'var(--surface-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--text-secondary)' }}>
-            <strong>{isAr ? 'الراكب المتابع:' : 'Passenger:'}</strong> {booking.userId?.name || 'Family Member'} <br />
-            <strong>{isAr ? 'المقاعد المحجوزة:' : 'Seat(s):'}</strong> #{booking.seatNumbers?.join(', ') || booking.seatNumber || '1'}
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-
-          {/* Vehicle & Driver Details */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', margin: '4px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{t('vehicleModel')}</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {booking.tripId?.vehicle?.model ? booking.tripId.vehicle.model.replace('::', ' ') : 'Toyota HiAce'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{t('licensePlate')}</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {booking.tripId?.vehicle?.plateNumber || booking.tripId?.vehicle?.licensePlate || ' ط ر ق ٥٤٣٢'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{t('driverPartner')}</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {booking.tripId?.driverId?.name || (isAr ? 'كابتن محمد حجازي' : 'Capt. Mohamed Hegazi')}
-              </span>
-            </div>
-          </div>
-
-          {booking.tripId?.driverId?.phone && (
-            <div style={{ marginTop: '4px' }}>
-              <a 
-                href={`tel:${booking.tripId.driverId.phone}`} 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: 'var(--primary)',
-                  color: 'black',
-                  fontWeight: 700,
-                  fontSize: '11px',
-                  textDecoration: 'none',
-                  transition: 'var(--transition-base)'
-                }}
+        <Card className="absolute top-5 left-5 w-80 max-h-[calc(100%-40px)] overflow-y-auto z-[1000] bg-[var(--surface)]/95 backdrop-blur-xl border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.25)] animate-fade-in-up">
+          <CardContent className="p-5 flex flex-col gap-3 text-left">
+            <div className="flex justify-between items-center">
+              <Badge
+                className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
+                  location
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                }`}
               >
-                <Phone size={14} fill="black" /> {isAr ? 'اتصل بالسائق الشريك' : 'Call Driver Partner'}
-              </a>
+                <span className={`w-1.5 h-1.5 rounded-full ${location ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+                {location ? (isAr ? 'بث الموقع نشط 📡' : 'Live Tracking') : (isAr ? 'غير متصل بالبث 🕒' : 'Offline')}
+              </Badge>
+              <button
+                onClick={() => { setCode(null); setSearchParams({}); }}
+                className="text-[10px] text-[var(--primary)] font-bold cursor-pointer bg-transparent border-none p-0 hover:underline"
+              >
+                {isAr ? 'تغيير الرمز ✕' : 'Change Code ✕'}
+              </button>
             </div>
-          )}
 
-          {/* Live Checkpoint Progress */}
-          {booking.tripId?.routeId?.checkpoints && (
-            <div style={{ marginTop: '12px', textAlign: 'left' }}>
-              <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
-                {isAr ? 'مسار الرحلة والوصول:' : 'Route Checkpoints:'}
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', padding: '10px', background: 'var(--surface-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                {booking.tripId.routeId.checkpoints
-                  .slice()
-                  .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-                  .map((cp: any, idx: number) => {
-                    const isArrived = arrivedCheckpoints.includes(cp.name);
-                    return (
-                      <div key={cp.name || idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-                        <div style={{
-                          width: '14px',
-                          height: '14px',
-                          borderRadius: '50%',
-                          background: isArrived ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                          border: `1px solid ${isArrived ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '8px',
-                          color: isArrived ? 'black' : 'var(--text-muted)',
-                          fontWeight: 'bold',
-                          flexShrink: 0
-                        }}>
-                          {isArrived ? '✓' : ''}
-                        </div>
-                        <span style={{ 
-                          color: isArrived ? 'var(--text-muted)' : 'var(--text-primary)',
-                          textDecoration: isArrived ? 'line-through' : 'none',
-                          fontWeight: isArrived ? 500 : 600
-                        }}>
-                          {isAr ? (cp.nameAr || cp.name) : cp.name}
-                        </span>
-                      </div>
-                    );
-                  })}
+            <h1 className="text-lg font-extrabold text-[var(--text-primary)] mt-1 leading-tight">
+              {isRtl ? (booking.tripId?.routeId?.nameAr || booking.tripId?.routeId?.name || 'رحلة حافلة') : (booking.tripId?.routeId?.name || 'Bus Route')}
+            </h1>
+
+            <div className="bg-[var(--surface-elevated)] p-3 rounded-lg border border-[var(--border)] text-[11px] text-[var(--text-secondary)]">
+              <strong>{isAr ? 'الراكب المتابع:' : 'Passenger:'}</strong> {booking.userId?.name || 'Family Member'} <br />
+              <strong>{isAr ? 'المقاعد المحجوزة:' : 'Seat(s):'}</strong> #{booking.seatNumbers?.join(', ') || booking.seatNumber || '1'}
+            </div>
+
+            <hr className="border-t border-[var(--border)] my-1" />
+
+            {/* Vehicle & Driver Details */}
+            <div className="flex flex-col gap-2 text-[11px] my-1">
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">{t('vehicleModel')}</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {booking.tripId?.vehicle?.model ? booking.tripId.vehicle.model.replace('::', ' ') : 'Toyota HiAce'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">{t('licensePlate')}</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {booking.tripId?.vehicle?.plateNumber || booking.tripId?.vehicle?.licensePlate || ' ط ر ق ٥٤٣٢'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">{t('driverPartner')}</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {booking.tripId?.driverId?.name || (isAr ? 'كابتن محمد حجازي' : 'Capt. Mohamed Hegazi')}
+                </span>
               </div>
             </div>
-          )}
-        </div>
 
-        <div ref={mapContainerRef} style={{ height: '100%', width: '100%', zIndex: 0 }} />
+            {booking.tripId?.driverId?.phone && (
+              <div className="mt-1">
+                <a
+                  href={`tel:${booking.tripId.driverId.phone}`}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[var(--primary)] text-black font-bold text-[11px] no-underline transition-all hover:opacity-90"
+                >
+                  <Phone size={14} fill="black" /> {isAr ? 'اتصل بالسائق الشريك' : 'Call Driver Partner'}
+                </a>
+              </div>
+            )}
+
+            {/* Live Checkpoint Progress */}
+            {booking.tripId?.routeId?.checkpoints && (
+              <div className="mt-3 text-left">
+                <span className="text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wide">
+                  {isAr ? 'مسار الرحلة والوصول:' : 'Route Checkpoints:'}
+                </span>
+                <div className="flex flex-col gap-2 mt-2 p-3 bg-[var(--surface-elevated)] rounded-lg border border-[var(--border)]">
+                  {booking.tripId.routeId.checkpoints
+                    .slice()
+                    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                    .map((cp: any, idx: number) => {
+                      const isArrived = arrivedCheckpoints.includes(cp.name);
+                      return (
+                        <div key={cp.name || idx} className="flex items-center gap-2 text-[11px]">
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
+                            isArrived
+                              ? 'bg-[var(--primary)] border border-[var(--primary)] text-black'
+                              : 'bg-white/5 border border-white/20 text-[var(--text-muted)]'
+                          }`}>
+                            {isArrived ? '✓' : ''}
+                          </div>
+                          <span className={`${
+                            isArrived
+                              ? 'text-[var(--text-muted)] line-through font-medium'
+                              : 'text-[var(--text-primary)] font-semibold'
+                          }`}>
+                            {isAr ? (cp.nameAr || cp.name) : cp.name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div ref={mapContainerRef} className="h-full w-full z-0" />
       </div>
     </div>
   );

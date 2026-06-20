@@ -269,6 +269,7 @@ export const bookingsAPI = {
   create: (data: any): Promise<any> => api.post('/bookings', data),
   cancel: (id: string): Promise<any> => api.put(`/bookings/${id}/cancel`),
   applyPromo: (id: string, code: string | null): Promise<any> => api.put(`/bookings/${id}/apply-promo`, { code }),
+  payWithWallet: (id: string): Promise<any> => api.put(`/bookings/${id}/pay-with-wallet`),
 };
 
 export const supportAPI = {
@@ -293,5 +294,10 @@ export const partnersAPI = {
 
 export const settingsAPI = {
   get: (): Promise<any> => api.get('/settings'),
+};
+
+export const walletAPI = {
+  getBalance: (): Promise<any> => api.get('/wallet/balance'),
+  deposit: (amount: number): Promise<any> => api.post('/wallet/deposit', { amount }),
 };
 

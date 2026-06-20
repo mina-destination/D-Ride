@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
     let mapObj: maplibregl.Map | null = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+      style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
       center: [31.2357, 30.0444],
       zoom: 11,
       attributionControl: false

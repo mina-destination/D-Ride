@@ -758,7 +758,7 @@ export function RoutesPage() {
 
       const mapObj = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/bright',
+        style: theme === 'dark' ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron',
         center: centerLngLat,
         zoom: checkpoints.length > 0 ? 12 : 9,
         attributionControl: false
