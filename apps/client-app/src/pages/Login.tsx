@@ -277,10 +277,10 @@ export default function LoginPage() {
                 className="bg-transparent border-border focus-visible:ring-amber-500/20"
               />
             </div>
-            <div className="flex items-center gap-2 mb-2">
-               <Checkbox id="remember" checked={remember} onCheckedChange={setRemember} className="text-amber-500" />
-               <Label htmlFor="remember" className="text-[10px] font-medium text-muted-foreground">Remember me</Label>
-            </div>
+             <div className="flex items-center gap-2 mb-2">
+                <Checkbox id="remember" checked={remember} onCheckedChange={(checked) => setRemember(checked === true)} className="text-amber-500" />
+                <Label htmlFor="remember" className="text-[10px] font-medium text-muted-foreground">Remember me</Label>
+             </div>
             
             <Button type="submit" className="w-full bg-[#f5b731] text-black hover:bg-[#f5b731]/80 font-bold gap-2 py-5" disabled={loading} id="login-submit-btn">
               {loading ? (

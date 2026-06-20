@@ -682,7 +682,7 @@ export default function CheckoutPage() {
       <div style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div className="checkout-header-section" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h1 style={{ color: 'var(--text-primary)', marginTop: '1.25rem', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {t('seatSelectionTitle')}
           </h1>
@@ -692,7 +692,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Visual Stepper */}
-        <div style={{
+        <div className="checkout-stepper-section" style={{
           maxWidth: '600px',
           margin: '0 auto 3.5rem auto',
           padding: '0 1.5rem'
@@ -716,7 +716,7 @@ export default function CheckoutPage() {
             <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('loadingTripConfig')}</p>
           </div>
         ) : trip ? (
-          <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="checkout-cards-wrapper" style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Interactive Minibus Grid Card */}
             <div className="premium-card">
@@ -734,7 +734,7 @@ export default function CheckoutPage() {
               </div>
 
               <div 
-                className={selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}
+                className={`checkout-selection-box ${selectedSeats.length === requiredSeatsCount ? 'success-box-opaque' : 'warning-box-opaque'}`}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
