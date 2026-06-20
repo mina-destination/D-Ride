@@ -87,15 +87,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      padding: '24px',
-      position: 'relative'
-    }}>
+    <div 
+      className="fade-in-up"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '24px',
+        position: 'relative'
+      }}
+    >
       {/* Floating Language Switcher Toggle */}
       <div style={{
         position: 'absolute',
@@ -297,6 +300,7 @@ export default function LoginPage() {
       {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
         <div 
+          className="fade-in"
           style={{
             position: 'fixed',
             top: 0,

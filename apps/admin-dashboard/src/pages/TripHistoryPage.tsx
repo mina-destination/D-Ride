@@ -715,7 +715,7 @@ export function TripHistoryPage() {
                 <Compass size={40} className="lucide-animate-spin" style={{ color: 'var(--text-muted)' }} />
                 <h4 style={{ margin: 0, color: 'white' }}>No Driver GPS Data Available</h4>
                 <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', maxWidth: '300px' }}>
-                  This trip has not recorded any coordinate telemetry yet. Set a trip to "In Transit" and run a simulation to collect coordinates.
+                  This trip has not recorded any coordinate telemetry yet. Set a trip to "In Transit" and start driving to collect coordinates.
                 </p>
               </div>
             )}

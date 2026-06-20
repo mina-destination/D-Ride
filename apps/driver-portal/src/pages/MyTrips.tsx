@@ -38,7 +38,7 @@ export default function MyTripsPage() {
   });
 
   return (
-    <div className="app-container">
+    <div className="app-container fade-in-up">
       {/* Top Header */}
       <Header 
         onRefresh={fetchTrips} 

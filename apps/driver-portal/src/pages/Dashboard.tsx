@@ -22,7 +22,9 @@ import {
   Download,
   Bell,
   Trash2,
-  Check
+  Check,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import { useAuth } from '../context/AuthContext';
@@ -117,6 +119,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTrip, setActiveTrip] = useState<any>(null);
+  const activeTripRef = useRef<any>(null);
+  useEffect(() => {
+    activeTripRef.current = activeTrip;
+  }, [activeTrip]);
   const [showAllTrips, setShowAllTrips] = useState(false);
   const [expandUpcoming, setExpandUpcoming] = useState(false);
   
@@ -261,6 +267,7 @@ export default function DashboardPage() {
   
   const [streetPath, setStreetPath] = useState<[number, number][]>([]);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [heading, setHeading] = useState<number>(0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [lockCenter, setLockCenter] = useState(true);
@@ -423,9 +430,9 @@ export default function DashboardPage() {
         'line-cap': 'round',
       },
       paint: {
-        'line-color': '#174ea6',
+        'line-color': '#b58014',
         'line-width': 8,
-        'line-opacity': 0.9,
+        'line-opacity': 0.7,
       },
     });
 
@@ -438,7 +445,7 @@ export default function DashboardPage() {
         'line-cap': 'round',
       },
       paint: {
-        'line-color': '#8ab4f8',
+        'line-color': '#f5b731',
         'line-width': 5,
         'line-opacity': 0.95,
       },
@@ -520,30 +527,23 @@ export default function DashboardPage() {
     localStorage.setItem('dride_gps_permitted', 'true');
     setPermissionModalVisible(false);
 
-    let startLat = 30.0444;
-    let startLng = 31.2357;
-    
-    if (activeTrip?.routeId?.path?.coordinates?.length > 0) {
-      const firstCoord = activeTrip.routeId.path.coordinates[0];
-      startLng = firstCoord[0];
-      startLat = firstCoord[1];
-    }
-    
-    setCurrentCoords({ lat: startLat, lng: startLng });
-
     const watchOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
       maximumAge: 0
     };
 
-    const handleSuccess = (lat: number, lng: number) => {
+    const handleSuccess = (lat: number, lng: number, headingVal?: number | null) => {
       setCurrentCoords({ lat, lng });
+      if (headingVal != null) {
+        setHeading(headingVal);
+      }
       socketService.sendLocation({
-        vehicleId: activeTrip?.vehicleId?._id || 'mock-vehicle-123',
+        vehicleId: activeTripRef.current?.vehicleId?._id || activeTripRef.current?.vehicleId?.id || 'mock-vehicle-123',
         driverId: user?._id || 'mock-driver-123',
         longitude: lng,
         latitude: lat,
+        heading: headingVal ?? null,
       });
     };
 
@@ -563,7 +563,11 @@ export default function DashboardPage() {
               return;
             }
             if (position?.coords) {
-              handleSuccess(position.coords.latitude, position.coords.longitude);
+              handleSuccess(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.heading
+              );
             } else {
               handleFailure('No coordinates from native GPS');
             }
@@ -577,7 +581,11 @@ export default function DashboardPage() {
       if ('geolocation' in navigator) {
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            handleSuccess(position.coords.latitude, position.coords.longitude);
+            handleSuccess(
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.heading
+            );
           },
           (error) => {
             handleFailure(error.message);
@@ -602,6 +610,7 @@ export default function DashboardPage() {
       geoWatchId.current = null;
     }
     setIsStreaming(false);
+    setHeading(0);
   }
 
 
@@ -720,6 +729,14 @@ export default function DashboardPage() {
       }
     };
   }, [activeTrip?._id, activeTrip?.vehicleId?._id, activeTrip?.vehicleId?.id, socketService.socket]);
+
+  // Automatically start live tracking when the driver opens the app (dashboard mounts)
+  useEffect(() => {
+    startLocationStream();
+    return () => {
+      stopLocationStream();
+    };
+  }, []);
 
   // Periodically refresh trips and active manifest silently (always refreshed)
   useEffect(() => {
@@ -875,21 +892,39 @@ export default function DashboardPage() {
     const map = mapRef.current;
     if (!map || !currentCoords) return;
 
+    const rotation = heading !== undefined && heading !== null ? heading : 0;
+    const markerColor = '#F5B731'; // Gold brand color
+    const svgContent = `
+      <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
+        <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.2" />
+        <circle cx="24" cy="24" r="14" fill="${markerColor}" stroke="#1e293b" stroke-width="2.5" />
+        <g id="vehicle-chevron" transform="translate(24, 24) rotate(${rotation}) translate(-24, -24)">
+          <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+        </g>
+      </svg>
+    `;
+
     if (!busMarkerRef.current) {
       const el = document.createElement('div');
-      el.className = 'google-maps-bus-pointer';
+      el.style.cssText = 'width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer;';
+      el.innerHTML = svgContent;
 
       busMarkerRef.current = new maplibregl.Marker({ element: el })
         .setLngLat([currentCoords.lng, currentCoords.lat])
         .addTo(map);
     } else {
       busMarkerRef.current.setLngLat([currentCoords.lng, currentCoords.lat]);
+      const el = busMarkerRef.current.getElement();
+      const chevron = el.querySelector('#vehicle-chevron');
+      if (chevron) {
+        chevron.setAttribute('transform', `translate(24, 24) rotate(${rotation}) translate(-24, -24)`);
+      }
     }
 
     if (lockCenter) {
       map.flyTo({ center: [currentCoords.lng, currentCoords.lat], duration: 500 });
     }
-  }, [currentCoords, lockCenter]);
+  }, [currentCoords, lockCenter, heading]);
 
 
 
@@ -975,7 +1010,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container fade-in-up">
       {/* Top Header */}
       <Header 
         showNotifications={true} 
@@ -1359,104 +1394,36 @@ export default function DashboardPage() {
                   {t('activeRouteLabel')}
                 </h4>
 
-                <div className="embedded-map-container" ref={mapContainerRef} />
-
-                {/* GPS Alert Warning Banner */}
-                {gpsError && (
-                  <div style={{
-                    marginTop: '10px',
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    color: 'var(--warning)',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}>
-                    <AlertTriangle size={15} />
-                    <span>{gpsError}</span>
-                  </div>
-                )}
-
-                {/* Live stream status card */}
-                <div style={{
-                  marginTop: '10px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: isStreaming ? 'var(--success)' : 'var(--text-muted)',
-                      boxShadow: isStreaming ? '0 0 8px var(--success)' : 'none',
-                    }} />
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {isStreaming ? t('liveGpsBroadcast') : t('gpsStandby')}
-                    </span>
-                  </div>
-
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <div className="embedded-map-container" ref={mapContainerRef} />
                   {currentCoords && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => setLockCenter(!lockCenter)}
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '4px',
-                          padding: '3px 8px',
-                          color: lockCenter ? 'var(--primary)' : 'var(--text-secondary)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {lockCenter ? '🔒 Lock' : '🔓 Free'}
-                      </button>
-                      
-                      {isStreaming ? (
-                        <button
-                          onClick={stopLocationStream}
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                            borderRadius: '4px',
-                            padding: '3px 8px',
-                            color: 'var(--danger)',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Pause GPS
-                        </button>
-                      ) : (
-                        <button
-                          onClick={startLocationStream}
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            background: 'rgba(245, 183, 49, 0.1)',
-                            border: '1px solid rgba(245, 183, 49, 0.2)',
-                            borderRadius: '4px',
-                            padding: '3px 8px',
-                            color: 'var(--primary)',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Resume GPS
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => setLockCenter(!lockCenter)}
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        right: '12px',
+                        zIndex: 100,
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: 'rgba(10, 14, 23, 0.85)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: lockCenter ? 'var(--primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                        outline: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title={lockCenter ? 'Unlock View' : 'Lock View'}
+                    >
+                      {lockCenter ? <Lock size={16} /> : <Unlock size={16} />}
+                    </button>
                   )}
                 </div>
               </div>
@@ -1522,16 +1489,31 @@ export default function DashboardPage() {
                           }}>
                             {/* Timeline vertical line */}
                             {index !== sortedCPs.length - 1 && (
-                              <div style={{
-                                position: 'absolute',
-                                left: isRtl ? 'auto' : '12px',
-                                right: isRtl ? '12px' : 'auto',
-                                top: '28px',
-                                bottom: 0,
-                                width: '2px',
-                                background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
-                                zIndex: 1
-                              }} />
+                              <>
+                                {/* Glowing neon blur layer */}
+                                <div style={{
+                                  position: 'absolute',
+                                  left: isRtl ? 'auto' : '10px',
+                                  right: isRtl ? '10px' : 'auto',
+                                  top: '28px',
+                                  bottom: 0,
+                                  width: '6px',
+                                  background: isArrived ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                                  filter: 'blur(2px)',
+                                  zIndex: 1
+                                }} />
+                                {/* Main line */}
+                                <div style={{
+                                  position: 'absolute',
+                                  left: isRtl ? 'auto' : '12px',
+                                  right: isRtl ? '12px' : 'auto',
+                                  top: '28px',
+                                  bottom: 0,
+                                  width: '2px',
+                                  background: isArrived ? 'var(--success)' : 'rgba(255, 255, 255, 0.08)',
+                                  zIndex: 1
+                                }} />
+                              </>
                             )}
 
                             {/* Checkpoint order marker */}
@@ -1541,9 +1523,9 @@ export default function DashboardPage() {
                                 width: '26px',
                                 height: '26px',
                                 borderRadius: '50%',
-                                background: isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
-                                border: `1.5px solid ${isArrived ? 'var(--primary)' : 'rgba(255, 255, 255, 0.2)'}`,
-                                color: isArrived ? 'black' : 'var(--text-secondary)',
+                                background: isArrived ? 'var(--success)' : 'rgba(18, 22, 33, 0.85)',
+                                border: `2px solid ${isArrived ? 'var(--success)' : 'rgba(255, 255, 255, 0.12)'}`,
+                                color: isArrived ? '#ffffff' : 'var(--text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1552,7 +1534,7 @@ export default function DashboardPage() {
                                 zIndex: 2,
                                 cursor: isActionable ? 'pointer' : 'not-allowed',
                                 opacity: isActionable ? 1 : 0.4,
-                                boxShadow: isArrived ? '0 0 10px rgba(245, 183, 49, 0.4)' : 'none',
+                                boxShadow: isArrived ? '0 0 10px rgba(16, 185, 129, 0.35)' : 'none',
                                 transition: 'all 0.2s',
                                 flexShrink: 0
                               }}
@@ -1791,19 +1773,21 @@ export default function DashboardPage() {
 
       {/* Confirmation Transition Modal */}
       {confirmStatusModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(6, 6, 14, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000,
-          padding: '24px',
-          animation: 'fade-in 0.25s ease'
-        }}>
+        <div 
+          className="fade-in"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '24px'
+          }}
+        >
           <div className="glass-card" style={{
             width: '100%',
             maxWidth: '360px',

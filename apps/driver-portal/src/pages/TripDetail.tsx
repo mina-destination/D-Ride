@@ -200,7 +200,7 @@ export default function TripDetailPage() {
   });
 
   return (
-    <div className="app-container">
+    <div className="app-container fade-in-up">
       {/* Top bar header */}
       <Header 
         title={t('tripDetails')} 
@@ -455,19 +455,21 @@ export default function TripDetailPage() {
       </div>
 
       {confirmStatusModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(6, 6, 14, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000,
-          padding: '24px',
-          animation: 'fade-in 0.25s ease'
-        }}>
+        <div 
+          className="fade-in"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '24px'
+          }}
+        >
           <div className="glass-card" style={{
             width: '100%',
             maxWidth: '360px',

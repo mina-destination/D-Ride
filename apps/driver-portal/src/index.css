@@ -14,31 +14,31 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   
   /* Brand Colors */
-  --primary: #E0A328;
-  --primary-hover: #f5b731;
-  --primary-light: rgba(224, 163, 40, 0.12);
-  --primary-dark: #B8860B;
-  --primary-interactive: #E0A328;
+  --primary: #f5b731;
+  --primary-hover: #f7c354;
+  --primary-light: rgba(245, 183, 49, 0.12);
+  --primary-dark: #b58014;
+  --primary-interactive: #f5b731;
   
   /* Palette (Dark Theme Default for Drivers) */
-  --background: #1A1D26;
-  --surface: #222633;
-  --surface-elevated: #2A2F40;
-  --surface-hover: #33394D;
+  --background: #0B0E17;
+  --surface: rgba(18, 22, 33, 0.55);
+  --surface-elevated: rgba(26, 31, 46, 0.7);
+  --surface-hover: rgba(36, 43, 64, 0.85);
   
   /* Typography */
-  --text-primary: #D1D7E0;
-  --text-secondary: #8F9EAF;
-  --text-muted: #64748B;
-  --text-on-primary: #0e0e1b;
+  --text-primary: #f0f1f5;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-on-primary: #06060e;
   
   /* Borders */
-  --border: #2E3445;
+  --border: rgba(255, 255, 255, 0.06);
   --border-focus: #f5b731;
   
   /* Semantic */
-  --success: #34D399; /* Softer Emerald */
-  --danger: #F87171;  /* Softer Coral Red */
+  --success: #10B981; /* Soft Emerald */
+  --danger: #EF4444;  /* Soft Coral Red */
   --warning: #f59e0b;
   --info: #3b82f6;
   
@@ -49,10 +49,10 @@
   --radius-full: 9999px;
   
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 15px rgba(245, 183, 49, 0.25);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-glow: 0 0 18px rgba(245, 183, 49, 0.15);
   
-  --font-family: 'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-title: 'Outfit', var(--font-family);
   
   --nav-height: 64px;
@@ -89,13 +89,14 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(245, 183, 49, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 183, 49, 0.015) 1px, transparent 1px);
-  background-size: 40px 40px;
+    radial-gradient(circle at 50% -20%, rgba(245, 183, 49, 0.05) 0%, transparent 70%),
+    linear-gradient(rgba(245, 183, 49, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 183, 49, 0.012) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
   pointer-events: none;
   z-index: 0;
-  mask-image: radial-gradient(circle at 50% 20%, black 30%, transparent 80%);
-  -webkit-mask-image: radial-gradient(circle at 50% 20%, black 30%, transparent 80%);
+  mask-image: radial-gradient(circle at 50% 20%, black 40%, transparent 90%);
+  -webkit-mask-image: radial-gradient(circle at 50% 20%, black 40%, transparent 90%);
 }
 
 #root {
@@ -165,16 +166,16 @@ textarea {
 /* ── Glassmorphism Card ────────────────────────────────────── */
 
 .glass-card {
-  background: rgba(22, 22, 40, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(18, 22, 33, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-lg);
   padding: 20px;
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
-  transition: border-color 0.3s ease, transform 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card::before {
@@ -188,28 +189,38 @@ textarea {
   opacity: 0.15;
 }
 
+.glass-card.interactive {
+  cursor: pointer;
+}
+
+.glass-card.interactive:hover {
+  border-color: rgba(245, 183, 49, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .glass-card.interactive:active {
-  transform: scale(0.98);
+  transform: scale(0.985) translateY(0);
 }
 
 /* ── Input styling ─────────────────────────────────────────── */
 
 .input-field {
   width: 100%;
-  background: rgba(6, 6, 14, 0.5);
+  background: rgba(6, 6, 12, 0.4);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-weight: 500;
   min-height: 44px;
 }
 
 .input-field:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 10px rgba(245, 183, 49, 0.15);
-  background: rgba(14, 14, 27, 0.8);
+  box-shadow: 0 0 15px rgba(245, 183, 49, 0.12), inset 0 0 8px rgba(245, 183, 49, 0.02);
+  background: rgba(10, 10, 20, 0.7);
 }
 
 /* ── Button styling ────────────────────────────────────────── */
@@ -221,42 +232,64 @@ textarea {
   gap: 8px;
   padding: 14px 24px;
   border-radius: var(--radius-md);
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: center;
   min-height: 44px;
+  border: none;
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: linear-gradient(135deg, #F5B731 0%, #E5A520 100%);
   color: var(--text-on-primary);
-  box-shadow: 0 4px 12px rgba(245, 183, 49, 0.2);
+  box-shadow: 0 4px 14px rgba(245, 183, 49, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.btn-primary:active {
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f7c354 0%, #f5b731 100%);
+  box-shadow: 0 6px 18px rgba(245, 183, 49, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
   transform: translateY(1px);
-  background: var(--primary-dark);
+  box-shadow: 0 2px 8px rgba(245, 183, 49, 0.2);
 }
 
 .btn-secondary {
-  background: var(--surface-elevated);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--text-primary);
+  backdrop-filter: blur(8px);
 }
 
-.btn-secondary:active {
-  background: var(--surface-hover);
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-.btn-danger:active {
-  opacity: 0.9;
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-danger:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
 
 .btn-block {
@@ -787,6 +820,35 @@ textarea {
 
 .calendar-day-btn.active .cal-num {
   color: var(--text-on-primary);
+}
+
+/* ── Animation Utilities ───────────────────────────────────── */
+.fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 

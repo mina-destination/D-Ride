@@ -4,7 +4,7 @@ import { bookingsAPI, paymobAPI, walletAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { Steps } from '../components/ui/steps';
-import { Lock, Bus, Calendar, MapPin, Ticket, Tag, Receipt, ShieldCheck, CreditCard } from 'lucide-react';
+import { Lock, Bus, Calendar, MapPin, Ticket, Tag, ShieldCheck, CreditCard } from 'lucide-react';
 
 const cleanStopName = (name: string) => {
   if (!name) return '';
@@ -177,7 +177,7 @@ export default function PaymentPage() {
       <div className="auth-container" style={{ maxWidth: '1200px', width: '100%', padding: '0 1.5rem', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* Header Section */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div className="payment-header-section" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h1 style={{ color: 'var(--text-primary)', fontSize: '2.25rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {t('secureRidePayment')}
           </h1>
@@ -187,7 +187,7 @@ export default function PaymentPage() {
         </div>
 
         {/* Visual Stepper */}
-        <div style={{
+        <div className="payment-stepper-section" style={{
           maxWidth: '600px',
           margin: '0 auto 3.5rem auto',
           padding: '0 1.5rem'
@@ -227,23 +227,20 @@ export default function PaymentPage() {
                   {t('statusReady')}
                 </span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                {t('passId')}: <strong style={{ color: 'var(--primary)', fontFamily: 'monospace', fontSize: '0.9rem' }}>#{bookingId?.slice(-6).toUpperCase()}</strong>
-              </div>
             </div>
 
             {/* Ticket Body Content */}
             <div className="ticket-body-responsive">
               
               {/* Route details grid */}
-              <div style={{
+              <div className="payment-dossier-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                 gap: '12px',
                 width: '100%'
               }}>
                 {/* Route Line Card */}
-                <div style={{
+                <div className="payment-dossier-card" style={{
                   background: 'var(--surface-hover)',
                   border: '1px solid var(--border)',
                   borderRadius: '12px',
@@ -261,7 +258,7 @@ export default function PaymentPage() {
                 </div>
 
                 {/* Departure Card */}
-                <div style={{
+                <div className="payment-dossier-card" style={{
                   background: 'var(--surface-hover)',
                   border: '1px solid var(--border)',
                   borderRadius: '12px',
@@ -284,7 +281,7 @@ export default function PaymentPage() {
                 </div>
 
                 {/* Assigned Seats Card */}
-                <div style={{
+                <div className="payment-dossier-card" style={{
                   background: 'var(--surface-hover)',
                   border: '1px solid var(--border)',
                   borderRadius: '12px',
@@ -303,7 +300,7 @@ export default function PaymentPage() {
               </div>
 
               {/* Stations Timeline */}
-              <div style={{
+              <div className="payment-timeline-container" style={{
                 background: 'var(--surface)',
                 borderRadius: '12px',
                 padding: '16px',
@@ -371,7 +368,7 @@ export default function PaymentPage() {
                 </div>
 
                 {/* Checkpoint text info row */}
-                <div style={{
+                <div className="payment-timeline-info" style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   gap: '12px'
@@ -427,7 +424,7 @@ export default function PaymentPage() {
               </div>
 
               {/* Promo Code Area */}
-              <div style={{ borderTop: '1px dashed var(--border)', padding: '1.25rem 0 0.25rem 0', marginTop: '0.5rem' }}>
+              <div className="payment-promo-container" style={{ borderTop: '1px dashed var(--border)', padding: '1.25rem 0 0.25rem 0', marginTop: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   <Tag size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
                   <span>{t('promoCodeLabel')}</span>
@@ -512,67 +509,28 @@ export default function PaymentPage() {
               </div>
 
               {/* Billing breakdown */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  <Receipt size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
-                  <span>{t('billingDetails')}</span>
+              <div className="payment-billing-container" style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
+                <div className="payment-total-banner" style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'linear-gradient(135deg, rgba(245, 183, 49, 0.08) 0%, rgba(245, 183, 49, 0.02) 100%)',
+                  border: '1px solid rgba(245, 183, 49, 0.25)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  marginTop: '0.25rem',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                  transition: 'transform 0.2s',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.02em', textShadow: '0 0 1px rgba(245, 183, 49, 0.1)' }}>
+                      {booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
+                    </span>
+                  </div>
                 </div>
-
-                {(() => {
-                  const discount = booking.discountEGP || 0;
-                  const originalAmount = booking.amountEGP + discount;
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{t('seatReservationCost', { count: seatNumbers.length })}</span>
-                        <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{originalAmount} {isRtl ? 'ج.م' : 'EGP'}</span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{t('vatIncluded')}</span>
-                        <span style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{Math.round(originalAmount * 0.14)} {isRtl ? 'ج.م' : 'EGP'}</span>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{t('processingFee')}</span>
-                        <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{t('freeProcessing')}</span>
-                      </div>
-
-                      {discount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                          <span style={{ color: 'var(--primary)' }}>{t('promoDiscount', { code: booking.promoCode?.code || 'PROMO' })}</span>
-                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>-{discount} {isRtl ? 'ج.م' : 'EGP'}</span>
-                        </div>
-                      )}
-
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: 'linear-gradient(135deg, rgba(245, 183, 49, 0.08) 0%, rgba(245, 183, 49, 0.02) 100%)',
-                        border: '1px solid rgba(245, 183, 49, 0.25)',
-                        borderRadius: '12px',
-                        padding: '16px 20px',
-                        marginTop: '1.25rem',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                        transition: 'transform 0.2s',
-                      }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('totalCharge')}</span>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <ShieldCheck size={12} color="var(--success)" /> {t('vatIncluded')}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.02em', textShadow: '0 0 1px rgba(245, 183, 49, 0.1)' }}>
-                            {booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
 
             </div>
@@ -585,7 +543,7 @@ export default function PaymentPage() {
               <span>{t('selectPaymentMethod')}</span>
             </div>
             
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            <p className="payment-pci-helper" style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               {t('pciDssHelper')}
             </p>
 

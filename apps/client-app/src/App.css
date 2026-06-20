@@ -3910,9 +3910,74 @@ html[data-theme='light'] .tracking-sandbox-panel {
 @media (max-width: 640px) {
   /* Scale bus cabin on small screens to prevent seats clipping */
   .bus-cabin {
-    max-width: 260px !important;
-    padding: 1.25rem 1rem !important;
-    margin: 1rem auto !important;
+    max-width: 220px !important;
+    padding: 0.75rem 0.5rem !important;
+    margin: 0.5rem auto !important;
+    border-radius: 35px 35px 8px 8px !important;
+  }
+  .bus-seat {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-radius: 6px 6px 3px 3px !important;
+    font-size: 0.75rem !important;
+  }
+  .bus-seat-inner {
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+  .cabin-row {
+    margin-bottom: 0.4rem !important;
+  }
+  .cabin-aisle {
+    width: 22px !important;
+    height: 30px !important;
+  }
+  .seat-legend {
+    margin-top: 1.5rem !important;
+    padding-top: 0.75rem !important;
+    gap: 0.4rem !important;
+  }
+  .legend-item {
+    font-size: 11px !important;
+  }
+  .legend-dot {
+    width: 10px !important;
+    height: 10px !important;
+  }
+  .door-entry-opaque {
+    margin: 0px 0 6px 0 !important;
+    padding: 2px 6px !important;
+  }
+  .bus-windshield {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Checkout page layout compact changes */
+  .checkout-page-container {
+    padding-top: 6.5rem !important;
+  }
+  .checkout-header-section {
+    margin-bottom: 0.5rem !important;
+  }
+  .checkout-header-section h1 {
+    font-size: 1.25rem !important;
+    margin-top: 0.5rem !important;
+  }
+  .checkout-header-section p {
+    display: none !important;
+  }
+  .checkout-stepper-section {
+    margin-bottom: 1rem !important;
+  }
+  .checkout-cards-wrapper {
+    gap: 1rem !important;
+  }
+  .checkout-selection-box {
+    margin-bottom: 1rem !important;
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
   }
 
   /* Constrain inner content wrapper on checkout page */
@@ -4602,3 +4667,101 @@ html[data-theme='light'] .tracking-sandbox-panel {
 }
 
 
+/* Payment page layout compact changes for mobile viewports */
+@media (max-width: 640px) {
+  .payment-page-container {
+    padding-top: 6.5rem !important;
+    padding-bottom: 2rem !important;
+  }
+  .payment-header-section {
+    margin-bottom: 0.5rem !important;
+  }
+  .payment-header-section h1 {
+    font-size: 1.25rem !important;
+    margin-top: 0.5rem !important;
+  }
+  .payment-header-section p {
+    display: none !important;
+  }
+  .payment-stepper-section {
+    margin-bottom: 1rem !important;
+  }
+  .payment-cards-wrapper {
+    gap: 1rem !important;
+    padding: 0 0.5rem !important;
+  }
+  .payment-dossier-grid {
+    gap: 6px !important;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+  }
+  .payment-dossier-card {
+    padding: 8px 10px !important;
+    gap: 2px !important;
+    border-radius: 8px !important;
+  }
+  .payment-dossier-card span:first-child {
+    font-size: 9px !important;
+  }
+  .payment-dossier-card span:last-child {
+    font-size: 0.8rem !important;
+  }
+  .payment-timeline-container {
+    padding: 10px 12px !important;
+    margin-top: 0.15rem !important;
+  }
+  .payment-timeline-info {
+    gap: 8px !important;
+  }
+  .payment-timeline-info .value {
+    font-size: 0.78rem !important;
+  }
+  .payment-promo-container {
+    padding: 0.75rem 0 0.25rem 0 !important;
+    margin-top: 0.25rem !important;
+  }
+  .payment-promo-container > div:first-child {
+    margin-bottom: 0.5rem !important;
+  }
+  .payment-promo-container input {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+  }
+  .payment-promo-container button {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+  }
+  .payment-billing-container {
+    padding-top: 0.75rem !important;
+    margin-top: 0.25rem !important;
+  }
+  .payment-billing-container > div:first-child {
+    margin-bottom: 0.5rem !important;
+  }
+  .payment-billing-container > div:last-child {
+    gap: 0.5rem !important;
+  }
+  .payment-total-banner {
+    padding: 10px 14px !important;
+    margin-top: 0.75rem !important;
+  }
+  .payment-total-banner span:first-child {
+    font-size: 0.9rem !important;
+  }
+  .payment-total-banner span:last-child {
+    font-size: 1.25rem !important;
+  }
+  .payment-pci-helper {
+    display: none !important;
+  }
+  .payment-card-option {
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+  .payment-card-option strong {
+    font-size: 0.88rem !important;
+  }
+  .payment-card-option span {
+    font-size: 0.78rem !important;
+  }
+}
