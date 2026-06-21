@@ -11,46 +11,52 @@ test.describe('Profile Page', () => {
   test('should load profile page and display user details', async ({ page }) => {
     await page.goto('/profile');
 
+    const container = page.locator('.contact-container');
+
     // User name under avatar
-    await expect(page.locator('.auth-card.glass h2:has-text("Test Passenger")')).toBeVisible();
+    await expect(container.locator('h2:has-text("Test Passenger")')).toBeVisible();
 
     // User role badge
-    await expect(page.locator('.auth-card.glass >> text=PASSENGER').first()).toBeVisible();
+    await expect(container.locator('text=PASSENGER').first()).toBeVisible();
 
     // Account Settings section
-    await expect(page.locator('text=Account Settings')).toBeVisible();
+    await expect(container.locator('text=Account Settings')).toBeVisible();
 
     // User details fields
-    await expect(page.locator('.auth-card.glass').nth(1).locator('text=Test Passenger')).toBeVisible();
-    await expect(page.locator('.auth-card.glass').nth(1).locator('text=passenger@dride.com')).toBeVisible();
-    await expect(page.locator('.auth-card.glass').nth(1).locator('text=01012345678')).toBeVisible();
+    await expect(container.locator('text=Test Passenger').first()).toBeVisible();
+    await expect(container.locator('text=passenger@dride.com')).toBeVisible();
+    await expect(container.locator('text=01012345678')).toBeVisible();
   });
 
   test('should display user initials avatar', async ({ page }) => {
     await page.goto('/profile');
 
+    const container = page.locator('.contact-container');
     // Avatar should show initials "TP" from "Test Passenger"
-    await expect(page.locator('text=TP').first()).toBeVisible();
+    await expect(container.locator('text=TP').first()).toBeVisible();
   });
 
   test('should display verified account status', async ({ page }) => {
     await page.goto('/profile');
 
-    await expect(page.locator('text=Verified Account Status')).toBeVisible();
+    const container = page.locator('.contact-container');
+    await expect(container.locator('text=Verified Account Status')).toBeVisible();
   });
 
   test('should display ride stats section', async ({ page }) => {
     await page.goto('/profile');
 
-    await expect(page.locator('text=Rides Booked')).toBeVisible();
-    await expect(page.locator('text=CO₂ Saved')).toBeVisible();
-    await expect(page.locator('text=Rider Tier')).toBeVisible();
+    const container = page.locator('.contact-container');
+    await expect(container.locator('text=Rides Booked')).toBeVisible();
+    await expect(container.locator('text=CO₂ Saved')).toBeVisible();
+    await expect(container.locator('text=Rider Tier')).toBeVisible();
   });
 
   test('should logout when clicking Sign Out button', async ({ page }) => {
     await page.goto('/profile');
 
-    const signOutBtn = page.locator('button.btn-danger:has-text("Sign Out")');
+    const container = page.locator('.contact-container');
+    const signOutBtn = container.locator('button:has-text("Sign Out")');
     await expect(signOutBtn).toBeVisible();
     await signOutBtn.click();
 
@@ -63,7 +69,8 @@ test.describe('Profile Page', () => {
     await page.goto('/');
     await page.goto('/profile');
 
-    const backBtn = page.locator('.btn-back');
+    const container = page.locator('.contact-container');
+    const backBtn = container.locator('button[title="Go Back"]');
     await expect(backBtn).toBeVisible();
   });
 });

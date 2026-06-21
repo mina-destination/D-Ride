@@ -84,6 +84,17 @@ export class PaymobController {
         where: { id: body.bookingId },
       });
       if (booking && booking.status === 'CONFIRMED') {
+        // Still confirm any linked bookings if not yet done
+        if (body.linkedBookingIds?.length) {
+          for (const linkedId of body.linkedBookingIds) {
+            const linked = await this.prisma.booking.findUnique({
+              where: { id: linkedId },
+            });
+            if (linked && linked.status !== 'CONFIRMED') {
+              await this.paymobService.confirmPaymentDirect(linkedId);
+            }
+          }
+        }
         return { success: true };
       }
 
@@ -101,6 +112,18 @@ export class PaymobController {
         body.amount,
         body.transactionId,
       );
+
+      // 3. Confirm any linked bookings (skip Paymob verification — they share this payment)
+      if (body.linkedBookingIds?.length) {
+        for (const linkedId of body.linkedBookingIds) {
+          const linked = await this.prisma.booking.findUnique({
+            where: { id: linkedId },
+          });
+          if (linked && linked.status !== 'CONFIRMED') {
+            await this.paymobService.confirmPaymentDirect(linkedId);
+          }
+        }
+      }
     }
     return { success: true };
   }

@@ -4,6 +4,8 @@ import {
   IsBoolean,
   IsOptional,
   IsNumber,
+  IsArray,
+  ArrayMinSize,
 } from 'class-validator';
 
 export class ConfirmPaymentDto {
@@ -22,4 +24,10 @@ export class ConfirmPaymentDto {
   @IsString()
   @IsOptional()
   transactionId?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  @ArrayMinSize(1)
+  linkedBookingIds?: string[];
 }

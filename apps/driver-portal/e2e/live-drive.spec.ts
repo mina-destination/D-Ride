@@ -20,6 +20,8 @@ test.describe('Driver Live Drive Page', () => {
   test('should display checkpoint list for the route', async ({ page }) => {
     await page.goto(`/drive/${MOCK_TRIPS[0]._id}`);
 
+    // Click on Stops tab to reveal checkpoints timeline
+    await page.click('button:has-text("Stops")');
 
     // Route checkpoint names should appear
     await expect(page.locator('text=Maadi Square').first()).toBeVisible();

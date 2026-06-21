@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { bookingsAPI, reviewsAPI } from '../services/api';
-import { MapPin, Ticket, QrCode, CreditCard, Compass, User, RefreshCw, Info, ShieldCheck, Star, Share2, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Ticket, QrCode, CreditCard, Navigation2, User, Bus, RefreshCw, Info, ShieldCheck, Star, Share2, Calendar, Snowflake, Wifi, Clock } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -334,7 +334,7 @@ export default function MyTripsPage() {
                       <div className="pass-main">
                         <div className="pass-header">
                           <span className="pass-route-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Compass size={18} style={{ color: 'var(--primary)' }} />
+                            <Navigation2 size={18} style={{ color: 'var(--primary)' }} />
                             {booking.tripId?.routeId?.name || 'Standard Route'}
                           </span>
                           <span style={{ 
@@ -742,227 +742,163 @@ export default function MyTripsPage() {
                     </div>
                   </div>
 
-                  {/* ── MOBILE: Premium Boarding Pass Ticket ── */}
-                  <div 
-                    className="mobile-trip-card premium-mobile-ticket" 
-                    onClick={() => toggleExpand(booking._id)}
-                  >
-                    {/* ── Branded Ticket Header Strip ── */}
-                    <div className="ticket-brand-strip">
-                      <div className="ticket-brand-left">
-                        <Ticket size={14} className="ticket-brand-icon" />
-                        <span className="ticket-brand-name">D-Ride</span>
-                        <span className="ticket-brand-type">{isAr ? 'بطاقة صعود' : 'BOARDING PASS'}</span>
-                      </div>
-                      <span className={`ticket-status-pill ${(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') ? 'cancelled' : booking.status.toLowerCase()}`}>
-                        {booking.tripId?.status === 'CANCELLED' ? t('tripCancelled') : booking.status}
-                      </span>
-                    </div>
-
-                    {/* ── Route & Journey Section ── */}
+                  {/* ── MOBILE: Timeline Card (Stitch Design) ── */}
+                  <div className="mobile-trip-card timeline-card" onClick={() => toggleExpand(booking._id)}>
                     {(() => {
                       const startStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'START') || booking.tripId?.routeId?.checkpoints?.[0];
                       const endStop = booking.tripId?.routeId?.checkpoints?.find((c: any) => c.type === 'END') || booking.tripId?.routeId?.checkpoints?.[booking.tripId?.routeId?.checkpoints?.length - 1];
+                      const pickupName = booking.pickupCheckpoint?.name || startStop?.name || (isAr ? 'نقطة البداية' : 'Terminal Start');
+                      const dropoffName = booking.dropoffCheckpoint?.name || endStop?.name || (isAr ? 'نقطة النهاية' : 'Route End');
+                      const isCancelled = booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED';
+                      const seatCount = booking.seatNumbers?.length || (booking.seatNumber ? 1 : 0);
+
                       return (
-                        <div className="ticket-route-section">
-                          <div className="ticket-city ticket-origin">
-                            <span className="ticket-city-code">{(booking.pickupCheckpoint?.name || startStop?.name || 'STA')?.substring(0, 3).toUpperCase()}</span>
-                            <span className="ticket-city-name">{booking.pickupCheckpoint?.name || startStop?.name || 'N/A'}</span>
-                            <span className="ticket-city-time">{formattedTime}</span>
-                          </div>
-
-                          <div className="ticket-flight-line">
-                            <div className="ticket-dot start"></div>
-                            <div className="ticket-line-track"></div>
-                            <Compass className="ticket-vehicle-icon" size={16} />
-                            <div className="ticket-line-track"></div>
-                            <div className="ticket-dot end"></div>
-                          </div>
-
-                          <div className="ticket-city ticket-destination">
-                            <span className="ticket-city-code">{(endStop?.name || 'END')?.substring(0, 3).toUpperCase()}</span>
-                            <span className="ticket-city-name">{endStop?.name || (isAr ? 'نهاية الخط' : 'Route End')}</span>
-                            <span className="ticket-city-time">{formattedTime}</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* ── Essential Info Strip (always visible) ── */}
-                    <div className="ticket-essentials">
-                      <div className="ticket-essential-item">
-                        <span className="te-label">{t('dateLabel')}</span>
-                        <span className="te-value">{formattedDate}</span>
-                      </div>
-                      <div className="ticket-essential-divider"></div>
-                      <div className="ticket-essential-item">
-                        <span className="te-label">{t('seatLabelShort')}</span>
-                        <span className="te-value te-highlight">#{booking.seatNumbers?.join(', ') || booking.seatNumber || 'N/A'}</span>
-                      </div>
-                      <div className="ticket-essential-divider"></div>
-                      <div className="ticket-essential-item">
-                        <span className="te-label">{t('fareLabelShort')}</span>
-                        <span className="te-value">{booking.amountEGP} EGP</span>
-                      </div>
-                    </div>
-
-                    {/* ── Expand Indicator ── */}
-                    <div className="ticket-expand-hint">
-                      {expandedTickets[booking._id] ? (
-                        <><ChevronUp size={14} /> <span>{isAr ? 'إخفاء التفاصيل' : 'Hide Details'}</span></>
-                      ) : (
-                        <><ChevronDown size={14} /> <span>{isAr ? 'عرض التفاصيل' : 'View Details'}</span></>
-                      )}
-                    </div>
-
-                    {/* ── Expandable Lower Stub ── */}
-                    {expandedTickets[booking._id] && (
-                      <div className="ticket-stub-expanded">
-                        {/* Perforated Tear Line */}
-                        <div className="ticket-perforation">
-                          <div className="perf-notch perf-left"></div>
-                          <div className="perf-dashes"></div>
-                          <div className="perf-notch perf-right"></div>
-                        </div>
-
-                        {/* Boarding Code */}
-                        {booking.boardingNumber && (
-                          <div className="ticket-boarding-code" onClick={e => e.stopPropagation()}>
-                            <div className="boarding-code-left">
-                              <span className="bc-label">{isAr ? 'رمز الصعود' : 'BOARDING CODE'}</span>
-                              <span className="bc-value">#{booking.boardingNumber}</span>
+                        <>
+                          {/* Header Row: Name + Seats Badge */}
+                          <div className="tc-header">
+                            <div className="tc-header-left">
+                              <div className="tc-bus-icon"><Bus size={18} /></div>
+                              <span className="tc-route-name">{booking.tripId?.routeId?.name || (isAr ? 'خط قياسي' : 'Standard Route')}</span>
                             </div>
-                            <QrCode size={24} className="bc-qr-hint" onClick={() => handleShowQrModal(booking)} />
+                            <span className={`tc-seats-badge ${seatCount <= 3 ? 'low' : ''}`}>
+                              {seatCount > 0 ? `${seatCount} ${isAr ? 'مقعد' : 'SEAT'}` : (isAr ? 'متاح' : 'AVAIL')}
+                            </span>
                           </div>
-                        )}
 
-                        {/* Crew & Vehicle Info */}
-                        <div className="ticket-meta-row" onClick={e => e.stopPropagation()}>
-                          <div className="ticket-meta-item">
-                            <User size={11} />
-                            <span>{booking.tripId?.driver?.name || booking.tripId?.driverId?.name || 'Captain'}</span>
+                          {/* Date Row */}
+                          <div className="tc-date-row">
+                            <span className="tc-date-text"><Calendar size={12} /> {formattedDate}</span>
+                            <span className="tc-date-sep">•</span>
+                            <span className="tc-amenity-icon"><Snowflake size={13} /></span>
+                            <span className="tc-amenity-icon"><Wifi size={13} /></span>
                           </div>
-                          <div className="ticket-meta-item">
-                            <Compass size={11} />
-                            <span>{booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
-                          </div>
-                          <div className="ticket-meta-item">
-                            <Ticket size={11} />
-                            <span>#{booking._id?.slice(-6).toUpperCase()}</span>
-                          </div>
-                        </div>
 
-                        {/* Action Buttons */}
-                        <div className="ticket-actions" onClick={e => e.stopPropagation()}>
-                          {booking.status === 'CONFIRMED' && booking.tripId?.status !== 'CANCELLED' && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleShowQrModal(booking);
-                                }}
-                                className="btn-ticket-icon"
-                                title="View QR Code"
-                              >
-                                <QrCode size={16} />
-                              </button>
-                              {booking.pickupCheckpoint && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates;
-                                    if (coords && coords.length >= 2) {
-                                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank');
-                                    }
-                                  }}
-                                  className="btn-ticket-icon"
-                                  title="Navigate to Pick-up"
-                                >
-                                  <MapPin size={16} />
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  shareTicketPdf(booking, user);
-                                }}
-                                className="btn-ticket-icon"
-                                title="Share PDF"
-                              >
-                                <Share2 size={16} />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancel(booking._id);
-                                }}
-                                className="btn-ticket-cancel"
-                                title={t('cancelSeat')}
-                              >
-                                ✕
-                              </button>
-                              
-                              <Link
-                                to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`}
-                                className="btn-ticket-main"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                {t('trackLive')} 📍
-                              </Link>
-                            </>
+                          {/* Vertical Timeline */}
+                          <div className="tc-timeline">
+                            <div className="tc-timeline-start">
+                              <div className="tc-tl-track">
+                                <div className="tc-tl-dot green"></div>
+                                <div className="tc-tl-line"></div>
+                              </div>
+                              <div className="tc-tl-content">
+                                <div className="tc-tl-row">
+                                  <span className="tc-time-badge green">{formattedTime}</span>
+                                  <span className="tc-tl-badge green">{isAr ? 'صعود' : 'BOARDING'}</span>
+                                </div>
+                                <span className="tc-station-name">{pickupName}</span>
+                              </div>
+                            </div>
+
+                            <div className="tc-timeline-duration">
+                              <div className="tc-duration-badge">
+                                <Clock size={12} />
+                                <span>{isAr ? 'رحلة' : 'ride'}</span>
+                              </div>
+                            </div>
+
+                            <div className="tc-timeline-end">
+                              <div className="tc-tl-track">
+                                <div className="tc-tl-dot red"></div>
+                              </div>
+                              <div className="tc-tl-content">
+                                <div className="tc-tl-row">
+                                  <span className="tc-time-badge red">{formattedTime}</span>
+                                  <span className="tc-tl-badge red">{isAr ? 'نزول' : 'DROPOFF'}</span>
+                                </div>
+                                <span className="tc-station-name">{dropoffName}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Pickup Info Bar */}
+                          {booking.pickupCheckpoint && (
+                            <div className="tc-pickup-bar" onClick={e => e.stopPropagation()}>
+                              <span className="tc-pickup-label">📍 {isAr ? 'نقطة الصعود' : 'Pickup Stop'}</span>
+                              <span className="tc-pickup-sep">|</span>
+                              <span className="tc-pickup-detail">
+                                <User size={12} />
+                                {booking.tripId?.driver?.name || booking.tripId?.driverId?.name || (isAr ? 'الكابتن' : 'Captain')}
+                              </span>
+                            </div>
                           )}
 
-                          {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && booking.tripId?.status !== 'CANCELLED' && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  shareTicketPdf(booking, user);
-                                }}
-                                className="btn-ticket-icon"
-                                title="Share PDF"
-                              >
-                                <Share2 size={16} />
+                          {/* Bottom: Fare + Action */}
+                          <div className="tc-bottom">
+                            <div className="tc-fare-section">
+                              <span className="tc-fare-label">{isAr ? 'السعر' : 'FARE'}</span>
+                              <span className="tc-fare-value">{booking.amountEGP}<span className="tc-fare-currency"> EGP</span></span>
+                            </div>
+                            {booking.status === 'CONFIRMED' && !isCancelled && (
+                              <Link to={`/track?vehicleId=${booking.tripId?.vehicleId || 'mock-vehicle-123'}&tripId=${booking.tripId?._id || ''}`} className="tc-action-btn primary" onClick={e => e.stopPropagation()}>
+                                <MapPin size={15} /> {t('trackLive')}
+                              </Link>
+                            )}
+                            {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && !isCancelled && (
+                              <button className="tc-action-btn" onClick={e => { e.stopPropagation(); handleOpenReviewModal(booking._id); }}>
+                                {booking.review ? <><Star size={15} fill="#FFD700" stroke="#FFD700" /> {booking.review.rating}/5</> : <><Star size={15} /> {isAr ? 'تقييم' : 'Rate'}</>}
                               </button>
-                              {!booking.review ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenReviewModal(booking._id);
-                                  }}
-                                  className="btn-ticket-main"
-                                >
-                                  Rate Trip <Star size={14} fill="var(--text-on-primary)" />
-                                </button>
-                              ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginInlineStart: 'auto' }} onClick={e => e.stopPropagation()}>
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star key={star} size={14} fill={star <= booking.review.rating ? '#f5b731' : 'none'} stroke="#f5b731" />
-                                  ))}
+                            )}
+                            {booking.status === 'PENDING_PAYMENT' && !isCancelled && (
+                              <Link to={`/checkout?tripId=${booking.tripId?._id}`} className="tc-action-btn primary" onClick={e => e.stopPropagation()}>
+                                <CreditCard size={15} /> {t('payNow')}
+                              </Link>
+                            )}
+                            {isCancelled && (
+                              <span className="tc-cancelled-tag">{isAr ? 'ملغي' : 'CANCELLED'}</span>
+                            )}
+                          </div>
+
+                          {/* Expanded Details */}
+                          {expandedTickets[booking._id] && (
+                            <div className="tc-expanded" onClick={e => e.stopPropagation()}>
+                              <div className="tc-expanded-divider"></div>
+
+                              {booking.boardingNumber && (
+                                <div className="tc-boarding-row" onClick={() => handleShowQrModal(booking)}>
+                                  <div className="tc-bc-left">
+                                    <span className="tc-bc-label">{isAr ? 'رقم الصعود' : 'BOARDING NO'}</span>
+                                    <span className="tc-bc-value">#{booking.boardingNumber}</span>
+                                  </div>
+                                  <div className="tc-bc-qr"><QrCode size={20} /></div>
                                 </div>
                               )}
-                            </>
-                          )}
 
-                          {(booking.status === 'CANCELLED' || booking.tripId?.status === 'CANCELLED') && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, width: '100%', textAlign: 'center' }}>
-                              {isAr ? 'لا توجد إجراءات متاحة' : 'No Actions Available'}
+                              <div className="tc-expanded-grid">
+                                <div className="tc-expanded-item">
+                                  <User size={14} />
+                                  <span>{booking.tripId?.driver?.name || booking.tripId?.driverId?.name || (isAr ? 'الكابتن' : 'Captain')}</span>
+                                </div>
+                                <div className="tc-expanded-item">
+                                  <Bus size={14} />
+                                  <span>{booking.tripId?.vehicle?.model || booking.tripId?.vehicleId?.model || 'Shuttle'}</span>
+                                </div>
+                              </div>
+
+                              <div className="tc-expanded-actions">
+                                {booking.status === 'CONFIRMED' && (
+                                  <>
+                                    <button onClick={(e) => { e.stopPropagation(); handleShowQrModal(booking); }} className="tc-icon-btn"><QrCode size={18} /></button>
+                                    {booking.pickupCheckpoint && (
+                                      <button onClick={(e) => { e.stopPropagation(); const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates; if (coords && coords.length >= 2) window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank'); }} className="tc-icon-btn"><MapPin size={18} /></button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); shareTicketPdf(booking, user); }} className="tc-icon-btn"><Share2 size={18} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleCancel(booking._id); }} className="tc-icon-btn danger">✕</button>
+                                  </>
+                                )}
+                                {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && (
+                                  <>
+                                    <button onClick={(e) => { e.stopPropagation(); shareTicketPdf(booking, user); }} className="tc-icon-btn"><Share2 size={18} /></button>
+                                    {!booking.review && (
+                                      <button onClick={(e) => { e.stopPropagation(); handleOpenReviewModal(booking._id); }} className="tc-icon-btn"><Star size={18} /></button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
                           )}
-
-                          {booking.status === 'PENDING_PAYMENT' && booking.tripId?.status !== 'CANCELLED' && (
-                            <Link
-                              to={`/checkout?tripId=${booking.tripId?._id}`}
-                              className="btn-ticket-main"
-                              style={{ width: '100%' }}
-                              onClick={e => e.stopPropagation()}
-                            >
-                              {t('payNow')} <CreditCard size={14} />
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                 </div>

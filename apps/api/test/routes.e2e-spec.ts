@@ -226,9 +226,11 @@ describe('Routes E2E', () => {
       .expect(200);
 
     expect(searchRes.body.success).toBe(true);
-    expect(Array.isArray(searchRes.body.data)).toBe(true);
+    expect(Array.isArray(searchRes.body.data.data)).toBe(true);
     expect(
-      searchRes.body.data.some((item: any) => item.trip.id === createdTripId),
+      searchRes.body.data.data.some(
+        (item: any) => item.trip.id === createdTripId,
+      ),
     ).toBe(true);
 
     // Test smart search by cities
@@ -241,9 +243,9 @@ describe('Routes E2E', () => {
       .expect(200);
 
     expect(searchCityRes.body.success).toBe(true);
-    expect(Array.isArray(searchCityRes.body.data)).toBe(true);
+    expect(Array.isArray(searchCityRes.body.data.data)).toBe(true);
     expect(
-      searchCityRes.body.data.some(
+      searchCityRes.body.data.data.some(
         (item: any) => item.trip.id === createdTripId,
       ),
     ).toBe(true);

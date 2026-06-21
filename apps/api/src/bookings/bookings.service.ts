@@ -586,12 +586,12 @@ export class BookingsService {
           });
         }
 
-        const bookingStatus: BookingStatus = (isReward || isWallet)
-          ? BookingStatus.CONFIRMED
-          : BookingStatus.PENDING_PAYMENT;
-        const paymentStatus: PaymentStatus = (isReward || isWallet)
-          ? PaymentStatus.SUCCESS
-          : PaymentStatus.PENDING;
+        const bookingStatus: BookingStatus =
+          isReward || isWallet
+            ? BookingStatus.CONFIRMED
+            : BookingStatus.PENDING_PAYMENT;
+        const paymentStatus: PaymentStatus =
+          isReward || isWallet ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
 
         // Generate a unique random boarding number from 1 to 99 for this trip
         const activeTripBookings = await tx.booking.findMany({
@@ -754,8 +754,13 @@ export class BookingsService {
         throw new ForbiddenException('You do not own this booking');
       }
 
-      if (booking.status !== BookingStatus.PENDING_PAYMENT && booking.status !== BookingStatus.PENDING) {
-        throw new BadRequestException('Booking is not in a pending payment status');
+      if (
+        booking.status !== BookingStatus.PENDING_PAYMENT &&
+        booking.status !== BookingStatus.PENDING
+      ) {
+        throw new BadRequestException(
+          'Booking is not in a pending payment status',
+        );
       }
 
       // 2. Fetch the user's wallet balance
@@ -822,8 +827,7 @@ export class BookingsService {
         const u = populated.user;
         const t = populated.trip;
         const r = t?.route;
-        const seatsStr =
-          (populated.seatNumbers as any[])?.join(', ') || 'N/A';
+        const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
 
         await this.notificationsService.sendBookingConfirmation(
           u?.phone || '',
@@ -1109,7 +1113,11 @@ export class BookingsService {
       });
 
       // Refund back to user's wallet if they paid using WALLET
-      if (originalTx?.paymentMethod === 'WALLET' && refundAmount > 0 && finalAction !== 'REJECT') {
+      if (
+        originalTx?.paymentMethod === 'WALLET' &&
+        refundAmount > 0 &&
+        finalAction !== 'REJECT'
+      ) {
         await tx.user.update({
           where: { id: booking.userId },
           data: { walletBalance: { increment: refundAmount } },

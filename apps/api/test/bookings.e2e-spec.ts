@@ -283,6 +283,12 @@ describe('Bookings E2E', () => {
   });
 
   it('PUT /api/bookings/:id/cancel — passenger should successfully cancel their booking', async () => {
+    // Reset status to CONFIRMED first since boarded tickets cannot be cancelled by design
+    await prisma.booking.update({
+      where: { id: createdBookingId },
+      data: { status: 'CONFIRMED' },
+    });
+
     const res = await request(app.getHttpServer())
       .put(`/api/bookings/${createdBookingId}/cancel`)
       .set('Authorization', `Bearer ${passengerToken}`)

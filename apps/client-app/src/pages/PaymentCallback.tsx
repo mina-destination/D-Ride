@@ -35,8 +35,13 @@ export default function PaymentCallbackPage() {
     // In local development, the backend runs on localhost, so Paymob webhooks cannot reach it directly.
     // Therefore, we confirm the transaction on the backend directly via this redirect callback.
     if (isSuccess && bookingId) {
+      // Check for linked bookings (e.g. return booking in round-trip)
+      const returnBookingId = sessionStorage.getItem('dride_returnBookingId');
+      sessionStorage.removeItem('dride_returnBookingId');
+
       api.post('/paymob/confirm', {
         bookingId,
+        linkedBookingIds: returnBookingId ? [returnBookingId] : undefined,
         success: true,
         amount: amountStr ? parseFloat(amountStr) : undefined,
         transactionId: transactionId || undefined,

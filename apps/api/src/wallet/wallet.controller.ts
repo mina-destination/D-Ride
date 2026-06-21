@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -22,7 +29,12 @@ export class WalletController {
   async initializeDeposit(@Request() req: any, @Body('amount') amount: number) {
     const userId = req.user.sub;
     const email = req.user.email;
-    const result = await this.walletService.initializeDeposit(userId, amount, email, 'Valued Passenger');
+    const result = await this.walletService.initializeDeposit(
+      userId,
+      amount,
+      email,
+      'Valued Passenger',
+    );
     return {
       success: true,
       data: result,

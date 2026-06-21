@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { routesAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X } from 'lucide-react';
+import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X, RotateCcw } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
@@ -36,6 +36,15 @@ function RouteSearchForm() {
     return `${year}-${month}-${day}`;
   }, []);
   const [passengers, setPassengers] = useState<number>(1);
+  const [isRoundTrip, setIsRoundTrip] = useState<boolean>(false);
+  const [returnDate, setReturnDate] = useState<string>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [maxAvailableSeats, setMaxAvailableSeats] = useState<number>(10);
   const [isFetchingLimit, setIsFetchingLimit] = useState<boolean>(false);
   const navigate = useNavigate();
@@ -433,7 +442,7 @@ function RouteSearchForm() {
     setToQuery(tempQuery);
   };
 
-  const canSearch = fromStation && toStation;
+  const canSearch = fromStation && toStation && (!isRoundTrip || returnDate);
 
   const handleSearch = () => {
     if (canSearch) {
@@ -444,9 +453,13 @@ function RouteSearchForm() {
       const pickupCity = fromStation.city;
       const dropoffCity = toStation.city;
 
-      navigate(
-        `/search?pickupLat=${pickupLat}&pickupLng=${pickupLng}&dropoffLat=${dropoffLat}&dropoffLng=${dropoffLng}&date=${travelDate}&passengers=${passengers}&pickupCity=${encodeURIComponent(pickupCity)}&dropoffCity=${encodeURIComponent(dropoffCity)}`
-      );
+      let url = `/search?pickupLat=${pickupLat}&pickupLng=${pickupLng}&dropoffLat=${dropoffLat}&dropoffLng=${dropoffLng}&date=${travelDate}&passengers=${passengers}&pickupCity=${encodeURIComponent(pickupCity)}&dropoffCity=${encodeURIComponent(dropoffCity)}`;
+
+      if (isRoundTrip && returnDate) {
+        url += `&roundTrip=true&returnDate=${returnDate}`;
+      }
+
+      navigate(url);
     }
   };
 
@@ -1183,12 +1196,72 @@ function RouteSearchForm() {
         </div>
       </div>
 
+      {/* ROW 5: ROUND TRIP */}
+      <div className="from-to-row">
+        <div className="from-to-field full-width">
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              background: isRoundTrip ? 'rgba(245, 183, 49, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+              border: isRoundTrip ? '1px solid rgba(245, 183, 49, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isRoundTrip}
+              onChange={(e) => setIsRoundTrip(e.target.checked)}
+              style={{ display: 'none' }}
+            />
+            <div
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '5px',
+                border: isRoundTrip ? '2px solid var(--primary)' : '2px solid rgba(255,255,255,0.2)',
+                background: isRoundTrip ? 'var(--primary)' : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isRoundTrip && (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </div>
+            <RotateCcw size={14} style={{ color: isRoundTrip ? 'var(--primary)' : 'var(--text-muted)', transition: 'color 0.2s' }} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isRoundTrip ? 'var(--primary)' : 'var(--text-secondary)', flex: 1 }}>
+              {t('roundTripLabel')}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* ROW 6: RETURN DATE (conditional) */}
+      {isRoundTrip && (
+        <div className="from-to-row" style={{ animation: 'fadeIn 0.25s ease' }}>
+          <div className="from-to-field full-width">
+            <label className="field-label">{t('returnDateLabel')}</label>
+            <CustomDatePicker value={returnDate} min={travelDate} onChange={setReturnDate} />
+          </div>
+        </div>
+      )}
+
       <button
         className="search-btn"
         onClick={handleSearch}
         disabled={!canSearch}
         id="search-trips-btn"
-        style={{ marginTop: '0.5rem' }}
+        style={{ marginTop: '0.25rem' }}
       >
         {t('showTripsBtn')} <Search size={18} />
       </button>

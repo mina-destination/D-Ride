@@ -20,8 +20,8 @@ test.describe('Contact Support Page', () => {
     await expect(page.locator('text=+20 100 123 4567')).toBeVisible();
 
     // Check user info is auto-populated in readonly panel
-    await expect(page.locator('.auth-card >> text=Test Passenger')).toBeVisible();
-    await expect(page.locator('.auth-card >> text=passenger@dride.com')).toBeVisible();
+    await expect(page.locator('.contact-container >> text=Test Passenger')).toBeVisible();
+    await expect(page.locator('.contact-container >> text=passenger@dride.com')).toBeVisible();
   });
 
   test('should submit a support ticket successfully and reset form', async ({ page }) => {

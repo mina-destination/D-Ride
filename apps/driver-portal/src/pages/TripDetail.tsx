@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, MapPin, Play, CheckCircle, Navigation, ShieldCheck, Q
 import { Html5Qrcode } from 'html5-qrcode';
 import { useTranslation } from '../context/LanguageContext';
 import Header from '../components/Header';
+import { parseTicketQr } from '../utils/qr';
 
 function playChime(isSuccess: boolean) {
   try {
@@ -106,8 +107,10 @@ export default function TripDetailPage() {
             }
             setScannerActive(false);
 
-            const parsed = JSON.parse(decodedText);
-            if (!parsed.bookingId || !parsed.token) {
+            let parsed;
+            try {
+              parsed = parseTicketQr(decodedText);
+            } catch (err) {
               setScanStatus({ type: 'error', message: t('invalidQrStructure') });
               playChime(false);
               return;

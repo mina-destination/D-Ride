@@ -68,6 +68,11 @@ test.describe('Routes Explorer Page', () => {
     // Wait for the route to be loaded
     await expect(page.locator(`text=${route.name}`).first()).toBeVisible();
 
+    // Expand checkpoints timeline
+    const toggleBtn = page.locator('button:has-text("Show Stop Details & Timeline")').first();
+    await expect(toggleBtn).toBeVisible();
+    await toggleBtn.click();
+
     // Verify timeline section renders checkpoint names
     for (const cp of route.checkpoints) {
       await expect(page.locator(`text=${cp.name}`).first()).toBeVisible();

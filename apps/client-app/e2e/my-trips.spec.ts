@@ -58,11 +58,11 @@ test.describe('My Trips & Tickets Page', () => {
     // Verify modal elements
     const qrModal = page.locator('.qr-modal-content');
     await expect(qrModal).toBeVisible();
-    await expect(qrModal.locator('h3')).toHaveText('Boarding Pass QR 🎫');
+    await expect(qrModal.locator('.text-xl')).toHaveText('Boarding Pass QR 🎫');
     await expect(qrModal.locator('img')).toBeVisible(); // generated QR code image
 
     // Close modal
-    await page.locator('.qr-modal-close-btn').click();
+    await qrModal.locator('button:has-text("✕")').click();
     await expect(page.locator('.qr-modal-content')).not.toBeVisible();
   });
 
@@ -74,15 +74,12 @@ test.describe('My Trips & Tickets Page', () => {
 
     const cancelBtn = page.locator('button:has-text("Cancel Seat")');
     await expect(cancelBtn).toBeVisible();
+    await cancelBtn.click();
 
-    // Handle confirm dialog
-    page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('Are you sure you want to cancel this trip booking?');
-      await dialog.accept();
-    });
-
-    // Mock API cancel handler triggers reload
-    await cancelBtn.click({ force: true });
+    // Click Confirm Cancel button in our custom modal
+    const yesBtn = page.locator('button:has-text("Yes, Cancel Trip")');
+    await expect(yesBtn).toBeVisible();
+    await yesBtn.click();
   });
 
   test('should display empty state when passenger has no bookings', async ({ page }) => {

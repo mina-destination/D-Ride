@@ -10,12 +10,22 @@ import { Steps } from '../components/ui/steps';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
+import { calculateLegPrice, calculatePremiumSurcharge, calculateSubTotalFare } from '../utils/pricing';
 
 export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const tripId = searchParams.get('tripId');
   const passengersParam = searchParams.get('passengers');
   const requiredSeatsCount = passengersParam ? Math.max(1, parseInt(passengersParam, 10)) : 1;
+  const roundTripParam = searchParams.get('roundTrip') === 'true';
+  const returnDateParam = searchParams.get('returnDate');
+  const returnPickupLat = searchParams.get('returnPickupLat');
+  const returnPickupLng = searchParams.get('returnPickupLng');
+  const returnDropoffLat = searchParams.get('returnDropoffLat');
+  const returnDropoffLng = searchParams.get('returnDropoffLng');
+  const returnPickupCity = searchParams.get('returnPickupCity');
+  const returnDropoffCity = searchParams.get('returnDropoffCity');
+  const forwardBookingIdParam = searchParams.get('forwardBookingId');
   const navigate = useNavigate();
   const { t, isRtl, language } = useTranslation();
   const { user, updateProfile } = useAuth();
@@ -58,37 +68,17 @@ export default function CheckoutPage() {
   const [promptError, setPromptError] = useState('');
   const [promptLoading, setPromptLoading] = useState(false);
 
-  const getLegPrice = () => {
-    if (!trip) return 0;
-    if (selectedPickupCheckpoint && selectedDropoffCheckpoint) {
-      if (selectedPickupCheckpoint.prices && selectedPickupCheckpoint.prices[selectedDropoffCheckpoint.name] !== undefined) {
-        return Number(selectedPickupCheckpoint.prices[selectedDropoffCheckpoint.name]);
-      }
-      const pickupPrice = Number(selectedPickupCheckpoint.priceFromStartEGP || 0);
-      const dropoffPrice = Number(selectedDropoffCheckpoint.priceFromStartEGP || trip.priceEGP || 0);
-      const legPrice = dropoffPrice - pickupPrice;
-      if (legPrice > 0) return legPrice;
-    }
-    return Number(trip.priceEGP || 0);
-  };
+  const getLegPrice = () => calculateLegPrice(trip, selectedPickupCheckpoint, selectedDropoffCheckpoint);
 
   const legPrice = getLegPrice();
   
-  const getLegPremiumSurcharge = () => {
-    if (!trip) return 0;
-    if (selectedPickupCheckpoint && selectedDropoffCheckpoint) {
-      if (selectedPickupCheckpoint.premiumSurcharges && selectedPickupCheckpoint.premiumSurcharges[selectedDropoffCheckpoint.name] !== undefined) {
-        return Number(selectedPickupCheckpoint.premiumSurcharges[selectedDropoffCheckpoint.name]);
-      }
-    }
-    return Number(trip.premiumSeatSurcharge || 0);
-  };
+  const getLegPremiumSurcharge = () => calculatePremiumSurcharge(trip, selectedPickupCheckpoint, selectedDropoffCheckpoint);
 
-  const getLegSubTotalFare = () => {
-    const surcharge = getLegPremiumSurcharge();
-    const hasSeat1 = selectedSeats.some(s => Number(s) === 1);
-    return legPrice * selectedSeats.length + (hasSeat1 ? surcharge : 0);
-  };
+  const getLegSubTotalFare = () => calculateSubTotalFare({
+    legPrice,
+    selectedSeats,
+    premiumSurcharge: getLegPremiumSurcharge(),
+  });
   
   const legSubTotalFare = getLegSubTotalFare();
 
@@ -480,7 +470,6 @@ export default function CheckoutPage() {
     isSubmitting.current = true;
     setProcessing(true);
     try {
-      // Create the booking with all selected seat numbers
       const booking = await bookingsAPI.create({
         tripId: trip._id || trip.id,
         seatNumbers: selectedSeats,
@@ -492,8 +481,19 @@ export default function CheckoutPage() {
         dropoffCheckpoint: selectedDropoffCheckpoint || undefined,
       });
 
-      // Redirect to the payment checkout page
-      navigate(`/payment?bookingId=${booking._id || booking.id}`);
+      const bookingId = booking._id || booking.id;
+
+      if (roundTripParam && returnDateParam) {
+        // Forward leg of round trip — redirect to return trip search
+        const returnSearch = `/search?pickupLat=${returnPickupLat}&pickupLng=${returnPickupLng}&dropoffLat=${returnDropoffLat}&dropoffLng=${returnDropoffLng}&date=${returnDateParam}&passengers=${requiredSeatsCount}&pickupCity=${encodeURIComponent(returnPickupCity || '')}&dropoffCity=${encodeURIComponent(returnDropoffCity || '')}&roundTrip=true&forwardBookingId=${bookingId}`;
+        navigate(returnSearch);
+      } else if (forwardBookingIdParam) {
+        // Return leg of round trip — redirect to payment with both
+        navigate(`/payment?bookingIds=${forwardBookingIdParam},${bookingId}`);
+      } else {
+        // Single trip
+        navigate(`/payment?bookingId=${bookingId}`);
+      }
     } catch (error) {
       const errData = error as any;
       if (errData?.existingBookingId) {

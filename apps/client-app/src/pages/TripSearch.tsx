@@ -5,6 +5,12 @@ import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { Wifi, Snowflake, Zap } from 'lucide-react';
+import {
+  Timeline,
+  TimelineItem,
+  TimelineMarker,
+  TimelineContent,
+} from '@/components/ui/timeline';
 
 // Map imports removed
 
@@ -116,6 +122,13 @@ export default function TripSearchPage() {
   const dropoffCity = searchParams.get('dropoffCity') || undefined;
   const date = searchParams.get('date') || undefined;
   const passengers = searchParams.get('passengers') ? parseInt(searchParams.get('passengers')!, 10) : 1;
+  const roundTrip = searchParams.get('roundTrip') === 'true';
+  const returnDate = searchParams.get('returnDate') || undefined;
+  const forwardBookingId = searchParams.get('forwardBookingId');
+
+  useEffect(() => {
+    sessionStorage.removeItem('forwardTripData');
+  }, []);
 
   const navigate = useNavigate();
 
@@ -503,6 +516,37 @@ export default function TripSearchPage() {
               <span>{dateString}</span>
             </div>
           </div>
+
+          {/* Round Trip Step Banner */}
+          {roundTrip && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1.25rem',
+              marginTop: '1rem',
+              borderRadius: 'var(--radius-xl)',
+              background: forwardBookingId
+                ? 'linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(52, 211, 153, 0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(245, 183, 49, 0.1) 0%, rgba(245, 183, 49, 0.05) 100%)',
+              border: forwardBookingId
+                ? '1px solid rgba(52, 211, 153, 0.25)'
+                : '1px solid rgba(245, 183, 49, 0.25)',
+            }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: forwardBookingId ? '#34D399' : 'var(--primary)',
+                color: '#1a1a2e', fontWeight: 900, fontSize: '0.8rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {forwardBookingId ? '2' : '1'}
+              </div>
+              <span style={{ fontWeight: 700, color: forwardBookingId ? '#34D399' : 'var(--primary)', fontSize: '0.85rem' }}>
+                {forwardBookingId ? t('step2of2') : t('step1of2')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Results */}
@@ -1071,7 +1115,17 @@ return `${y}-${m}-${d}` === date;
                                         const selectedDropoffCp = selectedDropoffCheckpoints[trip._id];
                                         const cpQuery = selectedCp ? `&checkpointName=${encodeURIComponent(selectedCp)}` : '';
                                         const dropoffQuery = selectedDropoffCp ? `&dropoffCheckpointName=${encodeURIComponent(selectedDropoffCp)}` : '';
-                                        navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
+
+                                        if (roundTrip && returnDate && !forwardBookingId) {
+                                          // Forward leg — go to checkout with return params
+                                          navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}&roundTrip=true&returnDate=${returnDate}&returnPickupLat=${dropoffLat || ''}&returnPickupLng=${dropoffLng || ''}&returnDropoffLat=${pickupLat || ''}&returnDropoffLng=${pickupLng || ''}&returnPickupCity=${encodeURIComponent(dropoffCity || '')}&returnDropoffCity=${encodeURIComponent(pickupCity || '')}`);
+                                        } else if (roundTrip && forwardBookingId) {
+                                          // Return leg — go to checkout with forwardBookingId
+                                          navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}&forwardBookingId=${forwardBookingId}`);
+                                        } else {
+                                          // Single trip — existing flow
+                                          navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
+                                        }
                                       }}
                                       className="auth-button" 
                                       style={{ 
@@ -1097,179 +1151,78 @@ return `${y}-${m}-${d}` === date;
                                 </div>
                               </div>
 
-                            {/* MOBILE SEARCH CARD */}
-                             <div className="mobile-search-card glass" style={{
-                                background: activeTripId === trip._id 
-                                  ? 'linear-gradient(135deg, rgba(245, 183, 49, 0.1) 0%, rgba(20, 24, 33, 0.95) 100%)' 
-                                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(13, 17, 23, 0.8) 100%)',
-                                border: activeTripId === trip._id ? '2.5px solid #f5b731' : '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '20px',
-                                padding: '16px 18px',
-                                marginBottom: '1rem',
-                                boxSizing: 'border-box',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '14px',
-                                position: 'relative',
-                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                                boxShadow: activeTripId === trip._id 
-                                  ? '0 16px 35px rgba(245, 183, 49, 0.18), inset 0 0 15px rgba(245, 183, 49, 0.05)' 
-                                  : '0 4px 20px rgba(0, 0, 0, 0.35)',
-                                backdropFilter: 'blur(20px)',
-                                transform: activeTripId === trip._id ? 'translateY(-2px)' : 'none',
-                                cursor: 'pointer'
-                              }} onClick={() => setActiveTripId(trip._id)}>
-                                
-                               {/* Card Header: Route Name & Seats Left & Date badge */}
-                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
-                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-end' : 'flex-start' }}>
-                                   <span style={{ 
-                                     fontSize: '0.98rem', 
-                                     fontWeight: 800, 
-                                     color: '#FFFFFF',
-                                     letterSpacing: '0.01em',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     gap: '6px'
-                                   }}>
-                                     <span style={{ textShadow: '0 0 15px rgba(245, 183, 49, 0.4)' }}>🚐</span> {isRtl ? (currentRoute?.nameAr || currentRoute?.name) : currentRoute?.name}
-                                   </span>
-                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
-                                     <span style={{ 
-                                       fontSize: '0.68rem', 
-                                       color: 'var(--text-muted)', 
-                                       fontWeight: 650,
-                                       background: 'rgba(255, 255, 255, 0.04)',
-                                       padding: '2px 8px',
-                                       borderRadius: '6px',
-                                       border: '1px solid rgba(255, 255, 255, 0.05)'
-                                     }}>
+                             {/* MOBILE SEARCH CARD */}
+                              <div className={`sc-card glass ${activeTripId === trip._id ? 'active' : ''}`} onClick={() => setActiveTripId(trip._id)}>
+                               
+                               {/* Card Header */}
+                               <div className={`sc-header ${isRtl ? 'flex-row-reverse' : ''}`}>
+                                 <div className="sc-header-left">
+                                   <div className="sc-route-row">
+                                     <span className="sc-bus-badge">🚐</span>
+                                     <span className="sc-route-name">{isRtl ? (currentRoute?.nameAr || currentRoute?.name) : currentRoute?.name}</span>
+                                   </div>
+                                   <div className="sc-meta-row">
+                                     <span className="sc-date-badge">
                                        📅 {boardingDate.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                      </span>
-                                     <span style={{ color: 'rgba(255, 255, 255, 0.15)', fontSize: '0.62rem' }}>•</span>
-                                     <div style={{ display: 'flex', gap: '5px' }}>
-                                       <span title="AC" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Snowflake size={10} style={{ color: 'var(--text-muted)' }} /></span>
-                                       <span title="WiFi" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Wifi size={10} style={{ color: 'var(--text-muted)' }} /></span>
-                                       <span title="USB" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '3px', borderRadius: '4px' }}><Zap size={10} style={{ color: 'var(--text-muted)' }} /></span>
+                                     <span className="sc-meta-dot">•</span>
+                                     <div className="sc-amenities">
+                                       <span className="sc-amenity"><Snowflake size={10} /></span>
+                                       <span className="sc-amenity"><Wifi size={10} /></span>
+                                       <span className="sc-amenity"><Zap size={10} /></span>
                                      </div>
                                    </div>
                                  </div>
-
-                                 <span className="trip-seats" style={{ 
-                                   fontSize: '0.68rem', 
-                                   color: seatsLeft <= 5 ? '#F87171' : '#34D399', 
-                                   fontWeight: 900,
-                                   background: seatsLeft <= 5 ? 'rgba(248, 113, 113, 0.1)' : 'rgba(52, 211, 153, 0.1)',
-                                   padding: '4px 10px',
-                                   borderRadius: '8px',
-                                   border: seatsLeft <= 5 ? '1px solid rgba(248, 113, 113, 0.2)' : '1px solid rgba(52, 211, 153, 0.2)',
-                                   display: 'inline-flex',
-                                   alignItems: 'center',
-                                   gap: '4px',
-                                   whiteSpace: 'nowrap',
-                                   boxShadow: seatsLeft <= 5 ? '0 0 10px rgba(248, 113, 113, 0.05)' : '0 0 10px rgba(52, 211, 153, 0.05)',
-                                   textTransform: 'uppercase'
-                                 }}>
-                                   <span style={{ fontSize: '0.75rem' }}>🔥</span> {seatsLeft} {isRtl ? 'متبقية' : 'left'}
+                                 <span className={`sc-seats ${seatsLeft <= 5 ? 'low' : 'ok'}`}>
+                                   🔥 {seatsLeft} {isRtl ? 'متبقية' : 'LEFT'}
                                  </span>
                                </div>
 
-                               {/* Timings & Stops Vertical Timeline Layout */}
-                               <div className="flex flex-col bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 gap-4 w-full relative overflow-hidden backdrop-blur-sm">
-                                 {/* Vertical timeline line (Gradient neon glow) */}
-                                 <div 
-                                   className="absolute w-[2px] bg-gradient-to-b from-[#34D399] via-[#F5B731] to-[#F87171] z-[1]"
-                                   style={{
-                                     left: isRtl ? 'auto' : '24px',
-                                     right: isRtl ? '24px' : 'auto',
-                                     top: '27px',
-                                     bottom: '49px'
-                                   }} 
-                                 />
-                                 
-                                 {/* Faint blur glow layer behind the main timeline line */}
-                                 <div 
-                                   className="absolute w-[6px] bg-gradient-to-b from-[#34D399]/20 via-[#F5B731]/20 to-[#F87171]/20 blur-[2px] z-[1]"
-                                   style={{
-                                     left: isRtl ? 'auto' : '22px',
-                                     right: isRtl ? '22px' : 'auto',
-                                     top: '27px',
-                                     bottom: '49px'
-                                   }} 
-                                 />
+                                {/* Timeline */}
+                                <Timeline position="left" className="sc-shadcn-timeline">
+                                  {/* Pickup */}
+                                  <TimelineItem>
+                                    <TimelineMarker variant="success" className="sc-gradient-marker" />
+                                    <TimelineContent>
+                                      <div className="sc-stop-badges">
+                                        <span className="sc-time-badge green">{pickupTimeStr}</span>
+                                        <span className="sc-type-badge green">{isRtl ? 'الركوب' : 'PICKUP'}</span>
+                                      </div>
+                                      <span className="sc-station-name">
+                                        {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
+                                      </span>
+                                    </TimelineContent>
+                                  </TimelineItem>
 
-                                 {/* Pickup Stop Info Row */}
-                                 <div className={`flex gap-3.5 items-start relative z-[2] ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-                                   <div 
-                                     className="w-[16px] h-[16px] rounded-full bg-[#0D1117] border-2 flex items-center justify-center shrink-0 mt-[3px] z-[2]"
-                                     style={{
-                                       borderColor: '#34D399',
-                                       boxShadow: '0 0 8px rgba(52, 211, 153, 0.3)'
-                                     }}
-                                   >
-                                     <div className="w-[6px] h-[6px] rounded-full bg-[#34D399]" />
-                                   </div>
-                                   <div className={`flex flex-col flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
-                                     <div className={`flex items-center justify-between flex-wrap gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-                                       <span className="text-[12px] font-extrabold text-[#34D399] bg-[#34D399]/5 border border-[#34D399]/15 px-2 py-0.5 rounded-md tracking-wider">
-                                         {pickupTimeStr}
-                                       </span>
-                                       <span className="text-[9px] font-black text-[#34D399] uppercase bg-[#34D399]/10 border border-[#34D399]/15 px-2 py-0.5 rounded-md tracking-wider">
-                                         {isRtl ? 'الركوب' : 'Pickup'}
-                                       </span>
-                                     </div>
-                                     <span className="text-[13px] font-bold text-zinc-100 mt-1.5 leading-snug">
-                                       {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
-                                     </span>
-                                   </div>
-                                 </div>
+                                  {/* Duration */}
+                                  <TimelineItem>
+                                    <TimelineMarker variant="warning" className="sc-gradient-marker" />
+                                    <TimelineContent>
+                                      <span className="sc-duration-pill">⏱ {durationMinutes}m {isRtl ? 'رحلة' : 'ride'}</span>
+                                    </TimelineContent>
+                                  </TimelineItem>
 
-                                 {/* Middle: Duration divider badge (Indented inline) */}
-                                 <div 
-                                   className="flex items-center relative z-[2]"
-                                   style={{
-                                     paddingLeft: isRtl ? 0 : '32px',
-                                     paddingRight: isRtl ? '32px' : 0
-                                   }}
-                                 >
-                                   <span className="text-[10px] font-extrabold text-[#f5b731] bg-[#f5b731]/10 border border-[#f5b731]/30 rounded-full px-3 py-0.5 flex items-center gap-1 backdrop-blur-sm shadow-[0_2px_8px_rgba(245,183,49,0.15)]">
-                                     ⏱️ {durationMinutes}m {isRtl ? 'رحلة' : 'ride'}
-                                   </span>
-                                 </div>
-
-                                 {/* Dropoff Stop Info Row */}
-                                 <div className={`flex gap-3.5 items-start relative z-[2] ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-                                   <div 
-                                     className="w-[16px] h-[16px] rounded-full bg-[#0D1117] border-2 flex items-center justify-center shrink-0 mt-[3px] z-[2]"
-                                     style={{
-                                       borderColor: '#F87171',
-                                       boxShadow: '0 0 8px rgba(248, 113, 113, 0.3)'
-                                     }}
-                                   >
-                                     <div className="w-[6px] h-[6px] rounded-full bg-[#F87171]" />
-                                   </div>
-                                   <div className={`flex flex-col flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
-                                     <div className={`flex items-center justify-between flex-wrap gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-                                       <div className={`flex items-baseline gap-1.5 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-                                         <span className="text-[12px] font-extrabold text-[#F87171] bg-[#F87171]/5 border border-[#F87171]/15 px-2 py-0.5 rounded-md tracking-wider">
-                                           {dropoffTimeStr}
-                                         </span>
-                                         {isNextDayDropoff && (
-                                           <span className="text-[9px] text-[#F87171] font-black bg-[#F87171]/10 px-1.5 py-0.5 rounded-md">
-                                             {isRtl ? 'غداً' : '+1d'}
-                                           </span>
-                                         )}
-                                       </div>
-                                       <span className="text-[9px] font-black text-[#F87171] uppercase bg-[#F87171]/10 border border-[#F87171]/15 px-2 py-0.5 rounded-md tracking-wider">
-                                         {isRtl ? 'النزول' : 'Dropoff'}
-                                       </span>
-                                     </div>
-                                     <span className="text-[13px] font-bold text-zinc-100 mt-1.5 leading-snug">
-                                       {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
-                                     </span>
-                                   </div>
-                                 </div>
-                               </div>
+                                  {/* Dropoff */}
+                                  <TimelineItem>
+                                    <TimelineMarker variant="destructive" className="sc-gradient-marker" />
+                                    <TimelineContent>
+                                      <div className="sc-stop-badges">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span className="sc-time-badge red">{dropoffTimeStr}</span>
+                                          {isNextDayDropoff && (
+                                            <span style={{ fontSize: '8px', fontWeight: 900, color: '#F87171', background: 'rgba(248, 113, 113, 0.1)', padding: '2px 5px', borderRadius: '4px' }}>
+                                              {isRtl ? 'غداً' : '+1d'}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="sc-type-badge red">{isRtl ? 'النزول' : 'DROPOFF'}</span>
+                                      </div>
+                                      <span className="sc-station-name">
+                                        {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
+                                      </span>
+                                    </TimelineContent>
+                                  </TimelineItem>
+                                </Timeline>
 
                                {/* Pickup Walk/Drive Distance Badge */}
                                {isSmartMode && trip.totalWalkingDistance !== undefined && (
@@ -1313,51 +1266,18 @@ return `${y}-${m}-${d}` === date;
                                      <div style={{ display: 'flex', width: '100%', justifyContent: 'center' }}>
                                        {showLocationPrompt ? (
                                          <button
-                                           onClick={(e) => {
-                                             e.stopPropagation();
-                                             requestGPS();
-                                           }}
-                                           style={{
-                                             fontSize: '0.68rem',
-                                             background: 'rgba(245, 183, 49, 0.04)',
-                                             color: 'var(--primary)',
-                                             padding: '6px 12px',
-                                             borderRadius: '8px',
-                                             border: '1px dashed rgba(245, 183, 49, 0.3)',
-                                             fontWeight: 800,
-                                             cursor: 'pointer',
-                                             outline: 'none',
-                                             width: '100%',
-                                             textAlign: 'center',
-                                             transition: 'all 0.2s ease',
-                                             display: 'flex',
-                                             alignItems: 'center',
-                                             justifyContent: 'center',
-                                             gap: '4px'
-                                           }}
+                                           onClick={(e) => { e.stopPropagation(); requestGPS(); }}
+                                           className="sc-pickup-bar"
+                                           style={{ cursor: 'pointer', outline: 'none', borderStyle: 'dashed' }}
                                          >
                                            📍 {isRtl ? 'اضغط لمشاركة الموقع وحساب المسافة' : 'Tap to share location & see distance'}
                                          </button>
                                        ) : (
-                                         <div style={{
-                                           fontSize: '0.68rem',
-                                           background: 'rgba(255, 255, 255, 0.02)',
-                                           color: 'var(--primary)',
-                                           padding: '6px 12px',
-                                           borderRadius: '8px',
-                                           border: '1px solid rgba(245, 183, 49, 0.15)',
-                                           fontWeight: 800,
-                                           display: 'flex',
-                                           alignItems: 'center',
-                                           gap: '6px',
-                                           width: '100%',
-                                           justifyContent: 'center',
-                                           boxShadow: 'inset 0 0 8px rgba(245, 183, 49, 0.02)'
-                                         }}>
+                                         <div className="sc-pickup-bar">
                                            <span style={{ opacity: 0.85 }}>{isRtl ? '📍 محطة الركوب:' : '📍 Pickup Stop:'}</span>
-                                           <span style={{ color: '#FFFFFF' }}>🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})</span>
-                                           <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
-                                           <span style={{ color: '#FFFFFF' }}>🚗 {formatMinsCompact(firstMileTimeCar)}</span>
+                                           <span className="val">🚶 {formatMinsCompact(firstMileTimeWalk)} ({distanceStr})</span>
+                                           <span className="sep">|</span>
+                                           <span className="val">🚗 {formatMinsCompact(firstMileTimeCar)}</span>
                                          </div>
                                        )}
                                      </div>
@@ -1382,71 +1302,38 @@ return `${y}-${m}-${d}` === date;
                                  </div>
                                )}
 
-                               <div style={{ borderTop: '1px dashed rgba(255, 255, 255, 0.1)', margin: '4px 0' }} />
+                               {/* Divider */}
+                               <hr className="sc-divider" />
 
-                               {/* Bottom Section: Price & Booking Button (Flex row side-by-side) */}
-                               <div style={{ 
-                                 display: 'flex', 
-                                 justifyContent: 'space-between',
-                                 alignItems: 'center',
-                                 width: '100%'
-                                }}>
-                                 {/* Price Group */}
-                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                   <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 800 }}>
-                                     {isRtl ? 'سعر التذكرة' : 'Fare'}
-                                   </span>
-                                   <div className="trip-price" style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                                     <span style={{ fontSize: '1.45rem', fontWeight: 950, color: 'var(--primary)', fontFamily: 'Outfit, sans-serif', textShadow: '0 0 15px rgba(245, 183, 49, 0.15)' }}>
-                                       {dynamicLegPrice}
-                                     </span>
-                                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)' }}>
-                                       {isRtl ? ' ج.م' : ' EGP'}
-                                     </span>
+                               {/* Bottom: Fare + Book Button */}
+                               <div className="sc-bottom">
+                                 <div className="sc-fare">
+                                   <span className="sc-fare-label">{isRtl ? 'سعر التذكرة' : 'FARE'}</span>
+                                   <div className="sc-fare-amount">
+                                     <span className="sc-fare-price">{dynamicLegPrice}</span>
+                                     <span className="sc-fare-currency">{isRtl ? 'ج.م' : 'EGP'}</span>
                                    </div>
                                  </div>
-
-                                 {/* Book Button */}
                                  <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     const selectedCp = selectedCheckpoints[trip._id];
-                                     const selectedDropoffCp = selectedDropoffCheckpoints[trip._id];
-                                     const cpQuery = selectedCp ? `&checkpointName=${encodeURIComponent(selectedCp)}` : '';
-                                     const dropoffQuery = selectedDropoffCp ? `&dropoffCheckpointName=${encodeURIComponent(selectedDropoffCp)}` : '';
-                                     navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
-                                   }}
-                                   className="auth-button" 
-                                   style={{ 
-                                     width: 'auto',
-                                     minWidth: '110px',
-                                     minHeight: '38px',
-                                     padding: '8px 16px', 
-                                     fontSize: '0.82rem', 
-                                     fontWeight: 900,
-                                     borderRadius: '10px',
-                                     background: 'linear-gradient(135deg, #F5B731 0%, #E5A520 100%)',
-                                     color: '#000000',
-                                     border: 'none',
-                                     cursor: 'pointer',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     justifyContent: 'center',
-                                     gap: '4px',
-                                     boxShadow: '0 4px 14px rgba(245, 183, 49, 0.3)',
-                                     transition: 'all 0.2s ease'
-                                   }}
-                                   onMouseEnter={(e) => {
-                                     e.currentTarget.style.transform = 'scale(1.03)';
-                                     e.currentTarget.style.boxShadow = '0 6px 18px rgba(245, 183, 49, 0.4)';
-                                   }}
-                                   onMouseLeave={(e) => {
-                                     e.currentTarget.style.transform = 'none';
-                                     e.currentTarget.style.boxShadow = '0 4px 14px rgba(245, 183, 49, 0.3)';
-                                   }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const selectedCp = selectedCheckpoints[trip._id];
+                                      const selectedDropoffCp = selectedDropoffCheckpoints[trip._id];
+                                      const cpQuery = selectedCp ? `&checkpointName=${encodeURIComponent(selectedCp)}` : '';
+                                      const dropoffQuery = selectedDropoffCp ? `&dropoffCheckpointName=${encodeURIComponent(selectedDropoffCp)}` : '';
+
+                                      if (roundTrip && returnDate && !forwardBookingId) {
+                                        navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}&roundTrip=true&returnDate=${returnDate}&returnPickupLat=${dropoffLat || ''}&returnPickupLng=${dropoffLng || ''}&returnDropoffLat=${pickupLat || ''}&returnDropoffLng=${pickupLng || ''}&returnPickupCity=${encodeURIComponent(dropoffCity || '')}&returnDropoffCity=${encodeURIComponent(pickupCity || '')}`);
+                                      } else if (roundTrip && forwardBookingId) {
+                                        navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}&forwardBookingId=${forwardBookingId}`);
+                                      } else {
+                                        navigate(`/checkout?tripId=${trip._id}${cpQuery}${dropoffQuery}&passengers=${passengers}`);
+                                      }
+                                    }}
+                                   className="sc-book-btn"
                                  >
                                    <span>{t('bookSeatTicket')}</span>
-                                   <span style={{ fontSize: '0.9rem' }}>🎫</span>
+                                   <span style={{ fontSize: '0.85rem' }}>🎫</span>
                                  </button>
                                </div>
                              </div>
