@@ -33,6 +33,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <service
+            android:name="com.dride.driver.plugins.backgroundlocation.BackgroundLocationService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
     </application>
 
     <!-- Permissions -->

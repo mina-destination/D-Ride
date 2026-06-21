@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Dynamically check if running in production or development to resolve the API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const api = axios.create({
   baseURL: API_URL,

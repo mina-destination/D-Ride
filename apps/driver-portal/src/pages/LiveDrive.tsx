@@ -5,7 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { socketService } from '../services/socket';
-import { driverAPI } from '../services/api';
+import { driverAPI, API_URL } from '../services/api';
+import { BackgroundLocation } from '../capacitor-plugins/background-location';
 import { 
   ArrowLeft, 
   Play, 
@@ -416,6 +417,9 @@ export default function LiveDrivePage() {
       }
       geoWatchId.current = null;
     }
+    if (Capacitor.isNativePlatform()) {
+      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
+    }
     setIsStreaming(false);
     setSpeed(0);
     setHeading(0);
@@ -482,6 +486,16 @@ export default function LiveDrivePage() {
 
     setIsStreaming(true);
     setGpsError(null);
+
+    if (Capacitor.isNativePlatform()) {
+      const token = localStorage.getItem('dride_driver_token') || '';
+      BackgroundLocation.start({
+        apiUrl: API_URL,
+        token,
+        vehicleId: tripRef.current?.vehicleId?._id || '',
+        driverId: user?._id || '',
+      }).catch(err => console.warn('Failed to start background location:', err));
+    }
 
     const watchOptions = {
       enableHighAccuracy: true,
