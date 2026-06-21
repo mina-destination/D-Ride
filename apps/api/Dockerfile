@@ -36,5 +36,5 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/package.json ./package.json
-CMD ["sh", "-c", "npx prisma migrate resolve --rolled-back \"20260621171300_add_wallet_balance_back\" --schema=apps/api/prisma/schema.prisma && npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && npm run start:prod --workspace=apps/api"]
+CMD ["sh", "-c", "npx prisma migrate resolve --rolled-back \"20260621171300_add_wallet_balance_back\" --schema=apps/api/prisma/schema.prisma ; npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && npm run start:prod --workspace=apps/api"]
 
