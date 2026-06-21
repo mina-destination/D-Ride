@@ -1,0 +1,5 @@
+{
+  "gradle.autoActivate": false,
+  "java.import.gradle.enabled": false,
+  "java.requirements.JDK17": false
+}

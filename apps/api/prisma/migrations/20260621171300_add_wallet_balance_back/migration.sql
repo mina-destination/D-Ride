@@ -1,2 +1,1 @@
--- AlterTable
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "walletBalance" DOUBLE PRECISION NOT NULL DEFAULT 0;
+-- Cleared previous migration to avoid database conflicts.

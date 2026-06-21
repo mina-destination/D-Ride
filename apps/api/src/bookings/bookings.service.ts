@@ -567,31 +567,12 @@ export class BookingsService {
           }
         }
 
-        const isWallet = data.paymentMethod === 'WALLET';
-        if (isWallet) {
-          const walletUser = await tx.user.findUnique({
-            where: { id: userId },
-            select: { id: true, walletBalance: true },
-          });
-          if (!walletUser) {
-            throw new BadRequestException('User not found');
-          }
-          if (walletUser.walletBalance < amountEGP) {
-            throw new BadRequestException('Insufficient wallet balance');
-          }
-
-          await tx.user.update({
-            where: { id: userId },
-            data: { walletBalance: { decrement: amountEGP } },
-          });
-        }
-
         const bookingStatus: BookingStatus =
-          isReward || isWallet
+          isReward
             ? BookingStatus.CONFIRMED
             : BookingStatus.PENDING_PAYMENT;
         const paymentStatus: PaymentStatus =
-          isReward || isWallet ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
+          isReward ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
 
         // Generate a unique random boarding number from 1 to 99 for this trip
         const activeTripBookings = await tx.booking.findMany({
@@ -662,7 +643,7 @@ export class BookingsService {
         // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
         await this.cleanupExpiredBookings(tripIdStr, tx);
 
-        // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD or WALLET payment
+        // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD payment
         if (isReward) {
           await tx.transaction.create({
             data: {
@@ -671,16 +652,6 @@ export class BookingsService {
               amountEGP,
               status: PaymentStatus.SUCCESS,
               paymentMethod: data.paymentMethod || 'ADMIN_REWARD',
-            },
-          });
-        } else if (isWallet) {
-          await tx.transaction.create({
-            data: {
-              bookingId: newBooking.id,
-              userId: data.userId?.toString() || '',
-              amountEGP,
-              status: PaymentStatus.SUCCESS,
-              paymentMethod: 'WALLET',
             },
           });
         }
@@ -738,117 +709,7 @@ export class BookingsService {
     return this.mapBooking(booking);
   }
 
-  async payWithWallet(bookingId: string, userId: string): Promise<any> {
-    const booking = await this.prisma.$transaction(async (tx) => {
-      // 1. Fetch the booking
-      const booking = await tx.booking.findUnique({
-        where: { id: bookingId },
-        include: { trip: true },
-      });
 
-      if (!booking) {
-        throw new NotFoundException('Booking not found');
-      }
-
-      if (booking.userId !== userId) {
-        throw new ForbiddenException('You do not own this booking');
-      }
-
-      if (
-        booking.status !== BookingStatus.PENDING_PAYMENT &&
-        booking.status !== BookingStatus.PENDING
-      ) {
-        throw new BadRequestException(
-          'Booking is not in a pending payment status',
-        );
-      }
-
-      // 2. Fetch the user's wallet balance
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        select: { id: true, walletBalance: true },
-      });
-
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
-
-      if (user.walletBalance < booking.amountEGP) {
-        throw new BadRequestException('Insufficient wallet balance');
-      }
-
-      // 3. Deduct fare
-      await tx.user.update({
-        where: { id: userId },
-        data: { walletBalance: { decrement: booking.amountEGP } },
-      });
-
-      // 4. Update booking status
-      const updatedBooking = await tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.SUCCESS,
-        },
-      });
-
-      // 5. Create a successful Transaction ledger record
-      await tx.transaction.create({
-        data: {
-          bookingId: bookingId,
-          userId: userId,
-          amountEGP: booking.amountEGP,
-          status: PaymentStatus.SUCCESS,
-          paymentMethod: 'WALLET',
-        },
-      });
-
-      // 6. Clean up expired bookings for this trip segment
-      await this.cleanupExpiredBookings(booking.tripId, tx);
-
-      return updatedBooking;
-    });
-
-    // Trigger confirmation notification asynchronously
-    try {
-      const populated = await this.prisma.booking.findUnique({
-        where: { id: booking.id },
-        include: {
-          trip: {
-            include: {
-              route: true,
-            },
-          },
-          user: true,
-        },
-      });
-
-      if (populated) {
-        const u = populated.user;
-        const t = populated.trip;
-        const r = t?.route;
-        const seatsStr = (populated.seatNumbers as any[])?.join(', ') || 'N/A';
-
-        await this.notificationsService.sendBookingConfirmation(
-          u?.phone || '',
-          u?.name || 'Valued Passenger',
-          {
-            routeName: r?.name || 'D-Ride Minibus Trip',
-            departureTime: t?.departureTime
-              ? t.departureTime.toISOString()
-              : new Date().toISOString(),
-            seatNumber: seatsStr,
-            price: populated.amountEGP || 0,
-          },
-          u?.email || '',
-        );
-      }
-    } catch (err) {
-      console.error('Failed to dispatch notification:', err);
-    }
-
-    return this.mapBooking(booking);
-  }
 
   async updateStatus(id: string, status: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
@@ -1112,18 +973,6 @@ export class BookingsService {
         },
       });
 
-      // Refund back to user's wallet if they paid using WALLET
-      if (
-        originalTx?.paymentMethod === 'WALLET' &&
-        refundAmount > 0 &&
-        finalAction !== 'REJECT'
-      ) {
-        await tx.user.update({
-          where: { id: booking.userId },
-          data: { walletBalance: { increment: refundAmount } },
-        });
-      }
-
       // Create a refund/reject transaction record
       await tx.transaction.create({
         data: {
@@ -1132,7 +981,7 @@ export class BookingsService {
           paymobOrderId: crypto.randomInt(100000000, 999999999),
           amountEGP: -refundAmount,
           status: finalAction === 'REJECT' ? 'FAILED' : 'REFUNDED',
-          paymentMethod: originalTx?.paymentMethod || 'WALLET',
+          paymentMethod: originalTx?.paymentMethod || 'CARD',
         },
       });
 

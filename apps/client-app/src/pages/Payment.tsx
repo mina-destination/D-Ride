@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { bookingsAPI, paymobAPI, walletAPI } from '../services/api';
+import { bookingsAPI, paymobAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { Steps } from '../components/ui/steps';
@@ -32,8 +32,7 @@ export default function PaymentPage() {
   const [returnBooking, setReturnBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const paymentMethod = 'CARD';
   const isSubmitting = useRef(false);
 
   // Promo Code States
@@ -101,55 +100,34 @@ export default function PaymentPage() {
     fetchBookings();
   }, [allBookingIds.join(',')]);
 
-  useEffect(() => {
-    walletAPI.getBalance()
-      .then(res => {
-        setWalletBalance(res.walletBalance);
-      })
-      .catch(err => {
-        console.error('Failed to load wallet balance:', err);
-      });
-  }, []);
-
   const handleCheckout = async () => {
     if (!booking || processing || isSubmitting.current) return;
 
     isSubmitting.current = true;
     setProcessing(true);
     try {
-      if (paymentMethod === 'WALLET') {
-        // Pay forward booking
-        await bookingsAPI.payWithWallet(booking._id || booking.id);
-        // Pay return booking if round trip
-        if (isRoundTrip && returnBooking) {
-          await bookingsAPI.payWithWallet(returnBooking._id || returnBooking.id);
-        }
-        alert(isAr ? 'تم تأكيد الحجز بنجاح باستخدام المحفظة!' : 'Booking successfully confirmed using wallet!');
-        navigate('/my-trips');
+      // Store return booking ID so PaymentCallback can confirm both after redirect
+      if (isRoundTrip && returnBooking) {
+        sessionStorage.setItem('dride_returnBookingId', returnBooking._id || returnBooking.id);
       } else {
-        // Store return booking ID so PaymentCallback can confirm both after redirect
-        if (isRoundTrip && returnBooking) {
-          sessionStorage.setItem('dride_returnBookingId', returnBooking._id || returnBooking.id);
-        } else {
-          sessionStorage.removeItem('dride_returnBookingId');
-        }
+        sessionStorage.removeItem('dride_returnBookingId');
+      }
 
-        // Pay forward booking via Paymob
-        const paymobResult = await paymobAPI.checkout({
-          bookingId: booking._id || booking.id,
-          amountCents: (isRoundTrip && returnBooking)
-            ? (booking.amountEGP + returnBooking.amountEGP) * 100
-            : booking.amountEGP * 100,
-          paymentMethod,
-        });
+      // Pay forward booking via Paymob
+      const paymobResult = await paymobAPI.checkout({
+        bookingId: booking._id || booking.id,
+        amountCents: (isRoundTrip && returnBooking)
+          ? (booking.amountEGP + returnBooking.amountEGP) * 100
+          : booking.amountEGP * 100,
+        paymentMethod,
+      });
 
-        if (paymobResult.redirectUrl) {
-          window.location.href = paymobResult.redirectUrl;
-        } else if (paymobResult.iframeUrl) {
-          window.location.href = paymobResult.iframeUrl;
-        } else {
-          navigate('/my-trips');
-        }
+      if (paymobResult.redirectUrl) {
+        window.location.href = paymobResult.redirectUrl;
+      } else if (paymobResult.iframeUrl) {
+        window.location.href = paymobResult.iframeUrl;
+      } else {
+        navigate('/my-trips');
       }
     } catch (error) {
       alert((isRtl ? 'فشل إتمام عملية الدفع: ' : 'Payment failed: ') + ((error as any)?.message || 'Unknown error'));
@@ -610,12 +588,11 @@ export default function PaymentPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
               {/* Credit Card Option */}
               <div 
-                className={`payment-card-option ${paymentMethod === 'CARD' ? 'active' : ''}`}
-                style={{ cursor: 'pointer' }}
-                onClick={() => setPaymentMethod('CARD')}
+                className="payment-card-option active"
+                style={{ cursor: 'default' }}
               >
                 <div className="payment-card-radio">
-                  {paymentMethod === 'CARD' && <div className="payment-card-radio-inner" />}
+                  <div className="payment-card-radio-inner" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -627,89 +604,7 @@ export default function PaymentPage() {
                   </span>
                 </div>
               </div>
-
-              {/* D-Ride Wallet Option */}
-              <div 
-                className={`payment-card-option ${paymentMethod === 'WALLET' ? 'active' : ''}`}
-                style={{ cursor: 'pointer' }}
-                onClick={() => setPaymentMethod('WALLET')}
-              >
-                <div className="payment-card-radio">
-                  {paymentMethod === 'WALLET' && <div className="payment-card-radio-inner" />}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1.2rem' }}>👛</span>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                        {isRtl ? 'محفظة دي-رايد مسبقة الدفع' : 'D-Ride Prepaid Wallet'}
-                      </strong>
-                    </div>
-                    {walletBalance !== null && (
-                      <span style={{ 
-                        fontSize: '0.85rem', 
-                        fontWeight: 'bold', 
-                        color: walletBalance >= (isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP) ? '#0f9d58' : '#ea4335',
-                        background: 'var(--surface-hover)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)'
-                      }}>
-                        {isRtl ? 'الرصيد: ' : 'Balance: '}{walletBalance} EGP
-                      </span>
-                    )}
-                  </div>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {isRtl 
-                      ? 'ادفع فوراً باستخدام رصيد حسابك مسبق الدفع.' 
-                      : 'Pay instantly using your D-Ride prepaid wallet account balance.'}
-                  </span>
-                </div>
-              </div>
             </div>
-
-            {paymentMethod === 'WALLET' && walletBalance !== null && walletBalance < booking.amountEGP && (
-              <div 
-                className="warning-box-opaque"
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.4,
-                  marginBottom: '1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}
-              >
-                <div style={{ fontWeight: 'bold' }}>
-                  ⚠️ {isRtl ? 'رصيد المحفظة غير كافٍ' : 'Insufficient Wallet Balance'}
-                </div>
-                <div>
-                  {isRtl 
-                    ? `رصيد محفظتك الحالي هو ${walletBalance} ج.م، بينما تكلفة الرحلة هي ${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} ج.م. يرجى شحن محفظتك للمتابعة.`
-                    : `Your current wallet balance is ${walletBalance} EGP, but this trip costs ${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} EGP. Please top up your wallet to proceed.`}
-                </div>
-                <button
-                  onClick={() => navigate('/wallet')}
-                  className="auth-button"
-                  style={{ 
-                    padding: '8px 12px', 
-                    fontSize: '0.8rem', 
-                    background: 'var(--primary)', 
-                    color: 'black',
-                    alignSelf: 'flex-start',
-                    marginTop: '4px',
-                    width: 'auto',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isRtl ? 'شحن المحفظة الآن ➔' : 'Top Up Wallet Now ➔'}
-                </button>
-              </div>
-            )}
 
             {/* Redirection disclaimer instruction box */}
             <div 
@@ -725,17 +620,8 @@ export default function PaymentPage() {
                 marginBottom: '2rem'
               }}
             >
-              {paymentMethod === 'CARD' ? (
-                <>
-                  <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
-                </>
-              ) : (
-                <>
-                  <div>🔒 <strong>{isRtl ? 'دفع آمن بالكامل' : '100% Secure Internal Payment'}</strong>: {isRtl ? 'سيتم خصم قيمة الرحلة من رصيد محفظتك فوراً.' : 'Fare will be deducted from your prepaid balance instantly.'}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{isRtl ? 'لا توجد رسوم خفية أو إضافية' : 'Zero transaction fees apply'}</div>
-                </>
-              )}
+              <div>🔒 <strong>{t('securePaymobCheckout')}</strong>: {t('paymobRedirectionDisclaimer')}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('supportedCardSchemes')}</div>
             </div>
 
             {/* Action Checkout buttons */}
@@ -743,17 +629,12 @@ export default function PaymentPage() {
               <button 
                 onClick={handleCheckout} 
                 className="auth-button" 
-                disabled={
-                  processing || 
-                  (paymentMethod === 'WALLET' && walletBalance !== null && walletBalance < (isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP))
-                }
+                disabled={processing}
                 style={{ padding: '1rem' }}
               >
                 {processing 
                   ? (isRtl ? 'جاري معالجة الدفع...' : 'Processing Payment...') 
-                  : paymentMethod === 'WALLET'
-                    ? (isRtl ? `تأكيد الدفع من المحفظة (${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} ج.م)` : `Confirm & Pay from Wallet (${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} EGP)`)
-                    : t('payViaPaymob', { amount: isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP })
+                  : t('payViaPaymob', { amount: isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP })
                 }
               </button>
               

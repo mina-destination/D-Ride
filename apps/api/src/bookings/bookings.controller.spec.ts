@@ -14,7 +14,6 @@ describe('BookingsController', () => {
     findAll: jest.fn(),
     findMyBookings: jest.fn(),
     create: jest.fn(),
-    payWithWallet: jest.fn(),
     cancel: jest.fn(),
     applyPromoCode: jest.fn(),
     findOccupiedSeats: jest.fn(),
@@ -121,18 +120,6 @@ describe('BookingsController', () => {
     });
   });
 
-  describe('payWithWallet', () => {
-    it('should pay with wallet balance', async () => {
-      const req = { user: { sub: 'user-1' } };
-      const mockBooking = { id: 'b-1', status: 'PAID' };
-      mockBookingsService.payWithWallet.mockResolvedValue(mockBooking);
-
-      const res = await controller.payWithWallet(req, 'b-1');
-      expect(res.success).toBe(true);
-      expect(res.data).toEqual(mockBooking);
-      expect(service.payWithWallet).toHaveBeenCalledWith('b-1', 'user-1');
-    });
-  });
 
   describe('cancel', () => {
     it('should cancel booking', async () => {

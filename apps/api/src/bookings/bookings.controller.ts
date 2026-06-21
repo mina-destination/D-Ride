@@ -64,20 +64,6 @@ export class BookingsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put(':id/pay-with-wallet')
-  async payWithWallet(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    const booking = await this.bookingsService.payWithWallet(id, req.user.sub);
-    return {
-      success: true,
-      data: booking,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Put(':id/cancel')
   async cancel(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const booking = await this.bookingsService.cancel(

@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import type { Trip, Checkpoint } from '../pricing';
 import {
   calculateLegPrice,
   calculatePremiumSurcharge,
   calculateSubTotalFare,
-  Trip,
-  Checkpoint,
 } from '../pricing';
 
 describe('Pricing Calculations', () => {
