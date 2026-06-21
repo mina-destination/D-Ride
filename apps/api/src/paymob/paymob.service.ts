@@ -129,18 +129,6 @@ export class PaymobService implements OnModuleInit {
             rawResponse: payload as any,
           },
         });
-
-        // Increment the user's wallet balance on success
-        if (success) {
-          await tx.user.update({
-            where: { id: userId },
-            data: {
-              walletBalance: {
-                increment: amountCents / 100,
-              },
-            },
-          });
-        }
       } else {
         // Record direct booking payment transaction inside the transaction boundary
         await tx.transaction.create({
@@ -515,14 +503,6 @@ export class PaymobService implements OnModuleInit {
             data: {
               status: PaymentStatus.SUCCESS,
               paymobPaymentId: transactionId ? transactionId.toString() : null,
-            },
-          });
-          await tx.user.update({
-            where: { id: walletTx.userId },
-            data: {
-              walletBalance: {
-                increment: walletTx.amountEGP,
-              },
             },
           });
         });
