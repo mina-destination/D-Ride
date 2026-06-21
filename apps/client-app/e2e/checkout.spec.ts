@@ -12,11 +12,12 @@ test.describe('Checkout & Seat Selection Page', () => {
     await page.goto(`/checkout?tripId=${MOCK_TRIPS[0]._id}`);
 
     await expect(page.locator('h1')).toHaveText('Toyota HiAce Seat Selection');
-    await expect(page.locator('text=Commute Details')).toBeVisible();
+    await expect(page.locator('text=Boarding & Dropoff Checkpoints')).toBeVisible();
 
     // Check fare starts at 0 EGP because no seat is selected
     await expect(page.locator('.auth-button')).toBeDisabled();
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('0 EGP');
+    await expect(page.locator('.checkout-selection-box')).toContainText('0 of 1 Selected');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('0 EGP');
   });
 
   test('should render 14 seats and handle seat selections correctly', async ({ page }) => {
@@ -47,14 +48,15 @@ test.describe('Checkout & Seat Selection Page', () => {
     await expect(seat1).toHaveClass(/selected/);
 
     // Check seat details card displays selected slot
-    await expect(page.locator('.premium-card-solid-amber')).toContainText('Seat #1');
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
+    await expect(page.locator('.checkout-selection-box')).toContainText('#1');
+    await expect(page.locator('.checkout-selection-box')).toContainText('1 of 2 Selected');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('65 EGP');
 
     // Click another available seat 3
     const seat3 = page.locator('.bus-seat').filter({ hasText: /^3$/ });
     await seat3.click();
     await expect(seat3).toHaveClass(/selected/);
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('130 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('130 EGP');
 
     // Checkout button should now be enabled
     await expect(page.locator('.auth-button')).toBeEnabled();
@@ -62,7 +64,7 @@ test.describe('Checkout & Seat Selection Page', () => {
     // Clicking again deselects it
     await seat3.click();
     await expect(seat3).not.toHaveClass(/selected/);
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('65 EGP');
   });
 
   test('should handle card checkout', async ({ page }) => {

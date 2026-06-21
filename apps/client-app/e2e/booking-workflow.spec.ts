@@ -39,7 +39,7 @@ test.describe('Full Booking Workflow E2E', () => {
     const seat1 = page.locator('.bus-seat').filter({ hasText: /^1$/ });
     await seat1.click();
     await expect(seat1).toHaveClass(/selected/);
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('65 EGP');
 
     // Click checkout
     await page.click('.auth-button');
@@ -85,17 +85,17 @@ test.describe('Full Booking Workflow E2E', () => {
     const seat4 = page.locator('.bus-seat').filter({ hasText: /^4$/ });
 
     await seat1.click();
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('65 EGP');
 
     await seat3.click();
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('130 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('130 EGP');
 
     await seat4.click();
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('195 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('195 EGP');
 
     // Deselect seat 3
     await seat3.click();
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('130 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('130 EGP');
   });
 
   test('should display correct available seats count on trip search', async ({ page }) => {

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { driverAPI } from '../services/api';
 import { socketService } from '../services/socket';
+import { parseTicketQr } from '../utils/qr';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -776,8 +777,10 @@ export default function DashboardPage() {
             }
             setScannerActive(false);
 
-            const parsed = JSON.parse(decodedText);
-            if (!parsed.bookingId || !parsed.token) {
+            let parsed;
+            try {
+              parsed = parseTicketQr(decodedText);
+            } catch (err) {
               setScanStatus({ type: 'error', message: t('invalidQrStructure') });
               playChime(false);
               return;

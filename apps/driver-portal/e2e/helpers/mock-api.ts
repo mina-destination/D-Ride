@@ -202,6 +202,15 @@ export async function setupDriverMockAPI(page: Page) {
     });
   });
 
+  // Arrived checkpoints list
+  await page.route(/\/api\/trips\/[a-zA-Z0-9_-]+\/arrived-checkpoints$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [] }),
+    });
+  });
+
   // Bookings for a trip (occupied seats / manifest)
   await page.route(/\/api\/bookings/, async (route) => {
     const url = route.request().url();

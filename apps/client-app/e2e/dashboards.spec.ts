@@ -346,7 +346,7 @@ test.describe('D-Ride Multiview Dashboard Console Flow', () => {
     await expect(seat1).toHaveClass(/selected/);
 
     // Ensure segment summary, leg total and checkpoints display high-contrast styling details correctly
-    await expect(page.locator('text=Total Fare >> ..')).toContainText('65 EGP');
+    await expect(page.locator('text=Total Cost >> ..')).toContainText('65 EGP');
 
     // Click checkout confirm button
     await page.click('.auth-button');

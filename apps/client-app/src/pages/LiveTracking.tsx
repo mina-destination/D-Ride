@@ -221,19 +221,6 @@ export default function LiveTrackingPage() {
 
 
 
-  if (!vehicleId) {
-    return (
-      <div className="auth-page">
-        <SEO title={seoTitle} description={seoDescription} />
-        <div className="auth-card glass" style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
-          <p>{t('selectTripToTrack')}</p>
-          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
-        </div>
-      </div>
-    );
-  }
-
   // Default center (Cairo) if location is not yet received
 
   useEffect(() => {
@@ -275,6 +262,19 @@ export default function LiveTrackingPage() {
       socketService.disconnect();
     };
   }, [vehicleId]);
+
+  if (!vehicleId) {
+    return (
+      <div className="auth-page">
+        <SEO title={seoTitle} description={seoDescription} />
+        <div className="auth-card glass" style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{t('noVehicleSelected')}</h1>
+          <p>{t('selectTripToTrack')}</p>
+          <Link to="/my-trips" className="auth-button" style={{ marginTop: '1rem', display: 'inline-block' }}>{t('backToMyTrips')}</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>

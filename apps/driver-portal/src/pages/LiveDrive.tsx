@@ -458,14 +458,6 @@ export default function LiveDrivePage() {
     };
   }, [trip, id]);
 
-  // Automatically start live tracking when the driver opens the active shift view (LiveDrive mounts)
-  useEffect(() => {
-    startLocationStream();
-    return () => {
-      stopLocationStream();
-    };
-  }, []);
-
   const startLocationStream = async () => {
     if (isStreaming) return;
 
@@ -570,6 +562,14 @@ export default function LiveDrivePage() {
       }
     }
   };
+
+  // Automatically start live tracking when the driver opens the active shift view (LiveDrive mounts)
+  useEffect(() => {
+    startLocationStream();
+    return () => {
+      stopLocationStream();
+    };
+  }, []);
 
   const handleToggleCheckpoint = async (checkpointName: string) => {
     if (!trip) return;
@@ -996,6 +996,30 @@ export default function LiveDrivePage() {
                     ? `${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}` 
                     : (language === 'ar' ? 'بانتظار إحداثيات GPS...' : 'Awaiting GPS coordinates...')}
                 </div>
+                <button
+                  onClick={() => {
+                    if (isStreaming) {
+                      stopLocationStream();
+                    } else {
+                      startLocationStream();
+                    }
+                  }}
+                  className="btn"
+                  style={{
+                    fontSize: '11px',
+                    padding: '6px 12px',
+                    marginTop: '4px',
+                    width: 'fit-content',
+                    background: isStreaming ? 'rgba(239, 68, 68, 0.15)' : 'var(--primary)',
+                    color: isStreaming ? '#ef4444' : 'var(--text-on-primary)',
+                    border: isStreaming ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isStreaming ? t('stopBroadcasting') : t('startLiveGps')}
+                </button>
               </div>
             </div>
           )}

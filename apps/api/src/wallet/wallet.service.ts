@@ -23,7 +23,7 @@ export class WalletService {
     const transactions = await this.prisma.transaction.findMany({
       where: {
         userId,
-        status: { in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED] }
+        status: { in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED] },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -34,7 +34,12 @@ export class WalletService {
     };
   }
 
-  async initializeDeposit(userId: string, amountEGP: number, email: string, name: string) {
+  async initializeDeposit(
+    userId: string,
+    amountEGP: number,
+    email: string,
+    name: string,
+  ) {
     if (!amountEGP || amountEGP <= 0) {
       throw new BadRequestException('Amount must be greater than zero');
     }
@@ -83,8 +88,12 @@ export class WalletService {
       };
     } catch (err: any) {
       // Clean up transaction
-      await this.prisma.transaction.delete({ where: { id: transaction.id } }).catch(() => {});
-      throw new BadRequestException(`Failed to initialize payment gateway: ${err.message}`);
+      await this.prisma.transaction
+        .delete({ where: { id: transaction.id } })
+        .catch(() => {});
+      throw new BadRequestException(
+        `Failed to initialize payment gateway: ${err.message}`,
+      );
     }
   }
 }

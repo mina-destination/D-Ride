@@ -148,7 +148,8 @@ export class PaymobService implements OnModuleInit {
             paymobOrderId: orderId,
             amountEGP: amountCents / 100,
             status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-            paymentMethod: (payload.obj as any).payment_key_claims?.pm || 'CARD',
+            paymentMethod:
+              (payload.obj as any).payment_key_claims?.pm || 'CARD',
             paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
             userId: userId,
             bookingId: bookingId || null,
@@ -525,7 +526,9 @@ export class PaymobService implements OnModuleInit {
             },
           });
         });
-        this.logger.log(`Confirmed wallet deposit ${bookingId} via client redirect.`);
+        this.logger.log(
+          `Confirmed wallet deposit ${bookingId} via client redirect.`,
+        );
       }
       return;
     }

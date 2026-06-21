@@ -33,7 +33,7 @@ test.describe('Static Pages', () => {
     test('should display D-Ride logo image', async ({ page }) => {
       await page.goto('/about');
 
-      const logo = page.locator('.glass img[alt="D-Ride Logo"]');
+      const logo = page.locator('img[alt="D-Ride Logo"]').first();
       await expect(logo).toBeVisible();
     });
   });
@@ -44,7 +44,7 @@ test.describe('Static Pages', () => {
 
       await expect(page.locator('h1')).toBeVisible();
       // The page should have scrollable content sections
-      const contentSections = page.locator('.glass');
+      const contentSections = page.locator('h2');
       const count = await contentSections.count();
       expect(count).toBeGreaterThan(0);
     });
@@ -55,7 +55,7 @@ test.describe('Static Pages', () => {
       await page.goto('/privacy');
 
       await expect(page.locator('h1')).toBeVisible();
-      const contentSections = page.locator('.glass');
+      const contentSections = page.locator('h2');
       const count = await contentSections.count();
       expect(count).toBeGreaterThan(0);
     });

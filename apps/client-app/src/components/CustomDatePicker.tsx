@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -61,7 +62,10 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
   // Close dropdown on click outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        const dropdown = document.querySelector('.custom-datepicker-dropdown');
+        if (dropdown && dropdown.contains(target)) return;
         setIsOpen(false);
       }
     };
@@ -179,18 +183,35 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
     setIsOpen(false);
   };
 
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
+
+  const updatePosition = () => {
+    if (containerRef.current) {
+      setTriggerRect(containerRef.current.getBoundingClientRect());
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      const handleScroll = () => updatePosition();
+      window.addEventListener('scroll', handleScroll, true);
+      return () => window.removeEventListener('scroll', handleScroll, true);
+    }
+  }, [isOpen]);
+
   return (
     <div className="custom-datepicker-container" ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       <button
         type="button"
         className="custom-datepicker-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { updatePosition(); setIsOpen(!isOpen); }}
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          padding: '12px 16px',
+          padding: '10px 14px',
           background: 'var(--surface-elevated)',
           border: isOpen ? '1px solid var(--primary)' : '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
@@ -212,27 +233,26 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
         </span>
       </button>
 
-      {isOpen && (
+      {isOpen && triggerRect && createPortal(
         <div
           className="custom-datepicker-dropdown"
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            left: isRtl ? 'auto' : '0',
-            right: isRtl ? '0' : 'auto',
-            width: '300px',
+            position: 'fixed',
+            top: triggerRect.bottom + 8,
+            left: isRtl ? triggerRect.right - 280 : triggerRect.left,
+            width: '280px',
             background: 'var(--surface-elevated)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-lg)',
-            padding: '16px',
-            zIndex: 1000,
+            padding: '12px',
+            zIndex: 9999,
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
             backdropFilter: 'blur(8px)',
             userSelect: 'none'
           }}
         >
           {/* Calendar Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
             <button
               type="button"
               onClick={prevMonth}
@@ -254,7 +274,7 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
               <ChevronLeft size={18} />
             </button>
             
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
               {monthLabel} {viewYear}
             </span>
 
@@ -281,7 +301,7 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
           </div>
 
           {/* Weekdays Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '8px', textAlign: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '6px', textAlign: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
             {daysHeader.map((d, index) => (
               <span key={index} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {d}
@@ -290,7 +310,7 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
           </div>
 
           {/* Days Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', textAlign: 'center', flexDirection: isRtl ? 'row-reverse' : 'row' }}>
             {cells.map((cell, index) => {
               let cellBg = 'transparent';
               let cellColor = 'var(--text-primary)';
@@ -321,7 +341,7 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    height: '32px',
+                    height: '28px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '0.82rem',
                     fontWeight: cell.isSelected || cell.isToday ? 700 : 500,
@@ -348,7 +368,8 @@ export function CustomDatePicker({ value, min, onChange }: CustomDatePickerProps
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

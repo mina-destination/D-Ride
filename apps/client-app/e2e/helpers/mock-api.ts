@@ -158,6 +158,7 @@ export const MOCK_BOOKINGS = [
     pickupStopId: 'cp-1',
     dropoffStopId: 'cp-3',
     pickupCheckpoint: MOCK_ROUTES[0].checkpoints[0],
+    dropoffCheckpoint: MOCK_ROUTES[0].checkpoints[2],
     status: 'CONFIRMED',
     paymentStatus: 'SUCCESS',
     amountEGP: 130,
@@ -346,6 +347,7 @@ export async function setupMockAPI(page: Page) {
         pickupStopId: payload?.pickupStopId || 'cp-1',
         dropoffStopId: payload?.dropoffStopId || 'cp-3',
         pickupCheckpoint: payload?.pickupCheckpoint || MOCK_ROUTES[0].checkpoints[0],
+        dropoffCheckpoint: payload?.dropoffCheckpoint || MOCK_ROUTES[0].checkpoints[2],
         status: 'CONFIRMED', // Set to confirmed so it shows up in active trips
         paymentStatus: 'SUCCESS',
         amountEGP: 65 * (payload?.seatNumbers?.length || 1),

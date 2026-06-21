@@ -15,6 +15,11 @@ export default function PaymentPage() {
   const { t, isRtl, language } = useTranslation();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
+  const bookingIdsParam = searchParams.get('bookingIds');
+  const allBookingIds = bookingIdsParam
+    ? bookingIdsParam.split(',').filter(Boolean)
+    : bookingId ? [bookingId] : [];
+  const isRoundTrip = allBookingIds.length > 1;
   const navigate = useNavigate();
 
   const isAr = language === 'ar';
@@ -24,6 +29,7 @@ export default function PaymentPage() {
     : 'Complete your premium bus ticket reservation payment securely using credit card via Paymob Egypt.';
 
   const [booking, setBooking] = useState<any>(null);
+  const [returnBooking, setReturnBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
@@ -74,17 +80,26 @@ export default function PaymentPage() {
   };
 
   useEffect(() => {
-    if (!bookingId) return;
+    if (allBookingIds.length === 0) return;
 
     setLoading(true);
-    bookingsAPI.getById(bookingId)
-      .then(res => {
-        const data = res.data ?? res;
-        setBooking(data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [bookingId]);
+    const fetchBookings = async () => {
+      try {
+        const first = await bookingsAPI.getById(allBookingIds[0]);
+        setBooking(first.data ?? first);
+
+        if (isRoundTrip && allBookingIds[1]) {
+          const second = await bookingsAPI.getById(allBookingIds[1]);
+          setReturnBooking(second.data ?? second);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBookings();
+  }, [allBookingIds.join(',')]);
 
   useEffect(() => {
     walletAPI.getBalance()
@@ -103,18 +118,31 @@ export default function PaymentPage() {
     setProcessing(true);
     try {
       if (paymentMethod === 'WALLET') {
+        // Pay forward booking
         await bookingsAPI.payWithWallet(booking._id || booking.id);
+        // Pay return booking if round trip
+        if (isRoundTrip && returnBooking) {
+          await bookingsAPI.payWithWallet(returnBooking._id || returnBooking.id);
+        }
         alert(isAr ? 'تم تأكيد الحجز بنجاح باستخدام المحفظة!' : 'Booking successfully confirmed using wallet!');
         navigate('/my-trips');
       } else {
-        // Initialize Paymob Checkout
+        // Store return booking ID so PaymentCallback can confirm both after redirect
+        if (isRoundTrip && returnBooking) {
+          sessionStorage.setItem('dride_returnBookingId', returnBooking._id || returnBooking.id);
+        } else {
+          sessionStorage.removeItem('dride_returnBookingId');
+        }
+
+        // Pay forward booking via Paymob
         const paymobResult = await paymobAPI.checkout({
           bookingId: booking._id || booking.id,
-          amountCents: booking.amountEGP * 100,
+          amountCents: (isRoundTrip && returnBooking)
+            ? (booking.amountEGP + returnBooking.amountEGP) * 100
+            : booking.amountEGP * 100,
           paymentMethod,
         });
 
-        // Redirect or navigate
         if (paymobResult.redirectUrl) {
           window.location.href = paymobResult.redirectUrl;
         } else if (paymobResult.iframeUrl) {
@@ -131,7 +159,7 @@ export default function PaymentPage() {
     }
   };
 
-  if (!bookingId) {
+  if (allBookingIds.length === 0) {
     return (
       <div className="auth-page">
         <SEO title={seoTitle} description={seoDescription} />
@@ -527,14 +555,46 @@ export default function PaymentPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                     <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.02em', textShadow: '0 0 1px rgba(245, 183, 49, 0.1)' }}>
-                      {booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
+                      {isRoundTrip && returnBooking
+                        ? booking.amountEGP + returnBooking.amountEGP
+                        : booking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
                     </span>
+                    {isRoundTrip && returnBooking && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {booking.amountEGP} + {returnBooking.amountEGP} ({isRtl ? 'ذهاب وعودة' : 'round trip'})
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
             </div>
           </div>
+
+          {/* Return Trip Summary (Round Trip only) */}
+          {isRoundTrip && returnBooking && (
+            <div className="premium-card" style={{ borderLeft: '3px solid #34D399' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🔄</span>
+                <span style={{ fontWeight: 700, color: '#34D399', fontSize: '0.95rem' }}>{isRtl ? 'رحلة العودة' : 'Return Trip'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {cleanStopName(returnBooking.pickupCheckpoint?.name || '')} → {cleanStopName(returnBooking.dropoffCheckpoint?.name || '')}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {returnBooking.tripId?.departureTime
+                      ? new Date(returnBooking.tripId.departureTime).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                      : ''}
+                  </span>
+                </div>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#34D399' }}>
+                  {returnBooking.amountEGP} {isRtl ? 'ج.م' : 'EGP'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Card 2: Select Payment Method & Action triggers */}
           <div className="premium-card">
@@ -589,7 +649,7 @@ export default function PaymentPage() {
                       <span style={{ 
                         fontSize: '0.85rem', 
                         fontWeight: 'bold', 
-                        color: walletBalance >= booking.amountEGP ? '#0f9d58' : '#ea4335',
+                        color: walletBalance >= (isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP) ? '#0f9d58' : '#ea4335',
                         background: 'var(--surface-hover)',
                         padding: '2px 8px',
                         borderRadius: '6px',
@@ -627,8 +687,8 @@ export default function PaymentPage() {
                 </div>
                 <div>
                   {isRtl 
-                    ? `رصيد محفظتك الحالي هو ${walletBalance} ج.م، بينما تكلفة الرحلة هي ${booking.amountEGP} ج.م. يرجى شحن محفظتك للمتابعة.`
-                    : `Your current wallet balance is ${walletBalance} EGP, but this trip costs ${booking.amountEGP} EGP. Please top up your wallet to proceed.`}
+                    ? `رصيد محفظتك الحالي هو ${walletBalance} ج.م، بينما تكلفة الرحلة هي ${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} ج.م. يرجى شحن محفظتك للمتابعة.`
+                    : `Your current wallet balance is ${walletBalance} EGP, but this trip costs ${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} EGP. Please top up your wallet to proceed.`}
                 </div>
                 <button
                   onClick={() => navigate('/wallet')}
@@ -685,15 +745,15 @@ export default function PaymentPage() {
                 className="auth-button" 
                 disabled={
                   processing || 
-                  (paymentMethod === 'WALLET' && walletBalance !== null && walletBalance < booking.amountEGP)
+                  (paymentMethod === 'WALLET' && walletBalance !== null && walletBalance < (isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP))
                 }
                 style={{ padding: '1rem' }}
               >
                 {processing 
                   ? (isRtl ? 'جاري معالجة الدفع...' : 'Processing Payment...') 
                   : paymentMethod === 'WALLET'
-                    ? (isRtl ? `تأكيد الدفع من المحفظة (${booking.amountEGP} ج.م)` : `Confirm & Pay from Wallet (${booking.amountEGP} EGP)`)
-                    : t('payViaPaymob', { amount: booking.amountEGP })
+                    ? (isRtl ? `تأكيد الدفع من المحفظة (${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} ج.م)` : `Confirm & Pay from Wallet (${isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP} EGP)`)
+                    : t('payViaPaymob', { amount: isRoundTrip && returnBooking ? booking.amountEGP + returnBooking.amountEGP : booking.amountEGP })
                 }
               </button>
               
