@@ -48,14 +48,7 @@ export default function PaymentCallbackPage() {
       })
       .then(() => {
         setStatus('success');
-        if (type === 'wallet') {
-          addNotification(
-            isAr ? 'تم شحن المحفظة بنجاح' : 'Wallet Topped Up Successfully',
-            isAr ? 'تمت إضافة الرصيد إلى محفظتك بنجاح.' : 'Funds have been added to your prepaid balance.'
-          );
-        } else {
-          addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
-        }
+        addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
       })
       .catch((err) => {
         console.error('Failed to confirm payment on backend:', err);
@@ -63,14 +56,7 @@ export default function PaymentCallbackPage() {
       });
     } else if (isSuccess) {
       setStatus('success');
-      if (type === 'wallet') {
-        addNotification(
-          isAr ? 'تم شحن المحفظة بنجاح' : 'Wallet Topped Up Successfully',
-          isAr ? 'تمت إضافة الرصيد إلى محفظتك بنجاح.' : 'Funds have been added to your prepaid balance.'
-        );
-      } else {
-        addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
-      }
+      addNotification(t('paymentSuccessNotificationTitle'), t('paymentSuccessNotificationDesc'));
     } else {
       setStatus('failed');
     }
@@ -87,22 +73,16 @@ export default function PaymentCallbackPage() {
             <>
               <div className="text-6xl mb-4">✅</div>
               <h1 className="text-3xl font-bold text-[var(--text-primary)]">
-                {searchParams.get('type') === 'wallet'
-                  ? (isAr ? 'تم شحن الرصيد بنجاح!' : 'Top Up Successful!')
-                  : t('paymentSuccessful')}
+                {t('paymentSuccessful')}
               </h1>
               <p className="text-[var(--text-secondary)] mt-4 mb-8">
-                {searchParams.get('type') === 'wallet'
-                  ? (isAr ? 'تم تحديث رصيد محفظتك مسبقة الدفع بنجاح.' : 'Your prepaid wallet balance has been updated successfully.')
-                  : t('paymentSuccessDesc')}
+                {t('paymentSuccessDesc')}
               </p>
               <Button
-                onClick={() => navigate(searchParams.get('type') === 'wallet' ? '/wallet' : '/my-trips')}
+                onClick={() => navigate('/my-trips')}
                 className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-black font-bold"
               >
-                {searchParams.get('type') === 'wallet'
-                  ? (isAr ? 'الذهاب إلى المحفظة' : 'Go to Wallet')
-                  : t('viewMyTrips')}
+                {t('viewMyTrips')}
               </Button>
             </>
           )}
@@ -116,10 +96,10 @@ export default function PaymentCallbackPage() {
               </p>
               <Button
                 variant="outline"
-                onClick={() => navigate(searchParams.get('type') === 'wallet' ? '/wallet' : '/')}
+                onClick={() => navigate('/')}
                 className="w-full border-white/10 text-[var(--text-primary)] hover:bg-white/5"
               >
-                {searchParams.get('type') === 'wallet' ? (isAr ? 'العودة إلى المحفظة' : 'Return to Wallet') : t('returnToHome')}
+                {t('returnToHome')}
               </Button>
             </>
           )}

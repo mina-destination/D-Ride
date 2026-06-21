@@ -120,7 +120,6 @@ describe('BookingsController', () => {
     });
   });
 
-
   describe('cancel', () => {
     it('should cancel booking', async () => {
       const req = { user: { sub: 'user-1', role: 'PASSENGER' } };

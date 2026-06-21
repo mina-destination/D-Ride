@@ -567,12 +567,12 @@ export class BookingsService {
           }
         }
 
-        const bookingStatus: BookingStatus =
-          isReward
-            ? BookingStatus.CONFIRMED
-            : BookingStatus.PENDING_PAYMENT;
-        const paymentStatus: PaymentStatus =
-          isReward ? PaymentStatus.SUCCESS : PaymentStatus.PENDING;
+        const bookingStatus: BookingStatus = isReward
+          ? BookingStatus.CONFIRMED
+          : BookingStatus.PENDING_PAYMENT;
+        const paymentStatus: PaymentStatus = isReward
+          ? PaymentStatus.SUCCESS
+          : PaymentStatus.PENDING;
 
         // Generate a unique random boarding number from 1 to 99 for this trip
         const activeTripBookings = await tx.booking.findMany({
@@ -708,8 +708,6 @@ export class BookingsService {
 
     return this.mapBooking(booking);
   }
-
-
 
   async updateStatus(id: string, status: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
