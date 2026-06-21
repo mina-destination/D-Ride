@@ -30,11 +30,13 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 WORKDIR /app
 
 # Only copy the necessary artifacts to the production image
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-COPY --from=builder /app/packages ./packages
-RUN npm ci --omit=dev --workspace=apps/api --ignore-scripts
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/package.json ./package.json
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 CMD ["sh", "-c", "npx prisma migrate resolve --rolled-back \"20260621171300_add_wallet_balance_back\" --schema=apps/api/prisma/schema.prisma ; npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && npm run start:prod --workspace=apps/api"]
 
