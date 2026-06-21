@@ -22,7 +22,6 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ProfilePage from './pages/ProfilePage';
 import FamilyTrackingPage from './pages/FamilyTracking';
-import WalletPage from './pages/WalletPage';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import './App.css';
@@ -209,14 +208,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/wallet"
-          element={
-            <ProtectedRoute>
-              <WalletPage />
             </ProtectedRoute>
           }
         />
