@@ -30,7 +30,6 @@ export default function PaymentCallbackPage() {
     const bookingId = searchParams.get('bookingId');
     const amountStr = searchParams.get('amount');
     const transactionId = searchParams.get('id');
-    const type = searchParams.get('type');
     
     // In local development, the backend runs on localhost, so Paymob webhooks cannot reach it directly.
     // Therefore, we confirm the transaction on the backend directly via this redirect callback.
