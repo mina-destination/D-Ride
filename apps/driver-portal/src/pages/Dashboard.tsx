@@ -34,6 +34,8 @@ import { useNotifications } from '../context/NotificationContext';
 import { Html5Qrcode } from 'html5-qrcode';
 import maplibregl from 'maplibre-gl';
 import { Capacitor } from '@capacitor/core';
+import { BackgroundLocation } from '../capacitor-plugins/background-location';
+import { API_URL } from '../services/api';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Header from '../components/Header';
 
@@ -528,6 +530,17 @@ export default function DashboardPage() {
     localStorage.setItem('dride_gps_permitted', 'true');
     setPermissionModalVisible(false);
 
+    if (Capacitor.isNativePlatform()) {
+      const token = localStorage.getItem('dride_driver_token') || '';
+      const vehicleId = activeTripRef.current?.vehicleId?._id || activeTripRef.current?.vehicleId?.id || '';
+      BackgroundLocation.start({
+        apiUrl: API_URL,
+        token,
+        vehicleId,
+        driverId: user?._id || '',
+      }).catch(err => console.warn('Failed to start background location:', err));
+    }
+
     const watchOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
@@ -609,6 +622,9 @@ export default function DashboardPage() {
         navigator.geolocation.clearWatch(geoWatchId.current);
       }
       geoWatchId.current = null;
+    }
+    if (Capacitor.isNativePlatform()) {
+      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
     }
     setIsStreaming(false);
     setHeading(0);
