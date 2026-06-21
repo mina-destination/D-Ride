@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { exportToCSV, CSVHeader } from '../csv'
+import { exportToCSV } from '../csv'
+import type { CSVHeader } from '../csv'
 
 describe('exportToCSV', () => {
   beforeEach(() => {
     // Mock global Blob and URL functions
-    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/test')
-    global.URL.revokeObjectURL = vi.fn()
+    (globalThis as any).URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/test');
+    (globalThis as any).URL.revokeObjectURL = vi.fn();
   })
 
   it('correctly creates CSV rows and formats values', () => {
