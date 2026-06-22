@@ -573,6 +573,15 @@ export class RoutesService {
             );
             if (distToDropoff > radiusMeters) continue;
 
+            // Directional Check: Searched pickup must be closer to the pickup checkpoint cpI than to the dropoff checkpoint cpJ.
+            // Also, searched dropoff must be closer to dropoff checkpoint cpJ than to pickup checkpoint cpI.
+            // This prevents matching outbound trips in reverse when the entire route fits within the search radius.
+            const distPickupToDropoffCp = getDistance(pickupLng, pickupLat, cpJLng, cpJLat);
+            const distDropoffToPickupCp = getDistance(dropoffLng, dropoffLat, cpILng, cpILat);
+            if (distToPickup >= distPickupToDropoffCp || distToDropoff >= distDropoffToPickupCp) {
+              continue;
+            }
+
             const totalDist = distToPickup + distToDropoff;
             if (totalDist < bestPairDistanceSum) {
               bestPairDistanceSum = totalDist;
