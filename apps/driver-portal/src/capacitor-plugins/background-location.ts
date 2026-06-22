@@ -1,4 +1,4 @@
-import { registerPlugin, PluginListenerHandle } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle, type PermissionState } from '@capacitor/core';
 
 export interface BackgroundLocationOptions {
   apiUrl: string;
@@ -26,6 +26,12 @@ export interface BatteryOptimizationStatus {
   disabled: boolean;
 }
 
+export interface PermissionStatus {
+  location: PermissionState;
+  backgroundLocation: PermissionState;
+  notifications: PermissionState;
+}
+
 export interface BackgroundLocationPlugin {
   start(options: BackgroundLocationOptions): Promise<void>;
   stop(): Promise<void>;
@@ -35,6 +41,8 @@ export interface BackgroundLocationPlugin {
   isBatteryOptimizationDisabled(): Promise<BatteryOptimizationStatus>;
   requestBatteryOptimization(): Promise<void>;
   openBatterySettings(): Promise<void>;
+  checkPermissions(): Promise<PermissionStatus>;
+  requestPermissions(permissions?: { permissions: string[] }): Promise<PermissionStatus>;
   addListener(
     eventName: 'locationUpdate',
     listenerFunc: (data: BackgroundLocationData) => void,

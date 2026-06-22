@@ -74,25 +74,23 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
   const updateStepStatus = (id: PermissionStep, status: StepState['status']) => {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s));
   };
-
   async function checkAllPermissions() {
     if (!Capacitor.isNativePlatform()) {
-      onComplete();
+      // Auto-grant steps for web testing fallback
+      setSteps(prev => prev.map(s => ({ ...s, status: 'granted' })));
       return;
     }
 
-    // 1. Location permission
     try {
-      const geoPerm = await Geolocation.checkPermissions();
-      if (geoPerm.location === 'granted') {
-        updateStepStatus('location', 'granted');
-        updateStepStatus('background_location', 'granted');
-      }
-    } catch {
-      // will be handled by user action
+      const permStatus = await BackgroundLocation.checkPermissions();
+      updateStepStatus('location', permStatus.location === 'granted' ? 'granted' : 'pending');
+      updateStepStatus('background_location', permStatus.backgroundLocation === 'granted' ? 'granted' : 'pending');
+      updateStepStatus('notifications', permStatus.notifications === 'granted' ? 'granted' : 'pending');
+    } catch (e) {
+      console.error('Error checking native permissions:', e);
     }
 
-    // 2. GPS enabled
+    // GPS enabled
     try {
       const locEnabled = await BackgroundLocation.checkLocationEnabled();
       updateStepStatus('gps', locEnabled.enabled ? 'granted' : 'denied');
@@ -100,14 +98,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       // ignore
     }
 
-    // 3. Notifications - use browser Notification API
-    if ('Notification' in window) {
-      if (Notification.permission === 'granted') {
-        updateStepStatus('notifications', 'granted');
-      }
-    }
-
-    // 4. Battery optimization
+    // Battery optimization
     try {
       const batt = await BackgroundLocation.isBatteryOptimizationDisabled();
       updateStepStatus('battery', batt.disabled ? 'granted' : 'denied');
@@ -120,11 +111,8 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
     switch (step) {
       case 'location':
         try {
-          const req = await Geolocation.requestPermissions();
-          const granted = req.location === 'granted';
-          if (granted) {
-            updateStepStatus('location', 'granted');
-          }
+          const req = await BackgroundLocation.requestPermissions({ permissions: ['location'] });
+          updateStepStatus('location', req.location === 'granted' ? 'granted' : 'denied');
         } catch {
           updateStepStatus('location', 'denied');
         }
@@ -132,18 +120,10 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
 
       case 'background_location':
         try {
-          await Geolocation.requestPermissions();
-        } catch {
-          // ignore
-        }
-        try {
-          const geoPerm = await Geolocation.checkPermissions();
-          updateStepStatus('background_location', geoPerm.location === 'granted' ? 'granted' : 'denied');
+          const req = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
+          updateStepStatus('background_location', req.backgroundLocation === 'granted' ? 'granted' : 'denied');
         } catch {
           updateStepStatus('background_location', 'denied');
-        }
-        if (BackgroundLocation.openLocationSettings) {
-          BackgroundLocation.openLocationSettings().catch(() => {});
         }
         break;
 
@@ -166,9 +146,11 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
         break;
 
       case 'notifications':
-        if ('Notification' in window) {
-          const result = await Notification.requestPermission();
-          updateStepStatus('notifications', result === 'granted' ? 'granted' : 'denied');
+        try {
+          const req = await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
+          updateStepStatus('notifications', req.notifications === 'granted' ? 'granted' : 'denied');
+        } catch {
+          updateStepStatus('notifications', 'denied');
         }
         break;
 

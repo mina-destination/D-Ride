@@ -12,7 +12,34 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
-@CapacitorPlugin(name = "BackgroundLocation")
+import android.Manifest
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
+
+@CapacitorPlugin(
+    name = "BackgroundLocation",
+    permissions = [
+        Permission(
+            alias = "location",
+            strings = [
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ]
+        ),
+        Permission(
+            alias = "backgroundLocation",
+            strings = [
+                "android.permission.ACCESS_BACKGROUND_LOCATION"
+            ]
+        ),
+        Permission(
+            alias = "notifications",
+            strings = [
+                "android.permission.POST_NOTIFICATIONS"
+            ]
+        )
+    ]
+)
 class BackgroundLocationPlugin : Plugin() {
 
     override fun load() {
