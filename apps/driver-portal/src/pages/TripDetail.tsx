@@ -260,18 +260,9 @@ export default function TripDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button
                   className="btn btn-primary btn-block"
-                  style={{ background: 'var(--success)', color: 'var(--text-on-primary)' }}
-                  onClick={() => setConfirmStatusModal('COMPLETED')}
-                  disabled={actionLoading}
-                >
-                  <CheckCircle size={18} />
-                  {t('completeTripShift')}
-                </button>
-                <button
-                  className="btn btn-secondary btn-block"
                   onClick={() => navigate(`/drive/${trip._id}`)}
                 >
-                  <Navigation size={18} style={{ color: 'var(--primary)' }} />
+                  <Navigation size={18} />
                   {t('openLiveMapNav')}
                 </button>
               </div>
