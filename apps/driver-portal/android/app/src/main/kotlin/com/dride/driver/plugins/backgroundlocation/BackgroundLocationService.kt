@@ -67,7 +67,15 @@ class BackgroundLocationService : Service() {
                 driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: ""
 
                 val notification = buildNotification()
-                startForeground(NOTIFICATION_ID, notification)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
                 isRunning = true
                 startLocationUpdates()
                 Log.d(TAG, "Background location service started")

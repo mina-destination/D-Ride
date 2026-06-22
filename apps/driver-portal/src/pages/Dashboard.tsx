@@ -38,7 +38,6 @@ import { BackgroundLocation } from '../capacitor-plugins/background-location';
 import { API_URL } from '../services/api';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Header from '../components/Header';
-import PermissionGuide from '../components/PermissionGuide';
 
 // Sound feedback helper
 function playChime(isSuccess: boolean) {
@@ -146,7 +145,6 @@ export default function DashboardPage() {
 
   // Notifications & Permissions layout states
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
-  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
   const [showSosConfirm, setShowSosConfirm] = useState(false);
 
   const handleTriggerEmergencyPanic = () => {
@@ -535,11 +533,17 @@ export default function DashboardPage() {
       if (geoPerm.location !== 'granted') {
         const req = await Geolocation.requestPermissions();
         if (req.location !== 'granted') {
+          const tryAgain = window.confirm(
+            "Location permission is required to track your shifts and live route. Please allow location access in your phone settings."
+          );
+          if (tryAgain) {
+            await BackgroundLocation.openAppSettings();
+          }
           return false;
         }
       }
 
-      // 2. Notifications
+      // 2. Notifications (Non-blocking)
       try {
         const checkNotif = await BackgroundLocation.checkPermissions();
         if (checkNotif.notifications !== 'granted') {
@@ -552,30 +556,50 @@ export default function DashboardPage() {
       // 3. Background Location
       const checkBg = await BackgroundLocation.checkPermissions();
       if (checkBg.backgroundLocation !== 'granted') {
-        const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
-        if (reqBg.backgroundLocation !== 'granted') {
-          return false;
+        const proceed = window.confirm(
+          "To track your bus route when the app is minimized or the screen is off, D-Ride needs background location. On the next screen, please choose 'Allow all the time'."
+        );
+        if (proceed) {
+          const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
+          if (reqBg.backgroundLocation !== 'granted') {
+            const openSettings = window.confirm(
+              "Background location permission was not granted. Without it, tracking will stop when you minimize the app. Would you like to open App Settings to set location access to 'Allow all the time'?"
+            );
+            if (openSettings) {
+              await BackgroundLocation.openAppSettings();
+            }
+          }
         }
       }
 
-      // 4. Battery Optimization
-      try {
-        const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
-        if (!checkBatt.disabled) {
-          await BackgroundLocation.requestBatteryOptimization();
-        }
-      } catch (e) {
-        console.warn('Failed to request battery optimization ignore:', e);
-      }
-
-      // 5. GPS Enabled Check
+      // 4. GPS Enabled Check
       try {
         const gps = await BackgroundLocation.checkLocationEnabled();
         if (!gps.enabled) {
-          await BackgroundLocation.openLocationSettings();
+          const enableGps = window.confirm(
+            "Your phone's GPS / Location Services are turned off. Please turn them on for high-accuracy tracking. Open Location Settings?"
+          );
+          if (enableGps) {
+            await BackgroundLocation.openLocationSettings();
+          }
         }
       } catch (e) {
         console.warn('Failed to check GPS status:', e);
+      }
+
+      // 5. Battery Optimization (Non-blocking)
+      try {
+        const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
+        if (!checkBatt.disabled) {
+          const optimize = window.confirm(
+            "For uninterrupted tracking, exclude D-Ride from battery saver optimizations. Open Settings?"
+          );
+          if (optimize) {
+            await BackgroundLocation.requestBatteryOptimization();
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to request battery optimization ignore:', e);
       }
 
       return true;
@@ -591,21 +615,13 @@ export default function DashboardPage() {
     const nativeSuccess = await requestAllPermissionsNatively();
     if (nativeSuccess) {
       triggerRealGPS();
-    } else {
-      setPermissionModalVisible(true);
     }
   }
 
   async function triggerRealGPS() {
     try {
       const permStatus = await Geolocation.checkPermissions();
-      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          setGpsError(t('gpsNotAvailable'));
-          return;
-        }
-      } else if (permStatus.location === 'denied') {
+      if (permStatus.location !== 'granted') {
         const req = await Geolocation.requestPermissions();
         if (req.location !== 'granted') {
           setGpsError(t('gpsNotAvailable'));
@@ -619,7 +635,6 @@ export default function DashboardPage() {
     setIsStreaming(true);
     setGpsError(null);
     localStorage.setItem('dride_gps_permitted', 'true');
-    setPermissionModalVisible(false);
 
     if (Capacitor.isNativePlatform()) {
       const token = localStorage.getItem('dride_driver_token') || '';
@@ -2104,17 +2119,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      <PermissionGuide
-        visible={permissionModalVisible}
-        onComplete={() => {
-          setPermissionModalVisible(false);
-          localStorage.setItem('dride_gps_permitted', 'true');
-          triggerRealGPS();
-        }}
-        onClose={() => setPermissionModalVisible(false)}
-      />
-
       {/* Slide animations style tag */}
       <style>{`
         @keyframes slide-left {
