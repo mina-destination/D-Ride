@@ -490,6 +490,33 @@ export class RoutesService {
         for (const pIdx of pickupMatches) {
           for (const dIdx of dropoffMatches) {
             if (pIdx < dIdx) {
+              // If coordinates are provided, validate they correspond to the correct direction and are within the radius.
+              if (pickupLng && pickupLat && dropoffLng && dropoffLat) {
+                const cpILng = checkpoints[pIdx].location?.coordinates?.[0];
+                const cpILat = checkpoints[pIdx].location?.coordinates?.[1];
+                const cpJLng = checkpoints[dIdx].location?.coordinates?.[0];
+                const cpJLat = checkpoints[dIdx].location?.coordinates?.[1];
+
+                if (cpILng !== undefined && cpILat !== undefined && cpJLng !== undefined && cpJLat !== undefined) {
+                  const distToPickup = getDistance(pickupLng, pickupLat, cpILng, cpILat);
+                  const distToDropoff = getDistance(dropoffLng, dropoffLat, cpJLng, cpJLat);
+
+                  const distPickupToDropoffCp = getDistance(pickupLng, pickupLat, cpJLng, cpJLat);
+                  const distDropoffToPickupCp = getDistance(dropoffLng, dropoffLat, cpILng, cpILat);
+
+                  // Directional Check: Searched pickup must be closer to the pickup checkpoint cpI than to the dropoff checkpoint cpJ.
+                  // Also, searched dropoff must be closer to dropoff checkpoint cpJ than to pickup checkpoint cpI.
+                  if (distToPickup >= distPickupToDropoffCp || distToDropoff >= distDropoffToPickupCp) {
+                    continue;
+                  }
+
+                  // Radius Check:
+                  if (distToPickup > radiusMeters || distToDropoff > radiusMeters) {
+                    continue;
+                  }
+                }
+              }
+
               pickupIdx = pIdx;
               dropoffIdx = dIdx;
               foundCityMatch = true;
