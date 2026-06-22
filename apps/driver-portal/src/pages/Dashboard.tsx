@@ -527,8 +527,8 @@ export default function DashboardPage() {
       return true;
     }
 
+    // 1. Foreground Location (Critical)
     try {
-      // 1. Foreground Location
       const geoPerm = await Geolocation.checkPermissions();
       if (geoPerm.location !== 'granted') {
         const req = await Geolocation.requestPermissions();
@@ -542,18 +542,23 @@ export default function DashboardPage() {
           return false;
         }
       }
+    } catch (e) {
+      console.error('Critical: Failed to request foreground location:', e);
+      return false; // Cannot proceed without foreground location
+    }
 
-      // 2. Notifications (Non-blocking)
-      try {
-        const checkNotif = await BackgroundLocation.checkPermissions();
-        if (checkNotif.notifications !== 'granted') {
-          await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
-        }
-      } catch (e) {
-        console.warn('Failed to request notifications natively:', e);
+    // 2. Notifications (Non-blocking)
+    try {
+      const checkNotif = await BackgroundLocation.checkPermissions();
+      if (checkNotif.notifications !== 'granted') {
+        await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
       }
+    } catch (e) {
+      console.warn('Non-critical: Failed to request notifications natively:', e);
+    }
 
-      // 3. Background Location
+    // 3. Background Location (Non-blocking fallback to keep app usable)
+    try {
       const checkBg = await BackgroundLocation.checkPermissions();
       if (checkBg.backgroundLocation !== 'granted') {
         const proceed = window.confirm(
@@ -571,47 +576,50 @@ export default function DashboardPage() {
           }
         }
       }
-
-      // 4. GPS Enabled Check
-      try {
-        const gps = await BackgroundLocation.checkLocationEnabled();
-        if (!gps.enabled) {
-          const enableGps = window.confirm(
-            "Your phone's GPS / Location Services are turned off. Please turn them on for high-accuracy tracking. Open Location Settings?"
-          );
-          if (enableGps) {
-            await BackgroundLocation.openLocationSettings();
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to check GPS status:', e);
-      }
-
-      // 5. Battery Optimization (Non-blocking)
-      try {
-        const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
-        if (!checkBatt.disabled) {
-          const optimize = window.confirm(
-            "For uninterrupted tracking, exclude D-Ride from battery saver optimizations. Open Settings?"
-          );
-          if (optimize) {
-            await BackgroundLocation.requestBatteryOptimization();
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to request battery optimization ignore:', e);
-      }
-
-      return true;
-    } catch (err) {
-      console.error('Error in requestAllPermissionsNatively:', err);
-      return false;
+    } catch (e) {
+      console.warn('Non-critical: Failed to request background location natively:', e);
     }
+
+    // 4. GPS Enabled Check (Non-blocking)
+    try {
+      const gps = await BackgroundLocation.checkLocationEnabled();
+      if (!gps.enabled) {
+        const enableGps = window.confirm(
+          "Your phone's GPS / Location Services are turned off. Please turn them on for high-accuracy tracking. Open Location Settings?"
+        );
+        if (enableGps) {
+          await BackgroundLocation.openLocationSettings();
+        }
+      }
+    } catch (e) {
+      console.warn('Non-critical: Failed to check GPS status:', e);
+    }
+
+    // 5. Battery Optimization (Non-blocking)
+    try {
+      const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
+      if (!checkBatt.disabled) {
+        const optimize = window.confirm(
+          "For uninterrupted tracking, exclude D-Ride from battery saver optimizations. Open Settings?"
+        );
+        if (optimize) {
+          await BackgroundLocation.requestBatteryOptimization();
+        }
+      }
+    } catch (e) {
+      console.warn('Non-critical: Failed to request battery optimization ignore:', e);
+    }
+
+    return true;
   }
 
   // Location Telemetry Broadcasting
   async function startLocationStream() {
     if (isStreaming) return;
+    if (!activeTripRef.current) {
+      console.log('startLocationStream: Deferred starting tracking, no active trip selected.');
+      return;
+    }
     const nativeSuccess = await requestAllPermissionsNatively();
     if (nativeSuccess) {
       triggerRealGPS();
@@ -853,9 +861,8 @@ export default function DashboardPage() {
     };
   }, [activeTrip?._id, activeTrip?.vehicleId?._id, activeTrip?.vehicleId?.id, socketService.socket]);
 
-  // Automatically start live tracking when the driver opens the app (dashboard mounts)
+  // Clean up tracking on unmount
   useEffect(() => {
-    startLocationStream();
     return () => {
       stopLocationStream();
     };
