@@ -88,6 +88,54 @@ function renderLicensePlate(plate: string) {
   );
 }
 
+let sirenInterval: any = null;
+let audioCtx: AudioContext | null = null;
+
+function startSirenSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    if (audioCtx) {
+      audioCtx.close().catch(() => {});
+    }
+    
+    audioCtx = new AudioContextClass();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    
+    let toggle = false;
+    sirenInterval = setInterval(() => {
+      if (!audioCtx || audioCtx.state === 'closed') return;
+      const targetFreq = toggle ? 880 : 440;
+      osc.frequency.exponentialRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.45);
+      toggle = !toggle;
+    }, 500);
+    
+    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    osc.start();
+  } catch (e) {
+    console.warn('Web Audio API siren start failed:', e);
+  }
+}
+
+function stopSirenSound() {
+  if (sirenInterval) {
+    clearInterval(sirenInterval);
+    sirenInterval = null;
+  }
+  if (audioCtx) {
+    audioCtx.close().catch(() => {});
+    audioCtx = null;
+  }
+}
+
 export function LiveTrackingPage() {
   const { theme } = useTheme();
 
@@ -98,10 +146,13 @@ export function LiveTrackingPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'IDLE' | 'OFFLINE'>('ALL');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(null);
+  const [activePanic, setActivePanic] = useState<any | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
+  const animationFramesRef = useRef<Record<string, number>>({});
+  const lastCoordinatesRef = useRef<Record<string, { lat: number; lng: number }>>({});
   const socketRef = useRef<any>(null);
 
   const fetchData = useCallback(async () => {
@@ -223,7 +274,17 @@ export function LiveTrackingPage() {
       );
     });
 
-    return () => { socket.disconnect(); socketRef.current = null; };
+    socket.on('driverEmergencyPanic', (data: any) => {
+      console.error('EMERGENCY PANIC EVENT RECEIVED:', data);
+      setActivePanic(data);
+      startSirenSound();
+    });
+
+    return () => { 
+      socket.disconnect(); 
+      socketRef.current = null; 
+      stopSirenSound();
+    };
   }, []);
 
   // Subscribe to vehicles when the list changes
@@ -264,6 +325,9 @@ export function LiveTrackingPage() {
         mapObj = null;
       }
       mapRef.current = null;
+      Object.values(animationFramesRef.current).forEach(cancelAnimationFrame);
+      animationFramesRef.current = {};
+      lastCoordinatesRef.current = {};
     };
   }, [theme]);
 
@@ -276,6 +340,11 @@ export function LiveTrackingPage() {
       if (!activeIds.has(id)) {
         markersRef.current[id].remove();
         delete markersRef.current[id];
+        if (animationFramesRef.current[id]) {
+          cancelAnimationFrame(animationFramesRef.current[id]);
+          delete animationFramesRef.current[id];
+        }
+        delete lastCoordinatesRef.current[id];
       }
     });
 
@@ -289,13 +358,18 @@ export function LiveTrackingPage() {
       const rotation = heading !== undefined ? heading : 0;
       const markerColor = isSelected ? '#10b981' : '#F5B731';
 
+      // Check if stale (>30 seconds since last coordinate)
+      const lastUpdatedTime = new Date(lastUpdated).getTime();
+      const isStale = Date.now() - lastUpdatedTime > 30000;
+
       let marker = markersRef.current[v.id];
       if (!marker) {
         const el = document.createElement('div');
         el.className = 'live-vehicle-marker';
         el.style.cssText = `
-          width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+          width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.5s ease;
         `;
+        el.style.opacity = isStale ? '0.45' : '1.0';
         el.innerHTML = `
           <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
             <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.15" />
@@ -312,9 +386,12 @@ export function LiveTrackingPage() {
           map.easeTo({ center: [lng, lat], zoom: 13 });
         });
         markersRef.current[v.id] = marker;
+        lastCoordinatesRef.current[v.id] = { lat, lng };
       } else {
-        marker.setLngLat([lng, lat]);
         const el = marker.getElement();
+        el.style.opacity = isStale ? '0.45' : '1.0';
+        
+        // Update marker layout/color
         el.innerHTML = `
           <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
             <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.15" />
@@ -324,6 +401,41 @@ export function LiveTrackingPage() {
             </g>
           </svg>
         `;
+
+        // Smooth GPS Interpolation using requestAnimationFrame
+        const from = lastCoordinatesRef.current[v.id];
+        const to = { lat, lng };
+
+        if (!from) {
+          marker.setLngLat([lng, lat]);
+          lastCoordinatesRef.current[v.id] = to;
+        } else {
+          const duration = 2000; // 2 seconds transition
+          const start = performance.now();
+
+          const animateStep = (now: number) => {
+            const timeFraction = Math.min((now - start) / duration, 1);
+            // easeInOutQuad
+            const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
+
+            const currentLat = from.lat + (to.lat - from.lat) * t;
+            const currentLng = from.lng + (to.lng - from.lng) * t;
+
+            if (markersRef.current[v.id]) {
+              markersRef.current[v.id].setLngLat([currentLng, currentLat]);
+            }
+
+            if (timeFraction < 1) {
+              animationFramesRef.current[v.id] = requestAnimationFrame(animateStep);
+            }
+          };
+
+          if (animationFramesRef.current[v.id]) {
+            cancelAnimationFrame(animationFramesRef.current[v.id]);
+          }
+          animationFramesRef.current[v.id] = requestAnimationFrame(animateStep);
+          lastCoordinatesRef.current[v.id] = to;
+        }
       }
 
       const popupHtml = `
@@ -363,6 +475,18 @@ export function LiveTrackingPage() {
     mapRef.current.easeTo({ center: [lng, lat], zoom: 13, duration: 1000 });
   };
 
+  const handleResolvePanic = () => {
+    setActivePanic(null);
+    stopSirenSound();
+  };
+
+  const handleLocatePanic = () => {
+    if (!activePanic || !mapRef.current) return;
+    const { latitude, longitude, vehicleId } = activePanic;
+    setSelectedVehicleId(vehicleId);
+    mapRef.current.easeTo({ center: [longitude, latitude], zoom: 15, duration: 1500 });
+  };
+
   const filteredVehicles = vehicles.filter(v => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -383,262 +507,317 @@ export function LiveTrackingPage() {
   });
 
   return (
-    <div className="live-tracking-container flex flex-col lg:flex-row h-[calc(100vh-120px)] m-[-1rem_-2rem] overflow-hidden">
-      {/* ── Sidebar Panel ── */}
-      <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
-        <div className="p-6 pb-3 border-b border-border">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary">
-              <span className="w-3.5 h-3.5 rounded-full bg-success animate-pulse inline-block" />
-              Live Vehicle Tracking
-            </h2>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-[11px] text-text-muted flex items-center gap-1">
-                    <RefreshCw className="w-3 h-3 animate-spin duration-1000" /> live
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <span>Auto-refreshes every 10s</span>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <p className="text-xs text-text-secondary mt-1">
-            {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} · {vehicles.filter(v => v.location).length} online
-          </p>
-        </div>
-
-        <div className="p-3 px-6 flex gap-2 border-b border-border bg-surface-elevated/40">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              placeholder="Search vehicles, drivers..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full py-1.5 pl-9 pr-3 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as any)}
-            className="px-2 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors cursor-pointer"
-          >
-            <option value="ALL">All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="IDLE">Idle</option>
-            <option value="OFFLINE">Offline</option>
-          </select>
-        </div>
-
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {loading && vehicles.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-          ) : error && vehicles.length === 0 ? (
-            <div className="p-6">
-              <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">
-                <span>⚠️ {error}</span>
-              </div>
-            </div>
-          ) : filteredVehicles.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <span className="text-lg text-text-muted mb-1">🔍</span>
-              <span className="text-sm font-semibold text-text-secondary">
-                {searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
+    <div className="flex flex-col w-full h-[calc(100vh-120px)] m-[-1rem_-2rem] overflow-hidden">
+      {activePanic && (
+        <div className="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg animate-pulse border-b border-red-700 z-50">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🚨</span>
+            <div className="text-left">
+              <strong className="text-sm font-bold block">
+                EMERGENCY SOS: Driver {activePanic.driverName} is in panic!
+              </strong>
+              <span className="text-xs text-red-100">
+                Plate: {activePanic.plateNumber} · Location: {activePanic.latitude.toFixed(6)}, {activePanic.longitude.toFixed(6)}
               </span>
             </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto divide-y divide-border">
-              {filteredVehicles.map(v => {
-                const isSelected = selectedVehicleId === v.id;
-                return (
-                  <div
-                    key={v.id}
-                    onClick={() => handleLocate(v)}
-                    className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${
-                      isSelected ? "bg-surface-hover" : "hover:bg-surface-hover/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg shadow-sm ${
-                          v.location
-                            ? "bg-success/10 text-success"
-                            : "bg-surface-elevated text-text-muted"
-                        }`}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-text-primary text-sm block truncate">
-                          {v.make} {v.model}
-                        </span>
-                        <div className="flex items-center gap-2 flex-wrap mt-1">
-                          {renderLicensePlate(v.licensePlate)}
-                          <span className="text-xs text-text-secondary truncate">
-                            👤 {v.driver?.name || 'Unassigned'}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleLocatePanic}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs font-bold"
+            >
+              Locate Vehicle
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleResolvePanic}
+              className="bg-white text-red-700 hover:bg-red-50 text-xs font-bold border-none"
+            >
+              Resolve / Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="live-tracking-container flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* ── Sidebar Panel ── */}
+        <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
+          <div className="p-6 pb-3 border-b border-border">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary">
+                <span className="w-3.5 h-3.5 rounded-full bg-success animate-pulse inline-block" />
+                Live Vehicle Tracking
+              </h2>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[11px] text-text-muted flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3 animate-spin duration-1000" /> live
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <span>Auto-refreshes every 10s</span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-xs text-text-secondary mt-1">
+              {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} · {vehicles.filter(v => v.location).length} online
+            </p>
+          </div>
+
+          <div className="p-3 px-6 flex gap-2 border-b border-border bg-surface-elevated/40">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                placeholder="Search vehicles, drivers..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full py-1.5 pl-9 pr-3 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as any)}
+              className="px-2 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-primary text-xs outline-none focus:border-primary transition-colors cursor-pointer"
+            >
+              <option value="ALL">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="IDLE">Idle</option>
+              <option value="OFFLINE">Offline</option>
+            </select>
+          </div>
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {loading && vehicles.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : error && vehicles.length === 0 ? (
+              <div className="p-6">
+                <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">
+                  <span>⚠️ {error}</span>
+                </div>
+              </div>
+            ) : filteredVehicles.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                <span className="text-lg text-text-muted mb-1">🔍</span>
+                <span className="text-sm font-semibold text-text-secondary">
+                  {searchTerm || statusFilter !== 'ALL' ? 'No vehicles match filters' : 'No vehicles found'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto divide-y divide-border">
+                {filteredVehicles.map(v => {
+                  const isSelected = selectedVehicleId === v.id;
+                  const isStale = v.location ? (Date.now() - new Date(v.location.lastUpdated).getTime() > 30000) : false;
+                  
+                  return (
+                    <div
+                      key={v.id}
+                      onClick={() => handleLocate(v)}
+                      className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${
+                        isSelected ? "bg-surface-hover" : "hover:bg-surface-hover/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg shadow-sm ${
+                            v.location
+                              ? (isStale ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success")
+                              : "bg-surface-elevated text-text-muted"
+                          }`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-semibold text-text-primary text-sm block truncate">
+                            {v.make} {v.model}
                           </span>
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            {renderLicensePlate(v.licensePlate)}
+                            <span className="text-xs text-text-secondary truncate">
+                              👤 {v.driver?.name || 'Unassigned'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2.5 flex-shrink-0">
-                      <div className="flex flex-col items-end gap-1">
-                        {getStatusBadge(v.status)}
-                        {v.location ? (
-                          <span className="text-xs font-semibold text-success">
-                            {v.location.speed > 0 ? `${v.location.speed.toFixed(0)} km/h` : 'Stopped'}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-text-muted">Offline</span>
-                        )}
+                      <div className="flex items-center gap-2.5 flex-shrink-0">
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(isStale ? 'OFFLINE' : v.status)}
+                          {v.location ? (
+                            isStale ? (
+                              <span className="text-xs text-destructive font-semibold">Weak Signal</span>
+                            ) : (
+                              <span className="text-xs font-semibold text-success">
+                                {v.location.speed > 0 ? `${v.location.speed.toFixed(0)} km/h` : 'Stopped'}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-xs text-text-muted">Offline</span>
+                          )}
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!v.location}
+                                onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
+                                className={`w-8 h-8 rounded-full ${isSelected ? "text-success bg-success/10" : "text-primary"}`}
+                              >
+                                <LocateFixed className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <span>Locate on map</span>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={!v.location}
-                              onClick={(e) => { e.stopPropagation(); handleLocate(v); }}
-                              className={`w-8 h-8 rounded-full ${isSelected ? "text-success bg-success/10" : "text-primary"}`}
-                            >
-                              <LocateFixed className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <span>Locate on map</span>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Map Panel ── */}
+        <div className="live-tracking-map-panel flex-1 relative bg-[#0d0f14]">
+          <div ref={mapContainerRef} className="w-full h-full" />
+
+          {selectedVehicle && (
+            <Card className="live-tracking-details-card absolute bottom-5 right-5 w-[380px] max-w-[calc(100%-40px)] z-20 bg-slate-900/90 dark:bg-slate-950/90 border border-primary/20 text-white backdrop-blur-md rounded-2xl shadow-2xl">
+              <CardContent className="p-4 sm:p-5 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-white block leading-tight">
+                        {selectedVehicle.make} {selectedVehicle.model}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Capacity: {selectedVehicle.capacity} seats
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedVehicleId(null)}
+                    className="w-6 h-6 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-none"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                {selectedVehicle.location ? (
+                  <div className="flex flex-col gap-3 text-xs text-slate-300">
+                    <div className="grid grid-cols-2 gap-3 bg-white/5 p-3 rounded-lg border border-white/5">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Plate Number</span>
+                        <div className="mt-0.5">{renderLicensePlate(selectedVehicle.licensePlate)}</div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Driver Partner</span>
+                        <span className="font-semibold text-white truncate text-xs">{selectedVehicle.driver?.name || 'Unassigned'}</span>
+                        {selectedVehicle.driver?.phone && <span className="text-[10px] text-slate-400">{selectedVehicle.driver.phone}</span>}
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Latitude</span>
+                        <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lat.toFixed(6)}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Longitude</span>
+                        <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lng.toFixed(6)}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 bg-black/25 p-3 rounded-lg border border-white/5">
+                      <div className="text-center border-r border-white/10">
+                        <span className="text-[10px] text-slate-400 uppercase block mb-1">Speed</span>
+                        <span className="font-bold text-success text-sm">
+                          {selectedVehicle.location.speed.toFixed(0)}
+                        </span>
+                        <span className="text-[10px] text-slate-400"> km/h</span>
+                      </div>
+                      <div className="text-center border-r border-white/10 flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-slate-400 uppercase block mb-1">Heading</span>
+                        <span className="font-bold text-white text-sm flex items-center gap-1">
+                          <Navigation className="w-3 h-3 text-primary" style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)` }} />
+                          {getHeading(selectedVehicle.location.heading)}
+                        </span>
+                      </div>
+                      <div className="text-center flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-slate-400 uppercase block mb-1">Battery</span>
+                        <span className="font-bold text-sm flex items-center gap-1" style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color }}>
+                          <Battery className="w-3.5 h-3.5" />
+                          {getBatteryInfo(selectedVehicle.location.batteryLevel).label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {selectedVehicle.etaInfo && (
+                      <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex flex-col gap-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 text-[11px]">Next Checkpoint:</span>
+                          <span className="font-bold text-white text-[11px]">{selectedVehicle.etaInfo.nextCheckpoint}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 text-[11px]">ETA:</span>
+                          <span className="font-bold text-blue-400 text-[11px]">{selectedVehicle.etaInfo.etaMinutes} min</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 text-[11px]">Distance:</span>
+                          <span className="font-bold text-white text-[11px]">{(selectedVehicle.etaInfo.distanceMeters / 1000).toFixed(2)} km</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center mt-1">
+                      {(() => {
+                        const lastUpdatedTime = new Date(selectedVehicle.location.lastUpdated).getTime();
+                        const isStale = Date.now() - lastUpdatedTime > 30000;
+                        if (isStale) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-destructive animate-pulse inline-block" />
+                              <span className="text-[11px] text-destructive font-semibold">Offline / Weak Signal</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-success animate-pulse inline-block" />
+                            <span className="text-[11px] text-success font-semibold">Active telemetry</span>
+                          </div>
+                        );
+                      })()}
+                      <span className="text-[11px] text-slate-400">
+                        Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-xs font-semibold flex items-center gap-2">
+                    <span>⚠️ Vehicle offline. No live telemetry available.</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
-      </div>
-
-      {/* ── Map Panel ── */}
-      <div className="live-tracking-map-panel flex-1 relative bg-[#0d0f14]">
-        <div ref={mapContainerRef} className="w-full h-full" />
-
-        {selectedVehicle && (
-          <Card className="live-tracking-details-card absolute bottom-5 right-5 w-[380px] max-w-[calc(100%-40px)] z-20 bg-slate-900/90 dark:bg-slate-950/90 border border-primary/20 text-white backdrop-blur-md rounded-2xl shadow-2xl">
-            <CardContent className="p-4 sm:p-5 flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="font-bold text-sm text-white block leading-tight">
-                      {selectedVehicle.make} {selectedVehicle.model}
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Capacity: {selectedVehicle.capacity} seats
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedVehicleId(null)}
-                  className="w-6 h-6 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-none"
-                >
-                  ✕
-                </Button>
-              </div>
-
-              {selectedVehicle.location ? (
-                <div className="flex flex-col gap-3 text-xs text-slate-300">
-                  <div className="grid grid-cols-2 gap-3 bg-white/5 p-3 rounded-lg border border-white/5">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Plate Number</span>
-                      <div className="mt-0.5">{renderLicensePlate(selectedVehicle.licensePlate)}</div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Driver Partner</span>
-                      <span className="font-semibold text-white truncate text-xs">{selectedVehicle.driver?.name || 'Unassigned'}</span>
-                      {selectedVehicle.driver?.phone && <span className="text-[10px] text-slate-400">{selectedVehicle.driver.phone}</span>}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Latitude</span>
-                      <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lat.toFixed(6)}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Longitude</span>
-                      <span className="text-white font-mono text-[11px]">{selectedVehicle.location.lng.toFixed(6)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 bg-black/25 p-3 rounded-lg border border-white/5">
-                    <div className="text-center border-r border-white/10">
-                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Speed</span>
-                      <span className="font-bold text-success text-sm">
-                        {selectedVehicle.location.speed.toFixed(0)}
-                      </span>
-                      <span className="text-[10px] text-slate-400"> km/h</span>
-                    </div>
-                    <div className="text-center border-r border-white/10 flex flex-col items-center justify-center">
-                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Heading</span>
-                      <span className="font-bold text-white text-sm flex items-center gap-1">
-                        <Navigation className="w-3 h-3 text-primary" style={{ transform: `rotate(${selectedVehicle.location.heading || 0}deg)` }} />
-                        {getHeading(selectedVehicle.location.heading)}
-                      </span>
-                    </div>
-                    <div className="text-center flex flex-col items-center justify-center">
-                      <span className="text-[10px] text-slate-400 uppercase block mb-1">Battery</span>
-                      <span className="font-bold text-sm flex items-center gap-1" style={{ color: getBatteryInfo(selectedVehicle.location.batteryLevel).color }}>
-                        <Battery className="w-3.5 h-3.5" />
-                        {getBatteryInfo(selectedVehicle.location.batteryLevel).label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {selectedVehicle.etaInfo && (
-                    <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex flex-col gap-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 text-[11px]">Next Checkpoint:</span>
-                        <span className="font-bold text-white text-[11px]">{selectedVehicle.etaInfo.nextCheckpoint}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 text-[11px]">ETA:</span>
-                        <span className="font-bold text-blue-400 text-[11px]">{selectedVehicle.etaInfo.etaMinutes} min</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 text-[11px]">Distance:</span>
-                        <span className="font-bold text-white text-[11px]">{(selectedVehicle.etaInfo.distanceMeters / 1000).toFixed(2)} km</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-success animate-pulse inline-block" />
-                      <span className="text-[11px] text-success font-semibold">Active telemetry</span>
-                    </div>
-                    <span className="text-[11px] text-slate-400">
-                      Updated {getRelativeTime(selectedVehicle.location.lastUpdated)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-xs font-semibold flex items-center gap-2">
-                  <span>⚠️ Vehicle offline. No live telemetry available.</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

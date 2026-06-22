@@ -30,6 +30,10 @@ export default function LiveTrackingPage() {
   const [etaInfo, setEtaInfo] = useState<{ nextCheckpoint: string; etaMinutes: number; distanceMeters: number } | null>(null);
   const [speed, setSpeed] = useState<number | null>(null);
 
+  // Stale connection tracking
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const [isStale, setIsStale] = useState(false);
+
   // Load trip details to draw the route path on the map
   useEffect(() => {
     const tripId = searchParams.get('tripId');
@@ -153,6 +157,7 @@ export default function LiveTrackingPage() {
       el.style.display = 'flex';
       el.style.alignItems = 'center';
       el.style.justifyContent = 'center';
+      el.style.transition = 'opacity 0.5s ease';
 
       el.innerHTML = `
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.3));">
@@ -223,6 +228,25 @@ export default function LiveTrackingPage() {
 
   // Default center (Cairo) if location is not yet received
 
+  // Interval check for stale connection (signal quality)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastUpdateTime;
+      setIsStale(elapsed > 30000);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [lastUpdateTime]);
+
+  // Effect to update marker opacity on stale state changes
+  useEffect(() => {
+    if (busMarkerRef.current) {
+      const element = busMarkerRef.current.getElement();
+      if (element) {
+        element.style.opacity = isStale ? '0.45' : '1';
+      }
+    }
+  }, [isStale]);
+
   useEffect(() => {
     if (!vehicleId) return;
 
@@ -231,6 +255,8 @@ export default function LiveTrackingPage() {
 
     const handleLocationUpdate = (data: any) => {
       if (data.vehicleId === vehicleId && data.location) {
+        setLastUpdateTime(Date.now());
+        setIsStale(false);
         setLocation({
           lat: data.location.latitude,
           lng: data.location.longitude,
@@ -309,11 +335,25 @@ export default function LiveTrackingPage() {
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              background: location ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              color: location ? 'var(--success)' : 'var(--danger)',
+              background: !location
+                ? 'rgba(239, 68, 68, 0.15)'
+                : isStale
+                ? 'rgba(245, 158, 11, 0.15)'
+                : 'rgba(16, 185, 129, 0.15)',
+              color: !location
+                ? 'var(--danger)'
+                : isStale
+                ? '#f59e0b'
+                : 'var(--success)',
               padding: '4px 10px',
               borderRadius: '20px',
-              border: `1px solid ${location ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              border: `1px solid ${
+                !location
+                  ? 'rgba(239, 68, 68, 0.3)'
+                  : isStale
+                  ? 'rgba(245, 158, 11, 0.3)'
+                  : 'rgba(16, 185, 129, 0.3)'
+              }`,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px'
@@ -322,10 +362,19 @@ export default function LiveTrackingPage() {
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                background: location ? 'var(--success)' : 'var(--danger)',
+                background: !location
+                  ? 'var(--danger)'
+                  : isStale
+                  ? '#f59e0b'
+                  : 'var(--success)',
                 animation: location ? 'pulse 2s infinite' : 'none'
               }} />
-              {location ? t('activeGpsTracking') : t('vehicleOffline')}
+              {!location 
+                ? t('vehicleOffline') 
+                : isStale 
+                ? (isAr ? 'إشارة ضعيفة ⚠️' : 'Weak Signal ⚠️') 
+                : t('activeGpsTracking')
+              }
             </span>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>
               {isRtl ? 'الحالة:' : 'STATUS:'} {trip?.status === 'SCHEDULED' ? t('statusScheduled') : (trip?.status || t('statusScheduled'))}

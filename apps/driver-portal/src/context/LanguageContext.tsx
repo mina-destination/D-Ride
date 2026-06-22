@@ -140,7 +140,11 @@ const translations: Record<Language, Record<string, string>> = {
     markAllRead: 'Mark all read',
     notificationsDrawerTitle: 'Notifications',
     noNotifications: 'All caught up! No notifications.',
-    readyToSkipNoPassengers: 'Ready to skip / mark arrived (No passengers)'
+    readyToSkipNoPassengers: 'Ready to skip / mark arrived (No passengers)',
+    sosButton: 'SOS',
+    confirmSosTitle: 'Trigger Emergency SOS?',
+    confirmSosDesc: 'This will immediately notify dispatchers and the operations center with your live GPS location, driver details, and vehicle plate number.',
+    sosSentAlert: 'Emergency SOS broadcasted! Operations center is notified.'
   },
   ar: {
     // General / Layout
@@ -273,7 +277,11 @@ const translations: Record<Language, Record<string, string>> = {
     markAllRead: 'تحديد الكل كمقروء',
     notificationsDrawerTitle: 'الإشعارات',
     noNotifications: 'لا توجد إشعارات جديدة.',
-    readyToSkipNoPassengers: 'جاهز للتخطي أو تأكيد الوصول (لا يوجد ركاب)'
+    readyToSkipNoPassengers: 'جاهز للتخطي أو تأكيد الوصول (لا يوجد ركاب)',
+    sosButton: 'طوارئ SOS',
+    confirmSosTitle: 'تفعيل طوارئ SOS؟',
+    confirmSosDesc: 'سيتم إخطار المشرفين وغرفة العمليات فوراً بموقعك الجغرافي المباشر وبياناتك ورقم لوحة المركبة.',
+    sosSentAlert: 'تم إرسال نداء الطوارئ! تم إخطار غرفة العمليات.'
   }
 };
 

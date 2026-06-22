@@ -199,6 +199,19 @@ class SocketService {
       console.error('Failed to flush offline checkpoints:', err);
     }
   }
+
+  sendEmergencyPanic(payload: {
+    tripId: string;
+    vehicleId: string;
+    latitude: number;
+    longitude: number;
+    driverName: string;
+    plateNumber: string;
+  }) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('driverEmergencyPanic', payload);
+    }
+  }
 }
 
 export const socketService = new SocketService();

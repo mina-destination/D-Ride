@@ -83,6 +83,46 @@ export default function MyTripsPage() {
     setShowInfoModal(true);
   };
 
+  const shareLiveTracking = async (booking: any) => {
+    const origin = window.location.origin;
+    const url = `${origin}/family-tracking?code=${booking._id}`;
+    const routeName = booking.tripId?.routeId?.name || 'shuttle bus';
+    const text = isAr 
+      ? `أنا على متن حافلة دي-رايد (خط: ${routeName}). تتبع مسار رحلتي مباشرة هنا: ${url}`
+      : `I'm riding on D-Ride (${routeName} shuttle)! Follow my live journey here: ${url}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Track My D-Ride',
+          text,
+          url,
+        });
+      } catch (err) {
+        console.warn('Web Share failed, copying link to clipboard:', err);
+        copyToClipboard(url);
+      }
+    } else {
+      copyToClipboard(url);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        showInfoAlert(
+          isAr ? 'تم نسخ الرابط 📋' : 'Link Copied 📋',
+          isAr 
+            ? 'تم نسخ رابط التتبع لعائلتك بنجاح.' 
+            : 'Live tracking link copied to clipboard successfully!',
+          'success'
+        );
+      })
+      .catch(() => {
+        alert(isAr ? 'فشل نسخ الرابط' : 'Failed to copy tracking link.');
+      });
+  };
+
   const handleCloseInfoModal = () => {
     setIsInfoClosing(true);
     setTimeout(() => {
@@ -597,6 +637,27 @@ export default function MyTripsPage() {
                                 <Share2 size={12} /> Share PDF
                               </button>
                               <button 
+                                onClick={() => shareLiveTracking(booking)}
+                                className="auth-button"
+                                style={{ 
+                                  background: 'rgba(245, 183, 49, 0.08)', 
+                                  color: 'var(--primary)',
+                                  border: '1px solid rgba(245, 183, 49, 0.3)',
+                                  padding: '0.45rem 0.8rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 'bold',
+                                  textAlign: 'center',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                📡 {isAr ? 'مشاركة تتبع الرحلة' : 'Share Live Tracking'}
+                              </button>
+                              <button 
                                 onClick={() => handleCancel(booking._id)}
                                 className="btn-danger-outline"
                               >
@@ -649,6 +710,27 @@ export default function MyTripsPage() {
                                 }}
                               >
                                 <Share2 size={12} /> Share PDF
+                              </button>
+                              <button 
+                                onClick={() => shareLiveTracking(booking)}
+                                className="auth-button"
+                                style={{ 
+                                  background: 'rgba(245, 183, 49, 0.08)', 
+                                  color: 'var(--primary)',
+                                  border: '1px solid rgba(245, 183, 49, 0.3)',
+                                  padding: '0.45rem 0.8rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 'bold',
+                                  textAlign: 'center',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                📡 {isAr ? 'مشاركة تتبع الرحلة' : 'Share Live Tracking'}
                               </button>
                               {booking.review ? (
                                 <div style={{ 
@@ -882,12 +964,14 @@ export default function MyTripsPage() {
                                       <button onClick={(e) => { e.stopPropagation(); const coords = booking.pickupCheckpoint?.location?.coordinates || booking.pickupCheckpoint?.coordinates; if (coords && coords.length >= 2) window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`, '_blank'); }} className="tc-icon-btn"><MapPin size={18} /></button>
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); shareTicketPdf(booking, user); }} className="tc-icon-btn"><Share2 size={18} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); shareLiveTracking(booking); }} className="tc-icon-btn" style={{ color: 'var(--primary)' }} title={isAr ? 'مشاركة التتبع الحي' : 'Share Live Tracking'}>📡</button>
                                     <button onClick={(e) => { e.stopPropagation(); handleCancel(booking._id); }} className="tc-icon-btn danger">✕</button>
                                   </>
                                 )}
                                 {(booking.status === 'BOARDED' || booking.status === 'COMPLETED') && (
                                   <>
                                     <button onClick={(e) => { e.stopPropagation(); shareTicketPdf(booking, user); }} className="tc-icon-btn"><Share2 size={18} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); shareLiveTracking(booking); }} className="tc-icon-btn" style={{ color: 'var(--primary)' }} title={isAr ? 'مشاركة التتبع الحي' : 'Share Live Tracking'}>📡</button>
                                     {!booking.review && (
                                       <button onClick={(e) => { e.stopPropagation(); handleOpenReviewModal(booking._id); }} className="tc-icon-btn"><Star size={18} /></button>
                                     )}

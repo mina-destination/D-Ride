@@ -147,6 +147,35 @@ export default function DashboardPage() {
   // Notifications & Permissions layout states
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [showSosConfirm, setShowSosConfirm] = useState(false);
+
+  const handleTriggerEmergencyPanic = () => {
+    if (!activeTrip) return;
+    const lat = currentCoords?.lat || 30.0444;
+    const lng = currentCoords?.lng || 31.2357;
+    const plateNumber = activeTrip.vehicleId?.plateNumber || activeTrip.vehicleId?.licensePlate || 'ط ج أ ٤٨٢';
+    const driverName = user?.name || 'Driver Captain';
+
+    socketService.sendEmergencyPanic({
+      tripId: activeTrip._id,
+      vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || 'mock-vehicle-123',
+      latitude: lat,
+      longitude: lng,
+      driverName,
+      plateNumber,
+    });
+
+    addNotification(t('sosButton') + ' 🚨', t('sosSentAlert'));
+    playChime(false);
+
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new window.Notification(t('sosButton') + ' 🚨', { body: t('sosSentAlert') });
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Checkpoint arrival state
   const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
@@ -495,11 +524,72 @@ export default function DashboardPage() {
     });
   }
 
+  async function requestAllPermissionsNatively(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) {
+      return true;
+    }
+
+    try {
+      // 1. Foreground Location
+      const geoPerm = await Geolocation.checkPermissions();
+      if (geoPerm.location !== 'granted') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          return false;
+        }
+      }
+
+      // 2. Notifications
+      try {
+        const checkNotif = await BackgroundLocation.checkPermissions();
+        if (checkNotif.notifications !== 'granted') {
+          await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
+        }
+      } catch (e) {
+        console.warn('Failed to request notifications natively:', e);
+      }
+
+      // 3. Background Location
+      const checkBg = await BackgroundLocation.checkPermissions();
+      if (checkBg.backgroundLocation !== 'granted') {
+        const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
+        if (reqBg.backgroundLocation !== 'granted') {
+          return false;
+        }
+      }
+
+      // 4. Battery Optimization
+      try {
+        const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
+        if (!checkBatt.disabled) {
+          await BackgroundLocation.requestBatteryOptimization();
+        }
+      } catch (e) {
+        console.warn('Failed to request battery optimization ignore:', e);
+      }
+
+      // 5. GPS Enabled Check
+      try {
+        const gps = await BackgroundLocation.checkLocationEnabled();
+        if (!gps.enabled) {
+          await BackgroundLocation.openLocationSettings();
+        }
+      } catch (e) {
+        console.warn('Failed to check GPS status:', e);
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Error in requestAllPermissionsNatively:', err);
+      return false;
+    }
+  }
+
   // Location Telemetry Broadcasting
-  function startLocationStream() {
+  async function startLocationStream() {
     if (isStreaming) return;
-    const gpsPermitted = localStorage.getItem('dride_gps_permitted') === 'true';
-    if (gpsPermitted) {
+    const nativeSuccess = await requestAllPermissionsNatively();
+    if (nativeSuccess) {
       triggerRealGPS();
     } else {
       setPermissionModalVisible(true);
@@ -1416,6 +1506,16 @@ export default function DashboardPage() {
 
                 <div style={{ position: 'relative', width: '100%' }}>
                   <div className="embedded-map-container" ref={mapContainerRef} />
+                  
+                  {/* Floating SOS Panic Button */}
+                  <button
+                    onClick={() => setShowSosConfirm(true)}
+                    className="btn-sos-floating"
+                    title={t('sosButton')}
+                  >
+                    {t('sosButton')}
+                  </button>
+
                   {currentCoords && (
                     <button
                       onClick={() => setLockCenter(!lockCenter)}
@@ -1790,6 +1890,81 @@ export default function DashboardPage() {
 
 
       </div>
+
+      {/* SOS Confirmation Modal */}
+      {showSosConfirm && (
+        <div 
+          className="fade-in"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(6, 6, 14, 0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '24px'
+          }}
+        >
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '360px',
+            textAlign: 'center',
+            padding: '28px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 8px 32px rgba(239, 68, 68, 0.25)',
+            border: '1px solid rgba(239, 68, 68, 0.3)'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '2px dashed #EF4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#EF4444',
+              margin: '0 auto',
+              fontSize: '24px'
+            }}>
+              🚨
+            </div>
+            <h4 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>
+              {t('confirmSosTitle')}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+              {t('confirmSosDesc')}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button 
+                onClick={() => setShowSosConfirm(false)} 
+                className="btn btn-secondary" 
+                style={{ flex: 1, padding: '12px' }}
+              >
+                {t('cancel')}
+              </button>
+              <button 
+                onClick={() => {
+                  setShowSosConfirm(false);
+                  handleTriggerEmergencyPanic();
+                }} 
+                className="btn btn-danger" 
+                style={{
+                  flex: 1,
+                  padding: '12px'
+                }}
+              >
+                {t('confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Transition Modal */}
       {confirmStatusModal && (

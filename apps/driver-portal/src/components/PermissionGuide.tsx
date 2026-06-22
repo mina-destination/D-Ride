@@ -30,6 +30,7 @@ interface StepState {
 }
 
 export default function PermissionGuide({ visible, onComplete, onClose }: PermissionGuideProps) {
+  const [requestingAuto, setRequestingAuto] = useState(false);
   const [steps, setSteps] = useState<StepState[]>([
     {
       id: 'location',
@@ -86,9 +87,15 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       window.addEventListener('focus', checkAllPermissions);
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
+      // Auto-trigger native flow after a short delay so visual transition finishes
+      const timer = setTimeout(() => {
+        autoRequestAll();
+      }, 800);
+
       return () => {
         window.removeEventListener('focus', checkAllPermissions);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        clearTimeout(timer);
       };
     }
   }, [visible]);
@@ -138,6 +145,74 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
     }
   }
 
+  async function autoRequestAll() {
+    if (!Capacitor.isNativePlatform()) {
+      setSteps(prev => prev.map(s => ({ ...s, status: 'granted' })));
+      return;
+    }
+
+    setRequestingAuto(true);
+    try {
+      // 1. Foreground Location
+      const geoPerm = await Geolocation.checkPermissions();
+      if (geoPerm.location !== 'granted') {
+        const req = await Geolocation.requestPermissions();
+        updateStepStatus('location', req.location === 'granted' ? 'granted' : 'denied');
+        if (req.location !== 'granted') {
+          setRequestingAuto(false);
+          return;
+        }
+      } else {
+        updateStepStatus('location', 'granted');
+      }
+
+      // 2. Notifications
+      const checkNotif = await BackgroundLocation.checkPermissions();
+      if (checkNotif.notifications !== 'granted') {
+        const req = await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
+        updateStepStatus('notifications', req.notifications === 'granted' ? 'granted' : 'denied');
+      } else {
+        updateStepStatus('notifications', 'granted');
+      }
+
+      // 3. Background Location (requires foreground location first)
+      const checkBg = await BackgroundLocation.checkPermissions();
+      if (checkBg.backgroundLocation !== 'granted') {
+        const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
+        updateStepStatus('background_location', reqBg.backgroundLocation === 'granted' ? 'granted' : 'denied');
+        
+        if (reqBg.backgroundLocation !== 'granted') {
+          // Fallback if not granted automatically
+          alert('Please select "Permissions" -> "Location" -> "Allow all the time" in the App Settings screen that opens next.');
+          await BackgroundLocation.openAppSettings();
+        }
+      } else {
+        updateStepStatus('background_location', 'granted');
+      }
+
+      // 4. Battery Optimization
+      const batt = await BackgroundLocation.isBatteryOptimizationDisabled();
+      if (!batt.disabled) {
+        await BackgroundLocation.requestBatteryOptimization();
+      } else {
+        updateStepStatus('battery', 'granted');
+      }
+
+      // 5. GPS Enabled
+      const locEnabled = await BackgroundLocation.checkLocationEnabled();
+      if (!locEnabled.enabled) {
+        await BackgroundLocation.openLocationSettings();
+      } else {
+        updateStepStatus('gps', 'granted');
+      }
+
+    } catch (e) {
+      console.error('Error in auto requesting permissions:', e);
+    } finally {
+      setRequestingAuto(false);
+    }
+  }
+
   async function handleStepAction(step: PermissionStep) {
     switch (step) {
       case 'location':
@@ -156,10 +231,15 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
 
       case 'background_location':
         try {
-          // On Android 10+ (API 29+), you cannot request background location directly without settings redirect.
-          // We prompt the user and open the app settings screen where they can select "Allow all the time".
-          alert('Please select "Permissions" -> "Location" -> "Allow all the time" in the App Settings screen that opens next.');
-          await BackgroundLocation.openAppSettings();
+          // Attempt requesting natively so OS directs directly to the location permission screen
+          const req = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
+          updateStepStatus('background_location', req.backgroundLocation === 'granted' ? 'granted' : 'denied');
+          
+          if (req.backgroundLocation !== 'granted') {
+            // Fallback for older devices/custom ROMs
+            alert('Please select "Permissions" -> "Location" -> "Allow all the time" in the App Settings screen that opens next.');
+            await BackgroundLocation.openAppSettings();
+          }
           
           // Poll permission state periodically to detect when they return
           const checkBg = setInterval(async () => {
@@ -299,19 +379,36 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
           );
         })}
 
-        <button
-          disabled={!requiredGranted}
-          onClick={onComplete}
-          style={{
-            width: '100%', marginTop: 20, padding: '14px 24px',
-            borderRadius: 12, border: 'none',
-            backgroundColor: requiredGranted ? '#1976d2' : '#ccc',
-            color: 'white', fontSize: 16, fontWeight: 600,
-            cursor: requiredGranted ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {requiredGranted ? 'Start Tracking' : 'Complete required steps above'}
-        </button>
+        {!requiredGranted ? (
+          <button
+            onClick={autoRequestAll}
+            disabled={requestingAuto}
+            style={{
+              width: '100%', marginTop: 20, padding: '14px 24px',
+              borderRadius: 12, border: 'none',
+              backgroundColor: '#1976d2',
+              color: 'white', fontSize: 16, fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+            }}
+          >
+            {requestingAuto ? 'Requesting Natively...' : 'Grant All Natively'}
+          </button>
+        ) : (
+          <button
+            onClick={onComplete}
+            style={{
+              width: '100%', marginTop: 20, padding: '14px 24px',
+              borderRadius: 12, border: 'none',
+              backgroundColor: '#2e7d32',
+              color: 'white', fontSize: 16, fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(46, 125, 50, 0.3)',
+            }}
+          >
+            Start Tracking
+          </button>
+        )}
       </div>
     </div>
   );

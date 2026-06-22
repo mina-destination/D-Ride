@@ -237,6 +237,12 @@ export class VehiclesGateway
       `Client connected: ${client.id} (User: ${client.user?.id})`,
     );
 
+    // If the user has an administrative role, automatically join them to the 'admin' room
+    if (client.user && ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(client.user.role)) {
+      client.join('admin');
+      this.logger.log(`Admin client ${client.id} joined 'admin' room`);
+    }
+
     // Prevent concurrent logins for DRIVER users
     if (client.user?.role === 'DRIVER') {
       const driverId = client.user.id;
@@ -583,6 +589,46 @@ export class VehiclesGateway
     });
 
     return { event: 'checkpointUpdateAck', data: { success: true } };
+  }
+
+  @SubscribeMessage('driverEmergencyPanic')
+  async handleDriverEmergencyPanic(
+    @ConnectedSocket() client: any,
+    @MessageBody()
+    data: {
+      tripId: string;
+      vehicleId: string;
+      latitude: number;
+      longitude: number;
+      driverName: string;
+      plateNumber: string;
+    },
+  ) {
+    const user = client.user;
+    if (!user || user.role !== 'DRIVER') {
+      return {
+        event: 'driverEmergencyPanicAck',
+        data: { success: false, error: 'Unauthorized role' },
+      };
+    }
+
+    this.logger.error(
+      `EMERGENCY PANIC RECEIVED from Driver ${user.id} (${data.driverName}) for vehicle ${data.vehicleId} on trip ${data.tripId}`,
+    );
+
+    const payload = {
+      ...data,
+      driverId: user.id,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Broadcast the panic payload to all connected administrative rooms
+    this.server.to('admin').emit('driverEmergencyPanic', payload);
+
+    // Also broadcast to the vehicle room
+    this.server.to(`vehicle_${data.vehicleId}`).emit('driverEmergencyPanic', payload);
+
+    return { event: 'driverEmergencyPanicAck', data: { success: true } };
   }
 
   async getArrivedCheckpoints(vehicleId: string): Promise<string[]> {

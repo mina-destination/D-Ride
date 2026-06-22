@@ -37,6 +37,42 @@ export default function FamilyTrackingPage() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
 
+  // Telemetry & Animation States & Refs
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const [isStale, setIsStale] = useState(false);
+  const animRef = useRef<number | null>(null);
+  const currentCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const isFirstLocationRef = useRef(true);
+
+  const startMarkerAnimation = (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+    }
+
+    const duration = 3000; // ms between updates
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentLat = start.lat + (end.lat - start.lat) * progress;
+      const currentLng = start.lng + (end.lng - start.lng) * progress;
+
+      currentCoordsRef.current = { lat: currentLat, lng: currentLng };
+      
+      if (busMarkerRef.current) {
+        busMarkerRef.current.setLngLat([currentLng, currentLat]);
+      }
+
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animRef.current = requestAnimationFrame(animate);
+  };
+
   // Parse code from search query on mount or query change
   useEffect(() => {
     const qCode = searchParams.get('code');
@@ -166,6 +202,7 @@ export default function FamilyTrackingPage() {
       const el = document.createElement('div');
       el.style.width = '38px';
       el.style.height = '38px';
+      el.style.transition = 'opacity 0.5s ease';
 
       const busEl = document.createElement('div');
       busEl.className = 'google-maps-bus-pointer';
@@ -184,12 +221,37 @@ export default function FamilyTrackingPage() {
         .addTo(map);
 
       busMarkerRef.current = marker;
+      currentCoordsRef.current = location;
     } else {
-      busMarkerRef.current.setLngLat(busCoords);
+      if (!animRef.current) {
+        busMarkerRef.current.setLngLat(busCoords);
+      }
     }
 
-    map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });
+    if (isFirstLocationRef.current) {
+      map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });
+      isFirstLocationRef.current = false;
+    }
   }, [location]);
+
+  // Effect to update marker opacity on stale state changes
+  useEffect(() => {
+    if (busMarkerRef.current) {
+      const element = busMarkerRef.current.getElement();
+      if (element) {
+        element.style.opacity = isStale ? '0.45' : '1';
+      }
+    }
+  }, [isStale]);
+
+  // Interval check for stale connection (signal quality)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastUpdateTime;
+      setIsStale(elapsed > 30000);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [lastUpdateTime]);
 
   // WebSocket connection & telemetry room subscription
   useEffect(() => {
@@ -202,7 +264,23 @@ export default function FamilyTrackingPage() {
 
     const handleLocationUpdate = (data: any) => {
       if (data.vehicleId === vehicleId && data.location) {
-        setLocation({ lat: data.location.latitude, lng: data.location.longitude });
+        const newCoords = { lat: data.location.latitude, lng: data.location.longitude };
+        const oldCoords = currentCoordsRef.current;
+
+        setLastUpdateTime(Date.now());
+        setIsStale(false);
+
+        if (oldCoords) {
+          startMarkerAnimation(oldCoords, newCoords);
+        } else {
+          setLocation(newCoords);
+          currentCoordsRef.current = newCoords;
+        }
+
+        const map = mapRef.current;
+        if (map) {
+          map.panTo([newCoords.lng, newCoords.lat], { duration: 1000 });
+        }
       }
     };
 
@@ -216,6 +294,9 @@ export default function FamilyTrackingPage() {
     socketService.onCheckpointUpdate(handleCheckpointUpdate);
 
     return () => {
+      if (animRef.current) {
+        cancelAnimationFrame(animRef.current);
+      }
       socketService.unsubscribeFromVehicle(vehicleId);
       socketService.offVehicleLocationUpdate(handleLocationUpdate);
       socketService.offCheckpointUpdate(handleCheckpointUpdate);
@@ -332,13 +413,26 @@ export default function FamilyTrackingPage() {
             <div className="flex justify-between items-center">
               <Badge
                 className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
-                  location
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  !location
+                    ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                    : isStale
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${location ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-                {location ? (isAr ? 'بث الموقع نشط 📡' : 'Live Tracking') : (isAr ? 'غير متصل بالبث 🕒' : 'Offline')}
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  !location 
+                    ? 'bg-red-400' 
+                    : isStale 
+                    ? 'bg-amber-400 animate-pulse' 
+                    : 'bg-emerald-400 animate-pulse'
+                }`} />
+                {!location 
+                  ? (isAr ? 'غير متصل بالبث 🕒' : 'Offline') 
+                  : isStale 
+                  ? (isAr ? 'إشارة ضعيفة ⚠️' : 'Weak Signal ⚠️') 
+                  : (isAr ? 'بث الموقع نشط 📡' : 'Live Tracking 📡')
+                }
               </Badge>
               <button
                 onClick={() => { setCode(null); setSearchParams({}); }}

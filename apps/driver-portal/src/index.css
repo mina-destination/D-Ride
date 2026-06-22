@@ -851,4 +851,54 @@ textarea {
   }
 }
 
+/* ── SOS Panic Button ─────────────────────────────────────── */
+.btn-sos-floating {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+  font-weight: bold;
+  font-family: var(--font-title);
+  font-size: 11px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pulse-sos 1.8s infinite;
+}
+
+[dir="rtl"] .btn-sos-floating {
+  left: auto;
+  right: 12px;
+}
+
+.btn-sos-floating:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+}
+
+.btn-sos-floating:active {
+  transform: scale(0.95);
+}
+
+@keyframes pulse-sos {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6), 0 4px 14px rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), 0 4px 14px rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 4px 14px rgba(239, 68, 68, 0.4);
+  }
+}
+
 
