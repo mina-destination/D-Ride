@@ -7,21 +7,27 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
 class BackgroundLocationService : Service() {
 
-    private lateinit var locationManager: LocationManager
-    private var locationListener: LocationListener? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: LocationCallback? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private var apiUrl: String = ""
     private var token: String = ""
     private var vehicleId: String = ""
@@ -54,7 +60,7 @@ class BackgroundLocationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
     }
 
@@ -65,6 +71,17 @@ class BackgroundLocationService : Service() {
                 token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 vehicleId = intent.getStringExtra(EXTRA_VEHICLE_ID) ?: ""
                 driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: ""
+
+                // Acquire WakeLock to keep CPU alive when device screen is turned off
+                try {
+                    val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                    wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DRide::LocationWakeLock").apply {
+                        acquire(12 * 60 * 60 * 1000L) // 12 hours timeout safety limit
+                    }
+                    Log.d(TAG, "Partial WakeLock acquired successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to acquire WakeLock", e)
+                }
 
                 val notification = buildNotification()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -78,10 +95,11 @@ class BackgroundLocationService : Service() {
                 }
                 isRunning = true
                 startLocationUpdates()
-                Log.d(TAG, "Background location service started")
+                Log.d(TAG, "Background location service started with Fused client")
             }
             ACTION_STOP -> {
                 stopLocationUpdates()
+                releaseWakeLock()
                 isRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -95,8 +113,22 @@ class BackgroundLocationService : Service() {
 
     override fun onDestroy() {
         stopLocationUpdates()
+        releaseWakeLock()
         isRunning = false
         super.onDestroy()
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing WakeLock", e)
+        }
+        wakeLock = null
     }
 
     private fun createNotificationChannel() {
@@ -131,17 +163,18 @@ class BackgroundLocationService : Service() {
     }
 
     private fun startLocationUpdates() {
-        val provider = if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            LocationManager.GPS_PROVIDER
-        } else if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            LocationManager.NETWORK_PROVIDER
-        } else {
-            Log.w(TAG, "No location provider available")
-            return
-        }
+        // High accuracy, 2s interval update location request (Uber-style)
+        val locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            2000L
+        ).apply {
+            setMinUpdateIntervalMillis(1000L)
+            setMinUpdateDistanceMeters(0f)
+        }.build()
 
-        locationListener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                val location = locationResult.lastLocation ?: return
                 lastLatitude = location.latitude
                 lastLongitude = location.longitude
                 lastHeading = if (location.hasBearing()) location.bearing else 0f
@@ -155,34 +188,32 @@ class BackgroundLocationService : Service() {
                     if (location.hasBearing()) location.bearing else 0f
                 )
             }
-
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
         }
 
         try {
-            locationManager.requestLocationUpdates(
-                provider,
-                3000L,
-                5f,
-                locationListener!!,
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback!!,
                 Looper.getMainLooper()
             )
+            Log.d(TAG, "Fused location updates requested successfully")
         } catch (e: SecurityException) {
-            Log.e(TAG, "Location permission not granted", e)
+            Log.e(TAG, "SecurityException: Location permission not granted for Fused client", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error requesting Fused location updates", e)
         }
     }
 
     private fun stopLocationUpdates() {
-        locationListener?.let {
+        locationCallback?.let {
             try {
-                locationManager.removeUpdates(it)
+                fusedLocationClient.removeLocationUpdates(it)
+                Log.d(TAG, "Fused location updates removed successfully")
             } catch (e: Exception) {
-                Log.e(TAG, "Error removing location updates", e)
+                Log.e(TAG, "Error removing location updates from Fused client", e)
             }
         }
-        locationListener = null
+        locationCallback = null
     }
 
     private fun sendLocationToApi(location: Location) {
