@@ -38,6 +38,7 @@ export interface BackgroundLocationPlugin {
   isRunning(): Promise<BackgroundLocationStatus>;
   checkLocationEnabled(): Promise<LocationEnabled>;
   openLocationSettings(): Promise<void>;
+  openAppSettings(): Promise<void>;
   isBatteryOptimizationDisabled(): Promise<BatteryOptimizationStatus>;
   requestBatteryOptimization(): Promise<void>;
   openBatterySettings(): Promise<void>;

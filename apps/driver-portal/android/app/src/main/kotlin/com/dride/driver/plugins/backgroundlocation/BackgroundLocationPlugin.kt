@@ -139,4 +139,13 @@ class BackgroundLocationPlugin : Plugin() {
         activity.startActivity(intent)
         call.resolve()
     }
+
+    @PluginMethod
+    fun openAppSettings(call: PluginCall) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = android.net.Uri.parse("package:${activity.packageName}")
+        }
+        activity.startActivity(intent)
+        call.resolve()
+    }
 }

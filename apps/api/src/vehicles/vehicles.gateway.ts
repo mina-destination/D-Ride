@@ -111,7 +111,7 @@ export class VehiclesGateway
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
     this.redisClient = createClient({
       url: redisUrl,
       disableOfflineQueue: true,

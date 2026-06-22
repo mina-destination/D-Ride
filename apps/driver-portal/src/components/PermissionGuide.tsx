@@ -42,7 +42,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
     {
       id: 'background_location',
       title: 'Background Location',
-      description: 'Keep tracking even when the app is minimized or your phone is locked',
+      description: 'Choose "Allow all the time" in location settings for background tracking',
       icon: MapPin,
       status: 'pending',
       required: true,
@@ -53,7 +53,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Make sure high-accuracy GPS is turned on for reliable tracking',
       icon: Globe,
       status: 'pending',
-      required: true,
+      required: false,
     },
     {
       id: 'notifications',
@@ -96,6 +96,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
   const updateStepStatus = (id: PermissionStep, status: StepState['status']) => {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s));
   };
+
   async function checkAllPermissions() {
     if (!Capacitor.isNativePlatform()) {
       // Auto-grant steps for web testing fallback
@@ -103,13 +104,21 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       return;
     }
 
+    // Foreground location using official @capacitor/geolocation
+    try {
+      const geoPerm = await Geolocation.checkPermissions();
+      updateStepStatus('location', geoPerm.location === 'granted' ? 'granted' : 'pending');
+    } catch (e) {
+      console.error('Error checking foreground location:', e);
+    }
+
+    // Background location and notifications using custom plugin
     try {
       const permStatus = await BackgroundLocation.checkPermissions();
-      updateStepStatus('location', permStatus.location === 'granted' ? 'granted' : 'pending');
       updateStepStatus('background_location', permStatus.backgroundLocation === 'granted' ? 'granted' : 'pending');
       updateStepStatus('notifications', permStatus.notifications === 'granted' ? 'granted' : 'pending');
     } catch (e) {
-      console.error('Error checking native permissions:', e);
+      console.error('Error checking background/notification permissions:', e);
     }
 
     // GPS enabled
@@ -133,8 +142,13 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
     switch (step) {
       case 'location':
         try {
-          const req = await BackgroundLocation.requestPermissions({ permissions: ['location'] });
+          const req = await Geolocation.requestPermissions();
           updateStepStatus('location', req.location === 'granted' ? 'granted' : 'denied');
+          
+          if (req.location === 'granted') {
+            const permStatus = await BackgroundLocation.checkPermissions();
+            updateStepStatus('background_location', permStatus.backgroundLocation === 'granted' ? 'granted' : 'pending');
+          }
         } catch {
           updateStepStatus('location', 'denied');
         }
@@ -142,9 +156,24 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
 
       case 'background_location':
         try {
-          const req = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
-          updateStepStatus('background_location', req.backgroundLocation === 'granted' ? 'granted' : 'denied');
-        } catch {
+          // On Android 10+ (API 29+), you cannot request background location directly without settings redirect.
+          // We prompt the user and open the app settings screen where they can select "Allow all the time".
+          alert('Please select "Permissions" -> "Location" -> "Allow all the time" in the App Settings screen that opens next.');
+          await BackgroundLocation.openAppSettings();
+          
+          // Poll permission state periodically to detect when they return
+          const checkBg = setInterval(async () => {
+            try {
+              const permStatus = await BackgroundLocation.checkPermissions();
+              if (permStatus.backgroundLocation === 'granted') {
+                updateStepStatus('background_location', 'granted');
+                clearInterval(checkBg);
+              }
+            } catch {}
+          }, 2000);
+          setTimeout(() => clearInterval(checkBg), 60000);
+        } catch (e) {
+          console.error('Failed to open app settings:', e);
           updateStepStatus('background_location', 'denied');
         }
         break;
@@ -263,7 +292,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
                   backgroundColor: 'white', color: '#1976d2', fontSize: 13,
                   fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
                 }}>
-                  {step.id === 'gps' || step.id === 'battery' ? 'Open Settings' : 'Allow'}
+                  {step.id === 'gps' || step.id === 'battery' || step.id === 'background_location' ? 'Open Settings' : 'Allow'}
                 </button>
               )}
             </div>

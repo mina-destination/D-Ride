@@ -9,7 +9,7 @@ export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
 
   async connectToRedis(): Promise<void> {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
     this.logger.log(`Connecting to Redis for WebSockets scaling: ${redisUrl}`);
 
     const pubClient = createClient({ url: redisUrl });
