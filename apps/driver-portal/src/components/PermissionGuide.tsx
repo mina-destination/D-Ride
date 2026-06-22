@@ -26,6 +26,7 @@ interface StepState {
   description: string;
   icon: any;
   status: 'pending' | 'granted' | 'denied';
+  required: boolean;
 }
 
 export default function PermissionGuide({ visible, onComplete, onClose }: PermissionGuideProps) {
@@ -36,6 +37,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Allow D-Ride to access your precise location for live tracking',
       icon: Navigation,
       status: 'pending',
+      required: true,
     },
     {
       id: 'background_location',
@@ -43,6 +45,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Keep tracking even when the app is minimized or your phone is locked',
       icon: MapPin,
       status: 'pending',
+      required: true,
     },
     {
       id: 'gps',
@@ -50,6 +53,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Make sure high-accuracy GPS is turned on for reliable tracking',
       icon: Globe,
       status: 'pending',
+      required: true,
     },
     {
       id: 'notifications',
@@ -57,6 +61,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Receive trip alerts and keep the tracking service alive',
       icon: Bell,
       status: 'pending',
+      required: false,
     },
     {
       id: 'battery',
@@ -64,11 +69,28 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
       description: 'Exclude D-Ride from battery saving to prevent the service from being stopped',
       icon: Battery,
       status: 'pending',
+      required: false,
     },
   ]);
 
   useEffect(() => {
-    if (visible) checkAllPermissions();
+    if (visible) {
+      checkAllPermissions();
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          checkAllPermissions();
+        }
+      };
+
+      window.addEventListener('focus', checkAllPermissions);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        window.removeEventListener('focus', checkAllPermissions);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
   }, [visible]);
 
   const updateStepStatus = (id: PermissionStep, status: StepState['status']) => {
@@ -174,7 +196,7 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
     }
   }
 
-  const allGranted = steps.every(s => s.status === 'granted');
+  const requiredGranted = steps.filter(s => s.required).every(s => s.status === 'granted');
 
   if (!visible) return null;
 
@@ -217,7 +239,14 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
                 <Icon size={20} color={isGranted ? '#2e7d32' : '#666'} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 500, fontSize: 14 }}>{step.title}</div>
+                <div style={{ fontWeight: 500, fontSize: 14 }}>
+                  {step.title}
+                  {!step.required && (
+                    <span style={{ color: '#ff9800', fontSize: 11, fontWeight: 400, marginLeft: 6 }}>
+                      (Recommended)
+                    </span>
+                  )}
+                </div>
                 <div style={{ color: '#888', fontSize: 12 }}>{step.description}</div>
               </div>
               {isGranted ? (
@@ -242,17 +271,17 @@ export default function PermissionGuide({ visible, onComplete, onClose }: Permis
         })}
 
         <button
-          disabled={!allGranted}
+          disabled={!requiredGranted}
           onClick={onComplete}
           style={{
             width: '100%', marginTop: 20, padding: '14px 24px',
             borderRadius: 12, border: 'none',
-            backgroundColor: allGranted ? '#1976d2' : '#ccc',
+            backgroundColor: requiredGranted ? '#1976d2' : '#ccc',
             color: 'white', fontSize: 16, fontWeight: 600,
-            cursor: allGranted ? 'pointer' : 'not-allowed',
+            cursor: requiredGranted ? 'pointer' : 'not-allowed',
           }}
         >
-          {allGranted ? 'Start Tracking' : 'Complete all steps above'}
+          {requiredGranted ? 'Start Tracking' : 'Complete required steps above'}
         </button>
       </div>
     </div>
