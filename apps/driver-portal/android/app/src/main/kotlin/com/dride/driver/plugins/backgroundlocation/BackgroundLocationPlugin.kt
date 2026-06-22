@@ -1,7 +1,11 @@
 package com.dride.driver.plugins.backgroundlocation
 
+import android.content.Context
 import android.content.Intent
+import android.location.LocationManager
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -65,5 +69,47 @@ class BackgroundLocationPlugin : Plugin() {
             put("running", BackgroundLocationService.isRunning)
         }
         call.resolve(result)
+    }
+
+    @PluginMethod
+    fun checkLocationEnabled(call: PluginCall) {
+        val lm = activity.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        call.resolve(JSObject().apply { put("enabled", enabled) })
+    }
+
+    @PluginMethod
+    fun openLocationSettings(call: PluginCall) {
+        activity.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun isBatteryOptimizationDisabled(call: PluginCall) {
+        val pm = activity.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val name = activity.packageName
+        val disabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            pm.isIgnoringBatteryOptimizations(name)
+        } else true
+        call.resolve(JSObject().apply { put("disabled", disabled) })
+    }
+
+    @PluginMethod
+    fun requestBatteryOptimization(call: PluginCall) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:${activity.packageName}")
+            }
+            activity.startActivity(intent)
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun openBatterySettings(call: PluginCall) {
+        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        activity.startActivity(intent)
+        call.resolve()
     }
 }

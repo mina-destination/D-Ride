@@ -38,6 +38,7 @@ import { BackgroundLocation } from '../capacitor-plugins/background-location';
 import { API_URL } from '../services/api';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Header from '../components/Header';
+import PermissionGuide from '../components/PermissionGuide';
 
 // Sound feedback helper
 function playChime(isSuccess: boolean) {
@@ -1929,68 +1930,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* GPS Permission Opt-In Modal */}
-      {permissionModalVisible && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(6, 6, 14, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2500,
-          padding: '24px',
-          animation: 'fade-in 0.25s ease'
-        }}>
-          <div className="glass-card" style={{
-            width: '100%',
-            maxWidth: '380px',
-            textAlign: 'center',
-            padding: '32px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            boxShadow: 'var(--shadow-md)',
-            border: '1px solid rgba(245, 183, 49, 0.2)'
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              background: 'rgba(245, 183, 49, 0.1)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto',
-              border: '1.5px solid var(--primary)',
-              boxShadow: 'var(--shadow-glow)'
-            }}>
-              <Navigation size={28} style={{ color: 'var(--primary)' }} />
-            </div>
-
-            <div>
-              <h3 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                {t('allowBackgroundLocationTitle')}
-              </h3>
-              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                {t('allowBackgroundLocationDesc')}
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-              <button
-                onClick={triggerRealGPS}
-                className="btn btn-primary btn-block"
-                style={{ height: '46px', fontSize: '13.5px' }}
-              >
-                {t('allowBackgroundLocationBtn')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PermissionGuide
+        visible={permissionModalVisible}
+        onComplete={() => {
+          setPermissionModalVisible(false);
+          localStorage.setItem('dride_gps_permitted', 'true');
+          triggerRealGPS();
+        }}
+        onClose={() => setPermissionModalVisible(false)}
+      />
 
       {/* Slide animations style tag */}
       <style>{`

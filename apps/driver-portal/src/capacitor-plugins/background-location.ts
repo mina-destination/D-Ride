@@ -18,10 +18,23 @@ export interface BackgroundLocationData {
   heading: number;
 }
 
+export interface LocationEnabled {
+  enabled: boolean;
+}
+
+export interface BatteryOptimizationStatus {
+  disabled: boolean;
+}
+
 export interface BackgroundLocationPlugin {
   start(options: BackgroundLocationOptions): Promise<void>;
   stop(): Promise<void>;
   isRunning(): Promise<BackgroundLocationStatus>;
+  checkLocationEnabled(): Promise<LocationEnabled>;
+  openLocationSettings(): Promise<void>;
+  isBatteryOptimizationDisabled(): Promise<BatteryOptimizationStatus>;
+  requestBatteryOptimization(): Promise<void>;
+  openBatterySettings(): Promise<void>;
   addListener(
     eventName: 'locationUpdate',
     listenerFunc: (data: BackgroundLocationData) => void,
