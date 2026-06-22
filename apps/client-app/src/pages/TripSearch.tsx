@@ -557,10 +557,54 @@ export default function TripSearchPage() {
           </div>
         ) : sortedTrips.length === 0 ? (
           <div className="glass" style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: 'var(--radius-xl)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t('noTripsFound')}</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('noTripsFoundDesc')}</p>
-            <button onClick={() => navigate('/')} className="btn-primary">{t('searchAnotherRoute')}</button>
+            {forwardBookingId ? (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔁</div>
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>
+                  {isRtl ? 'لم نعثر على رحلات إياب في هذا التاريخ' : 'No return trips found for this date'}
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', maxWidth: '500px', margin: '0 auto 2.5rem auto', lineHeight: '1.6' }}>
+                  {isRtl 
+                    ? 'لقد قمت بحجز رحلة الذهاب بنجاح! يمكنك إكمال الحجز لرحلة الذهاب فقط (ذهاب فقط)، أو تغيير تاريخ العودة للبحث مرة أخرى.' 
+                    : 'Your outbound trip is successfully reserved! You can proceed to complete your booking as a one-way trip, or change your return date to try again.'}
+                </p>
+                <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={() => navigate(`/payment?bookingIds=${forwardBookingId}`)} 
+                    className="btn-primary"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      border: 'none',
+                      color: '#ffffff',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                      fontWeight: 700,
+                      padding: '12px 24px',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    💳 {isRtl ? 'إكمال الحجز (ذهاب فقط)' : 'Complete Booking (One-Way)'}
+                  </button>
+                  <button 
+                    onClick={() => navigate('/')} 
+                    className="btn-secondary"
+                    style={{
+                      padding: '12px 24px',
+                      borderRadius: '10px',
+                      fontWeight: 700
+                    }}
+                  >
+                    🔍 {isRtl ? 'البحث عن مسار آخر / تغيير التاريخ' : 'Search Another Date / Route'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t('noTripsFound')}</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('noTripsFoundDesc')}</p>
+                <button onClick={() => navigate('/')} className="btn-primary">{t('searchAnotherRoute')}</button>
+              </>
+            )}
           </div>
         ) : (
           <div>
