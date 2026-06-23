@@ -217,41 +217,55 @@ class BackgroundLocationService : Service() {
     }
 
     private fun sendLocationToApi(location: Location) {
-        if (apiUrl.isEmpty() || token.isEmpty() || vehicleId.isEmpty() || driverId.isEmpty()) return
-
-        try {
-            val url = URL("${apiUrl}/vehicles/location")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Authorization", "Bearer $token")
-            conn.doOutput = true
-            conn.connectTimeout = 10000
-            conn.readTimeout = 10000
-
-            val jsonBody = """
-                {
-                    "vehicleId": "$vehicleId",
-                    "driverId": "$driverId",
-                    "longitude": ${location.longitude},
-                    "latitude": ${location.latitude},
-                    "speedKmh": ${if (location.hasSpeed()) location.speed * 3.6 else 0},
-                    "headingDegrees": ${if (location.hasBearing()) location.bearing else 0}
-                }
-            """.trimIndent()
-
-            OutputStreamWriter(conn.outputStream).use { writer ->
-                writer.write(jsonBody)
-                writer.flush()
-            }
-
-            val responseCode = conn.responseCode
-            if (responseCode !in 200..299) {
-                Log.w(TAG, "API returned $responseCode for location update")
-            }
-            conn.disconnect()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send location to API", e)
+        if (apiUrl.isEmpty() || token.isEmpty() || vehicleId.isEmpty() || driverId.isEmpty()) {
+            Log.w(TAG, "sendLocationToApi skipped: missing config (apiUrl=$apiUrl, token=${token.take(10)}..., vehicleId=$vehicleId, driverId=$driverId)")
+            return
         }
+
+        Thread {
+            try {
+                val endpoint = "${apiUrl}/vehicles/location"
+                Log.d(TAG, "Posting location to: $endpoint (lat=${location.latitude}, lng=${location.longitude})")
+                val url = URL(endpoint)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                conn.doOutput = true
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+
+                val jsonBody = """
+                    {
+                        "vehicleId": "$vehicleId",
+                        "driverId": "$driverId",
+                        "longitude": ${location.longitude},
+                        "latitude": ${location.latitude},
+                        "speedKmh": ${if (location.hasSpeed()) location.speed * 3.6 else 0},
+                        "headingDegrees": ${if (location.hasBearing()) location.bearing else 0}
+                    }
+                """.trimIndent()
+
+                OutputStreamWriter(conn.outputStream).use { writer ->
+                    writer.write(jsonBody)
+                    writer.flush()
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode in 200..299) {
+                    Log.d(TAG, "Location sent successfully (HTTP $responseCode)")
+                } else {
+                    val errorBody = try {
+                        conn.errorStream?.bufferedReader()?.readText() ?: "no error body"
+                    } catch (e: Exception) {
+                        "could not read error body"
+                    }
+                    Log.w(TAG, "API returned HTTP $responseCode for location update. Error: $errorBody")
+                }
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send location to API: ${e.message}", e)
+            }
+        }.start()
     }
 }

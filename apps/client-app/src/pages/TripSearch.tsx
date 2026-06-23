@@ -5,12 +5,6 @@ import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { Wifi, Snowflake, Zap, AlertCircle, Inbox } from 'lucide-react';
-import {
-  Timeline,
-  TimelineItem,
-  TimelineMarker,
-  TimelineContent,
-} from '@/components/ui/timeline';
 
 // Map imports removed
 
@@ -1222,51 +1216,41 @@ return `${y}-${m}-${d}` === date;
                                  </span>
                                </div>
 
-                                {/* Timeline */}
-                                <Timeline position="left" className="sc-shadcn-timeline">
-                                  {/* Pickup */}
-                                  <TimelineItem>
-                                    <TimelineMarker variant="success" className="sc-gradient-marker" />
-                                    <TimelineContent>
-                                      <div className="sc-stop-badges">
-                                        <span className="sc-time-badge green">{pickupTimeStr}</span>
-                                        <span className="sc-type-badge green">{isRtl ? 'الركوب' : 'PICKUP'}</span>
-                                      </div>
-                                      <span className="sc-station-name">
-                                        {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
-                                      </span>
-                                    </TimelineContent>
-                                  </TimelineItem>
+                                 {/* Compact Horizontal Stop Timeline */}
+                                 <div className="sc-timeline-horizontal">
+                                   {/* Origin stop */}
+                                   <div className="sc-stop-block text-left">
+                                     <span className="sc-stop-time green">{pickupTimeStr}</span>
+                                     <span className="sc-stop-name">
+                                       {cleanStopName(isRtl ? (pickupCp?.nameAr || pickupCp?.name || t('boardingStop')) : (pickupCp?.name || t('boardingStop')))}
+                                     </span>
+                                   </div>
 
-                                  {/* Duration */}
-                                  <TimelineItem>
-                                    <TimelineMarker variant="warning" className="sc-gradient-marker" />
-                                    <TimelineContent>
-                                      <span className="sc-duration-pill">⏱ {durationMinutes}m {isRtl ? 'رحلة' : 'ride'}</span>
-                                    </TimelineContent>
-                                  </TimelineItem>
+                                   {/* Dotted indicator line */}
+                                   <div className="sc-route-indicator">
+                                     <span className="sc-indicator-duration">{durationMinutes}m {isRtl ? 'رحلة' : 'ride'}</span>
+                                     <div className="sc-indicator-line">
+                                       <span className="sc-dot green"></span>
+                                       <span className="sc-line"></span>
+                                       <span className="sc-dot red"></span>
+                                     </div>
+                                   </div>
 
-                                  {/* Dropoff */}
-                                  <TimelineItem>
-                                    <TimelineMarker variant="destructive" className="sc-gradient-marker" />
-                                    <TimelineContent>
-                                      <div className="sc-stop-badges">
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span className="sc-time-badge red">{dropoffTimeStr}</span>
-                                          {isNextDayDropoff && (
-                                            <span style={{ fontSize: '8px', fontWeight: 900, color: '#F87171', background: 'rgba(248, 113, 113, 0.1)', padding: '2px 5px', borderRadius: '4px' }}>
-                                              {isRtl ? 'غداً' : '+1d'}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <span className="sc-type-badge red">{isRtl ? 'النزول' : 'DROPOFF'}</span>
-                                      </div>
-                                      <span className="sc-station-name">
-                                        {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
-                                      </span>
-                                    </TimelineContent>
-                                  </TimelineItem>
-                                </Timeline>
+                                   {/* Destination stop */}
+                                   <div className="sc-stop-block text-right">
+                                     <div className="sc-stop-time-row">
+                                       <span className="sc-stop-time red">{dropoffTimeStr}</span>
+                                       {isNextDayDropoff && (
+                                         <span className="sc-next-day-badge">
+                                           {isRtl ? 'غداً' : '+1d'}
+                                         </span>
+                                       )}
+                                     </div>
+                                     <span className="sc-stop-name">
+                                       {cleanStopName(isRtl ? (dropoffCp?.nameAr || dropoffCp?.name || t('dropoffStop')) : (dropoffCp?.name || t('dropoffStop')))}
+                                     </span>
+                                   </div>
+                                 </div>
 
                                {/* Pickup Walk/Drive Distance Badge */}
                                {isSmartMode && trip.totalWalkingDistance !== undefined && (

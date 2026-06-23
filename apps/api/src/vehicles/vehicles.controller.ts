@@ -9,9 +9,12 @@ import {
   Query,
   UseGuards,
   Request,
+  Inject,
+  forwardRef,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
+import { VehiclesGateway } from './vehicles.gateway';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -21,7 +24,11 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 
 @Controller('vehicles')
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(
+    private readonly vehiclesService: VehiclesService,
+    @Inject(forwardRef(() => VehiclesGateway))
+    private readonly vehiclesGateway: VehiclesGateway,
+  ) {}
 
   // --- Fleet Management CRUD ---
 
@@ -39,6 +46,9 @@ export class VehiclesController {
   @Post('location')
   async updateLocation(@Request() req: any, @Body() data: UpdateLocationDto) {
     const location = await this.vehiclesService.upsertLocation(data, req.user);
+    // Broadcast via WebSocket so admin/passenger/family get real-time updates
+    // even when location arrives via the native HTTP fallback channel
+    this.vehiclesGateway.broadcastVehicleLocation(data.vehicleId, location);
     return {
       success: true,
       data: location,

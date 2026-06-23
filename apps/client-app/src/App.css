@@ -5228,4 +5228,145 @@ html[data-theme='light'] .tracking-sandbox-panel {
   .sc-shadcn-timeline > li:last-child [data-slot="timeline-content"] {
     padding-bottom: 0;
   }
+
+  /* ── Compact Horizontal Timeline ── */
+  .sc-timeline-horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(15, 18, 25, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+    padding: 12px 14px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  [dir="rtl"] .sc-timeline-horizontal {
+    flex-direction: row-reverse;
+  }
+
+  .sc-stop-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sc-stop-block.text-left {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  [dir="rtl"] .sc-stop-block.text-left {
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  .sc-stop-block.text-right {
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  [dir="rtl"] .sc-stop-block.text-right {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .sc-stop-time {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+  }
+
+  .sc-stop-time.green {
+    color: #34D399;
+  }
+
+  .sc-stop-time.red {
+    color: #F87171;
+  }
+
+  .sc-stop-name {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+
+  /* Route Indicator */
+  .sc-route-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1.2;
+    min-width: 0;
+  }
+
+  .sc-indicator-duration {
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: #f5b731;
+    margin-bottom: 4px;
+    background: rgba(245, 183, 49, 0.08);
+    border: 1px solid rgba(245, 183, 49, 0.15);
+    border-radius: 12px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+
+  .sc-indicator-line {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .sc-indicator-line .sc-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sc-indicator-line .sc-dot.green {
+    background: #34D399;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
+  }
+
+  .sc-indicator-line .sc-dot.red {
+    background: #F87171;
+    box-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+  }
+
+  .sc-indicator-line .sc-line {
+    flex-grow: 1;
+    height: 1px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+  }
+
+  .sc-stop-time-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sc-next-day-badge {
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: #F87171;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    border-radius: 4px;
+    padding: 1px 4px;
+    white-space: nowrap;
+  }
 }
+

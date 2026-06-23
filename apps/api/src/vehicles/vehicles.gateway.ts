@@ -71,14 +71,16 @@ export class WsJwtGuard implements CanActivate {
         ];
       }
 
-      // Allow Capacitor mobile app localhost origins only in development
-      if (!isProduction) {
-        if (!origins.includes('https://localhost')) {
-          origins.push('https://localhost');
-        }
-        if (!origins.includes('capacitor://localhost')) {
-          origins.push('capacitor://localhost');
-        }
+      // Allow Capacitor mobile app localhost origins in both dev and production
+      // (Capacitor apps send requests from https://localhost or capacitor://localhost)
+      if (!origins.includes('https://localhost')) {
+        origins.push('https://localhost');
+      }
+      if (!origins.includes('capacitor://localhost')) {
+        origins.push('capacitor://localhost');
+      }
+      if (!origins.includes('http://localhost')) {
+        origins.push('http://localhost');
       }
 
       return origins;
