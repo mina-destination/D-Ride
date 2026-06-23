@@ -9,8 +9,8 @@ import android.content.Intent
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
-import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -32,7 +32,6 @@ class BackgroundLocationService : Service() {
     private var token: String = ""
     private var vehicleId: String = ""
     private var driverId: String = ""
-    private var locationHandlerThread: HandlerThread? = null
 
     companion object {
         const val TAG = "BackgroundLocation"
@@ -68,11 +67,6 @@ class BackgroundLocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                // Stop any existing updates before re-initializing (handles service restart)
-                stopLocationUpdates()
-                quitLocationHandlerThread()
-                releaseWakeLock()
-
                 apiUrl = intent.getStringExtra(EXTRA_API_URL) ?: ""
                 token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 vehicleId = intent.getStringExtra(EXTRA_VEHICLE_ID) ?: ""
@@ -105,7 +99,6 @@ class BackgroundLocationService : Service() {
             }
             ACTION_STOP -> {
                 stopLocationUpdates()
-                quitLocationHandlerThread()
                 releaseWakeLock()
                 isRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -120,19 +113,9 @@ class BackgroundLocationService : Service() {
 
     override fun onDestroy() {
         stopLocationUpdates()
-        quitLocationHandlerThread()
         releaseWakeLock()
         isRunning = false
         super.onDestroy()
-    }
-
-    private fun quitLocationHandlerThread() {
-        try {
-            locationHandlerThread?.quitSafely()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error quitting location handler thread", e)
-        }
-        locationHandlerThread = null
     }
 
     private fun releaseWakeLock() {
@@ -180,12 +163,6 @@ class BackgroundLocationService : Service() {
     }
 
     private fun startLocationUpdates() {
-        // Use a background HandlerThread so location callbacks continue firing
-        // even when the app is in background (Android 12+ throttles the main looper).
-        locationHandlerThread = HandlerThread("LocationUpdates").apply {
-            start()
-        }
-
         // High accuracy, 2s interval update location request (Uber-style)
         val locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
@@ -217,9 +194,9 @@ class BackgroundLocationService : Service() {
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 locationCallback!!,
-                locationHandlerThread!!.looper
+                Looper.getMainLooper()
             )
-            Log.d(TAG, "Fused location updates requested on background thread")
+            Log.d(TAG, "Fused location updates requested successfully")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException: Location permission not granted for Fused client", e)
         } catch (e: Exception) {
