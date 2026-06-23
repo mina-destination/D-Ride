@@ -4,7 +4,7 @@ import { tripsAPI, routesAPI } from '../services/api';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
-import { Wifi, Snowflake, Zap } from 'lucide-react';
+import { Wifi, Snowflake, Zap, AlertCircle, Inbox } from 'lucide-react';
 import {
   Timeline,
   TimelineItem,
@@ -559,7 +559,7 @@ export default function TripSearchPage() {
           <div className="glass" style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: 'var(--radius-xl)' }}>
             {forwardBookingId ? (
               <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔁</div>
+                <AlertCircle style={{ color: 'var(--primary)', margin: '0 auto 1.25rem auto' }} size={48} />
                 <h3 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>
                   {isRtl ? 'لم نعثر على رحلات إياب في هذا التاريخ' : 'No return trips found for this date'}
                 </h3>
@@ -582,7 +582,7 @@ export default function TripSearchPage() {
                       borderRadius: '10px'
                     }}
                   >
-                    💳 {isRtl ? 'إكمال الحجز (ذهاب فقط)' : 'Complete Booking (One-Way)'}
+                    {isRtl ? 'إكمال الحجز (ذهاب فقط)' : 'Complete Booking (One-Way)'}
                   </button>
                   <button 
                     onClick={() => navigate('/')} 
@@ -593,13 +593,13 @@ export default function TripSearchPage() {
                       fontWeight: 700
                     }}
                   >
-                    🔍 {isRtl ? 'البحث عن مسار آخر / تغيير التاريخ' : 'Search Another Date / Route'}
+                    {isRtl ? 'البحث عن مسار آخر / تغيير التاريخ' : 'Search Another Date / Route'}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+                <Inbox style={{ color: 'var(--text-muted)', margin: '0 auto 1.25rem auto' }} size={48} />
                 <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t('noTripsFound')}</h3>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('noTripsFoundDesc')}</p>
                 <button onClick={() => navigate('/')} className="btn-primary">{t('searchAnotherRoute')}</button>
