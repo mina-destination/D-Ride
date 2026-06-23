@@ -202,8 +202,10 @@ export default function SupportChatWidget() {
             className="card glass"
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: '370px',
-              height: '520px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '370px',
+              height: 'calc(100% - 100px)',
+              maxHeight: '520px',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
