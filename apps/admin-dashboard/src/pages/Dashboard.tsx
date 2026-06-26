@@ -23,6 +23,7 @@ interface ActiveBus {
   seats: string;
   speed: number;
   status: string;
+  heading?: number;
 }
 
 // Curve drawing helpers are imported from dashboardHelpers
@@ -34,7 +35,7 @@ export default function DashboardPage() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const markersMapRef = useRef<Record<string, maplibregl.Marker>>({});
-  const lastCoordinatesRef = useRef<Record<string, { lat: number; lng: number }>>({});
+  const lastCoordinatesRef = useRef<Record<string, { lat: number; lng: number; heading?: number }>>({});
   const animationFramesRef = useRef<Record<string, number>>({});
   const fleetRef = useRef<ActiveBus[]>([]);
   const bookingsRef = useRef<any[]>([]);
@@ -459,6 +460,7 @@ export default function DashboardPage() {
         lng,
         seats: `${trip.bookedSeats} / ${trip.availableSeats}`,
         speed: liveLoc?.speedKmh || (trip.status === 'IN_TRANSIT' ? 50 : 0),
+        heading: liveLoc?.headingDegrees ?? 0,
         status: trip.status,
       };
     });
@@ -483,6 +485,7 @@ export default function DashboardPage() {
         lng,
         seats: 'N/A',
         speed: liveLoc.speedKmh || 0,
+        heading: liveLoc.headingDegrees ?? 0,
         status: 'ONLINE',
       });
     });
@@ -549,6 +552,7 @@ export default function DashboardPage() {
                 lat,
                 lng,
                 speed: data.speedKmh || 45,
+                heading: data.heading || 0,
               };
             }
             return bus;
@@ -639,10 +643,23 @@ export default function DashboardPage() {
           </div>
         `;
 
+        const rotation = bus.heading !== undefined ? bus.heading : 0;
+        const markerColor = '#F5B731'; // Golden Amber brand color
+        const svgContent = `
+          <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.3));">
+            <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.2" />
+            <circle cx="24" cy="24" r="14" fill="${markerColor}" stroke="#1e293b" stroke-width="2.5" />
+            <g id="vehicle-chevron" transform="translate(24, 24) rotate(${rotation}) translate(-24, -24)">
+              <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+            </g>
+          </svg>
+        `;
+
         let marker = markersMapRef.current[busId];
         if (!marker) {
           const el = document.createElement('div');
-          el.className = 'google-maps-bus-pointer';
+          el.style.cssText = 'width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer;';
+          el.innerHTML = svgContent;
 
           const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
 
@@ -652,7 +669,7 @@ export default function DashboardPage() {
             .addTo(map);
 
           markersMapRef.current[busId] = marker;
-          lastCoordinatesRef.current[busId] = { lat: bus.lat, lng: bus.lng };
+          lastCoordinatesRef.current[busId] = { lat: bus.lat, lng: bus.lng, heading: rotation };
         } else {
           // Update popup content in place
           const popup = marker.getPopup();
@@ -660,9 +677,16 @@ export default function DashboardPage() {
             popup.setHTML(popupHtml);
           }
 
+          // Update rotation instantly if not moving
+          const el = marker.getElement();
+          const chevron = el.querySelector('#vehicle-chevron');
+          if (chevron) {
+            chevron.setAttribute('transform', `translate(24, 24) rotate(${rotation}) translate(-24, -24)`);
+          }
+
           // Smooth animated interpolation glide to prevent jumping
           const from = lastCoordinatesRef.current[busId];
-          const to = { lat: bus.lat, lng: bus.lng };
+          const to = { lat: bus.lat, lng: bus.lng, heading: rotation };
 
           if (!from) {
             marker.setLngLat([bus.lng, bus.lat]);
@@ -679,8 +703,21 @@ export default function DashboardPage() {
               const currentLat = from.lat + (to.lat - from.lat) * t;
               const currentLng = from.lng + (to.lng - from.lng) * t;
 
+              // Interpolate heading rotation
+              const startHeading = from.heading ?? 0;
+              const endHeading = to.heading ?? 0;
+              let diff = endHeading - startHeading;
+              if (diff > 180) diff -= 360;
+              if (diff < -180) diff += 360;
+              const currentHeading = startHeading + diff * t;
+
               if (markersMapRef.current[busId]) {
                 markersMapRef.current[busId].setLngLat([currentLng, currentLat]);
+                const markerEl = markersMapRef.current[busId].getElement();
+                const mChevron = markerEl.querySelector('#vehicle-chevron');
+                if (mChevron) {
+                  mChevron.setAttribute('transform', `translate(24, 24) rotate(${currentHeading}) translate(-24, -24)`);
+                }
               }
 
               if (timeFraction < 1) {

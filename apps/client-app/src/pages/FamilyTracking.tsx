@@ -34,17 +34,20 @@ export default function FamilyTrackingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booking, setBooking] = useState<any>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number; heading?: number } | null>(null);
   const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
 
   // Telemetry & Animation States & Refs
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
   const [isStale, setIsStale] = useState(false);
   const animRef = useRef<number | null>(null);
-  const currentCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const currentCoordsRef = useRef<{ lat: number; lng: number; heading?: number } | null>(null);
   const isFirstLocationRef = useRef(true);
 
-  const startMarkerAnimation = (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
+  const startMarkerAnimation = (
+    start: { lat: number; lng: number; heading?: number },
+    end: { lat: number; lng: number; heading?: number }
+  ) => {
     if (animRef.current) {
       cancelAnimationFrame(animRef.current);
     }
@@ -59,10 +62,23 @@ export default function FamilyTrackingPage() {
       const currentLat = start.lat + (end.lat - start.lat) * progress;
       const currentLng = start.lng + (end.lng - start.lng) * progress;
 
-      currentCoordsRef.current = { lat: currentLat, lng: currentLng };
-      
+      // Interpolate heading
+      const startHeading = start.heading ?? 0;
+      const endHeading = end.heading ?? 0;
+      let diff = endHeading - startHeading;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      const currentHeading = startHeading + diff * progress;
+
+      currentCoordsRef.current = { lat: currentLat, lng: currentLng, heading: currentHeading };
+
       if (busMarkerRef.current) {
         busMarkerRef.current.setLngLat([currentLng, currentLat]);
+        const el = busMarkerRef.current.getElement();
+        const chevron = el.querySelector('#vehicle-chevron');
+        if (chevron) {
+          chevron.setAttribute('transform', `translate(24, 24) rotate(${currentHeading}) translate(-24, -24)`);
+        }
       }
 
       if (progress < 1) {
@@ -197,16 +213,21 @@ export default function FamilyTrackingPage() {
     if (!map || !location) return;
 
     const busCoords: [number, number] = [location.lng, location.lat];
+    const rotation = location.heading !== undefined ? location.heading : 0;
+    const markerColor = '#F5B731'; // Gold brand color
 
     if (!busMarkerRef.current) {
       const el = document.createElement('div');
-      el.style.width = '38px';
-      el.style.height = '38px';
-      el.style.transition = 'opacity 0.5s ease';
-
-      const busEl = document.createElement('div');
-      busEl.className = 'google-maps-bus-pointer';
-      el.appendChild(busEl);
+      el.style.cssText = 'width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.5s ease;';
+      el.innerHTML = `
+        <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.35));">
+          <circle cx="24" cy="24" r="20" fill="${markerColor}" fill-opacity="0.2" />
+          <circle cx="24" cy="24" r="14" fill="${markerColor}" stroke="#1e293b" stroke-width="2.5" />
+          <g id="vehicle-chevron" transform="translate(24, 24) rotate(${rotation}) translate(-24, -24)">
+            <path d="M24 13L30 29L24 26L18 29L24 13Z" fill="#FFFFFF" stroke-linejoin="round" />
+          </g>
+        </svg>
+      `;
 
       const busPopup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="color:#000; font-family: Inter, sans-serif; font-size:11px; padding:4px;">
@@ -225,6 +246,11 @@ export default function FamilyTrackingPage() {
     } else {
       if (!animRef.current) {
         busMarkerRef.current.setLngLat(busCoords);
+      }
+      const el = busMarkerRef.current.getElement();
+      const chevron = el.querySelector('#vehicle-chevron');
+      if (chevron) {
+        chevron.setAttribute('transform', `translate(24, 24) rotate(${rotation}) translate(-24, -24)`);
       }
     }
 

@@ -1729,3 +1729,44 @@ textarea:focus-visible {
     border-color: var(--border);
   }
 }
+
+/* MapLibre GL Premium Styling with Golden Amber accent */
+.maplibregl-ctrl-group {
+  background: rgba(26, 26, 26, 0.9) !important;
+  border: 1px solid rgba(245, 183, 49, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.maplibregl-ctrl-group button {
+  width: 32px !important;
+  height: 32px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.maplibregl-ctrl-group button span {
+  filter: invert(1) sepia(1) saturate(5) hue-rotate(340deg) !important; /* Tint icons to amber */
+}
+
+.maplibregl-popup-content {
+  background: rgba(26, 26, 26, 0.98) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(245, 183, 49, 0.4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  color: #ffffff !important;
+  padding: 12px 16px !important;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: rgba(245, 183, 49, 0.4) !important;
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: rgba(245, 183, 49, 0.4) !important;
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: rgba(245, 183, 49, 0.4) !important;
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: rgba(245, 183, 49, 0.4) !important;
+}
