@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api, { bookingsAPI, routesAPI } from '../services/api';
-import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Lock, Bus, Phone, RefreshCw } from 'lucide-react';
+import { Briefcase, Settings, LayoutGrid, User, ArrowRightToLine, Bus, Phone, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
@@ -1069,10 +1069,6 @@ export default function CheckoutPage() {
                         : t('confirmAndProceedBtn')
                     }
                   </button>
-                  
-                  <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', textAlign: 'center', margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    <Lock size={12} /> {t('seatsTemporaryHoldInfo')}
-                  </p>
                 </div>
               </div>
             )}
