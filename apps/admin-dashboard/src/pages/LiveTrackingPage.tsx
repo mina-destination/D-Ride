@@ -148,6 +148,7 @@ export function LiveTrackingPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(null);
   const [activePanic, setActivePanic] = useState<any | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -504,6 +505,9 @@ export function LiveTrackingPage() {
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
     setSelectedVehicleId(v.id);
     mapRef.current.easeTo({ center: [lng, lat], zoom: 13, duration: 1000 });
+    if (window.innerWidth < 1024) {
+      setMobileView('map');
+    }
   };
 
   const handleResolvePanic = () => {
@@ -516,6 +520,9 @@ export function LiveTrackingPage() {
     const { latitude, longitude, vehicleId } = activePanic;
     setSelectedVehicleId(vehicleId);
     mapRef.current.easeTo({ center: [longitude, latitude], zoom: 15, duration: 1500 });
+    if (window.innerWidth < 1024) {
+      setMobileView('map');
+    }
   };
 
   const filteredVehicles = vehicles.filter(v => {
@@ -539,6 +546,32 @@ export function LiveTrackingPage() {
 
   return (
     <div className="live-tracking-container flex flex-col w-full overflow-hidden">
+      {/* Mobile view switcher segmented controls */}
+      <div className="flex lg:hidden p-3 bg-surface border-b border-border justify-center z-20">
+        <div className="flex bg-surface-elevated p-1 rounded-xl border border-border w-full max-w-[280px]">
+          <button
+            onClick={() => setMobileView('map')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              mobileView === 'map'
+                ? 'bg-primary text-text-on-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Map View
+          </button>
+          <button
+            onClick={() => setMobileView('list')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              mobileView === 'list'
+                ? 'bg-primary text-text-on-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            List View ({filteredVehicles.length})
+          </button>
+        </div>
+      </div>
+
       {activePanic && (
         <div className="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg animate-pulse border-b border-red-700 z-50">
           <div className="flex items-center gap-3">
@@ -574,14 +607,16 @@ export function LiveTrackingPage() {
 
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* ── Sidebar Panel ── */}
-        <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
+        <div className={`live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10 ${
+          mobileView === 'map' ? 'hidden lg:flex' : 'flex-1 lg:flex-initial'
+        }`}>
           {!isOnline && (
             <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2.5 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2 animate-pulse">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
               Connection lost. Auto-updates paused.
             </div>
           )}
-          <div className="p-6 pb-3 border-b border-border">
+          <div className="p-6 pb-3 border-b border-border hidden lg:block">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary">
                 <span className="w-3.5 h-3.5 rounded-full bg-success animate-pulse inline-block" />
@@ -727,7 +762,9 @@ export function LiveTrackingPage() {
         </div>
 
         {/* ── Map Panel ── */}
-        <div className="live-tracking-map-panel flex-1 relative bg-[#0d0f14]">
+        <div className={`live-tracking-map-panel flex-1 relative bg-[#0d0f14] ${
+          mobileView === 'list' ? 'hidden lg:block' : 'block'
+        }`}>
           <div ref={mapContainerRef} className="w-full h-full" />
 
           {selectedVehicle && (

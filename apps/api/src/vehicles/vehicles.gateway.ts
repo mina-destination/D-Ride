@@ -83,6 +83,20 @@ export class WsJwtGuard implements CanActivate {
         origins.push('http://localhost');
       }
 
+      // Always allow D-Ride production/staging domains
+      const prodOrigins = [
+        'https://d-ride.net',
+        'https://admin.d-ride.net',
+        'https://api.d-ride.net',
+        'https://passenger.d-ride.net',
+        'https://driver.d-ride.net',
+      ];
+      prodOrigins.forEach((o) => {
+        if (!origins.includes(o)) {
+          origins.push(o);
+        }
+      });
+
       return origins;
     })(),
     credentials: true,
