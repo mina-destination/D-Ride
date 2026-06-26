@@ -244,7 +244,7 @@ export function LiveTrackingPage() {
 
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       auth: { token },
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,

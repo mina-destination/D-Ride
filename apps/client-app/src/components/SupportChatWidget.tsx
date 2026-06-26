@@ -86,7 +86,7 @@ export default function SupportChatWidget() {
     // Connect to /support namespace
     const socket = io(`${socketUrl}/support`, {
       path: '/api/socket.io',
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       auth: { token },
     });
 

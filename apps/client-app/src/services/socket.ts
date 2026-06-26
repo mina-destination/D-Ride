@@ -13,7 +13,7 @@ class SocketService {
       const token = localStorage.getItem('dride_token');
       this.socket = io(SOCKET_URL, {
         path: '/api/socket.io',
-        transports: ['polling', 'websocket'],
+        transports: ['websocket'],
         auth: { token },
       });
 

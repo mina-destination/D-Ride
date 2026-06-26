@@ -518,7 +518,7 @@ export default function DashboardPage() {
     const token = localStorage.getItem('dride_token');
     const socket = io(SOCKET_URL, {
       path: '/api/socket.io',
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       auth: { token },
     });
 
