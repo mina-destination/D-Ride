@@ -35,10 +35,24 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
+        <!-- Background Location Foreground Service — stopWithTask=false keeps it alive -->
         <service
             android:name="com.dride.driver.plugins.backgroundlocation.BackgroundLocationService"
             android:foregroundServiceType="location"
+            android:stopWithTask="false"
             android:exported="false" />
+
+        <!-- Restart Receiver — handles boot & kill recovery -->
+        <receiver
+            android:name="com.dride.driver.plugins.backgroundlocation.RestartReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.dride.driver.RESTART_LOCATION_SERVICE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
     <!-- Permissions -->
@@ -52,4 +66,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 </manifest>

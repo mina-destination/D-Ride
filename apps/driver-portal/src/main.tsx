@@ -17,49 +17,23 @@ try {
   console.error('Failed to load MapLibre RTL plugin:', e);
 }
 
-// Global MapLibre customization to fix black text labels in dark mode
+// Global MapLibre customization — always dark mode labels
 const OriginalMap = maplibregl.Map;
 class PatchedMap extends OriginalMap {
-  private _currentStyleUrlOrObj: any;
-
   constructor(options: any) {
     super(options);
-    this._currentStyleUrlOrObj = options?.style;
 
     this.on('style.load', () => {
       try {
         const style = this.getStyle();
-        let isDark = false;
-        const styleStr = typeof this._currentStyleUrlOrObj === 'string' ? this._currentStyleUrlOrObj : '';
-        
-        if (styleStr.includes('dark')) {
-          isDark = true;
-        } else if (styleStr.includes('bright') || styleStr.includes('light')) {
-          isDark = false;
-        } else if (style?.name && /dark/i.test(style.name)) {
-          isDark = true;
-        } else if (
-          document.body.classList.contains('dark') || 
-          document.documentElement.classList.contains('dark') ||
-          document.body.getAttribute('data-theme') === 'dark'
-        ) {
-          isDark = true;
-        }
-
         const layers = style?.layers;
         if (layers) {
           layers.forEach((layer: any) => {
             if (layer.type === 'symbol') {
               try {
-                if (isDark) {
-                  this.setPaintProperty(layer.id, 'text-color', '#ffffff');
-                  this.setPaintProperty(layer.id, 'text-halo-color', '#111827');
-                  this.setPaintProperty(layer.id, 'text-halo-width', 1.5);
-                } else {
-                  this.setPaintProperty(layer.id, 'text-color', '#1f2937');
-                  this.setPaintProperty(layer.id, 'text-halo-color', '#ffffff');
-                  this.setPaintProperty(layer.id, 'text-halo-width', 1.5);
-                }
+                this.setPaintProperty(layer.id, 'text-color', '#ffffff');
+                this.setPaintProperty(layer.id, 'text-halo-color', '#111827');
+                this.setPaintProperty(layer.id, 'text-halo-width', 1.5);
               } catch (e) {
                 // Ignore layers that do not support text paint properties
               }
@@ -71,14 +45,10 @@ class PatchedMap extends OriginalMap {
       }
     });
   }
-
-  override setStyle(style: any, options?: any) {
-    this._currentStyleUrlOrObj = style;
-    return super.setStyle(style, options);
-  }
 }
 
 (maplibregl as any).Map = PatchedMap;
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

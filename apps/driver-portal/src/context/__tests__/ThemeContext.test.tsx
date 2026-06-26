@@ -4,27 +4,24 @@ import { ThemeProvider, useTheme } from '../ThemeContext'
 
 // Test helper component
 function ThemeConsumer() {
-  const { theme, toggleTheme } = useTheme()
+  const { theme } = useTheme()
   return (
     <div>
       <span data-testid="theme-value">{theme}</span>
-      <button data-testid="toggle-btn" onClick={toggleTheme}>Toggle</button>
     </div>
   )
 }
 
 describe('ThemeContext', () => {
   beforeEach(() => {
-    localStorage.clear()
     document.documentElement.setAttribute('data-theme', '')
   })
 
   afterEach(() => {
-    localStorage.clear()
     document.documentElement.setAttribute('data-theme', '')
   })
 
-  it('provides dark theme by default', () => {
+  it('provides dark theme and locks data-theme to dark', () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
@@ -32,22 +29,5 @@ describe('ThemeContext', () => {
     )
     expect(screen.getByTestId('theme-value').textContent).toBe('dark')
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
-  })
-
-  it('allows toggling the theme and updates localStorage/document attributes', () => {
-    render(
-      <ThemeProvider>
-        <ThemeConsumer />
-      </ThemeProvider>
-    )
-    const toggleBtn = screen.getByTestId('toggle-btn')
-
-    act(() => {
-      toggleBtn.click()
-    })
-
-    expect(screen.getByTestId('theme-value').textContent).toBe('light')
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
-    expect(localStorage.getItem('dride-driver-theme')).toBe('light')
   })
 })

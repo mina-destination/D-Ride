@@ -810,6 +810,32 @@ export default function DashboardPage() {
     setCalendarDates(dates);
   }, []);
 
+  // Resume detection for Dashboard: if we are supposed to be streaming,
+  // ensure the watch is active when the app comes back to foreground.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isStreaming) {
+        console.log('[Dashboard] Resumed. Refreshing GPS watch...');
+        // Clear old watch first to avoid leaks
+        if (geoWatchId.current !== null) {
+          try {
+            await Geolocation.clearWatch({ id: geoWatchId.current });
+          } catch {}
+          geoWatchId.current = null;
+        }
+        // Re-trigger GPS watch
+        await triggerRealGPS();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isStreaming]);
+
 
 
   // Connect socket on mount, disconnect on unmount

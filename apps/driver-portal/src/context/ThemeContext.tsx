@@ -1,48 +1,29 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { getCSSVariables } from '@transport/shared-theme';
 
-type Theme = 'light' | 'dark';
-
 interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  theme: 'dark';
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem('dride-driver-theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    return 'dark'; // Driver default is dark
-  });
-
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('dride-driver-theme', theme);
+    // Lock to dark theme — no toggle, no localStorage branching
+    document.documentElement.setAttribute('data-theme', 'dark');
 
-    // Dynamically inject CSS variables from shared-theme to ensure consistency
     try {
-      const vars = getCSSVariables(theme);
+      const vars = getCSSVariables('dark');
       Object.entries(vars).forEach(([key, value]) => {
         document.documentElement.style.setProperty(key, value);
       });
     } catch (e) {
       console.warn('Failed to load shared theme vars', e);
     }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: 'dark' }}>
       {children}
     </ThemeContext.Provider>
   );

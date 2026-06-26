@@ -15,8 +15,7 @@ import {
   Square, 
   AlertTriangle, 
   Globe, 
-  Sun, 
-  Moon,
+
   MapPin,
   Users,
   CheckCircle,
@@ -33,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
+
 
 // Sound feedback helper
 function playChime(isSuccess: boolean) {
@@ -113,7 +112,7 @@ export default function LiveDrivePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, language, setLanguage, isRtl } = useTranslation();
-  const { theme, toggleTheme } = useTheme();
+
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -745,6 +744,32 @@ export default function LiveDrivePage() {
       stopLocationStream();
     };
   }, []);
+
+  // Resume detection for LiveDrive: if we are supposed to be streaming,
+  // ensure the watch is active when the app comes back to foreground.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isStreaming) {
+        console.log('[LiveDrive] Resumed. Refreshing GPS watch...');
+        // Clear old watch first to avoid leaks
+        if (geoWatchId.current !== null) {
+          try {
+            await Geolocation.clearWatch({ id: geoWatchId.current });
+          } catch {}
+          geoWatchId.current = null;
+        }
+        // Re-trigger GPS watch
+        await triggerRealGPS();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isStreaming]);
 
   const handleToggleCheckpoint = async (checkpointName: string) => {
     if (!trip) return;

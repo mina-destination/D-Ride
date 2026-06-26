@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Sun, Moon, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent, History, Star, Radio } from 'lucide-react';
+
+import { LayoutDashboard, Map, Bus, CarFront, UserCog, Ticket, CreditCard, Users, Settings, Search, Bell, Mail, LogOut, Shield, Megaphone, LifeBuoy, Handshake, User, Menu, BarChart3, Undo2, Calculator, Percent, History, Star, Radio } from 'lucide-react';
 import logo from '../assets/d-ride-logo.jpeg';
 import favicon from '../assets/favicon.png';
 import { useState, useEffect, useRef } from 'react';
@@ -93,7 +93,7 @@ const pathPermissionMap: Record<string, string> = {
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -502,9 +502,6 @@ export default function DashboardLayout() {
             )}
           </div>
           <div className="topbar-right">
-            <button className="topbar-icon-btn" onClick={toggleTheme} title="Toggle Theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
             <Popover
               content={
                 <div style={{ width: '320px' }}>

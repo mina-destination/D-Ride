@@ -110,6 +110,31 @@ export default function App() {
     requestNativePermissions();
   }, []);
 
+  // App resume detection — restart background location if the OS killed it
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+
+      try {
+        const { BackgroundLocation } = await import('./capacitor-plugins/background-location');
+        const status = await BackgroundLocation.isRunning();
+        
+        // If the service died while we expected it to be running, the
+        // Kotlin-side plugin.load() -> restartServiceIfNeeded() handles it.
+        // This log just gives us visibility into the app resume cycle.
+        console.log('[App] Resumed from background. Service running:', status.running);
+      } catch (err) {
+        console.warn('[App] Failed to check background location on resume:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+
   return (
     <AuthProvider>
       <LanguageProvider>

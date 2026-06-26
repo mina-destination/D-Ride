@@ -1,15 +1,15 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+
 import { useTranslation } from '../context/LanguageContext';
-import { Sun, Moon, User, Menu, X, MapPin, LogOut, Globe, Bell, HelpCircle, Sparkles, Map, Handshake, Mail, ChevronRight, Compass } from 'lucide-react';
+import { User, Menu, X, MapPin, LogOut, Globe, Bell, HelpCircle, Sparkles, Map, Handshake, Mail, ChevronRight, Compass } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import logo from '../assets/d-ride-logo.jpeg';
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+
   const { language, setLanguage, t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -326,13 +326,7 @@ export default function Navbar() {
           </>
         )}
         <li className="nav-actions-item">
-          <button
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+
           <button
             className="lang-toggle-btn"
             onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
