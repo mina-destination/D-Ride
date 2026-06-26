@@ -1069,3 +1069,7 @@ textarea {
   border-left-color: rgba(245, 183, 49, 0.4) !important;
 }
 
+/* Color-grade the map tiles with a touch of brand golden amber tint */
+.maplibregl-canvas {
+  filter: sepia(0.22) saturate(1.1) hue-rotate(340deg) brightness(0.9) contrast(1.05) !important;
+}

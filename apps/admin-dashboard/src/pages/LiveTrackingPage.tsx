@@ -627,11 +627,11 @@ export function LiveTrackingPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             ) : error && vehicles.length === 0 ? (
-              <div className="p-6">
-                <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">
-                  <span>⚠️ {error}</span>
-                </div>
-              </div>
+               <div className="p-6">
+                 <div className="p-4 mb-4 text-sm text-amber-500 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                   <span>⚠️ {error}</span>
+                 </div>
+               </div>
             ) : filteredVehicles.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                 <span className="text-lg text-text-muted mb-1">🔍</span>

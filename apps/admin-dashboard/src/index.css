@@ -2380,3 +2380,23 @@ select:focus,
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: rgba(245, 183, 49, 0.4) !important;
 }
+
+/* Color-grade the map tiles with a touch of brand golden amber tint */
+.maplibregl-canvas {
+  filter: sepia(0.22) saturate(1.1) hue-rotate(340deg) brightness(0.9) contrast(1.05) !important;
+}
+
+/* Responsive topbar search container adjustments */
+@media (max-width: 1024px) {
+  .topbar-search {
+    min-width: 180px;
+    max-width: 240px;
+    margin: 0 1rem;
+  }
+}
+
+@media (max-width: 850px) {
+  .topbar-search {
+    display: none !important;
+  }
+}

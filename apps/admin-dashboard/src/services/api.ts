@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { message } from '../utils/antdGlobal';
+import { notification } from '../utils/antdGlobal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -49,14 +49,24 @@ function showDebouncedError(msg: string) {
     errorToastTimeout = setTimeout(() => {
       if (pendingErrors.length > 0) {
         if (pendingErrors.length > 2) {
-          message.error(`Errors: ${pendingErrors.slice(0, 2).join(', ')} (+${pendingErrors.length - 2} more)`);
+          notification.error({
+            message: 'API Connectivity Error',
+            description: `Errors: ${pendingErrors.slice(0, 2).join(', ')} (+${pendingErrors.length - 2} more)`,
+            placement: 'topRight',
+          });
         } else {
-          pendingErrors.forEach(err => message.error(err));
+          pendingErrors.forEach(err => {
+            notification.error({
+              message: 'Connection Alert',
+              description: err,
+              placement: 'topRight',
+            });
+          });
         }
       }
       pendingErrors = [];
       errorToastTimeout = null;
-    }, 100);
+    }, 400);
   }
 }
 
