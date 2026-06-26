@@ -13,7 +13,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
 
 function RouteSearchForm() {
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, language } = useTranslation();
   const { theme } = useTheme();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -76,6 +76,56 @@ function RouteSearchForm() {
   // Map modal states
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [mapPickerCoords, setMapPickerCoords] = useState<[number, number] | null>(null);
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [mapSearchResults, setMapSearchResults] = useState<any[]>([]);
+  const [mapSearchLoading, setMapSearchLoading] = useState(false);
+  const [mapSearchDropdownOpen, setMapSearchDropdownOpen] = useState(false);
+
+  const closeMapPicker = () => {
+    setIsMapModalOpen(false);
+    setMapSearchQuery('');
+    setMapSearchResults([]);
+    setMapSearchDropdownOpen(false);
+  };
+
+  // Debounce and fetch Nominatim search results inside Egypt for map picker
+  useEffect(() => {
+    if (!mapSearchQuery || mapSearchQuery.length < 3) {
+      setMapSearchResults([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setMapSearchLoading(true);
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}&countrycodes=eg&limit=5`;
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'D-Ride Passenger Portal Location Selector (passenger@d-ride.net)'
+          }
+        });
+        const data = await res.json();
+        setMapSearchResults(data || []);
+      } catch (err) {
+        console.error('Nominatim map search failed', err);
+      } finally {
+        setMapSearchLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [mapSearchQuery]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.map-search-overlay')) {
+        setMapSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Fetch dynamic capacity limit based on route and date
   useEffect(() => {
@@ -166,7 +216,7 @@ function RouteSearchForm() {
 
       setFromStation(station);
       setFromQuery(isRtl ? (station.nameAr || station.name) : station.name);
-      setIsMapModalOpen(false);
+      closeMapPicker();
     }
   };
 
@@ -1287,19 +1337,135 @@ function RouteSearchForm() {
       </div>
 
       {isMapModalOpen && mapPickerCoords && (
-        <div className="map-picker-overlay" onClick={() => setIsMapModalOpen(false)}>
+        <div className="map-picker-overlay" onClick={closeMapPicker}>
           <div className="map-picker-content" onClick={(e) => e.stopPropagation()}>
             <div className="map-picker-header">
               <h3 className="map-picker-title">
                 {t('selectPickupLocationOnMap')}
               </h3>
-              <button className="map-picker-close" onClick={() => setIsMapModalOpen(false)}>
+              <button className="map-picker-close" onClick={closeMapPicker}>
                 <X size={20} />
               </button>
             </div>
 
-            <div className="map-picker-container">
+            <div className="map-picker-container" style={{ position: 'relative' }}>
               <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+              
+              {/* Nominatim Search Autocomplete Overlay */}
+              <div className="map-search-overlay" style={{
+                position: 'absolute',
+                top: '15px',
+                left: '15px',
+                right: '15px',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="text"
+                    placeholder={language === 'ar' ? 'ابحث عن موقع...' : 'Search for a location...'}
+                    value={mapSearchQuery}
+                    onChange={(e) => {
+                      setMapSearchQuery(e.target.value);
+                      setMapSearchDropdownOpen(true);
+                    }}
+                    onFocus={() => setMapSearchDropdownOpen(true)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 40px 12px 14px',
+                      background: 'rgba(26, 26, 26, 0.95)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(245, 183, 49, 0.3)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                      transition: 'all 0.2s',
+                    }}
+                  />
+                  {mapSearchLoading ? (
+                    <div className="btn-loading-spinner" style={{
+                      position: 'absolute',
+                      right: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      borderLeftColor: 'var(--primary)'
+                    }} />
+                  ) : (
+                    <Search size={16} style={{
+                      position: 'absolute',
+                      right: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--primary)',
+                      pointerEvents: 'none'
+                    }} />
+                  )}
+                </div>
+
+                {mapSearchDropdownOpen && (mapSearchResults.length > 0 || mapSearchLoading) && (
+                  <div style={{
+                    background: 'rgba(26, 26, 26, 0.98)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zIndex: 1001
+                  }}>
+                    {mapSearchResults.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={async () => {
+                          const lat = parseFloat(item.lat);
+                          const lng = parseFloat(item.lon);
+                          setMapSearchQuery(item.name || item.display_name.split(',')[0]);
+                          setMapSearchDropdownOpen(false);
+                          
+                          // Update map state
+                          setMapPickerCoords([lat, lng]);
+                          if (mapRef.current) {
+                            mapRef.current.flyTo({ center: [lng, lat], zoom: 14, animate: true });
+                          }
+                          if (markerRef.current) {
+                            markerRef.current.setLngLat([lng, lat]);
+                          }
+                          
+                          // Query nearest station
+                          await fetchNearestStationForCoords([lat, lng]);
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: language === 'ar' ? 'right' : 'left',
+                          padding: '10px 14px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                          color: '#e5e5e5',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 183, 49, 0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {item.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {nearestStationFromMap ? (
@@ -1331,7 +1497,7 @@ function RouteSearchForm() {
             <div className="map-picker-actions">
               <button
                 className="map-picker-btn-cancel"
-                onClick={() => setIsMapModalOpen(false)}
+                onClick={closeMapPicker}
               >
                 {t('cancelBtn')}
               </button>

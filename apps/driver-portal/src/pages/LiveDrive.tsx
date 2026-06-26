@@ -161,6 +161,28 @@ export default function LiveDrivePage() {
   const [lockCenter, setLockCenter] = useState(true);
   
   const geoWatchId = useRef<any>(null);
+  const [offlineCacheCount, setOfflineCacheCount] = useState(0);
+
+  // Monitor offline coordinates cache count
+  useEffect(() => {
+    const checkOfflineCache = () => {
+      try {
+        const stored = localStorage.getItem('dride_offline_coords');
+        if (!stored) {
+          setOfflineCacheCount(0);
+          return;
+        }
+        const queue = JSON.parse(stored);
+        setOfflineCacheCount(Array.isArray(queue) ? queue.length : 0);
+      } catch {
+        setOfflineCacheCount(0);
+      }
+    };
+
+    checkOfflineCache();
+    const interval = setInterval(checkOfflineCache, 1500);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load trip details, arrived checkpoints, and manifest
   useEffect(() => {
@@ -1222,6 +1244,21 @@ export default function LiveDrivePage() {
                       {isStreaming ? t('liveGpsBroadcast') : t('gpsStandby')}
                     </span>
                   </div>
+                  {/* Offline Cache Status Pill */}
+                  {offlineCacheCount > 0 && (
+                    <span style={{
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      color: '#f59e0b',
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      animation: 'pulse-opacity 2s infinite'
+                    }}>
+                      ⚠️ {offlineCacheCount} Cached Offline
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', margin: '2px 0' }}>

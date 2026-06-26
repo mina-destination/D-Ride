@@ -33,7 +33,9 @@ export default function DashboardPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const markersMapRef = useRef<Record<string, maplibregl.Marker>>({});
+  const lastCoordinatesRef = useRef<Record<string, { lat: number; lng: number }>>({});
+  const animationFramesRef = useRef<Record<string, number>>({});
   const fleetRef = useRef<ActiveBus[]>([]);
   const bookingsRef = useRef<any[]>([]);
   const mapViewModeRef = useRef<'FLEET' | 'HEATMAP'>('FLEET');
@@ -589,23 +591,39 @@ export default function DashboardPage() {
 
     if (!fleetChanged && !bookingsChanged && !modeChanged) return;
 
+    // Re-render/update markers in-place to allow smooth glide animations and avoid flickering
+    const currentMode = mapViewMode;
+    
+    if (modeChanged) {
+      // Mode changed, clean up all existing markers
+      Object.keys(markersMapRef.current).forEach(id => {
+        markersMapRef.current[id].remove();
+      });
+      markersMapRef.current = {};
+      
+      // Clean up animation frames
+      Object.keys(animationFramesRef.current).forEach(id => {
+        cancelAnimationFrame(animationFramesRef.current[id]);
+      });
+      animationFramesRef.current = {};
+      lastCoordinatesRef.current = {};
+    }
+
     // Update refs
     fleetRef.current = fleet;
     bookingsRef.current = bookings;
     mapViewModeRef.current = mapViewMode;
 
-    // Re-render markers
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
+    if (currentMode === 'FLEET') {
+      const activeIds = new Set<string>();
 
-    if (mapViewMode === 'FLEET') {
       fleet.forEach((bus) => {
         if (typeof bus.lng !== 'number' || typeof bus.lat !== 'number' || isNaN(bus.lng) || isNaN(bus.lat)) {
           return;
         }
-
-        const el = document.createElement('div');
-        el.className = 'google-maps-bus-pointer';
+        
+        const busId = bus.id;
+        activeIds.add(busId);
 
         const popupHtml = `
           <div style="min-width: 180px; padding: 0.25rem; font-family: Inter, sans-serif; color: var(--text-primary);">
@@ -621,16 +639,80 @@ export default function DashboardPage() {
           </div>
         `;
 
-        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
+        let marker = markersMapRef.current[busId];
+        if (!marker) {
+          const el = document.createElement('div');
+          el.className = 'google-maps-bus-pointer';
 
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([bus.lng, bus.lat])
-          .setPopup(popup)
-          .addTo(map);
+          const popup = new maplibregl.Popup({ offset: 15 }).setHTML(popupHtml);
 
-        markersRef.current.push(marker);
+          marker = new maplibregl.Marker({ element: el })
+            .setLngLat([bus.lng, bus.lat])
+            .setPopup(popup)
+            .addTo(map);
+
+          markersMapRef.current[busId] = marker;
+          lastCoordinatesRef.current[busId] = { lat: bus.lat, lng: bus.lng };
+        } else {
+          // Update popup content in place
+          const popup = marker.getPopup();
+          if (popup) {
+            popup.setHTML(popupHtml);
+          }
+
+          // Smooth animated interpolation glide to prevent jumping
+          const from = lastCoordinatesRef.current[busId];
+          const to = { lat: bus.lat, lng: bus.lng };
+
+          if (!from) {
+            marker.setLngLat([bus.lng, bus.lat]);
+            lastCoordinatesRef.current[busId] = to;
+          } else if (from.lat !== to.lat || from.lng !== to.lng) {
+            const duration = 2000; // 2 seconds transition
+            const start = performance.now();
+
+            const animateStep = (now: number) => {
+              const timeFraction = Math.min((now - start) / duration, 1);
+              // easeInOutQuad
+              const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
+
+              const currentLat = from.lat + (to.lat - from.lat) * t;
+              const currentLng = from.lng + (to.lng - from.lng) * t;
+
+              if (markersMapRef.current[busId]) {
+                markersMapRef.current[busId].setLngLat([currentLng, currentLat]);
+              }
+
+              if (timeFraction < 1) {
+                animationFramesRef.current[busId] = requestAnimationFrame(animateStep);
+              }
+            };
+
+            if (animationFramesRef.current[busId]) {
+              cancelAnimationFrame(animationFramesRef.current[busId]);
+            }
+            animationFramesRef.current[busId] = requestAnimationFrame(animateStep);
+            lastCoordinatesRef.current[busId] = to;
+          }
+        }
       });
-    } else if (mapViewMode === 'HEATMAP') {
+
+      // Clean up markers for inactive buses
+      Object.keys(markersMapRef.current).forEach(id => {
+        if (!activeIds.has(id)) {
+          markersMapRef.current[id].remove();
+          delete markersMapRef.current[id];
+          if (animationFramesRef.current[id]) {
+            cancelAnimationFrame(animationFramesRef.current[id]);
+            delete animationFramesRef.current[id];
+          }
+          delete lastCoordinatesRef.current[id];
+        }
+      });
+
+    } else if (currentMode === 'HEATMAP') {
+      const activeIds = new Set<string>();
+
       bookings
         .filter((b) => b.pickupCheckpoint)
         .forEach((booking) => {
@@ -641,25 +723,15 @@ export default function DashboardPage() {
             return;
           }
 
-          const el = document.createElement('div');
-          el.className = 'demand-heatmap-marker';
-          el.innerHTML = `
-            <div style="
-              width: 24px;
-              height: 24px;
-              border-radius: 50%;
-              background: rgba(239, 68, 68, 0.4);
-              border: 1.5px solid #f59e0b;
-              box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-            "></div>
-          `;
+          const bookingId = booking.id || booking._id;
+          activeIds.add(bookingId);
 
           const escapeHtml = (s: any) =>
             String(s).replace(/[&<>"']/g, (c: string) =>
               ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || ''),
             );
 
-          const popup = new maplibregl.Popup({ offset: 10 }).setHTML(`
+          const popupHtml = `
             <div style="padding: 0.15rem; font-family: Inter, sans-serif; color: var(--text-primary);">
               <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #ef4444; font-weight: bold;">Demand Area Hotspot</h4>
               <div style="font-size: 0.78rem;">
@@ -668,15 +740,46 @@ export default function DashboardPage() {
                 <strong>Status:</strong> ${escapeHtml(booking.status)}
               </div>
             </div>
-          `);
+          `;
 
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([coords[0], coords[1]])
-            .setPopup(popup)
-            .addTo(map);
+          let marker = markersMapRef.current[bookingId];
+          if (!marker) {
+            const el = document.createElement('div');
+            el.className = 'demand-heatmap-marker';
+            el.innerHTML = `
+              <div style="
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: rgba(239, 68, 68, 0.4);
+                border: 1.5px solid #f59e0b;
+                box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+              "></div>
+            `;
 
-          markersRef.current.push(marker);
+            const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
+
+            marker = new maplibregl.Marker({ element: el })
+              .setLngLat([coords[0], coords[1]])
+              .setPopup(popup)
+              .addTo(map);
+
+            markersMapRef.current[bookingId] = marker;
+          } else {
+            const popup = marker.getPopup();
+            if (popup) {
+              popup.setHTML(popupHtml);
+            }
+          }
         });
+
+      // Clean up markers for removed bookings
+      Object.keys(markersMapRef.current).forEach(id => {
+        if (!activeIds.has(id)) {
+          markersMapRef.current[id].remove();
+          delete markersMapRef.current[id];
+        }
+      });
     }
   }, [map, fleet, bookings, mapViewMode]); // Now safe - only updates when actual changes detected via refs
   useEffect(() => {
