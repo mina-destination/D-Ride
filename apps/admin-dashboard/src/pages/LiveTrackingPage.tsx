@@ -147,6 +147,7 @@ export function LiveTrackingPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(null);
   const [activePanic, setActivePanic] = useState<any | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -156,9 +157,14 @@ export function LiveTrackingPage() {
   const socketRef = useRef<any>(null);
 
   const fetchData = useCallback(async () => {
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      return;
+    }
     try {
       setError(null);
       const res = await vehiclesAPI.getAllLocations();
+      setIsOnline(true);
       const mapped: LiveVehicle[] = (res || []).map((v: any) => {
         const locRecord = v.location || v.locations?.[0];
         const coordinates = locRecord?.location?.coordinates || locRecord?.coordinates || null;
@@ -195,6 +201,9 @@ export function LiveTrackingPage() {
       });
       setVehicles(mapped);
     } catch (err: any) {
+      if (!navigator.onLine || err?.message?.includes('Network Error') || err?.message?.includes('NetworkError') || err?.status === 0) {
+        setIsOnline(false);
+      }
       setVehicles(prev => {
         if (prev.length === 0) {
           setError(err?.message || 'Failed to load vehicle locations');
@@ -210,6 +219,22 @@ export function LiveTrackingPage() {
     fetchData();
     const interval = setInterval(fetchData, REFRESH_INTERVAL);
     return () => clearInterval(interval);
+  }, [fetchData]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      fetchData();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [fetchData]);
 
   // Connect WebSocket once on mount
@@ -544,6 +569,12 @@ export function LiveTrackingPage() {
       <div className="live-tracking-container flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* ── Sidebar Panel ── */}
         <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
+          {!isOnline && (
+            <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2.5 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2 animate-pulse">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+              Connection lost. Auto-updates paused.
+            </div>
+          )}
           <div className="p-6 pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary">
