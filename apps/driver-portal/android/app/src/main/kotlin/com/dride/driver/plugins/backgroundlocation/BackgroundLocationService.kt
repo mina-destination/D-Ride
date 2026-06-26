@@ -84,7 +84,52 @@ class BackgroundLocationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        Log.d(TAG, "onStartCommand: action=$action, intent is null = ${intent == null}")
+
+        if (intent == null || action == null) {
+            val prefs = getSharedPreferences(RestartReceiver.PREFS_NAME, Context.MODE_PRIVATE)
+            val shouldRun = prefs.getBoolean(RestartReceiver.KEY_SHOULD_RUN, false)
+            if (shouldRun) {
+                apiUrl = prefs.getString(RestartReceiver.KEY_API_URL, "") ?: ""
+                token = prefs.getString(RestartReceiver.KEY_TOKEN, "") ?: ""
+                vehicleId = prefs.getString(RestartReceiver.KEY_VEHICLE_ID, "") ?: ""
+                driverId = prefs.getString(RestartReceiver.KEY_DRIVER_ID, "") ?: ""
+
+                if (apiUrl.isNotEmpty() && token.isNotEmpty() && vehicleId.isNotEmpty() && driverId.isNotEmpty()) {
+                    lastSentLatitude = 0.0
+                    lastSentLongitude = 0.0
+                    lastSentTime = 0L
+
+                    acquireWakeLock()
+                    startLocationThread()
+
+                    val notification = buildNotification("Live location tracking active")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            notification,
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                    isRunning = true
+                    startLocationUpdates()
+                    startNotificationUpdater()
+                    Log.d(TAG, "Sticky restart: Background location service initialized from SharedPreferences")
+                } else {
+                    Log.w(TAG, "Sticky restart: shouldRun is true but config is incomplete, stopping")
+                    stopSelf()
+                }
+            } else {
+                Log.d(TAG, "Sticky restart: shouldRun is false, stopping")
+                stopSelf()
+            }
+            return START_STICKY
+        }
+
+        when (action) {
             ACTION_START -> {
                 apiUrl = intent.getStringExtra(EXTRA_API_URL) ?: ""
                 token = intent.getStringExtra(EXTRA_TOKEN) ?: ""

@@ -728,7 +728,7 @@ export default function DashboardPage() {
     }
   }
 
-  function stopLocationStream() {
+  function cleanupWebviewListeners() {
     if (geoWatchId.current !== null) {
       if (Capacitor.isNativePlatform()) {
         Geolocation.clearWatch({ id: geoWatchId.current });
@@ -737,11 +737,15 @@ export default function DashboardPage() {
       }
       geoWatchId.current = null;
     }
+    setIsStreaming(false);
+    setHeading(0);
+  }
+
+  function stopLocationStream() {
+    cleanupWebviewListeners();
     if (Capacitor.isNativePlatform()) {
       BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
     }
-    setIsStreaming(false);
-    setHeading(0);
   }
 
 
@@ -853,7 +857,7 @@ export default function DashboardPage() {
     }
 
     return () => {
-      stopLocationStream();
+      cleanupWebviewListeners();
       socketService.disconnect();
     };
   }, []);
@@ -892,7 +896,7 @@ export default function DashboardPage() {
   // Clean up tracking on unmount
   useEffect(() => {
     return () => {
-      stopLocationStream();
+      cleanupWebviewListeners();
     };
   }, []);
 
@@ -1041,7 +1045,7 @@ export default function DashboardPage() {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      stopLocationStream();
+      cleanupWebviewListeners();
     };
   }, [activeTrip?._id, activeTrip?.status === 'IN_TRANSIT']);
 

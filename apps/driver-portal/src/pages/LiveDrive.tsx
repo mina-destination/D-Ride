@@ -763,7 +763,7 @@ export default function LiveDrivePage() {
     }
   };
 
-  const stopLocationStream = () => {
+  const cleanupWebviewListeners = () => {
     // clean up native background listener
     if (bgLocationListenerRef.current) {
       bgLocationListenerRef.current.remove();
@@ -779,12 +779,16 @@ export default function LiveDrivePage() {
         navigator.geolocation.clearWatch(oldId);
       }
     }
-    if (Capacitor.isNativePlatform()) {
-      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
-    }
     setIsStreaming(false);
     setSpeed(0);
     setHeading(0);
+  };
+
+  const stopLocationStream = () => {
+    cleanupWebviewListeners();
+    if (Capacitor.isNativePlatform()) {
+      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
+    }
   };
 
   // Connect socket on mount, disconnect on unmount
@@ -832,7 +836,7 @@ export default function LiveDrivePage() {
   useEffect(() => {
     startLocationStream();
     return () => {
-      stopLocationStream();
+      cleanupWebviewListeners();
     };
   }, []);
 
@@ -1011,7 +1015,6 @@ export default function LiveDrivePage() {
       }}>
         <button
           onClick={() => {
-            stopLocationStream();
             navigate(`/trips/${id}`);
           }}
           style={{
