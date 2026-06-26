@@ -262,6 +262,7 @@ export interface PaymobWebhookPayload {
     pending: boolean;
     order: {
       id: number;
+      merchant_order_id?: string;
     };
     owner: number;
     source_data: {
@@ -271,6 +272,11 @@ export interface PaymobWebhookPayload {
     };
     data: {
       message: string;
+    };
+    special_reference?: string;
+    payment_key_claims?: {
+      pm?: string;
+      [key: string]: any;
     };
   };
 }
@@ -361,4 +367,63 @@ export interface CreatePromoCodeDto {
   expiryDate?: Date | string | null;
   usageLimit?: number | null;
   isActive?: boolean;
+}
+
+// ── Pricing Logic ──────────────────────────────────────────
+
+export interface PricingTrip {
+  priceEGP?: number;
+  premiumSeatSurcharge?: number;
+}
+
+export interface PricingCheckpoint {
+  name: string;
+  prices?: Record<string, number>;
+  premiumSurcharges?: Record<string, number>;
+  priceFromStartEGP?: number;
+}
+
+export function calculateLegPrice(
+  trip: PricingTrip | null,
+  pickup: PricingCheckpoint | null,
+  dropoff: PricingCheckpoint | null
+): number {
+  if (!trip) return 0;
+  if (pickup && dropoff) {
+    if (pickup.prices && pickup.prices[dropoff.name] !== undefined) {
+      return Number(pickup.prices[dropoff.name]);
+    }
+    const pickupPrice = Number(pickup.priceFromStartEGP || 0);
+    const dropoffPrice = Number(dropoff.priceFromStartEGP || trip.priceEGP || 0);
+    const legPrice = dropoffPrice - pickupPrice;
+    if (legPrice > 0) return legPrice;
+  }
+  return Number(trip.priceEGP || 0);
+}
+
+export function calculatePremiumSurcharge(
+  trip: PricingTrip | null,
+  pickup: PricingCheckpoint | null,
+  dropoff: PricingCheckpoint | null
+): number {
+  if (!trip) return 0;
+  if (pickup && dropoff) {
+    if (pickup.premiumSurcharges && pickup.premiumSurcharges[dropoff.name] !== undefined) {
+      return Number(pickup.premiumSurcharges[dropoff.name]);
+    }
+  }
+  return Number(trip.premiumSeatSurcharge || 0);
+}
+
+export function calculateSubTotalFare({
+  legPrice,
+  selectedSeats,
+  premiumSurcharge,
+}: {
+  legPrice: number;
+  selectedSeats: number[];
+  premiumSurcharge: number;
+}): number {
+  const hasSeat1 = selectedSeats.some(s => Number(s) === 1);
+  return legPrice * selectedSeats.length + (hasSeat1 ? premiumSurcharge : 0);
 }

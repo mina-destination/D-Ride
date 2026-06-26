@@ -11,6 +11,126 @@ import { TripsService } from '../trips/trips.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Prisma, BookingStatus, PaymentStatus } from '@prisma/client';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import {
+  calculateLegPrice,
+  calculatePremiumSurcharge,
+  calculateSubTotalFare,
+} from '@transport/shared-types';
+
+export const USER_WITHOUT_PASSWORD = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  role: true,
+  avatarUrl: true,
+  isActive: true,
+  crmNotes: true,
+  createdAt: true,
+  updatedAt: true,
+  resetPasswordOtp: true,
+  resetPasswordOtpExpires: true,
+};
+
+export const BOOKING_INCLUDE = {
+  trip: {
+    include: {
+      route: true,
+      driver: {
+        select: USER_WITHOUT_PASSWORD,
+      },
+      vehicle: true,
+    },
+  },
+  user: {
+    select: USER_WITHOUT_PASSWORD,
+  },
+  transactions: true,
+  review: true,
+} satisfies Prisma.BookingInclude;
+
+export type BookingWithRelations = Prisma.BookingGetPayload<{
+  include: typeof BOOKING_INCLUDE;
+}>;
+
+export interface MappedBooking {
+  id: string;
+  _id: string;
+  userId?: {
+    id: string;
+    _id: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    avatarUrl: string | null;
+    isActive: boolean;
+    crmNotes: Prisma.JsonValue;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  tripId?: {
+    id: string;
+    _id: string;
+    routeId?: {
+      id: string;
+      _id: string;
+      name: string;
+      path: Prisma.JsonValue;
+      checkpoints: Prisma.JsonValue;
+      priceEGP: number;
+      premiumSeatSurcharge: number;
+      isActive: boolean;
+      isDeleted: boolean;
+    };
+    driver?: {
+      id: string;
+      _id: string;
+      name: string;
+      email: string;
+      phone: string;
+      role: string;
+      avatarUrl: string | null;
+      isActive: boolean;
+      crmNotes: Prisma.JsonValue;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+    vehicle?: {
+      id: string;
+      _id: string;
+      model: string;
+      plateNumber: string;
+      capacity: number;
+    } | null;
+    departureTime: Date;
+    arrivalTime: Date | null;
+    status: string;
+    priceEGP: number;
+    premiumSeatSurcharge: number;
+    availableSeats: number;
+    bookedSeats: number;
+    lockedSeats: Prisma.JsonValue;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  seatNumbers: number[];
+  pickupStopId: string;
+  dropoffStopId: string;
+  pickupCheckpoint: Prisma.JsonValue;
+  dropoffCheckpoint: Prisma.JsonValue;
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
+  amountEGP: number;
+  discountEGP: number;
+  promoCodeId: string | null;
+  boardingNumber: number | null;
+  qrVerificationToken: string;
+  createdAt: Date;
+  updatedAt: Date;
+  paymobOrderId?: number | null;
+  paymobPaymentId?: string | null;
+}
 
 @Injectable()
 export class BookingsService {
@@ -21,11 +141,35 @@ export class BookingsService {
     private notificationsService: NotificationsService,
   ) {}
 
-  private mapBooking(booking: any) {
+  private mapBooking(booking: any): MappedBooking | null {
     if (!booking) return null;
-    const b = { ...booking, _id: booking.id };
+
+    const seatNumbers = Array.isArray(booking.seatNumbers)
+      ? (booking.seatNumbers as number[])
+      : [];
+
+    const b: MappedBooking = {
+      id: booking.id,
+      _id: booking.id,
+      seatNumbers,
+      pickupStopId: booking.pickupStopId,
+      dropoffStopId: booking.dropoffStopId,
+      pickupCheckpoint: booking.pickupCheckpoint,
+      dropoffCheckpoint: booking.dropoffCheckpoint,
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      amountEGP: booking.amountEGP,
+      discountEGP: booking.discountEGP,
+      promoCodeId: booking.promoCodeId,
+      boardingNumber: booking.boardingNumber,
+      qrVerificationToken: booking.qrVerificationToken,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+      paymobOrderId: booking.paymobOrderId,
+    };
+
     if (booking.trip) {
-      const tripPopulated = {
+      const tripPopulated: any = {
         ...booking.trip,
         _id: booking.trip.id,
       };
@@ -41,7 +185,6 @@ export class BookingsService {
           ...booking.trip.driver,
           _id: booking.trip.driver.id,
         };
-        delete tripPopulated.driver.password;
       }
       if (booking.trip.vehicle) {
         tripPopulated.vehicle = {
@@ -50,16 +193,18 @@ export class BookingsService {
         };
       }
       b.tripId = tripPopulated;
-      delete b.trip;
     }
+
     if (booking.user) {
-      b.userId = { ...booking.user, _id: booking.user.id };
-      delete b.userId.password;
-      delete b.user;
+      b.userId = {
+        ...booking.user,
+        _id: booking.user.id,
+      };
     }
+
     if (booking.transactions) {
       const successTx = booking.transactions.find(
-        (t: any) => t.status === 'SUCCESS' && t.paymobPaymentId,
+        (t: any) => t.status === PaymentStatus.SUCCESS && t.paymobPaymentId,
       );
       if (successTx) {
         b.paymobPaymentId = successTx.paymobPaymentId;
@@ -68,51 +213,165 @@ export class BookingsService {
     return b;
   }
 
-  async findAll(): Promise<any[]> {
+  async findAll(): Promise<MappedBooking[]> {
     const bookings = await this.prisma.booking.findMany({
-      include: {
-        trip: {
-          include: {
-            route: true,
-          },
-        },
-        user: true,
-        transactions: true,
-      },
+      include: BOOKING_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    return bookings.map((b) => this.mapBooking(b));
+    return bookings
+      .map((b) => this.mapBooking(b))
+      .filter(Boolean) as MappedBooking[];
   }
 
-  async findMyBookings(userId: string): Promise<any[]> {
+  async findMyBookings(userId: string): Promise<MappedBooking[]> {
     const bookings = await this.prisma.booking.findMany({
       where: { userId },
-      include: {
-        trip: {
-          include: {
-            route: true,
-            driver: true,
-            vehicle: true,
-          },
-        },
-        review: true,
-      },
+      include: BOOKING_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    return bookings.map((b) => this.mapBooking(b));
+    return bookings
+      .map((b) => this.mapBooking(b))
+      .filter(Boolean) as MappedBooking[];
   }
-  private calculateBasePrice(
-    trip: any,
-    segmentPrice: number,
-    seatNumbers: number[],
-    customSurcharge?: number,
-  ): number {
-    const surcharge =
-      customSurcharge !== undefined
-        ? customSurcharge
-        : Number(trip.premiumSeatSurcharge || 0);
-    const hasSeat1 = seatNumbers.some((s) => Number(s) === 1);
-    return segmentPrice * seatNumbers.length + (hasSeat1 ? surcharge : 0);
+
+  private calculateSegmentOverlap(
+    routeCheckpoints: any[],
+    pickupA: string | null,
+    dropoffA: string | null,
+    pickupB: string | null,
+    dropoffB: string | null,
+  ): boolean {
+    if (routeCheckpoints.length < 2) return true;
+
+    const cpA_start = routeCheckpoints.find(
+      (cp) => cp.id === pickupA || cp.name === pickupA,
+    );
+    const cpA_end = routeCheckpoints.find(
+      (cp) => cp.id === dropoffA || cp.name === dropoffA,
+    );
+    const cpB_start = routeCheckpoints.find(
+      (cp) => cp.id === pickupB || cp.name === pickupB,
+    );
+    const cpB_end = routeCheckpoints.find(
+      (cp) => cp.id === dropoffB || cp.name === dropoffB,
+    );
+
+    let startA = 0;
+    let endA = routeCheckpoints.length - 1;
+    if (cpA_start && cpA_end) {
+      const pIdx = routeCheckpoints.indexOf(cpA_start);
+      const dIdx = routeCheckpoints.indexOf(cpA_end);
+      if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+        startA = pIdx;
+        endA = dIdx;
+      }
+    }
+
+    let startB = 0;
+    let endB = routeCheckpoints.length - 1;
+    if (cpB_start && cpB_end) {
+      const pIdx = routeCheckpoints.indexOf(cpB_start);
+      const dIdx = routeCheckpoints.indexOf(cpB_end);
+      if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+        startB = pIdx;
+        endB = dIdx;
+      }
+    }
+
+    return startA < endB && startB < endA;
+  }
+
+  private async getActiveBookedSeatsCount(
+    tripId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const activeBookings = await tx.booking.findMany({
+      where: {
+        tripId,
+        OR: [
+          {
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.BOARDED,
+                BookingStatus.COMPLETED,
+              ],
+            },
+          },
+          {
+            status: {
+              in: [BookingStatus.PENDING_PAYMENT, BookingStatus.PENDING],
+            },
+            createdAt: { gte: tenMinutesAgo },
+          },
+        ],
+      },
+      select: {
+        seatNumbers: true,
+        pickupStopId: true,
+        dropoffStopId: true,
+      },
+    });
+
+    const trip = await tx.trip.findUnique({
+      where: { id: tripId },
+      include: { route: true },
+    });
+
+    let peakBookedCount = 0;
+
+    if (
+      trip &&
+      trip.route?.checkpoints &&
+      Array.isArray(trip.route.checkpoints) &&
+      trip.route.checkpoints.length >= 2
+    ) {
+      const routeCheckpoints = trip.route.checkpoints as any[];
+      const segmentsCount = routeCheckpoints.length - 1;
+      const bookedOnSegment = new Array(segmentsCount).fill(0);
+
+      activeBookings.forEach((b: any) => {
+        const seatsCount =
+          b.seatNumbers && Array.isArray(b.seatNumbers)
+            ? b.seatNumbers.length
+            : 0;
+        if (seatsCount === 0) return;
+
+        const pCp = routeCheckpoints.find(
+          (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+        );
+        const dCp = routeCheckpoints.find(
+          (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
+        );
+
+        let startIdx = 0;
+        let endIdx = routeCheckpoints.length - 1;
+
+        if (pCp && dCp) {
+          const pIdx = routeCheckpoints.indexOf(pCp);
+          const dIdx = routeCheckpoints.indexOf(dCp);
+          if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
+            startIdx = pIdx;
+            endIdx = dIdx;
+          }
+        }
+
+        for (let i = startIdx; i < endIdx; i++) {
+          bookedOnSegment[i] += seatsCount;
+        }
+      });
+
+      peakBookedCount = Math.max(...bookedOnSegment, 0);
+    } else {
+      activeBookings.forEach((b: any) => {
+        if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
+          peakBookedCount += b.seatNumbers.length;
+        }
+      });
+    }
+
+    return peakBookedCount;
   }
 
   async cleanupExpiredBookings(tripId: string, tx?: any): Promise<number> {
@@ -234,6 +493,9 @@ export class BookingsService {
     const requestedSeatsList: number[] = data.seatNumbers || [1];
     const qrVerificationToken = crypto.randomBytes(16).toString('hex');
 
+    // Run database cleanup BEFORE starting the serializable transaction to avoid contention
+    await this.cleanupExpiredBookings(tripIdStr);
+
     const booking = await this.prisma.$transaction(
       async (tx) => {
         // 0. Acquire exclusive row-level lock on the trip via findUnique with Serializable isolation
@@ -247,8 +509,8 @@ export class BookingsService {
         });
         if (!currentTrip) throw new NotFoundException('Trip not found');
 
-        // 1. Clean up expired pending payments and recalculate current bookedSeats count
-        let activeBookedSeatsCount = await this.cleanupExpiredBookings(
+        // 1. Recalculate current bookedSeats count using read-only logic
+        let activeBookedSeatsCount = await this.getActiveBookedSeatsCount(
           tripIdStr,
           tx,
         );
@@ -272,7 +534,7 @@ export class BookingsService {
             where: { id: existingPending.id },
             data: { status: BookingStatus.CANCELLED },
           });
-          activeBookedSeatsCount = await this.cleanupExpiredBookings(
+          activeBookedSeatsCount = await this.getActiveBookedSeatsCount(
             tripIdStr,
             tx,
           );
@@ -486,28 +748,18 @@ export class BookingsService {
 
         activeBookings.forEach((b) => {
           if (b.seatNumbers && Array.isArray(b.seatNumbers)) {
-            const pCpB = routeCheckpoints.find(
-              (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+            const pickupId =
+              data.pickupCheckpointId || data.pickupStopId || null;
+            const dropoffId =
+              data.dropoffCheckpointId || data.dropoffStopId || null;
+
+            const overlap = this.calculateSegmentOverlap(
+              routeCheckpoints,
+              pickupId,
+              dropoffId,
+              b.pickupStopId,
+              b.dropoffStopId,
             );
-            const dCpB = routeCheckpoints.find(
-              (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
-            );
-
-            let startB = 0;
-            let endB = routeCheckpoints.length - 1;
-
-            if (pCpB && dCpB) {
-              const pIdx = routeCheckpoints.indexOf(pCpB);
-              const dIdx = routeCheckpoints.indexOf(dCpB);
-              if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-                startB = pIdx;
-                endB = dIdx;
-              }
-            }
-
-            const overlap =
-              routeCheckpoints.length < 2 ||
-              (startReq < endB && startB < endReq);
             if (overlap) {
               b.seatNumbers.forEach((s) => occupiedSeatIndexes.add(Number(s)));
             }
@@ -525,14 +777,17 @@ export class BookingsService {
         }
 
         const isReward = !!data.isReward;
+        const resolvedSurcharge =
+          customSurcharge !== undefined
+            ? customSurcharge
+            : Number(currentTrip.premiumSeatSurcharge || 0);
         const basePrice = isReward
           ? 0
-          : this.calculateBasePrice(
-              currentTrip,
-              segmentPrice,
-              requestedSeatsList,
-              customSurcharge,
-            );
+          : calculateSubTotalFare({
+              legPrice: segmentPrice,
+              selectedSeats: requestedSeatsList,
+              premiumSurcharge: resolvedSurcharge,
+            });
 
         let discountEGP = 0;
         let promoCodeId: string | null = null;
@@ -640,8 +895,15 @@ export class BookingsService {
           });
         }
 
-        // Update the trip's bookedSeats to include the newly requested seats (peak segment-based occupancy)
-        await this.cleanupExpiredBookings(tripIdStr, tx);
+        // Update the trip's bookedSeats using read-only peak segment count (no writes to bookings table inside serializable tx)
+        const updatedSeatsCount = await this.getActiveBookedSeatsCount(
+          tripIdStr,
+          tx,
+        );
+        await tx.trip.update({
+          where: { id: tripIdStr },
+          data: { bookedSeats: updatedSeatsCount },
+        });
 
         // Create a successful matching record in the Transaction table instantly inside the transaction boundary if REWARD payment
         if (isReward) {
@@ -1055,31 +1317,6 @@ export class BookingsService {
     });
 
     const routeCheckpoints = (trip?.route?.checkpoints as any[]) || [];
-    let startReq = 0;
-    let endReq = routeCheckpoints.length - 1;
-
-    if (
-      pickupCheckpointName &&
-      dropoffCheckpointName &&
-      routeCheckpoints.length >= 2
-    ) {
-      const pCp = routeCheckpoints.find(
-        (cp) =>
-          cp.name === pickupCheckpointName || cp.id === pickupCheckpointName,
-      );
-      const dCp = routeCheckpoints.find(
-        (cp) =>
-          cp.name === dropoffCheckpointName || cp.id === dropoffCheckpointName,
-      );
-      if (pCp && dCp) {
-        const pIdx = routeCheckpoints.indexOf(pCp);
-        const dIdx = routeCheckpoints.indexOf(dCp);
-        if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-          startReq = pIdx;
-          endReq = dIdx;
-        }
-      }
-    }
 
     const occupied: number[] = [];
     bookings.forEach((b) => {
@@ -1091,27 +1328,13 @@ export class BookingsService {
           dropoffCheckpointName &&
           routeCheckpoints.length >= 2
         ) {
-          const pCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.pickupStopId || cp.name === b.pickupStopId,
+          shouldInclude = this.calculateSegmentOverlap(
+            routeCheckpoints,
+            pickupCheckpointName,
+            dropoffCheckpointName,
+            b.pickupStopId,
+            b.dropoffStopId,
           );
-          const dCpB = routeCheckpoints.find(
-            (cp) => cp.id === b.dropoffStopId || cp.name === b.dropoffStopId,
-          );
-
-          let startB = 0;
-          let endB = routeCheckpoints.length - 1;
-
-          if (pCpB && dCpB) {
-            const pIdx = routeCheckpoints.indexOf(pCpB);
-            const dIdx = routeCheckpoints.indexOf(dCpB);
-            if (pIdx >= 0 && dIdx >= 0 && pIdx < dIdx) {
-              startB = pIdx;
-              endB = dIdx;
-            }
-          }
-
-          const overlap = startReq < endB && startB < endReq;
-          shouldInclude = overlap;
         }
 
         if (shouldInclude) {
@@ -1382,12 +1605,15 @@ export class BookingsService {
     const bookingSeatsList = Array.isArray(booking.seatNumbers)
       ? (booking.seatNumbers as number[])
       : [1];
-    const baseAmount = this.calculateBasePrice(
-      currentTrip,
-      segmentPrice,
-      bookingSeatsList,
-      customSurcharge,
-    );
+    const resolvedSurcharge =
+      customSurcharge !== undefined
+        ? customSurcharge
+        : Number(currentTrip.premiumSeatSurcharge || 0);
+    const baseAmount = calculateSubTotalFare({
+      legPrice: segmentPrice,
+      selectedSeats: bookingSeatsList,
+      premiumSurcharge: resolvedSurcharge,
+    });
 
     return this.prisma.$transaction(async (tx) => {
       if (!code || code.trim() === '') {

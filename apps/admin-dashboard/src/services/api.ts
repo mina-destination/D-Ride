@@ -1,174 +1,45 @@
-import axios from 'axios';
+import { createApiClient, registerToastCallback, STORAGE_KEYS } from '@transport/shared-api';
 import { notification } from '../utils/antdGlobal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const api = axios.create({
+// Register Ant Design notification adapter
+registerToastCallback((title, description, type) => {
+  if (type === 'error') {
+    notification.error({
+      message: title || 'Connection Alert',
+      description,
+      placement: 'topRight',
+    });
+  } else if (type === 'success') {
+    notification.success({
+      message: title || 'Success',
+      description,
+      placement: 'topRight',
+    });
+  } else if (type === 'warning') {
+    notification.warning({
+      message: title || 'Warning',
+      description,
+      placement: 'topRight',
+    });
+  } else {
+    notification.info({
+      message: title || 'Info',
+      description,
+      placement: 'topRight',
+    });
+  }
+});
+
+const api = createApiClient({
   baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  getToken: () => localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN),
+  getRefreshToken: () => localStorage.getItem(STORAGE_KEYS.ADMIN_REFRESH_TOKEN),
+  tokenKey: STORAGE_KEYS.ADMIN_TOKEN,
+  refreshTokenKey: STORAGE_KEYS.ADMIN_REFRESH_TOKEN,
+  userKey: STORAGE_KEYS.ADMIN_USER,
 });
-
-// Request interceptor — attach JWT token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('dride_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-function addIdMapping(data: any): any {
-  if (!data) return data;
-  if (Array.isArray(data)) {
-    return data.map(addIdMapping);
-  }
-  if (typeof data === 'object') {
-    const updated = { ...data };
-    if ('id' in updated && !('_id' in updated)) {
-      updated._id = updated.id;
-    }
-    for (const key in updated) {
-      if (updated[key] && typeof updated[key] === 'object') {
-        updated[key] = addIdMapping(updated[key]);
-      }
-    }
-    return updated;
-  }
-  return data;
-}
-
-let errorToastTimeout: any = null;
-let pendingErrors: string[] = [];
-
-function showDebouncedError(msg: string) {
-  if (!pendingErrors.includes(msg)) {
-    pendingErrors.push(msg);
-  }
-  if (!errorToastTimeout) {
-    errorToastTimeout = setTimeout(() => {
-      if (pendingErrors.length > 0) {
-        if (pendingErrors.length > 2) {
-          notification.error({
-            message: 'API Connectivity Error',
-            description: `Errors: ${pendingErrors.slice(0, 2).join(', ')} (+${pendingErrors.length - 2} more)`,
-            placement: 'topRight',
-          });
-        } else {
-          pendingErrors.forEach(err => {
-            notification.error({
-              message: 'Connection Alert',
-              description: err,
-              placement: 'topRight',
-            });
-          });
-        }
-      }
-      pendingErrors = [];
-      errorToastTimeout = null;
-    }, 400);
-  }
-}
-
-// ─── Silent Token Refresh Logic ────────────────────────────────
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-// Response interceptor — unwrap API response, attach pagination if present
-api.interceptors.response.use(
-  (response) => {
-    const data = response.data?.data ?? response.data;
-    const pagination = response.data?.pagination;
-    const mapped = addIdMapping(data);
-    if (pagination && Array.isArray(mapped)) {
-      (mapped as any).pagination = pagination;
-    }
-    return mapped;
-  },
-  async (error) => {
-    const originalRequest = error.config;
-
-    // Attempt token refresh on 401 (skip for auth endpoints to avoid infinite loop)
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/login') &&
-      !originalRequest.url?.includes('/auth/refresh') &&
-      !originalRequest.url?.includes('/auth/register')
-    ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const storedRefreshToken = localStorage.getItem('dride_refresh_token');
-      if (storedRefreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken: storedRefreshToken });
-          const resData = response.data?.data || response.data;
-          const { accessToken, refreshToken: newRefreshToken } = resData;
-          localStorage.setItem('dride_token', accessToken);
-          localStorage.setItem('dride_refresh_token', newRefreshToken);
-          api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-          processQueue(null, accessToken);
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          processQueue(refreshError, null);
-          localStorage.removeItem('dride_token');
-          localStorage.removeItem('dride_refresh_token');
-          localStorage.removeItem('dride_user');
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
-        localStorage.removeItem('dride_token');
-        localStorage.removeItem('dride_user');
-        window.location.href = '/login';
-      }
-    }
-    
-    const errorData = error.response?.data;
-    let errorMsg = 'Something went wrong';
-    if (errorData) {
-      if (typeof errorData === 'string') {
-        errorMsg = errorData;
-      } else if (errorData.message) {
-        if (Array.isArray(errorData.message)) {
-          errorMsg = errorData.message.join(', ');
-        } else {
-          errorMsg = errorData.message;
-        }
-      }
-    } else if (error.message) {
-      errorMsg = error.message;
-    }
-    
-    showDebouncedError(errorMsg);
-    
-    return Promise.reject(error.response?.data || error);
-  },
-);
 
 export default api;
 

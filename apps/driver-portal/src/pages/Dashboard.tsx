@@ -822,7 +822,9 @@ export default function DashboardPage() {
         if (geoWatchId.current !== null) {
           try {
             await Geolocation.clearWatch({ id: geoWatchId.current });
-          } catch {}
+          } catch (err) {
+            console.warn('[Dashboard] Failed to clear watch:', err);
+          }
           geoWatchId.current = null;
         }
         // Re-trigger GPS watch

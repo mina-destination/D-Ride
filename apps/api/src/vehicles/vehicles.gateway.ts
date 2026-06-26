@@ -240,7 +240,10 @@ export class VehiclesGateway
     );
 
     // If the user has an administrative role, automatically join them to the 'admin' room
-    if (client.user && ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(client.user.role)) {
+    if (
+      client.user &&
+      ['OWNER', 'ADMIN', 'SUPER_ADMIN', 'OPERATION'].includes(client.user.role)
+    ) {
       client.join('admin');
       this.logger.log(`Admin client ${client.id} joined 'admin' room`);
     }
@@ -295,11 +298,15 @@ export class VehiclesGateway
           );
         } else {
           // Check if native HTTP channel has recently sent updates
-          const recentLocation = await this.prisma.liveVehicleLocation.findUnique({
-            where: { vehicleId: driverData.vehicleId },
-          });
+          const recentLocation =
+            await this.prisma.liveVehicleLocation.findUnique({
+              where: { vehicleId: driverData.vehicleId },
+            });
           const thirtySecondsAgo = new Date(Date.now() - 30_000);
-          if (recentLocation?.lastUpdatedAt && recentLocation.lastUpdatedAt > thirtySecondsAgo) {
+          if (
+            recentLocation?.lastUpdatedAt &&
+            recentLocation.lastUpdatedAt > thirtySecondsAgo
+          ) {
             this.logger.log(
               `Driver socket disconnected, but native HTTP location updates were active within the last 30s. Keeping vehicle online.`,
             );
@@ -642,7 +649,9 @@ export class VehiclesGateway
     this.server.to('admin').emit('driverEmergencyPanic', payload);
 
     // Also broadcast to the vehicle room
-    this.server.to(`vehicle_${data.vehicleId}`).emit('driverEmergencyPanic', payload);
+    this.server
+      .to(`vehicle_${data.vehicleId}`)
+      .emit('driverEmergencyPanic', payload);
 
     return { event: 'driverEmergencyPanicAck', data: { success: true } };
   }

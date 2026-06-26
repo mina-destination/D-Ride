@@ -189,7 +189,10 @@ export class VehiclesService {
           } as any,
           speedKmh: data.speedKmh ?? 0,
           headingDegrees: data.headingDegrees ?? 0,
-          batteryPercentage: data.batteryPercentage !== undefined ? data.batteryPercentage : undefined,
+          batteryPercentage:
+            data.batteryPercentage !== undefined
+              ? data.batteryPercentage
+              : undefined,
           status: 'ACTIVE',
           lastUpdatedAt: new Date(),
         },
@@ -205,7 +208,10 @@ export class VehiclesService {
           } as any,
           speedKmh: data.speedKmh ?? 0,
           headingDegrees: data.headingDegrees ?? 0,
-          batteryPercentage: data.batteryPercentage !== undefined ? data.batteryPercentage : null,
+          batteryPercentage:
+            data.batteryPercentage !== undefined
+              ? data.batteryPercentage
+              : null,
           lastUpdatedAt: new Date(),
         },
       });

@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { createClient, RedisClientType } from 'redis';
 
 export interface SendMessagePayload {
   ticketId: string;
@@ -59,8 +60,7 @@ export class SupportGateway
   server: Server;
 
   private readonly logger = new Logger(SupportGateway.name);
-  private rateLimitCleanupInterval: ReturnType<typeof setInterval> | null =
-    null;
+  private redisClient: RedisClientType;
 
   constructor(
     private prisma: PrismaService,
@@ -68,7 +68,18 @@ export class SupportGateway
     private configService: ConfigService,
     @Inject(forwardRef(() => WhatsappService))
     private whatsappService: WhatsappService,
-  ) {}
+  ) {
+    const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+    this.redisClient = createClient({
+      url: redisUrl,
+      disableOfflineQueue: true,
+    }) as any;
+    this.redisClient.connect().catch((err) => {
+      this.logger.error(
+        `SupportGateway failed to connect to Redis: ${err.message}`,
+      );
+    });
+  }
 
   afterInit(server: Server) {
     server.use((socket: any, next) => {
@@ -99,51 +110,63 @@ export class SupportGateway
       }
     });
 
-    // Rate limiting: max 30 messages per minute per connection
-    const rateLimitMap = new Map<
-      string,
-      { count: number; resetTime: number }
-    >();
     const RATE_LIMIT = 30;
-    const RATE_WINDOW_MS = 60 * 1000;
+    const RATE_WINDOW_SECONDS = 60;
 
-    server.use((socket: any, next) => {
-      const now = Date.now();
+    server.use(async (socket: any, next) => {
       const userId = socket.user?.id || socket.id;
-      const record = rateLimitMap.get(userId);
+      const key = `ws:support:rate:${userId}`;
 
-      if (!record || now > record.resetTime) {
-        rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_WINDOW_MS });
+      if (this.redisClient && this.redisClient.isReady) {
+        try {
+          const current = await this.redisClient.incr(key);
+          if (current === 1) {
+            await this.redisClient.expire(key, RATE_WINDOW_SECONDS);
+          }
+          if (current > RATE_LIMIT) {
+            this.logger.warn(`Redis Rate limit exceeded for user ${userId}`);
+            socket.disconnect(true);
+            return;
+          }
+          return next();
+        } catch (err: any) {
+          this.logger.error(`Redis rate limiter error: ${err.message}`);
+        }
+      }
+
+      // Fallback inline in-memory rate limiter directly on socket instance (no memory leak)
+      if (!socket.rateLimitRecord) {
+        socket.rateLimitRecord = {
+          count: 1,
+          resetTime: Date.now() + RATE_WINDOW_SECONDS * 1000,
+        };
       } else {
-        record.count++;
-        if (record.count > RATE_LIMIT) {
-          this.logger.warn(`Rate limit exceeded for user ${userId}`);
-          socket.disconnect(true);
-          return;
+        const now = Date.now();
+        if (now > socket.rateLimitRecord.resetTime) {
+          socket.rateLimitRecord.count = 1;
+          socket.rateLimitRecord.resetTime = now + RATE_WINDOW_SECONDS * 1000;
+        } else {
+          socket.rateLimitRecord.count++;
+          if (socket.rateLimitRecord.count > RATE_LIMIT) {
+            this.logger.warn(
+              `In-memory Rate limit exceeded for user ${userId}`,
+            );
+            socket.disconnect(true);
+            return;
+          }
         }
       }
       next();
     });
-
-    // Cleanup old entries periodically
-    this.rateLimitCleanupInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [key, record] of rateLimitMap.entries()) {
-        if (now > record.resetTime) {
-          rateLimitMap.delete(key);
-        }
-      }
-    }, RATE_WINDOW_MS);
   }
 
-  onModuleDestroy() {
-    if (this.rateLimitCleanupInterval) {
-      clearInterval(this.rateLimitCleanupInterval);
-      this.rateLimitCleanupInterval = null;
+  async onModuleDestroy() {
+    if (this.redisClient) {
+      await this.redisClient.disconnect().catch(() => {});
     }
   }
 
-  handleConnection(client: any) {
+  async handleConnection(client: any) {
     const user = client.user;
     const role = (user?.role || '').toUpperCase();
 
@@ -157,11 +180,39 @@ export class SupportGateway
       this.logger.log(
         `Support client ${client.id} (User: ${user?.id || 'unknown'}, Role: ${user?.role || 'none'}) joined support_operators room`,
       );
+    } else if (user) {
+      // Cache all support tickets they own on connection to protect Postgres pool
+      try {
+        const tickets = await this.prisma.supportTicket.findMany({
+          where: { userId: user.id },
+          select: { id: true },
+        });
+        const ticketIds = tickets.map((t) => t.id);
+
+        if (ticketIds.length > 0) {
+          client.ownedTicketIds = new Set(ticketIds);
+
+          if (this.redisClient && this.redisClient.isReady) {
+            const cacheKey = `ws:support:user_tickets:${user.id}`;
+            await this.redisClient.sAdd(cacheKey, ticketIds);
+            await this.redisClient.expire(cacheKey, 3600);
+          }
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to cache ticket ownership for user ${user.id}: ${err.message}`,
+        );
+      }
     }
     this.logger.log(`Support client connected: ${client.id}`);
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
+    const user = (client as any).user;
+    if (user && this.redisClient && this.redisClient.isReady) {
+      const cacheKey = `ws:support:user_tickets:${user.id}`;
+      await this.redisClient.del(cacheKey).catch(() => {});
+    }
     this.logger.log(`Support client disconnected: ${client.id}`);
   }
 
@@ -183,11 +234,42 @@ export class SupportGateway
       user.role,
     );
     if (!isAdmin) {
-      // Verify that the ticket is owned by the authenticated user
-      const ticket = await this.prisma.supportTicket.findUnique({
-        where: { id: ticketId },
-      });
-      if (!ticket || ticket.userId !== user.id) {
+      let isOwned = false;
+      const clientWithTickets = client as any;
+      if (
+        clientWithTickets.ownedTicketIds &&
+        clientWithTickets.ownedTicketIds.has(ticketId)
+      ) {
+        isOwned = true;
+      } else if (this.redisClient && this.redisClient.isReady) {
+        try {
+          const cacheKey = `ws:support:user_tickets:${user.id}`;
+          isOwned = await this.redisClient.sIsMember(cacheKey, ticketId);
+        } catch (err: any) {
+          this.logger.error(`Redis sIsMember check failed: ${err.message}`);
+        }
+      }
+
+      if (!isOwned) {
+        // Fallback: query database to self-heal cache
+        const ticket = await this.prisma.supportTicket.findUnique({
+          where: { id: ticketId },
+        });
+        if (ticket && ticket.userId === user.id) {
+          isOwned = true;
+          if (clientWithTickets.ownedTicketIds) {
+            clientWithTickets.ownedTicketIds.add(ticketId);
+          } else {
+            clientWithTickets.ownedTicketIds = new Set([ticketId]);
+          }
+          if (this.redisClient && this.redisClient.isReady) {
+            const cacheKey = `ws:support:user_tickets:${user.id}`;
+            await this.redisClient.sAdd(cacheKey, ticketId).catch(() => {});
+          }
+        }
+      }
+
+      if (!isOwned) {
         this.logger.warn(
           `Access Denied: User ${user.id} with role ${user.role} attempted to join support ticket room ${ticketId} without ownership`,
         );

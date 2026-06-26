@@ -1,4 +1,11 @@
-import { IsUUID, IsNotEmpty, IsLatitude, IsLongitude, IsOptional, IsNumber } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsLatitude,
+  IsLongitude,
+  IsOptional,
+  IsNumber,
+} from 'class-validator';
 
 export class UpdateLocationDto {
   @IsUUID()

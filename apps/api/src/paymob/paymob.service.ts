@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymobWebhookPayload } from '@transport/shared-types';
+import { Prisma } from '@prisma/client';
 import { BookingsService } from '../bookings/bookings.service';
 import { PaymentStatus } from '@prisma/client';
 import axios from 'axios';
@@ -79,8 +80,7 @@ export class PaymobService implements OnModuleInit {
     const amountCents = payload.obj.amount_cents;
     const success = payload.obj.success;
     const bookingId =
-      (payload.obj.order as any)?.merchant_order_id ||
-      (payload.obj as any).special_reference;
+      payload.obj.order.merchant_order_id || payload.obj.special_reference;
 
     // Step 2-4: Wrap standard booking confirmation update paths inside isolated transaction
     await this.prisma.$transaction(async (tx) => {
@@ -126,7 +126,7 @@ export class PaymobService implements OnModuleInit {
             paymobOrderId: orderId,
             status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
             paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
-            rawResponse: payload as any,
+            rawResponse: payload as unknown as Prisma.InputJsonValue,
           },
         });
       } else {
@@ -136,12 +136,11 @@ export class PaymobService implements OnModuleInit {
             paymobOrderId: orderId,
             amountEGP: amountCents / 100,
             status: success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED,
-            paymentMethod:
-              (payload.obj as any).payment_key_claims?.pm || 'CARD',
+            paymentMethod: payload.obj.payment_key_claims?.pm || 'CARD',
             paymobPaymentId: payload.obj.id ? payload.obj.id.toString() : null,
             userId: userId,
             bookingId: bookingId || null,
-            rawResponse: payload as any,
+            rawResponse: payload as unknown as Prisma.InputJsonValue,
           },
         });
       }

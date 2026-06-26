@@ -279,7 +279,7 @@ export class AuthService {
       return { message: 'If the email exists, an OTP has been sent.' };
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const hashedOtp = await bcrypt.hash(otp, 10);
 
@@ -337,7 +337,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const hashedOtp = await bcrypt.hash(otp, 10);
 
