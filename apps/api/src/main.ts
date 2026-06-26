@@ -96,9 +96,8 @@ async function bootstrap() {
     if (isProduction) {
       origins = origins.filter(
         (o) =>
-          !o.includes('localhost') &&
           !o.includes('127.0.0.1') &&
-          o !== 'capacitor://localhost',
+          (o === 'capacitor://localhost' || o === 'http://localhost' || o === 'https://localhost' || !o.includes('localhost')),
       );
     }
   } else {
@@ -115,17 +114,15 @@ async function bootstrap() {
     ];
   }
 
-  // Allow Capacitor mobile app localhost origins in development only
-  if (!isProduction) {
-    if (!origins.includes('https://localhost')) {
-      origins.push('https://localhost');
-    }
-    if (!origins.includes('capacitor://localhost')) {
-      origins.push('capacitor://localhost');
-    }
-    if (!origins.includes('http://localhost')) {
-      origins.push('http://localhost');
-    }
+  // Always allow Capacitor/Cordova mobile app localhost origins (in dev and prod)
+  if (!origins.includes('https://localhost')) {
+    origins.push('https://localhost');
+  }
+  if (!origins.includes('capacitor://localhost')) {
+    origins.push('capacitor://localhost');
+  }
+  if (!origins.includes('http://localhost')) {
+    origins.push('http://localhost');
   }
 
   app.enableCors({
