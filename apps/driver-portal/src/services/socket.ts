@@ -38,6 +38,9 @@ class SocketService {
       this.socket.on('disconnect', () => {
         console.log('Driver disconnected from WebSocket server');
       });
+    } else if (!this.socket.connected) {
+      console.log('Socket already exists but is disconnected. Reconnecting...');
+      this.socket.connect();
     }
   }
 
@@ -50,7 +53,7 @@ class SocketService {
         this.socket = null;
       }
       this.disconnectTimeout = null;
-    }, 1000);
+    }, 5000);
   }
 
   forceDisconnect() {

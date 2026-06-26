@@ -703,7 +703,13 @@ export default function LiveDrivePage() {
   // Connect socket on mount, disconnect on unmount
   useEffect(() => {
     socketService.connect();
+    return () => {
+      socketService.disconnect();
+    };
+  }, []);
 
+  // Register trip-specific event handlers (re-register when trip/id changes)
+  useEffect(() => {
     const handleTripStatusUpdate = (data: any) => {
       if (trip && (data.tripId === trip._id || data.tripId === trip.id)) {
         setTrip((prev: any) => prev ? { ...prev, status: data.status } : null);
@@ -728,12 +734,10 @@ export default function LiveDrivePage() {
     }
 
     return () => {
-      stopLocationStream();
       if (socketService.socket) {
         socketService.socket.off('tripStatusUpdate', handleTripStatusUpdate);
         socketService.socket.off('checkpointUpdate', handleCheckpointUpdate);
       }
-      socketService.disconnect();
     };
   }, [trip, id]);
 
@@ -746,22 +750,28 @@ export default function LiveDrivePage() {
   }, []);
 
   // Resume detection for LiveDrive: if we are supposed to be streaming,
-  // ensure the watch is active when the app comes back to foreground.
+  // ensure the watch is active and socket is connected when the app comes back to foreground.
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isStreaming) {
-        console.log('[LiveDrive] Resumed. Refreshing GPS watch...');
-        // Clear old watch first to avoid leaks
-        if (geoWatchId.current !== null) {
-          try {
-            await Geolocation.clearWatch({ id: geoWatchId.current });
-          } catch {}
-          geoWatchId.current = null;
+      if (document.visibilityState === 'visible') {
+        // Reconnect WebSocket if it died while backgrounded
+        if (!socketService.socket?.connected) {
+          console.log('[LiveDrive] Resumed. Reconnecting socket...');
+          socketService.connect();
         }
-        // Re-trigger GPS watch
-        await triggerRealGPS();
+
+        if (isStreaming && Capacitor.isNativePlatform()) {
+          console.log('[LiveDrive] Resumed. Refreshing GPS watch...');
+          // Clear old watch first to avoid leaks
+          if (geoWatchId.current !== null) {
+            try {
+              await Geolocation.clearWatch({ id: geoWatchId.current });
+            } catch {}
+            geoWatchId.current = null;
+          }
+          // Re-trigger GPS watch
+          await triggerRealGPS();
+        }
       }
     };
 

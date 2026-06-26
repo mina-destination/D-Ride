@@ -281,11 +281,11 @@ export class VehiclesGateway
         client.leave(`vehicle_${driverData.vehicleId}`);
         await this.delRedisValue(key);
 
-        // Check if there is an active trip currently in transit or boarding using this vehicle
+        // Check if there is an active trip currently scheduled, boarding, or in transit using this vehicle
         const activeTrip = await this.prisma.trip.findFirst({
           where: {
             vehicleId: driverData.vehicleId,
-            status: { in: ['BOARDING', 'IN_TRANSIT'] },
+            status: { in: ['SCHEDULED', 'BOARDING', 'IN_TRANSIT'] },
           },
         });
 
@@ -294,7 +294,18 @@ export class VehiclesGateway
             `Driver disconnected socket, but has active trip ${activeTrip.id}. Keeping vehicle online for background tracking.`,
           );
         } else {
-          await this.vehiclesService.markVehicleOffline(driverData.vehicleId);
+          // Check if native HTTP channel has recently sent updates
+          const recentLocation = await this.prisma.liveVehicleLocation.findUnique({
+            where: { vehicleId: driverData.vehicleId },
+          });
+          const thirtySecondsAgo = new Date(Date.now() - 30_000);
+          if (recentLocation?.lastUpdatedAt && recentLocation.lastUpdatedAt > thirtySecondsAgo) {
+            this.logger.log(
+              `Driver socket disconnected, but native HTTP location updates were active within the last 30s. Keeping vehicle online.`,
+            );
+          } else {
+            await this.vehiclesService.markVehicleOffline(driverData.vehicleId);
+          }
         }
       } else {
         this.logger.log(`Client disconnected: ${client.id}`);
