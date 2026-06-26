@@ -46,9 +46,6 @@ export class VehiclesController {
   @Post('location')
   async updateLocation(@Request() req: any, @Body() data: UpdateLocationDto) {
     const location = await this.vehiclesService.upsertLocation(data, req.user);
-    // Broadcast via WebSocket so admin/passenger/family get real-time updates
-    // even when location arrives via the native HTTP fallback channel
-    this.vehiclesGateway.broadcastVehicleLocation(data.vehicleId, location);
     return {
       success: true,
       data: location,

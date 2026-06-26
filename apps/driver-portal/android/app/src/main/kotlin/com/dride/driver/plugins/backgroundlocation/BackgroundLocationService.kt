@@ -48,6 +48,10 @@ class BackgroundLocationService : Service() {
     private var notificationHandler: Handler? = null
     private var lastLocationTime: Long = 0L
 
+    private var lastSentLatitude: Double = 0.0
+    private var lastSentLongitude: Double = 0.0
+    private var lastSentTime: Long = 0L
+
     companion object {
         const val TAG = "BackgroundLocation"
         const val CHANNEL_ID = "dride_location_channel"
@@ -86,6 +90,10 @@ class BackgroundLocationService : Service() {
                 token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 vehicleId = intent.getStringExtra(EXTRA_VEHICLE_ID) ?: ""
                 driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: ""
+
+                lastSentLatitude = 0.0
+                lastSentLongitude = 0.0
+                lastSentTime = 0L
 
                 // Save config to SharedPreferences for restart recovery
                 saveConfig()
@@ -337,7 +345,22 @@ class BackgroundLocationService : Service() {
                 lastSpeed = if (location.hasSpeed()) location.speed else 0f
                 lastLocationTime = System.currentTimeMillis()
 
-                sendLocationToApi(location)
+                // Throttling logic to restrict api uploads when static
+                val now = System.currentTimeMillis()
+                val isFirstUpdate = lastSentTime == 0L
+                val timeDiff = now - lastSentTime
+                val distDiff = if (isFirstUpdate) 0.0 else calculateDistance(
+                    lastSentLatitude, lastSentLongitude,
+                    location.latitude, location.longitude
+                )
+
+                if (isFirstUpdate || distDiff >= 5.0 || timeDiff >= 15000L) {
+                    lastSentLatitude = location.latitude
+                    lastSentLongitude = location.longitude
+                    lastSentTime = now
+                    sendLocationToApi(location)
+                }
+
                 eventCallback?.invoke(
                     location.latitude,
                     location.longitude,
@@ -373,6 +396,17 @@ class BackgroundLocationService : Service() {
             }
         }
         locationCallback = null
+    }
+
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6371000.0 // Earth radius in meters
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
     }
 
     // ── API Sender with Retry ─────────────────────────────────
