@@ -94,6 +94,7 @@ class SocketService {
     latitude: number;
     speed?: number | null;
     heading?: number | null;
+    battery?: number | null;
   }) {
     const now = Date.now();
 

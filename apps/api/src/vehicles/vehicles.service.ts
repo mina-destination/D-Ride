@@ -132,6 +132,7 @@ export class VehiclesService {
       latitude: number;
       speedKmh?: number;
       headingDegrees?: number;
+      batteryPercentage?: number;
     },
     caller?: { sub: string; role: string },
   ): Promise<any> {
@@ -188,6 +189,7 @@ export class VehiclesService {
           } as any,
           speedKmh: data.speedKmh ?? 0,
           headingDegrees: data.headingDegrees ?? 0,
+          batteryPercentage: data.batteryPercentage !== undefined ? data.batteryPercentage : undefined,
           status: 'ACTIVE',
           lastUpdatedAt: new Date(),
         },
@@ -203,6 +205,7 @@ export class VehiclesService {
           } as any,
           speedKmh: data.speedKmh ?? 0,
           headingDegrees: data.headingDegrees ?? 0,
+          batteryPercentage: data.batteryPercentage !== undefined ? data.batteryPercentage : null,
           lastUpdatedAt: new Date(),
         },
       });
@@ -319,6 +322,7 @@ export class VehiclesService {
       latitude: data.latitude,
       speed: data.speedKmh ?? 0,
       heading: data.headingDegrees ?? 0,
+      batteryLevel: data.batteryPercentage,
     });
 
     return { ...updatedLocation, _id: updatedLocation.id };

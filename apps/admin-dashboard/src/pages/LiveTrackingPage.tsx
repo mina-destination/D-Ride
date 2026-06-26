@@ -178,8 +178,8 @@ export function LiveTrackingPage() {
               lng,
               lat,
               speed: locRecord?.speedKmh || locRecord?.speed || 0,
-              heading: locRecord?.heading,
-              batteryLevel: locRecord?.batteryLevel,
+              heading: locRecord?.headingDegrees !== undefined ? locRecord.headingDegrees : (locRecord?.heading ?? 0),
+              batteryLevel: locRecord?.batteryPercentage !== undefined ? locRecord.batteryPercentage : (locRecord?.batteryLevel ?? null),
               lastUpdated: locRecord?.lastUpdatedAt || locRecord?.timestamp || new Date().toISOString(),
             };
           }
@@ -306,7 +306,13 @@ export function LiveTrackingPage() {
     });
 
     return () => { 
-      socket.disconnect(); 
+      // Delay disconnection slightly to allow the handshake to finish during StrictMode double-mount cycles
+      const currentSocket = socket;
+      setTimeout(() => {
+        if (currentSocket) {
+          currentSocket.disconnect();
+        }
+      }, 100);
       socketRef.current = null; 
       stopSirenSound();
     };
@@ -532,7 +538,7 @@ export function LiveTrackingPage() {
   });
 
   return (
-    <div className="flex flex-col w-full h-[calc(100vh-120px)] m-[-1rem_-2rem] overflow-hidden">
+    <div className="live-tracking-container flex flex-col w-full overflow-hidden">
       {activePanic && (
         <div className="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg animate-pulse border-b border-red-700 z-50">
           <div className="flex items-center gap-3">
@@ -566,7 +572,7 @@ export function LiveTrackingPage() {
         </div>
       )}
 
-      <div className="live-tracking-container flex flex-col lg:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* ── Sidebar Panel ── */}
         <div className="live-tracking-sidebar w-full lg:w-[420px] lg:min-w-[420px] bg-surface border-b lg:border-b-0 lg:border-r border-border flex flex-col z-10">
           {!isOnline && (

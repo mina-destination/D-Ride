@@ -149,7 +149,13 @@ async function bootstrap() {
       .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document);
+    SwaggerModule.setup('api/docs', app, document, {
+      customfavIcon:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      swaggerOptions: {
+        deepLinking: true,
+      },
+    });
   }
 
   // Enable graceful shutdown hooks

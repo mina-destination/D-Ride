@@ -442,6 +442,10 @@ class BackgroundLocationService : Service() {
                 conn.connectTimeout = 10000
                 conn.readTimeout = 10000
 
+                val bm = getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+                val batteryPct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                val batteryPercentageJson = if (batteryPct >= 0) batteryPct.toString() else "null"
+
                 val jsonBody = """
                     {
                         "vehicleId": "$vehicleId",
@@ -449,7 +453,8 @@ class BackgroundLocationService : Service() {
                         "longitude": ${location.longitude},
                         "latitude": ${location.latitude},
                         "speedKmh": ${if (location.hasSpeed()) location.speed * 3.6 else 0},
-                        "headingDegrees": ${if (location.hasBearing()) location.bearing else 0}
+                        "headingDegrees": ${if (location.hasBearing()) location.bearing else 0},
+                        "batteryPercentage": $batteryPercentageJson
                     }
                 """.trimIndent()
 

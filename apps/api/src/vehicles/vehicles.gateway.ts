@@ -467,6 +467,7 @@ export class VehiclesGateway
       latitude: number;
       speed?: number | null;
       heading?: number | null;
+      battery?: number | null;
     },
   ) {
     const user = client.user;
@@ -535,6 +536,7 @@ export class VehiclesGateway
           latitude: data.latitude,
           speed: data.speed ?? 0,
           heading: data.heading ?? 0,
+          battery: data.battery ?? null,
           updatedAt: new Date().toISOString(),
         }),
       );
@@ -551,6 +553,7 @@ export class VehiclesGateway
         latitude: data.latitude,
         speedKmh: data.speed ?? 0,
         headingDegrees: data.heading ?? 0,
+        batteryPercentage: data.battery ?? undefined,
       });
       return { event: 'locationAck', data: { success: true } };
     } catch (e: any) {

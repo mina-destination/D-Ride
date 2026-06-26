@@ -7,6 +7,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { socketService } from '../services/socket';
 import { driverAPI, API_URL } from '../services/api';
 import { BackgroundLocation } from '../capacitor-plugins/background-location';
+import type { BackgroundLocationData } from '../capacitor-plugins/background-location';
+import { Device } from '@capacitor/device';
 import { Html5Qrcode } from 'html5-qrcode';
 import { parseTicketQr } from '../utils/qr';
 import { 
@@ -161,6 +163,12 @@ export default function LiveDrivePage() {
   const [lockCenter, setLockCenter] = useState(true);
   
   const geoWatchId = useRef<any>(null);
+  const isStreamingRef = useRef(false);
+  const bgLocationListenerRef = useRef<any>(null);
+
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
   const [offlineCacheCount, setOfflineCacheCount] = useState(0);
 
   // Monitor offline coordinates cache count
@@ -195,6 +203,16 @@ export default function LiveDrivePage() {
         setTrip(currentTrip);
 
         if (currentTrip) {
+          if (Capacitor.isNativePlatform()) {
+            const token = localStorage.getItem('dride_driver_token') || '';
+            BackgroundLocation.start({
+              apiUrl: API_URL,
+              token,
+              vehicleId: currentTrip.vehicleId?._id || currentTrip.vehicleId?.id || '',
+              driverId: user?._id || '',
+            }).catch(err => console.warn('Failed to start background location:', err));
+          }
+
           // Load manifest
           try {
             const manifestData = await driverAPI.getTripManifest(id);
@@ -600,51 +618,76 @@ export default function LiveDrivePage() {
       console.warn('Non-critical: Failed to request battery optimization ignore:', e);
     }
 
+    // 6. OEM Specific Restriction Warning (Non-blocking)
+    try {
+      const info = await Device.getInfo();
+      const manufacturer = info.manufacturer?.toLowerCase() || '';
+      const oemKillers = ['xiaomi', 'oppo', 'vivo', 'realme', 'oneplus', 'huawei', 'honor'];
+      if (oemKillers.some(oem => manufacturer.includes(oem))) {
+        window.alert(
+          `Your device (${info.manufacturer}) uses aggressive battery management that ` +
+          `can stop background apps even when battery optimization is disabled.\n\n` +
+          `For uninterrupted tracking, please also:\n` +
+          `1. Open your phone's Security or Battery app\n` +
+          `2. Find D-Ride in the app list\n` +
+          `3. Enable "Autostart" or "Allow background activity"\n\n` +
+          `This is a one-time setup.`
+        );
+      }
+    } catch (e) {
+      console.warn('Could not detect device manufacturer:', e);
+    }
+
     return true;
+  };
+
+  const handleSuccess = async (lat: number, lng: number, speedVal?: number | null, headingVal?: number | null) => {
+    setCurrentCoords({ lat, lng });
+    const computedSpeed = speedVal != null && speedVal > 0 ? speedVal * 3.6 : 0;
+    setSpeed(Number(computedSpeed.toFixed(1)));
+    if (headingVal != null) {
+      setHeading(headingVal);
+    }
+
+    let batteryLevel: number | null = null;
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const info = await Device.getBatteryInfo();
+        batteryLevel = Math.round((info.batteryLevel || 1) * 100);
+      } else if ('getBattery' in navigator) {
+        const battery = await (navigator as any).getBattery();
+        batteryLevel = Math.round(battery.level * 100);
+      }
+    } catch (e) {
+      console.warn('Failed to get battery info:', e);
+    }
+
+    socketService.sendLocation({
+      vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || 'mock-vehicle-123',
+      driverId: user?._id || 'mock-driver-123',
+      longitude: lng,
+      latitude: lat,
+      speed: computedSpeed,
+      heading: headingVal ?? null,
+      battery: batteryLevel,
+    });
+  };
+
+  const handleFailure = (errorMsg: string) => {
+    console.warn('GPS error:', errorMsg);
+    setGpsError(t('gpsNotAvailable'));
+    setIsStreaming(false);
+    setSpeed(0);
   };
 
   const triggerRealGPS = async () => {
     setIsStreaming(true);
     setGpsError(null);
 
-    if (Capacitor.isNativePlatform()) {
-      const token = localStorage.getItem('dride_driver_token') || '';
-      BackgroundLocation.start({
-        apiUrl: API_URL,
-        token,
-        vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || '',
-        driverId: user?._id || '',
-      }).catch(err => console.warn('Failed to start background location:', err));
-    }
-
     const watchOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
       maximumAge: 0
-    };
-
-    const handleSuccess = (lat: number, lng: number, speedVal?: number | null, headingVal?: number | null) => {
-      setCurrentCoords({ lat, lng });
-      const computedSpeed = speedVal != null && speedVal > 0 ? speedVal * 3.6 : 0;
-      setSpeed(Number(computedSpeed.toFixed(1)));
-      if (headingVal != null) {
-        setHeading(headingVal);
-      }
-      socketService.sendLocation({
-        vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || 'mock-vehicle-123',
-        driverId: user?._id || 'mock-driver-123',
-        longitude: lng,
-        latitude: lat,
-        speed: computedSpeed,
-        heading: headingVal ?? null,
-      });
-    };
-
-    const handleFailure = (errorMsg: string) => {
-      console.warn('GPS error:', errorMsg);
-      setGpsError(t('gpsNotAvailable'));
-      setIsStreaming(false);
-      setSpeed(0);
     };
 
     if (Capacitor.isNativePlatform()) {
@@ -671,6 +714,21 @@ export default function LiveDrivePage() {
         geoWatchId.current = watchId;
       } catch (err: any) {
         handleFailure(err.message || 'Failed to watch native position');
+      }
+
+      try {
+        if (bgLocationListenerRef.current) {
+          bgLocationListenerRef.current.remove();
+          bgLocationListenerRef.current = null;
+        }
+        bgLocationListenerRef.current = await BackgroundLocation.addListener(
+          'locationUpdate',
+          (data: BackgroundLocationData) => {
+            handleSuccess(data.latitude, data.longitude, data.speed / 3.6, data.heading);
+          }
+        );
+      } catch (err) {
+        console.warn('Failed to add background location listener:', err);
       }
     } else {
       if ('geolocation' in navigator) {
@@ -706,13 +764,20 @@ export default function LiveDrivePage() {
   };
 
   const stopLocationStream = () => {
+    // clean up native background listener
+    if (bgLocationListenerRef.current) {
+      bgLocationListenerRef.current.remove();
+      bgLocationListenerRef.current = null;
+    }
+
     if (geoWatchId.current !== null) {
+      const oldId = geoWatchId.current;
+      geoWatchId.current = null; // null immediately — prevents double-clear
       if (Capacitor.isNativePlatform()) {
-        Geolocation.clearWatch({ id: geoWatchId.current });
+        Geolocation.clearWatch({ id: oldId }).catch(err => console.warn('[LiveDrive] clearWatch failed:', err));
       } else {
-        navigator.geolocation.clearWatch(geoWatchId.current);
+        navigator.geolocation.clearWatch(oldId);
       }
-      geoWatchId.current = null;
     }
     if (Capacitor.isNativePlatform()) {
       BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
@@ -782,14 +847,17 @@ export default function LiveDrivePage() {
           socketService.connect();
         }
 
-        if (isStreaming && Capacitor.isNativePlatform()) {
+        if (isStreamingRef.current && Capacitor.isNativePlatform()) {
           console.log('[LiveDrive] Resumed. Refreshing GPS watch...');
           // Clear old watch first to avoid leaks
           if (geoWatchId.current !== null) {
+            const oldId = geoWatchId.current;
+            geoWatchId.current = null; // null FIRST before async call
             try {
-              await Geolocation.clearWatch({ id: geoWatchId.current });
-            } catch {}
-            geoWatchId.current = null;
+              await Geolocation.clearWatch({ id: oldId });
+            } catch (e) {
+              console.warn('[LiveDrive] clearWatch failed:', e);
+            }
           }
           // Re-trigger GPS watch
           await triggerRealGPS();
@@ -801,7 +869,7 @@ export default function LiveDrivePage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isStreaming]);
+  }, []);
 
   const handleToggleCheckpoint = async (checkpointName: string) => {
     if (!trip) return;

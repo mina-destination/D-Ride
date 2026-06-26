@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PromoCodesService } from './promo-codes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -16,6 +17,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { UpdatePromoCodeDto } from './dto/update-promo-code.dto';
 
+@ApiTags('promo-codes')
 @Controller('promo-codes')
 export class PromoCodesController {
   constructor(private readonly promoCodesService: PromoCodesService) {}

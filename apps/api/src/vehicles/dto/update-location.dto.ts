@@ -1,4 +1,4 @@
-import { IsUUID, IsNotEmpty, IsLatitude, IsLongitude } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsLatitude, IsLongitude, IsOptional, IsNumber } from 'class-validator';
 
 export class UpdateLocationDto {
   @IsUUID()
@@ -16,4 +16,16 @@ export class UpdateLocationDto {
   @IsLatitude()
   @IsNotEmpty()
   latitude: number;
+
+  @IsOptional()
+  @IsNumber()
+  speedKmh?: number;
+
+  @IsOptional()
+  @IsNumber()
+  headingDegrees?: number;
+
+  @IsOptional()
+  @IsNumber()
+  batteryPercentage?: number;
 }

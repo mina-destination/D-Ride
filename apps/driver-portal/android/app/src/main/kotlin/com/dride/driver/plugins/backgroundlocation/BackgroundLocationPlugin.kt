@@ -16,6 +16,11 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import android.Manifest
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 @CapacitorPlugin(
     name = "BackgroundLocation",
@@ -97,6 +102,21 @@ class BackgroundLocationPlugin : Plugin() {
             context.startService(intent)
         }
 
+        // Schedule WorkManager watchdog
+        try {
+            val watchdog = PeriodicWorkRequestBuilder<LocationWatchdogWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(Constraints.Builder().build())
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "dride_location_watchdog",
+                ExistingPeriodicWorkPolicy.REPLACE,
+                watchdog
+            )
+            Log.d(TAG, "Location watchdog scheduled successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule Location watchdog: ${e.message}", e)
+        }
+
         call.resolve()
     }
 
@@ -115,6 +135,15 @@ class BackgroundLocationPlugin : Plugin() {
             action = BackgroundLocationService.ACTION_STOP
         }
         context.startService(intent)
+
+        // Cancel WorkManager watchdog
+        try {
+            WorkManager.getInstance(context).cancelUniqueWork("dride_location_watchdog")
+            Log.d(TAG, "Location watchdog cancelled successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel Location watchdog: ${e.message}", e)
+        }
+
         call.resolve()
     }
 
