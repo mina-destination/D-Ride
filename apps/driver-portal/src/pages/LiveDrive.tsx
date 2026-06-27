@@ -203,15 +203,7 @@ export default function LiveDrivePage() {
         setTrip(currentTrip);
 
         if (currentTrip) {
-          if (Capacitor.isNativePlatform()) {
-            const token = localStorage.getItem('dride_driver_token') || '';
-            BackgroundLocation.start({
-              apiUrl: API_URL,
-              token,
-              vehicleId: currentTrip.vehicleId?._id || currentTrip.vehicleId?.id || '',
-              driverId: user?._id || '',
-            }).catch(err => console.warn('Failed to start background location:', err));
-          }
+          // Load manifest
 
           // Load manifest
           try {
@@ -691,6 +683,14 @@ export default function LiveDrivePage() {
     };
 
     if (Capacitor.isNativePlatform()) {
+      const token = localStorage.getItem('dride_driver_token') || '';
+      BackgroundLocation.start({
+        apiUrl: API_URL,
+        token,
+        vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || '',
+        driverId: user?._id || '',
+      }).catch(err => console.warn('Failed to start background location:', err));
+
       try {
         const watchId = await Geolocation.watchPosition(
           watchOptions,

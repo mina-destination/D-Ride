@@ -386,9 +386,23 @@ class BackgroundLocationService : Service() {
                 val location = locationResult.lastLocation ?: return
                 lastLatitude = location.latitude
                 lastLongitude = location.longitude
-                lastHeading = if (location.hasBearing()) location.bearing else 0f
                 lastSpeed = if (location.hasSpeed()) location.speed else 0f
                 lastLocationTime = System.currentTimeMillis()
+
+                if (location.hasBearing()) {
+                    lastHeading = location.bearing
+                } else {
+                    val dist = if (lastSentLatitude == 0.0) 0.0 else calculateDistance(
+                        lastSentLatitude, lastSentLongitude,
+                        location.latitude, location.longitude
+                    )
+                    if (dist > 2.0) {
+                        lastHeading = calculateBearing(
+                            lastSentLatitude, lastSentLongitude,
+                            location.latitude, location.longitude
+                        )
+                    }
+                }
 
                 // Throttling logic to restrict api uploads when static
                 val now = System.currentTimeMillis()
@@ -410,7 +424,7 @@ class BackgroundLocationService : Service() {
                     location.latitude,
                     location.longitude,
                     location.speed,
-                    if (location.hasBearing()) location.bearing else 0f
+                    lastHeading
                 )
             }
         }
@@ -454,6 +468,18 @@ class BackgroundLocationService : Service() {
         return r * c
     }
 
+    private fun calculateBearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
+        val phi1 = Math.toRadians(lat1)
+        val phi2 = Math.toRadians(lat2)
+        val deltaLambda = Math.toRadians(lon2 - lon1)
+
+        val y = Math.sin(deltaLambda) * Math.cos(phi2)
+        val x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda)
+        val bearingRad = Math.atan2(y, x)
+        val bearingDeg = Math.toDegrees(bearingRad)
+        return ((bearingDeg + 360) % 360).toFloat()
+    }
+
     // ── API Sender with Retry ─────────────────────────────────
 
     private fun sendLocationToApi(location: Location) {
@@ -489,7 +515,7 @@ class BackgroundLocationService : Service() {
 
                 val bm = getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
                 val batteryPct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-                val batteryPercentageJson = if (batteryPct >= 0) batteryPct.toString() else "null"
+                val batteryJsonField = if (batteryPct >= 0) ",\"batteryPercentage\": $batteryPct" else ""
 
                 val jsonBody = """
                     {
@@ -498,8 +524,7 @@ class BackgroundLocationService : Service() {
                         "longitude": ${location.longitude},
                         "latitude": ${location.latitude},
                         "speedKmh": ${if (location.hasSpeed()) location.speed * 3.6 else 0},
-                        "headingDegrees": ${if (location.hasBearing()) location.bearing else 0},
-                        "batteryPercentage": $batteryPercentageJson
+                        "headingDegrees": ${if (lastHeading > 0) lastHeading else 0}${batteryJsonField}
                     }
                 """.trimIndent()
 
