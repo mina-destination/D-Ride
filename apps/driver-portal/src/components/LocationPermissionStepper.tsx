@@ -1,0 +1,504 @@
+import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Device } from '@capacitor/device';
+import { BackgroundLocation } from '../capacitor-plugins/background-location';
+import { useTranslation } from '../context/LanguageContext';
+
+interface LocationPermissionStepperProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onComplete: () => void;
+}
+
+interface PermissionChecks {
+  locationEnabled: boolean;
+  fineLocation: boolean;
+  backgroundLocation: boolean;
+  notifications: boolean;
+  batteryOptimized: boolean; // false means battery optimization is DISABLED (unrestricted)
+}
+
+export default function LocationPermissionStepper({
+  isOpen,
+  onClose,
+  onComplete,
+}: LocationPermissionStepperProps) {
+  const { t, language } = useTranslation();
+  const [checks, setChecks] = useState<PermissionChecks>({
+    locationEnabled: false,
+    fineLocation: false,
+    backgroundLocation: false,
+    notifications: false,
+    batteryOptimized: true,
+  });
+  const [checking, setChecking] = useState(true);
+  const [oemManufacturer, setOemManufacturer] = useState<string>('');
+
+  const runAllChecks = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setChecking(false);
+      return;
+    }
+
+    setChecking(true);
+    try {
+      // 1. GPS hardware state
+      const gps = await BackgroundLocation.checkLocationEnabled();
+      
+      // 2. Main permissions
+      const perms = await BackgroundLocation.checkPermissions();
+      
+      // 3. Battery optimization
+      const battery = await BackgroundLocation.isBatteryOptimizationDisabled();
+
+      // 4. OEM detection
+      try {
+        const info = await Device.getInfo();
+        setOemManufacturer(info.manufacturer?.toLowerCase() || '');
+      } catch (err) {
+        console.warn('OEM check failed', err);
+      }
+
+      setChecks({
+        locationEnabled: gps.enabled,
+        fineLocation: perms.location === 'granted',
+        backgroundLocation: perms.backgroundLocation === 'granted',
+        notifications: perms.notifications === 'granted',
+        batteryOptimized: !battery.disabled,
+      });
+    } catch (e) {
+      console.error('[PermissionStepper] Failed to run permission checks:', e);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      runAllChecks();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const isCriticalSuccess = checks.fineLocation && checks.backgroundLocation && checks.locationEnabled;
+  const isOemKiller = ['xiaomi', 'oppo', 'vivo', 'realme', 'oneplus', 'huawei', 'honor'].some(
+    (oem) => oemManufacturer.includes(oem)
+  );
+
+  const fixFineLocation = async () => {
+    try {
+      const req = await BackgroundLocation.requestPermissions({ permissions: ['location'] });
+      if (req.location !== 'granted') {
+        window.alert(
+          language === 'ar'
+            ? 'يرجى تفعيل صلاحية الموقع من الإعدادات للبدء'
+            : 'Please enable location permission in app settings to proceed.'
+        );
+        await BackgroundLocation.openAppSettings();
+      }
+      runAllChecks();
+    } catch (err) {
+      console.warn('Failed to fix fine location', err);
+    }
+  };
+
+  const fixBackgroundLocation = async () => {
+    try {
+      window.alert(
+        language === 'ar'
+          ? 'يرجى اختيار "السماح طوال الوقت" في الشاشة التالية'
+          : "On the next screen, please choose 'Allow all the time' to permit background tracking."
+      );
+      const req = await BackgroundLocation.requestPermissions({
+        permissions: ['backgroundLocation'],
+      });
+      if (req.backgroundLocation !== 'granted') {
+        const confirmOpen = window.confirm(
+          language === 'ar'
+            ? 'لم يتم منح صلاحية تتبع الموقع بالخلفية. هل تود الانتقال إلى إعدادات الهاتف لتفعيلها؟'
+            : "Background location was not granted. Tracking will stop when you minimize the app. Open App Settings to set to 'Allow all the time'?"
+        );
+        if (confirmOpen) {
+          await BackgroundLocation.openAppSettings();
+        }
+      }
+      runAllChecks();
+    } catch (err) {
+      console.warn('Failed to fix background location', err);
+    }
+  };
+
+  const fixNotifications = async () => {
+    try {
+      const req = await BackgroundLocation.requestPermissions({
+        permissions: ['notifications'],
+      });
+      if (req.notifications !== 'granted') {
+        await BackgroundLocation.openAppSettings();
+      }
+      runAllChecks();
+    } catch (err) {
+      console.warn('Failed to fix notifications', err);
+    }
+  };
+
+  const fixGps = async () => {
+    try {
+      await BackgroundLocation.openLocationSettings();
+      // Inform driver to refresh once turned on
+      setTimeout(runAllChecks, 3000);
+    } catch (err) {
+      console.warn('Failed to open location settings', err);
+    }
+  };
+
+  const fixBattery = async () => {
+    try {
+      await BackgroundLocation.requestBatteryOptimization();
+      setTimeout(runAllChecks, 3000);
+    } catch (err) {
+      console.warn('Failed to request battery optimization disable', err);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          background: '#121212',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '16px',
+          padding: '24px',
+          width: '100%',
+          maxWidth: '460px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          color: '#fff',
+          direction: language === 'ar' ? 'rtl' : 'ltr',
+          textAlign: language === 'ar' ? 'right' : 'left',
+        }}
+      >
+        <div>
+          <h2
+            className="title-outfit"
+            style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--primary)' }}
+          >
+            {language === 'ar' ? 'قائمة جاهزية التتبع بالخلفية' : 'Background Tracking Readiness'}
+          </h2>
+          <p style={{ fontSize: '13px', color: '#a3a3a3', margin: 0 }}>
+            {language === 'ar'
+              ? 'يرجى إكمال الإعدادات التالية لضمان عدم توقف البث المباشر للرحلة.'
+              : 'Complete the following steps to ensure live location tracking remains active during your shift.'}
+          </p>
+        </div>
+
+        {checking ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
+            <span style={{ fontSize: '14px', color: '#a3a3a3' }}>
+              {language === 'ar' ? 'جاري التحقق من الصلاحيات...' : 'Verifying device status...'}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* STEP 1: GPS Enabled */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{checks.locationEnabled ? '✅' : '❌'}</span>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>
+                    {language === 'ar' ? 'خدمات الموقع (GPS)' : 'Location Services (GPS)'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#a3a3a3' }}>
+                    {checks.locationEnabled
+                      ? (language === 'ar' ? 'مفعلة ونشطة' : 'Enabled and active')
+                      : (language === 'ar' ? 'مغلقة - يرجى تشغيلها' : 'Turned off — click to enable')}
+                  </div>
+                </div>
+              </div>
+              {!checks.locationEnabled && (
+                <button
+                  onClick={fixGps}
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'var(--text-on-primary)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'ar' ? 'تفعيل' : 'Enable'}
+                </button>
+              )}
+            </div>
+
+            {/* STEP 2: Fine Location */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{checks.fineLocation ? '✅' : '❌'}</span>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>
+                    {language === 'ar' ? 'صلاحية الموقع الدقيق' : 'Location Accuracy'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#a3a3a3' }}>
+                    {checks.fineLocation
+                      ? (language === 'ar' ? 'ممنوحة بدقة عالية' : 'Granted high accuracy')
+                      : (language === 'ar' ? 'مطلوبة لتتبع الحافلة بدقة' : 'Required for navigation precision')}
+                  </div>
+                </div>
+              </div>
+              {!checks.fineLocation && (
+                <button
+                  onClick={fixFineLocation}
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'var(--text-on-primary)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'ar' ? 'منح الصلاحية' : 'Grant'}
+                </button>
+              )}
+            </div>
+
+            {/* STEP 3: Background Location */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{checks.backgroundLocation ? '✅' : '❌'}</span>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>
+                    {language === 'ar' ? 'موقع الخلفية (السماح طوال الوقت)' : 'Background Location'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#a3a3a3' }}>
+                    {checks.backgroundLocation
+                      ? (language === 'ar' ? 'يعمل بالخلفية عند إغلاق التطبيق' : 'Granted all the time')
+                      : (language === 'ar' ? 'مطلوب لمنع التوقف عند الخروج' : "Set to 'Allow all the time'")}
+                  </div>
+                </div>
+              </div>
+              {!checks.backgroundLocation && (
+                <button
+                  onClick={fixBackgroundLocation}
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'var(--text-on-primary)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'ar' ? 'السماح بالخلفية' : 'Allow'}
+                </button>
+              )}
+            </div>
+
+            {/* STEP 4: Notifications (Android 13+) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{checks.notifications ? '✅' : '⚠️'}</span>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>
+                    {language === 'ar' ? 'إشعارات بث الخدمة' : 'Service Notifications'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#a3a3a3' }}>
+                    {checks.notifications
+                      ? (language === 'ar' ? 'نشطة ومحمي من الإغلاق' : 'Active foreground badge')
+                      : (language === 'ar' ? 'موصى بها لمنع النظام من قتل البث' : 'Highly recommended to protect service')}
+                  </div>
+                </div>
+              </div>
+              {!checks.notifications && (
+                <button
+                  onClick={fixNotifications}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'ar' ? 'تفعيل' : 'Enable'}
+                </button>
+              )}
+            </div>
+
+            {/* STEP 5: Battery Optimization */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{!checks.batteryOptimized ? '✅' : '⚠️'}</span>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>
+                    {language === 'ar' ? 'تحسين البطارية (غير مقيد)' : 'Battery Saver Mode'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#a3a3a3' }}>
+                    {!checks.batteryOptimized
+                      ? (language === 'ar' ? 'غير مقيد (تتبع مستمر)' : 'Unrestricted background usage')
+                      : (language === 'ar' ? 'موصى بتعيينه كـ "غير مقيد"' : 'Set optimization to Unrestricted')}
+                  </div>
+                </div>
+              </div>
+              {checks.batteryOptimized && (
+                <button
+                  onClick={fixBattery}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'ar' ? 'تعطيل القيود' : 'Unrestrict'}
+                </button>
+              )}
+            </div>
+
+            {/* OEM Specific warning */}
+            {isOemKiller && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  fontSize: '11px',
+                  color: '#f59e0b',
+                  lineHeight: '1.4',
+                }}
+              >
+                ⚠️ <strong>{oemManufacturer.toUpperCase()} Device Detected:</strong>
+                <br />
+                {language === 'ar'
+                  ? 'يستخدم هذا الهاتف إدارة طاقة شديدة قد تمنع البث بالخلفية. يرجى التأكد من تمويل "التشغيل التلقائي" للتطبيق من إعدادات الحماية بالهاتف.'
+                  : 'Your device brand forces aggressive background limits. Please ensure you enable "Autostart" or "Run in background" for D-Ride in security settings.'}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              color: '#a3a3a3',
+              border: '1px solid rgba(255,255,255,0.1)',
+              padding: '10px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            {language === 'ar' ? 'إلغاء' : 'Cancel'}
+          </button>
+          
+          <button
+            onClick={onComplete}
+            disabled={checking || !isCriticalSuccess}
+            style={{
+              flex: 2,
+              background: isCriticalSuccess ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+              color: isCriticalSuccess ? 'var(--text-on-primary)' : 'rgba(255,255,255,0.3)',
+              border: 'none',
+              padding: '10px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              cursor: isCriticalSuccess ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {language === 'ar' ? 'بدء الوردية' : 'Start Shift'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

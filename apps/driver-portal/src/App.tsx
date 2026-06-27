@@ -121,10 +121,11 @@ export default function App() {
         const { BackgroundLocation } = await import('./capacitor-plugins/background-location');
         const status = await BackgroundLocation.isRunning();
         
-        // If the service died while we expected it to be running, the
-        // Kotlin-side plugin.load() -> restartServiceIfNeeded() handles it.
-        // This log just gives us visibility into the app resume cycle.
         console.log('[App] Resumed from background. Service running:', status.running);
+        if (!status.running) {
+          await BackgroundLocation.restart();
+          console.log('[App] Initiated background location restart recovery.');
+        }
       } catch (err) {
         console.warn('[App] Failed to check background location on resume:', err);
       }

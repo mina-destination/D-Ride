@@ -1,6 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { driverAPI } from '../services/api';
+import { useDriverLocationTracking } from '../hooks/useDriverLocationTracking';
+import LocationPermissionStepper from '../components/LocationPermissionStepper';
 import { socketService } from '../services/socket';
 import { parseTicketQr } from '../utils/qr';
 import { 
@@ -297,13 +299,30 @@ export default function DashboardPage() {
   const checkpointMarkersRef = useRef<maplibregl.Marker[]>([]);
   
   const [streetPath, setStreetPath] = useState<[number, number][]>([]);
-  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [heading, setHeading] = useState<number>(0);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [gpsError, setGpsError] = useState<string | null>(null);
   const [lockCenter, setLockCenter] = useState(true);
-  
-  const geoWatchId = useRef<any>(null);
+  const [permissionStepperOpen, setPermissionStepperOpen] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<string | null>(null);
+
+  const {
+    isStreaming,
+    currentCoords,
+    heading,
+    gpsError,
+    diagnostics,
+    startLocationStream,
+    stopLocationStream,
+    requestTrackingPermissions
+  } = useDriverLocationTracking(
+    useCallback(() => {
+      const trip = activeTripRef.current;
+      if (!trip) return null;
+      return {
+        vehicleId: trip.vehicleId?._id || trip.vehicleId?.id || '',
+        driverId: user?._id || '',
+        tripStatus: trip.status
+      };
+    }, [user])
+  );
 
   // Generate 7 days for the calendar strip (today +/- 3 days)
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
@@ -522,234 +541,8 @@ export default function DashboardPage() {
     });
   }
 
-  async function requestAllPermissionsNatively(): Promise<boolean> {
-    if (!Capacitor.isNativePlatform()) {
-      return true;
-    }
-
-    // 1. Foreground Location (Critical)
-    try {
-      const geoPerm = await Geolocation.checkPermissions();
-      if (geoPerm.location !== 'granted') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          const tryAgain = window.confirm(
-            "Location permission is required to track your shifts and live route. Please allow location access in your phone settings."
-          );
-          if (tryAgain) {
-            await BackgroundLocation.openAppSettings();
-          }
-          return false;
-        }
-      }
-    } catch (e) {
-      console.error('Critical: Failed to request foreground location:', e);
-      return false; // Cannot proceed without foreground location
-    }
-
-    // 2. Notifications (Non-blocking)
-    try {
-      const checkNotif = await BackgroundLocation.checkPermissions();
-      if (checkNotif.notifications !== 'granted') {
-        await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request notifications natively:', e);
-    }
-
-    // 3. Background Location (Non-blocking fallback to keep app usable)
-    try {
-      const checkBg = await BackgroundLocation.checkPermissions();
-      if (checkBg.backgroundLocation !== 'granted') {
-        const proceed = window.confirm(
-          "To track your bus route when the app is minimized or the screen is off, D-Ride needs background location. On the next screen, please choose 'Allow all the time'."
-        );
-        if (proceed) {
-          const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
-          if (reqBg.backgroundLocation !== 'granted') {
-            const openSettings = window.confirm(
-              "Background location permission was not granted. Without it, tracking will stop when you minimize the app. Would you like to open App Settings to set location access to 'Allow all the time'?"
-            );
-            if (openSettings) {
-              await BackgroundLocation.openAppSettings();
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request background location natively:', e);
-    }
-
-    // 4. GPS Enabled Check (Non-blocking)
-    try {
-      const gps = await BackgroundLocation.checkLocationEnabled();
-      if (!gps.enabled) {
-        const enableGps = window.confirm(
-          "Your phone's GPS / Location Services are turned off. Please turn them on for high-accuracy tracking. Open Location Settings?"
-        );
-        if (enableGps) {
-          await BackgroundLocation.openLocationSettings();
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to check GPS status:', e);
-    }
-
-    // 5. Battery Optimization (Non-blocking)
-    try {
-      const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
-      if (!checkBatt.disabled) {
-        const optimize = window.confirm(
-          "For uninterrupted tracking, exclude D-Ride from battery saver optimizations. Open Settings?"
-        );
-        if (optimize) {
-          await BackgroundLocation.requestBatteryOptimization();
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request battery optimization ignore:', e);
-    }
-
-    return true;
-  }
-
-  // Location Telemetry Broadcasting
-  async function startLocationStream() {
-    if (isStreaming) return;
-    if (!activeTripRef.current) {
-      console.log('startLocationStream: Deferred starting tracking, no active trip selected.');
-      return;
-    }
-    const nativeSuccess = await requestAllPermissionsNatively();
-    if (nativeSuccess) {
-      triggerRealGPS();
-    }
-  }
-
-  async function triggerRealGPS() {
-    try {
-      const permStatus = await Geolocation.checkPermissions();
-      if (permStatus.location !== 'granted') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          setGpsError(t('gpsNotAvailable'));
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Native Geolocation permission request failed, using browser fallback:', err);
-    }
-
-    setIsStreaming(true);
-    setGpsError(null);
-    localStorage.setItem('dride_gps_permitted', 'true');
-
-    if (Capacitor.isNativePlatform()) {
-      const token = localStorage.getItem('dride_driver_token') || '';
-      const vehicleId = activeTripRef.current?.vehicleId?._id || activeTripRef.current?.vehicleId?.id || '';
-      BackgroundLocation.start({
-        apiUrl: API_URL,
-        token,
-        vehicleId,
-        driverId: user?._id || '',
-      }).catch(err => console.warn('Failed to start background location:', err));
-    }
-
-    const watchOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
-    };
-
-    const handleSuccess = (lat: number, lng: number, headingVal?: number | null) => {
-      setCurrentCoords({ lat, lng });
-      if (headingVal != null) {
-        setHeading(headingVal);
-      }
-      socketService.sendLocation({
-        vehicleId: activeTripRef.current?.vehicleId?._id || activeTripRef.current?.vehicleId?.id || 'mock-vehicle-123',
-        driverId: user?._id || 'mock-driver-123',
-        longitude: lng,
-        latitude: lat,
-        heading: headingVal ?? null,
-      });
-    };
-
-    const handleFailure = (errorMsg: string) => {
-      console.warn('GPS failed:', errorMsg);
-      setGpsError(t('gpsNotAvailable'));
-      setIsStreaming(false);
-    };
-
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const watchId = await Geolocation.watchPosition(
-          watchOptions,
-          (position, err) => {
-            if (err) {
-              handleFailure(err.message || 'Native Geolocation error');
-              return;
-            }
-            if (position?.coords) {
-              handleSuccess(
-                position.coords.latitude,
-                position.coords.longitude,
-                position.coords.heading
-              );
-            } else {
-              handleFailure('No coordinates from native GPS');
-            }
-          }
-        );
-        geoWatchId.current = watchId;
-      } catch (err: any) {
-        handleFailure(err.message || 'Failed to watch native position');
-      }
-    } else {
-      if ('geolocation' in navigator) {
-        const watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            handleSuccess(
-              position.coords.latitude,
-              position.coords.longitude,
-              position.coords.heading
-            );
-          },
-          (error) => {
-            handleFailure(error.message);
-          },
-          watchOptions
-        );
-        geoWatchId.current = watchId;
-      } else {
-        setGpsError(t('geoNotSupported'));
-        setIsStreaming(false);
-      }
-    }
-  }
-
-  function cleanupWebviewListeners() {
-    if (geoWatchId.current !== null) {
-      if (Capacitor.isNativePlatform()) {
-        Geolocation.clearWatch({ id: geoWatchId.current });
-      } else {
-        navigator.geolocation.clearWatch(geoWatchId.current);
-      }
-      geoWatchId.current = null;
-    }
-    setIsStreaming(false);
-    setHeading(0);
-  }
-
-  function stopLocationStream() {
-    cleanupWebviewListeners();
-    if (Capacitor.isNativePlatform()) {
-      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
-    }
-  }
-
-
-
+  // Strictly update based on actual Geolocation inputs only
+  // Location tracking helper methods moved to useDriverLocationTracking hook
   // Status transitions
   async function handleUpdateTripStatus(newStatus: string) {
     if (!activeTrip) return;
@@ -814,33 +607,14 @@ export default function DashboardPage() {
     setCalendarDates(dates);
   }, []);
 
-  // Resume detection for Dashboard: if we are supposed to be streaming,
-  // ensure the watch is active when the app comes back to foreground.
+  // Start native location tracking based on active trip status
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isStreaming) {
-        console.log('[Dashboard] Resumed. Refreshing GPS watch...');
-        // Clear old watch first to avoid leaks
-        if (geoWatchId.current !== null) {
-          try {
-            await Geolocation.clearWatch({ id: geoWatchId.current });
-          } catch (err) {
-            console.warn('[Dashboard] Failed to clear watch:', err);
-          }
-          geoWatchId.current = null;
-        }
-        // Re-trigger GPS watch
-        await triggerRealGPS();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isStreaming]);
+    if (activeTrip?.status === 'IN_TRANSIT') {
+      startLocationStream();
+    } else {
+      stopLocationStream();
+    }
+  }, [activeTrip?.status, startLocationStream, stopLocationStream]);
 
 
 
@@ -857,7 +631,6 @@ export default function DashboardPage() {
     }
 
     return () => {
-      cleanupWebviewListeners();
       socketService.disconnect();
     };
   }, []);
@@ -892,13 +665,6 @@ export default function DashboardPage() {
       }
     };
   }, [activeTrip?._id, activeTrip?.vehicleId?._id, activeTrip?.vehicleId?.id, socketService.socket]);
-
-  // Clean up tracking on unmount
-  useEffect(() => {
-    return () => {
-      cleanupWebviewListeners();
-    };
-  }, []);
 
   // Periodically refresh trips and active manifest silently (always refreshed)
   useEffect(() => {
@@ -1037,15 +803,11 @@ export default function DashboardPage() {
       drawCheckpointMarkers();
     });
 
-    // Start streaming automatically when map loads in IN_TRANSIT
-    startLocationStream();
-
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      cleanupWebviewListeners();
     };
   }, [activeTrip?._id, activeTrip?.status === 'IN_TRANSIT']);
 
@@ -2065,9 +1827,19 @@ export default function DashboardPage() {
                 {t('cancel')}
               </button>
               <button 
-                onClick={() => {
+                onClick={async () => {
                   const targetStatus = confirmStatusModal;
                   setConfirmStatusModal(null);
+                  if (targetStatus === 'IN_TRANSIT') {
+                    if (Capacitor.isNativePlatform()) {
+                      const permissionsGranted = await requestTrackingPermissions();
+                      if (!permissionsGranted) {
+                        setPendingStatusUpdate(targetStatus);
+                        setPermissionStepperOpen(true);
+                        return;
+                      }
+                    }
+                  }
                   handleUpdateTripStatus(targetStatus);
                 }} 
                 className="btn btn-primary" 
@@ -2084,6 +1856,21 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <LocationPermissionStepper
+        isOpen={permissionStepperOpen}
+        onClose={() => {
+          setPermissionStepperOpen(false);
+          setPendingStatusUpdate(null);
+        }}
+        onComplete={() => {
+          setPermissionStepperOpen(false);
+          if (pendingStatusUpdate) {
+            handleUpdateTripStatus(pendingStatusUpdate);
+            setPendingStatusUpdate(null);
+          }
+        }}
+      />
 
       {/* Notifications Drawer */}
       {notificationDrawerOpen && (

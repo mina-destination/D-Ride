@@ -1,4 +1,6 @@
 import { createApiClient, registerToastCallback, STORAGE_KEYS } from '@transport/shared-api';
+import { Capacitor } from '@capacitor/core';
+import { BackgroundLocation } from '../capacitor-plugins/background-location';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -22,6 +24,13 @@ export const api = createApiClient({
   tokenKey: STORAGE_KEYS.DRIVER_TOKEN,
   refreshTokenKey: STORAGE_KEYS.DRIVER_REFRESH_TOKEN,
   userKey: STORAGE_KEYS.DRIVER_USER,
+  onTokenRefreshed: (accessToken) => {
+    if (Capacitor.isNativePlatform()) {
+      BackgroundLocation.updateConfig({ token: accessToken }).catch((err) => {
+        console.warn('[API] Failed to sync refreshed token to native config:', err);
+      });
+    }
+  },
 });
 
 export const driverAPI = {

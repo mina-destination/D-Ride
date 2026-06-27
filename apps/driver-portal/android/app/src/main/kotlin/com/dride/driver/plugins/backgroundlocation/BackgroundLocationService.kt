@@ -51,7 +51,6 @@ class BackgroundLocationService : Service() {
 
     private var lastSentLatitude: Double = 0.0
     private var lastSentLongitude: Double = 0.0
-    private var lastSentTime: Long = 0L
 
     companion object {
         const val TAG = "BackgroundLocation"
@@ -59,6 +58,7 @@ class BackgroundLocationService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "START"
         const val ACTION_STOP = "STOP"
+        const val ACTION_UPDATE = "UPDATE"
         const val EXTRA_API_URL = "apiUrl"
         const val EXTRA_TOKEN = "token"
         const val EXTRA_VEHICLE_ID = "vehicleId"
@@ -70,6 +70,12 @@ class BackgroundLocationService : Service() {
         var lastSpeed: Float = 0f
         var isRunning: Boolean = false
             private set
+
+        var lastSentTime: Long = 0L
+        var authFailed: Boolean = false
+        var consecutiveNetworkFailures: Int = 0
+        var lastResponseCode: Int = 0
+        var lastResponseBody: String = ""
 
         private var eventCallback: ((latitude: Double, longitude: Double, speed: Float, heading: Float) -> Unit)? = null
 
@@ -101,6 +107,8 @@ class BackgroundLocationService : Service() {
                     lastSentLatitude = 0.0
                     lastSentLongitude = 0.0
                     lastSentTime = 0L
+                    authFailed = false
+                    consecutiveNetworkFailures = 0
 
                     acquireWakeLock()
                     acquireWifiLock()
@@ -141,6 +149,8 @@ class BackgroundLocationService : Service() {
                 lastSentLatitude = 0.0
                 lastSentLongitude = 0.0
                 lastSentTime = 0L
+                authFailed = false
+                consecutiveNetworkFailures = 0
 
                 // Save config to SharedPreferences for restart recovery
                 saveConfig()
@@ -176,9 +186,27 @@ class BackgroundLocationService : Service() {
                 releaseWifiLock()
                 cancelRestartAlarm()
                 isRunning = false
+                authFailed = false
+                consecutiveNetworkFailures = 0
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 Log.d(TAG, "Background location service stopped")
+            }
+            ACTION_UPDATE -> {
+                intent.getStringExtra(EXTRA_API_URL)?.let { if (it.isNotEmpty()) apiUrl = it }
+                intent.getStringExtra(EXTRA_TOKEN)?.let {
+                    if (it.isNotEmpty()) {
+                        token = it
+                        authFailed = false
+                        consecutiveNetworkFailures = 0
+                    }
+                }
+                intent.getStringExtra(EXTRA_VEHICLE_ID)?.let { if (it.isNotEmpty()) vehicleId = it }
+                intent.getStringExtra(EXTRA_DRIVER_ID)?.let { if (it.isNotEmpty()) driverId = it }
+
+                saveConfig()
+                Log.d(TAG, "Background location service config updated dynamically")
+                updateNotificationImmediately("Live location tracking active")
             }
         }
         return START_STICKY
@@ -371,6 +399,12 @@ class BackgroundLocationService : Service() {
             .build()
     }
 
+    private fun updateNotificationImmediately(text: String) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notification = buildNotification(text)
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+
     // ── Notification Updater (keeps foreground service alive on aggressive OEMs) ──
 
     private fun startNotificationUpdater() {
@@ -378,14 +412,20 @@ class BackgroundLocationService : Service() {
         val updateRunnable = object : Runnable {
             override fun run() {
                 if (!isRunning) return
-                val timeSince = if (lastLocationTime > 0) {
-                    val elapsed = (System.currentTimeMillis() - lastLocationTime) / 1000
-                    if (elapsed < 60) "${elapsed}s ago" else "${elapsed / 60}m ago"
-                } else {
-                    "waiting..."
+                val text = when {
+                    authFailed -> "Session expired — reopen app"
+                    consecutiveNetworkFailures > 0 -> "No network — retrying... ($consecutiveNetworkFailures)"
+                    else -> {
+                        val timeSince = if (lastLocationTime > 0) {
+                            val elapsed = (System.currentTimeMillis() - lastLocationTime) / 1000
+                            if (elapsed < 60) "${elapsed}s ago" else "${elapsed / 60}m ago"
+                        } else {
+                            "waiting..."
+                        }
+                        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                        "Tracking active · Last: $timeSince · ${sdf.format(Date())}"
+                    }
                 }
-                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val text = "Tracking active · Last: $timeSince · ${sdf.format(Date())}"
                 val notification = buildNotification(text)
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NOTIFICATION_ID, notification)
@@ -530,6 +570,11 @@ class BackgroundLocationService : Service() {
     }
 
     private fun sendWithRetry(location: Location, maxRetries: Int, delayMs: Long) {
+        if (authFailed) {
+            Log.w(TAG, "sendWithRetry: authFailed is true, skipping location send")
+            return
+        }
+
         var attempt = 0
         while (attempt <= maxRetries) {
             try {
@@ -564,18 +609,45 @@ class BackgroundLocationService : Service() {
                 }
 
                 val responseCode = conn.responseCode
+                lastResponseCode = responseCode
+
+                if (responseCode == 401 || responseCode == 403) {
+                    authFailed = true
+                    val errorStream = conn.errorStream
+                    val errorSnippet = errorStream?.bufferedReader()?.use { it.readText() }?.take(200) ?: ""
+                    lastResponseBody = errorSnippet
+                    Log.e(TAG, "Auth failed with HTTP $responseCode: $errorSnippet")
+
+                    updateNotificationImmediately("Session expired — reopen app")
+                    conn.disconnect()
+                    return // Stop retries immediately on auth failure!
+                }
+
+                val responseBodySnippet = if (responseCode in 200..299) {
+                    ""
+                } else {
+                    val errorStream = conn.errorStream
+                    errorStream?.bufferedReader()?.use { it.readText() }?.take(200) ?: ""
+                }
+                lastResponseBody = responseBodySnippet
+
                 conn.disconnect()
 
                 if (responseCode in 200..299) {
+                    consecutiveNetworkFailures = 0
                     if (attempt > 0) {
                         Log.d(TAG, "Location sent successfully after ${attempt + 1} attempts")
                     }
                     return // Success — exit retry loop
                 } else {
-                    Log.w(TAG, "API returned HTTP $responseCode (attempt ${attempt + 1})")
+                    Log.w(TAG, "API returned HTTP $responseCode (attempt ${attempt + 1}): $responseBodySnippet")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send location (attempt ${attempt + 1}): ${e.message}")
+                if (attempt == maxRetries) {
+                    consecutiveNetworkFailures++
+                    updateNotificationImmediately("No network — retrying... ($consecutiveNetworkFailures)")
+                }
             }
 
             attempt++

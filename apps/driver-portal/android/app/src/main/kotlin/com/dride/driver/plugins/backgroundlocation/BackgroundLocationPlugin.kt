@@ -14,6 +14,8 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
 import androidx.work.Constraints
@@ -70,6 +72,47 @@ class BackgroundLocationPlugin : Plugin() {
 
     @PluginMethod
     fun start(call: PluginCall) {
+        val context = activity.applicationContext
+
+        // 1. Verify ACCESS_FINE_LOCATION
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFineLocation) {
+            return call.reject("ACCESS_FINE_LOCATION not granted")
+        }
+
+        // 2. Verify ACCESS_BACKGROUND_LOCATION (Android 10+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val hasBgLocation = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasBgLocation) {
+                val result = JSObject().apply {
+                    put("running", false)
+                    put("reason", "background_location_denied")
+                }
+                return call.resolve(result)
+            }
+        }
+
+        // 3. Verify POST_NOTIFICATIONS (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasNotifications = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasNotifications) {
+                val result = JSObject().apply {
+                    put("running", false)
+                    put("reason", "notifications_denied")
+                }
+                return call.resolve(result)
+            }
+        }
+
         val apiUrl = call.getString("apiUrl") ?: return call.reject("apiUrl is required")
         val token = call.getString("token") ?: return call.reject("token is required")
         val vehicleId = call.getString("vehicleId") ?: return call.reject("vehicleId is required")
@@ -87,7 +130,6 @@ class BackgroundLocationPlugin : Plugin() {
             .putString(RestartReceiver.KEY_DRIVER_ID, driverId)
             .apply()
 
-        val context = activity.applicationContext
         val intent = Intent(context, BackgroundLocationService::class.java).apply {
             action = BackgroundLocationService.ACTION_START
             putExtra(BackgroundLocationService.EXTRA_API_URL, apiUrl)
@@ -104,12 +146,12 @@ class BackgroundLocationPlugin : Plugin() {
 
         // Schedule WorkManager watchdog
         try {
-            val watchdog = PeriodicWorkRequestBuilder<LocationWatchdogWorker>(15, TimeUnit.MINUTES)
+            val watchdog = PeriodicWorkRequestBuilder<LocationWatchdogWorker>(5, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder().build())
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "dride_location_watchdog",
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 watchdog
             )
             Log.d(TAG, "Location watchdog scheduled successfully")
@@ -117,7 +159,10 @@ class BackgroundLocationPlugin : Plugin() {
             Log.e(TAG, "Failed to schedule Location watchdog: ${e.message}", e)
         }
 
-        call.resolve()
+        val result = JSObject().apply {
+            put("running", true)
+        }
+        call.resolve(result)
     }
 
     @PluginMethod
@@ -151,6 +196,56 @@ class BackgroundLocationPlugin : Plugin() {
     fun isRunning(call: PluginCall) {
         val result = JSObject().apply {
             put("running", BackgroundLocationService.isRunning)
+        }
+        call.resolve(result)
+    }
+
+    @PluginMethod
+    fun updateConfig(call: PluginCall) {
+        val apiUrl = call.getString("apiUrl")
+        val token = call.getString("token")
+        val vehicleId = call.getString("vehicleId")
+        val driverId = call.getString("driverId")
+
+        val context = activity.applicationContext
+        val prefs = context.getSharedPreferences(
+            RestartReceiver.PREFS_NAME, Context.MODE_PRIVATE
+        )
+        val editor = prefs.edit()
+        apiUrl?.let { editor.putString(RestartReceiver.KEY_API_URL, it) }
+        token?.let { editor.putString(RestartReceiver.KEY_TOKEN, it) }
+        vehicleId?.let { editor.putString(RestartReceiver.KEY_VEHICLE_ID, it) }
+        driverId?.let { editor.putString(RestartReceiver.KEY_DRIVER_ID, it) }
+        editor.apply()
+
+        if (BackgroundLocationService.isRunning) {
+            val intent = Intent(context, BackgroundLocationService::class.java).apply {
+                action = BackgroundLocationService.ACTION_UPDATE
+                apiUrl?.let { putExtra(BackgroundLocationService.EXTRA_API_URL, it) }
+                token?.let { putExtra(BackgroundLocationService.EXTRA_TOKEN, it) }
+                vehicleId?.let { putExtra(BackgroundLocationService.EXTRA_VEHICLE_ID, it) }
+                driverId?.let { putExtra(BackgroundLocationService.EXTRA_DRIVER_ID, it) }
+            }
+            context.startService(intent)
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun restart(call: PluginCall) {
+        restartServiceIfNeeded()
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun getDiagnostics(call: PluginCall) {
+        val result = JSObject().apply {
+            put("isRunning", BackgroundLocationService.isRunning)
+            put("lastSentTime", BackgroundLocationService.lastSentTime)
+            put("authFailed", BackgroundLocationService.authFailed)
+            put("lastResponseCode", BackgroundLocationService.lastResponseCode)
+            put("consecutiveNetworkFailures", BackgroundLocationService.consecutiveNetworkFailures)
+            put("lastResponseBody", BackgroundLocationService.lastResponseBody)
         }
         call.resolve(result)
     }

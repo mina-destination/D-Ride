@@ -36,6 +36,16 @@ export interface BackgroundLocationPlugin {
   start(options: BackgroundLocationOptions): Promise<void>;
   stop(): Promise<void>;
   isRunning(): Promise<BackgroundLocationStatus>;
+  updateConfig(options: Partial<BackgroundLocationOptions>): Promise<void>;
+  restart(): Promise<void>;
+  getDiagnostics(): Promise<{
+    isRunning: boolean;
+    lastSentTime: number;
+    authFailed: boolean;
+    lastResponseCode: number;
+    consecutiveNetworkFailures: number;
+    lastResponseBody: string;
+  }>;
   checkLocationEnabled(): Promise<LocationEnabled>;
   openLocationSettings(): Promise<void>;
   openAppSettings(): Promise<void>;

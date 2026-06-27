@@ -1,7 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDriverLocationTracking } from '../hooks/useDriverLocationTracking';
+import LocationPermissionStepper from '../components/LocationPermissionStepper';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { socketService } from '../services/socket';
@@ -127,16 +129,37 @@ export default function LiveDrivePage() {
     tripRef.current = trip;
   }, [trip]);
   const [loading, setLoading] = useState(true);
-  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [streetPath, setStreetPath] = useState<[number, number][]>([]);
+  const [permissionStepperOpen, setPermissionStepperOpen] = useState(false);
   
   // HUD states
   const [manifest, setManifest] = useState<any[]>([]);
   const [arrivedCheckpoints, setArrivedCheckpoints] = useState<string[]>([]);
-  const [speed, setSpeed] = useState<number>(0);
-  const [heading, setHeading] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'telemetry' | 'stops' | 'passengers'>('telemetry');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Unified location tracking hook
+  const {
+    isStreaming,
+    currentCoords,
+    speed,
+    heading,
+    gpsError,
+    diagnostics,
+    startLocationStream,
+    stopLocationStream,
+    requestTrackingPermissions
+  } = useDriverLocationTracking(
+    useCallback(() => {
+      const activeTrip = tripRef.current;
+      if (!activeTrip) return null;
+      return {
+        vehicleId: activeTrip.vehicleId?._id || activeTrip.vehicleId?.id || '',
+        driverId: user?._id || '',
+        tripStatus: activeTrip.status
+      };
+    }, [user])
+  );
 
   // Scanner state
   const [scannerActive, setScannerActive] = useState(false);
@@ -158,17 +181,7 @@ export default function LiveDrivePage() {
   };
   
   // Streaming status
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [gpsError, setGpsError] = useState<string | null>(null);
   const [lockCenter, setLockCenter] = useState(true);
-  
-  const geoWatchId = useRef<any>(null);
-  const isStreamingRef = useRef(false);
-  const bgLocationListenerRef = useRef<any>(null);
-
-  useEffect(() => {
-    isStreamingRef.current = isStreaming;
-  }, [isStreaming]);
   const [offlineCacheCount, setOfflineCacheCount] = useState(0);
 
   // Monitor offline coordinates cache count
@@ -523,273 +536,7 @@ export default function LiveDrivePage() {
   }, [currentCoords, lockCenter, heading]);
 
   // Strictly update based on actual Geolocation inputs only
-
-  const requestAllPermissionsNatively = async () => {
-    if (!Capacitor.isNativePlatform()) return true;
-
-    // 1. Foreground Location (Critical)
-    try {
-      const geoPerm = await Geolocation.checkPermissions();
-      if (geoPerm.location !== 'granted') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          const tryAgain = window.confirm(
-            "Location permission is required to track your shifts and live route. Please allow location access in your phone settings."
-          );
-          if (tryAgain) {
-            await BackgroundLocation.openAppSettings();
-          }
-          return false;
-        }
-      }
-    } catch (e) {
-      console.error('Critical: Failed to request foreground location:', e);
-      return false; // Cannot proceed without foreground location
-    }
-
-    // 2. Notifications (Non-blocking)
-    try {
-      const checkNotif = await BackgroundLocation.checkPermissions();
-      if (checkNotif.notifications !== 'granted') {
-        await BackgroundLocation.requestPermissions({ permissions: ['notifications'] });
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request notifications natively:', e);
-    }
-
-    // 3. Background Location (Non-blocking fallback to keep app usable)
-    try {
-      const checkBg = await BackgroundLocation.checkPermissions();
-      if (checkBg.backgroundLocation !== 'granted') {
-        const proceed = window.confirm(
-          "To track your bus route when the app is minimized or the screen is off, D-Ride needs background location. On the next screen, please choose 'Allow all the time'."
-        );
-        if (proceed) {
-          const reqBg = await BackgroundLocation.requestPermissions({ permissions: ['backgroundLocation'] });
-          if (reqBg.backgroundLocation !== 'granted') {
-            const openSettings = window.confirm(
-              "Background location permission was not granted. Without it, tracking will stop when you minimize the app. Would you like to open App Settings to set location access to 'Allow all the time'?"
-            );
-            if (openSettings) {
-              await BackgroundLocation.openAppSettings();
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request background location natively:', e);
-    }
-
-    // 4. GPS Enabled Check (Non-blocking)
-    try {
-      const gps = await BackgroundLocation.checkLocationEnabled();
-      if (!gps.enabled) {
-        const enableGps = window.confirm(
-          "Your phone's GPS / Location Services are turned off. Please turn them on for high-accuracy tracking. Open Location Settings?"
-        );
-        if (enableGps) {
-          await BackgroundLocation.openLocationSettings();
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to check GPS status:', e);
-    }
-
-    // 5. Battery Optimization (Non-blocking)
-    try {
-      const checkBatt = await BackgroundLocation.isBatteryOptimizationDisabled();
-      if (!checkBatt.disabled) {
-        const optimize = window.confirm(
-          "For uninterrupted tracking, exclude D-Ride from battery saver optimizations. Open Settings?"
-        );
-        if (optimize) {
-          await BackgroundLocation.requestBatteryOptimization();
-        }
-      }
-    } catch (e) {
-      console.warn('Non-critical: Failed to request battery optimization ignore:', e);
-    }
-
-    // 6. OEM Specific Restriction Warning (Non-blocking)
-    try {
-      const info = await Device.getInfo();
-      const manufacturer = info.manufacturer?.toLowerCase() || '';
-      const oemKillers = ['xiaomi', 'oppo', 'vivo', 'realme', 'oneplus', 'huawei', 'honor'];
-      if (oemKillers.some(oem => manufacturer.includes(oem))) {
-        window.alert(
-          `Your device (${info.manufacturer}) uses aggressive battery management that ` +
-          `can stop background apps even when battery optimization is disabled.\n\n` +
-          `For uninterrupted tracking, please also:\n` +
-          `1. Open your phone's Security or Battery app\n` +
-          `2. Find D-Ride in the app list\n` +
-          `3. Enable "Autostart" or "Allow background activity"\n\n` +
-          `This is a one-time setup.`
-        );
-      }
-    } catch (e) {
-      console.warn('Could not detect device manufacturer:', e);
-    }
-
-    return true;
-  };
-
-  const handleSuccess = async (lat: number, lng: number, speedVal?: number | null, headingVal?: number | null) => {
-    setCurrentCoords({ lat, lng });
-    const computedSpeed = speedVal != null && speedVal > 0 ? speedVal * 3.6 : 0;
-    setSpeed(Number(computedSpeed.toFixed(1)));
-    if (headingVal != null) {
-      setHeading(headingVal);
-    }
-
-    let batteryLevel: number | null = null;
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const info = await Device.getBatteryInfo();
-        batteryLevel = Math.round((info.batteryLevel || 1) * 100);
-      } else if ('getBattery' in navigator) {
-        const battery = await (navigator as any).getBattery();
-        batteryLevel = Math.round(battery.level * 100);
-      }
-    } catch (e) {
-      console.warn('Failed to get battery info:', e);
-    }
-
-    socketService.sendLocation({
-      vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || 'mock-vehicle-123',
-      driverId: user?._id || 'mock-driver-123',
-      longitude: lng,
-      latitude: lat,
-      speed: computedSpeed,
-      heading: headingVal ?? null,
-      battery: batteryLevel,
-    });
-  };
-
-  const handleFailure = (errorMsg: string) => {
-    console.warn('GPS error:', errorMsg);
-    setGpsError(t('gpsNotAvailable'));
-    setIsStreaming(false);
-    setSpeed(0);
-  };
-
-  const triggerRealGPS = async () => {
-    setIsStreaming(true);
-    setGpsError(null);
-
-    const watchOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
-    };
-
-    if (Capacitor.isNativePlatform()) {
-      const token = localStorage.getItem('dride_driver_token') || '';
-      BackgroundLocation.start({
-        apiUrl: API_URL,
-        token,
-        vehicleId: tripRef.current?.vehicleId?._id || tripRef.current?.vehicleId?.id || '',
-        driverId: user?._id || '',
-      }).catch(err => console.warn('Failed to start background location:', err));
-
-      try {
-        const watchId = await Geolocation.watchPosition(
-          watchOptions,
-          (position, err) => {
-            if (err) {
-              handleFailure(err.message || 'Native Geolocation error');
-              return;
-            }
-            if (position?.coords) {
-              handleSuccess(
-                position.coords.latitude,
-                position.coords.longitude,
-                position.coords.speed,
-                position.coords.heading
-              );
-            } else {
-              handleFailure('No coordinates from native GPS');
-            }
-          }
-        );
-        geoWatchId.current = watchId;
-      } catch (err: any) {
-        handleFailure(err.message || 'Failed to watch native position');
-      }
-
-      try {
-        if (bgLocationListenerRef.current) {
-          bgLocationListenerRef.current.remove();
-          bgLocationListenerRef.current = null;
-        }
-        bgLocationListenerRef.current = await BackgroundLocation.addListener(
-          'locationUpdate',
-          (data: BackgroundLocationData) => {
-            handleSuccess(data.latitude, data.longitude, data.speed / 3.6, data.heading);
-          }
-        );
-      } catch (err) {
-        console.warn('Failed to add background location listener:', err);
-      }
-    } else {
-      if ('geolocation' in navigator) {
-        const watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            handleSuccess(
-              position.coords.latitude,
-              position.coords.longitude,
-              position.coords.speed,
-              position.coords.heading
-            );
-          },
-          (error) => {
-            handleFailure(error.message);
-          },
-          watchOptions
-        );
-        geoWatchId.current = watchId;
-      } else {
-        setGpsError(t('geoNotSupported'));
-        setIsStreaming(false);
-        setSpeed(0);
-      }
-    }
-  };
-
-  const startLocationStream = async () => {
-    if (isStreaming) return;
-    const nativeSuccess = await requestAllPermissionsNatively();
-    if (nativeSuccess) {
-      await triggerRealGPS();
-    }
-  };
-
-  const cleanupWebviewListeners = () => {
-    // clean up native background listener
-    if (bgLocationListenerRef.current) {
-      bgLocationListenerRef.current.remove();
-      bgLocationListenerRef.current = null;
-    }
-
-    if (geoWatchId.current !== null) {
-      const oldId = geoWatchId.current;
-      geoWatchId.current = null; // null immediately — prevents double-clear
-      if (Capacitor.isNativePlatform()) {
-        Geolocation.clearWatch({ id: oldId }).catch(err => console.warn('[LiveDrive] clearWatch failed:', err));
-      } else {
-        navigator.geolocation.clearWatch(oldId);
-      }
-    }
-    setIsStreaming(false);
-    setSpeed(0);
-    setHeading(0);
-  };
-
-  const stopLocationStream = () => {
-    cleanupWebviewListeners();
-    if (Capacitor.isNativePlatform()) {
-      BackgroundLocation.stop().catch(err => console.warn('Failed to stop background location:', err));
-    }
-  };
+  // Location tracking helper methods moved to useDriverLocationTracking hook
 
   // Connect socket on mount, disconnect on unmount
   useEffect(() => {
@@ -832,48 +579,12 @@ export default function LiveDrivePage() {
     };
   }, [trip, id]);
 
-  // Automatically start live tracking when the driver opens the active shift view (LiveDrive mounts)
+  // Automatically start live tracking once the trip resolves, vehicleId is loaded, and status is IN_TRANSIT
   useEffect(() => {
-    startLocationStream();
-    return () => {
-      cleanupWebviewListeners();
-    };
-  }, []);
-
-  // Resume detection for LiveDrive: if we are supposed to be streaming,
-  // ensure the watch is active and socket is connected when the app comes back to foreground.
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        // Reconnect WebSocket if it died while backgrounded
-        if (!socketService.socket?.connected) {
-          console.log('[LiveDrive] Resumed. Reconnecting socket...');
-          socketService.connect();
-        }
-
-        if (isStreamingRef.current && Capacitor.isNativePlatform()) {
-          console.log('[LiveDrive] Resumed. Refreshing GPS watch...');
-          // Clear old watch first to avoid leaks
-          if (geoWatchId.current !== null) {
-            const oldId = geoWatchId.current;
-            geoWatchId.current = null; // null FIRST before async call
-            try {
-              await Geolocation.clearWatch({ id: oldId });
-            } catch (e) {
-              console.warn('[LiveDrive] clearWatch failed:', e);
-            }
-          }
-          // Re-trigger GPS watch
-          await triggerRealGPS();
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+    if (trip && trip.vehicleId && trip.status === 'IN_TRANSIT') {
+      startLocationStream();
+    }
+  }, [trip?.vehicleId, trip?.status, startLocationStream]);
 
   const handleToggleCheckpoint = async (checkpointName: string) => {
     if (!trip) return;
@@ -1338,10 +1049,17 @@ export default function LiveDrivePage() {
                     : (language === 'ar' ? 'بانتظار إحداثيات GPS...' : 'Awaiting GPS coordinates...')}
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (isStreaming) {
                       stopLocationStream();
                     } else {
+                      if (Capacitor.isNativePlatform()) {
+                        const permissionsGranted = await requestTrackingPermissions();
+                        if (!permissionsGranted) {
+                          setPermissionStepperOpen(true);
+                          return;
+                        }
+                      }
                       startLocationStream();
                     }
                   }}
@@ -1361,6 +1079,46 @@ export default function LiveDrivePage() {
                 >
                   {isStreaming ? t('stopBroadcasting') : t('startLiveGps')}
                 </button>
+
+                {isStreaming && diagnostics && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '10px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Background Service:</span>
+                      <span style={{ fontWeight: 'bold', color: diagnostics.isRunning ? 'var(--success)' : 'var(--danger)' }}>
+                        {diagnostics.isRunning ? 'RUNNING' : 'STOPPED'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Last Native Upload:</span>
+                      <span>
+                        {diagnostics.lastSentTime > 0
+                          ? new Date(diagnostics.lastSentTime).toLocaleTimeString()
+                          : 'Awaiting first lock...'}
+                      </span>
+                    </div>
+                    {diagnostics.consecutiveNetworkFailures > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
+                        <span>Network Failures:</span>
+                        <span>{diagnostics.consecutiveNetworkFailures} consecutive</span>
+                      </div>
+                    )}
+                    {diagnostics.authFailed && (
+                      <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '4px', borderTop: '1px solid rgba(239, 68, 68, 0.2)', paddingTop: '4px' }}>
+                        ⚠️ SESSION EXPIRED — REOPEN APP
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1917,6 +1675,15 @@ export default function LiveDrivePage() {
           </div>
         </div>
       )}
+
+      <LocationPermissionStepper
+        isOpen={permissionStepperOpen}
+        onClose={() => setPermissionStepperOpen(false)}
+        onComplete={() => {
+          setPermissionStepperOpen(false);
+          startLocationStream();
+        }}
+      />
       
       {/* Dynamic pulse-opacity animation for the streaming indicator */}
       <style>{`
