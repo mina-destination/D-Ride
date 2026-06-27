@@ -35,6 +35,7 @@ class BackgroundLocationService : Service() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
     private var apiUrl: String = ""
     private var token: String = ""
     private var vehicleId: String = ""
@@ -102,6 +103,7 @@ class BackgroundLocationService : Service() {
                     lastSentTime = 0L
 
                     acquireWakeLock()
+                    acquireWifiLock()
                     startLocationThread()
 
                     val notification = buildNotification("Live location tracking active")
@@ -145,6 +147,7 @@ class BackgroundLocationService : Service() {
 
                 // Acquire WakeLock to keep CPU alive when screen is off
                 acquireWakeLock()
+                acquireWifiLock()
 
                 // Start the dedicated background thread for location callbacks
                 startLocationThread()
@@ -170,6 +173,7 @@ class BackgroundLocationService : Service() {
                 stopNotificationUpdater()
                 stopLocationThread()
                 releaseWakeLock()
+                releaseWifiLock()
                 cancelRestartAlarm()
                 isRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -187,6 +191,7 @@ class BackgroundLocationService : Service() {
         stopNotificationUpdater()
         stopLocationThread()
         releaseWakeLock()
+        releaseWifiLock()
         isRunning = false
         super.onDestroy()
     }
@@ -291,6 +296,31 @@ class BackgroundLocationService : Service() {
             Log.e(TAG, "Error releasing WakeLock", e)
         }
         wakeLock = null
+    }
+
+    private fun acquireWifiLock() {
+        try {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+            wifiLock = wifiManager.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "DRide::WifiLock").apply {
+                acquire()
+            }
+            Log.d(TAG, "WifiLock acquired successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to acquire WifiLock", e)
+        }
+    }
+
+    private fun releaseWifiLock() {
+        try {
+            wifiLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing WifiLock", e)
+        }
+        wifiLock = null
     }
 
     // ── Location Thread ────────────────────────────────────────
