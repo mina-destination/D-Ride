@@ -316,13 +316,13 @@ export class VehiclesGateway
             await this.prisma.liveVehicleLocation.findUnique({
               where: { vehicleId: driverData.vehicleId },
             });
-          const thirtySecondsAgo = new Date(Date.now() - 30_000);
+          const threeMinutesAgo = new Date(Date.now() - 180_000);
           if (
             recentLocation?.lastUpdatedAt &&
-            recentLocation.lastUpdatedAt > thirtySecondsAgo
+            recentLocation.lastUpdatedAt > threeMinutesAgo
           ) {
             this.logger.log(
-              `Driver socket disconnected, but native HTTP location updates were active within the last 30s. Keeping vehicle online.`,
+              `Driver socket disconnected, but native HTTP location updates were active within the last 3m. Keeping vehicle online.`,
             );
           } else {
             await this.vehiclesService.markVehicleOffline(driverData.vehicleId);
