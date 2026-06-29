@@ -97,7 +97,10 @@ async function bootstrap() {
       origins = origins.filter(
         (o) =>
           !o.includes('127.0.0.1') &&
-          (o === 'capacitor://localhost' || o === 'http://localhost' || o === 'https://localhost' || !o.includes('localhost')),
+          (o === 'capacitor://localhost' ||
+            o === 'http://localhost' ||
+            o === 'https://localhost' ||
+            !o.includes('localhost')),
       );
     }
   } else {

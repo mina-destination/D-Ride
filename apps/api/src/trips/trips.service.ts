@@ -609,6 +609,11 @@ export class TripsService {
 
   async delete(id: string): Promise<void> {
     try {
+      const tripObj = await this.prisma.trip.findUnique({
+        where: { id },
+        select: { vehicleId: true },
+      });
+
       const bookingsToNotify = await this.prisma.$transaction(async (tx) => {
         // 1. Soft-delete by setting trip status to CANCELLED
         await tx.trip.update({
@@ -642,6 +647,23 @@ export class TripsService {
 
         return activeBookings;
       });
+
+      if (tripObj?.vehicleId) {
+        try {
+          await this.prisma.liveVehicleLocation.delete({
+            where: { vehicleId: tripObj.vehicleId },
+          });
+        } catch (e) {
+          // Ignore if no live location record exists
+        }
+
+        this.vehiclesGateway.server
+          .to(`vehicle_${tripObj.vehicleId}`)
+          .emit('vehicleOffline', {
+            vehicleId: tripObj.vehicleId,
+            timestamp: new Date().toISOString(),
+          });
+      }
 
       // 4. Send cancellation notification email/SMS/WhatsApp asynchronously
       for (const booking of bookingsToNotify) {
@@ -800,6 +822,23 @@ export class TripsService {
         tripId: updated.id,
         status: updated.status,
       });
+
+      if (updated.status === 'COMPLETED' || updated.status === 'CANCELLED') {
+        try {
+          await this.prisma.liveVehicleLocation.delete({
+            where: { vehicleId: updated.vehicleId },
+          });
+        } catch (e) {
+          // Ignore if no live location record exists
+        }
+
+        this.vehiclesGateway.server
+          .to(`vehicle_${updated.vehicleId}`)
+          .emit('vehicleOffline', {
+            vehicleId: updated.vehicleId,
+            timestamp: new Date().toISOString(),
+          });
+      }
     }
 
     return this.mapTrip(updated);

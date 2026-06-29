@@ -29,7 +29,7 @@ jobs:
       - name: Push database schema
         run: npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss --force-reset
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://localhost:5432/dride_test' }}
+          DATABASE_URL: ${{ coalesce(secrets.DATABASE_URL, 'postgresql://localhost:5432/dride_test') }}
 
       - name: Run tests
         run: npm run test

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const REFRESH_INTERVAL = 10000;
+const REFRESH_INTERVAL = 5000;
 
 interface LiveVehicle {
   id: string;
@@ -293,6 +293,21 @@ export function LiveTrackingPage() {
                 distanceMeters: data.distanceMeters,
                 lastUpdated: new Date().toISOString(),
               },
+            };
+          }
+          return v;
+        }),
+      );
+    });
+
+    socket.on('vehicleOffline', (data: any) => {
+      if (!data?.vehicleId) return;
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.id === data.vehicleId) {
+            return {
+              ...v,
+              location: undefined,
             };
           }
           return v;
@@ -630,7 +645,7 @@ export function LiveTrackingPage() {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <span>Auto-refreshes every 10s</span>
+                    <span>Auto-refreshes every 5s</span>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

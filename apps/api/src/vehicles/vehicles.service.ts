@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VehiclesGateway } from './vehicles.gateway';
-import { getDistance } from '../utils/geo';
+import { getDistance, snapToRoute } from '../utils/geo';
 
 function mapVehicleFromDb(v: any): any {
   if (!v) return null;
@@ -171,7 +171,49 @@ export class VehiclesService {
       }
     }
 
-    this.logger.log(`Updating location for vehicle ${data.vehicleId}`);
+    // Snap coordinates if vehicle is on an active IN_TRANSIT trip
+    let snappedLng = data.longitude;
+    let snappedLat = data.latitude;
+
+    try {
+      if (this.prisma.trip) {
+        const activeTrip = await this.prisma.trip.findFirst({
+          where: {
+            vehicleId: data.vehicleId,
+            driverId: data.driverId,
+            status: 'IN_TRANSIT',
+          },
+          include: {
+            route: true,
+          },
+        });
+
+        if (activeTrip?.route?.path) {
+          const pathObj = activeTrip.route.path as any;
+          if (
+            Array.isArray(pathObj?.coordinates) &&
+            pathObj.coordinates.length > 0
+          ) {
+            const snapped = snapToRoute(
+              data.longitude,
+              data.latitude,
+              pathObj.coordinates,
+            );
+            snappedLng = snapped.longitude;
+            snappedLat = snapped.latitude;
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to snap coordinate to route: ${err.message}`);
+    }
+
+    data.longitude = snappedLng;
+    data.latitude = snappedLat;
+
+    this.logger.log(
+      `Updating location for vehicle ${data.vehicleId} (snapped: [${snappedLng}, ${snappedLat}])`,
+    );
 
     const existing = await this.prisma.liveVehicleLocation.findFirst({
       where: { vehicleId: data.vehicleId },

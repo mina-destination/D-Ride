@@ -127,50 +127,56 @@ export class SupportGateway
     const RATE_LIMIT = 30;
     const RATE_WINDOW_SECONDS = 60;
 
-    server.use(async (socket: any, next) => {
-      const userId = socket.user?.id || socket.id;
-      const key = `ws:support:rate:${userId}`;
+    server.use((socket: any, next) => {
+      (async () => {
+        const userId = socket.user?.id || socket.id;
+        const key = `ws:support:rate:${userId}`;
 
-      if (this.redisClient && this.redisClient.isReady) {
-        try {
-          const current = await this.redisClient.incr(key);
-          if (current === 1) {
-            await this.redisClient.expire(key, RATE_WINDOW_SECONDS);
-          }
-          if (current > RATE_LIMIT) {
-            this.logger.warn(`Redis Rate limit exceeded for user ${userId}`);
-            socket.disconnect(true);
+        if (this.redisClient && this.redisClient.isReady) {
+          try {
+            const current = await this.redisClient.incr(key);
+            if (current === 1) {
+              await this.redisClient.expire(key, RATE_WINDOW_SECONDS);
+            }
+            if (current > RATE_LIMIT) {
+              this.logger.warn(`Redis Rate limit exceeded for user ${userId}`);
+              socket.disconnect(true);
+              return;
+            }
+            next();
             return;
+          } catch (err: any) {
+            this.logger.error(`Redis rate limiter error: ${err.message}`);
           }
-          return next();
-        } catch (err: any) {
-          this.logger.error(`Redis rate limiter error: ${err.message}`);
         }
-      }
 
-      // Fallback inline in-memory rate limiter directly on socket instance (no memory leak)
-      if (!socket.rateLimitRecord) {
-        socket.rateLimitRecord = {
-          count: 1,
-          resetTime: Date.now() + RATE_WINDOW_SECONDS * 1000,
-        };
-      } else {
-        const now = Date.now();
-        if (now > socket.rateLimitRecord.resetTime) {
-          socket.rateLimitRecord.count = 1;
-          socket.rateLimitRecord.resetTime = now + RATE_WINDOW_SECONDS * 1000;
+        // Fallback inline in-memory rate limiter directly on socket instance (no memory leak)
+        if (!socket.rateLimitRecord) {
+          socket.rateLimitRecord = {
+            count: 1,
+            resetTime: Date.now() + RATE_WINDOW_SECONDS * 1000,
+          };
         } else {
-          socket.rateLimitRecord.count++;
-          if (socket.rateLimitRecord.count > RATE_LIMIT) {
-            this.logger.warn(
-              `In-memory Rate limit exceeded for user ${userId}`,
-            );
-            socket.disconnect(true);
-            return;
+          const now = Date.now();
+          if (now > socket.rateLimitRecord.resetTime) {
+            socket.rateLimitRecord.count = 1;
+            socket.rateLimitRecord.resetTime = now + RATE_WINDOW_SECONDS * 1000;
+          } else {
+            socket.rateLimitRecord.count++;
+            if (socket.rateLimitRecord.count > RATE_LIMIT) {
+              this.logger.warn(
+                `In-memory Rate limit exceeded for user ${userId}`,
+              );
+              socket.disconnect(true);
+              return;
+            }
           }
         }
-      }
-      next();
+        next();
+      })().catch((err: any) => {
+        this.logger.error(`Unexpected rate limiter error: ${err.message}`);
+        next();
+      });
     });
   }
 
