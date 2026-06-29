@@ -7,7 +7,7 @@ import com.dride.driver.plugins.backgroundlocation.BackgroundLocationPlugin;
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         registerPlugin(BackgroundLocationPlugin.class);
+        super.onCreate(savedInstanceState);
     }
 }
