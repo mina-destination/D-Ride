@@ -339,19 +339,25 @@ export default function DashboardPage() {
 
       const tripCount = activeUpcomingTrips.length;
       if (tripCount > 0) {
-        if (lastNotifiedCountRef.current === null) {
-          // Summary of all scheduled shifts on first load
-          const title = t('upcomingShiftsSummaryTitle');
-          const description = t('upcomingShiftsSummaryDesc', { count: tripCount });
-          addNotification(title, description);
+        const sessionSummaryKey = `dride_shifts_summary_notified_${user?._id || 'default'}`;
+        const alreadyNotifiedThisSession = sessionStorage.getItem(sessionSummaryKey);
 
-          // Web browser notification API fallback
-          try {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new window.Notification(title, { body: description });
+        if (lastNotifiedCountRef.current === null) {
+          if (!alreadyNotifiedThisSession) {
+            // Summary of all scheduled shifts on first load in this session
+            const title = t('upcomingShiftsSummaryTitle');
+            const description = t('upcomingShiftsSummaryDesc', { count: tripCount });
+            addNotification(title, description);
+
+            // Web browser notification API fallback
+            try {
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new window.Notification(title, { body: description });
+              }
+            } catch (e) {
+              /* ignore */
             }
-          } catch (e) {
-            /* ignore */
+            sessionStorage.setItem(sessionSummaryKey, 'true');
           }
         } else if (tripCount > lastNotifiedCountRef.current) {
           // Real-time alert when new shifts are added
