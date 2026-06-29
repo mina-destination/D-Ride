@@ -35,6 +35,12 @@ export default function LocationPermissionStepper({
   });
   const [checking, setChecking] = useState(true);
   const [oemManufacturer, setOemManufacturer] = useState<string>('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log('[DEBUG-STEPPER]', msg);
+    setDebugLogs((prev) => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  };
 
   const runAllChecks = async () => {
     if (!Capacitor.isNativePlatform()) {
@@ -43,15 +49,19 @@ export default function LocationPermissionStepper({
     }
 
     setChecking(true);
+    addLog('Running all permission/GPS checks...');
     try {
       // 1. GPS hardware state
       const gps = await BackgroundLocation.checkLocationEnabled();
+      addLog(`GPS enabled: ${gps.enabled}`);
       
       // 2. Main permissions
       const perms = await BackgroundLocation.checkPermissions();
+      addLog(`Perms: location=${perms.location}, bg=${perms.backgroundLocation}, notif=${perms.notifications}`);
       
       // 3. Battery optimization
       const battery = await BackgroundLocation.isBatteryOptimizationDisabled();
+      addLog(`Battery optimization disabled: ${battery.disabled}`);
 
       // 4. OEM detection
       try {
@@ -68,8 +78,9 @@ export default function LocationPermissionStepper({
         notifications: perms.notifications === 'granted',
         batteryOptimized: !battery.disabled,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('[PermissionStepper] Failed to run permission checks:', e);
+      addLog(`Checks failed: ${e?.message || e}`);
     } finally {
       setChecking(false);
     }
@@ -92,82 +103,83 @@ export default function LocationPermissionStepper({
   );
 
   const fixFineLocation = async () => {
+    addLog('Click: fixFineLocation');
     try {
       const req = await BackgroundLocation.requestPermissions({ permissions: ['location'] });
+      addLog(`Request result: location=${req.location}`);
       if (req.location !== 'granted') {
-        window.alert(
-          language === 'ar'
-            ? 'يرجى تفعيل صلاحية الموقع من الإعدادات للبدء'
-            : 'Please enable location permission in app settings to proceed.'
-        );
+        addLog('Location not granted. Opening app settings...');
         await BackgroundLocation.openAppSettings();
       }
       runAllChecks();
     } catch (err: any) {
       console.warn('Failed to fix fine location', err);
+      addLog(`Error (Location): ${err?.message || err}`);
       window.alert('Error (Location): ' + (err?.message || err));
     }
   };
 
   const fixBackgroundLocation = async () => {
+    addLog('Click: fixBackgroundLocation');
     try {
-      window.alert(
-        language === 'ar'
-          ? 'يرجى اختيار "السماح طوال الوقت" في الشاشة التالية'
-          : "On the next screen, please choose 'Allow all the time' to permit background tracking."
-      );
       const req = await BackgroundLocation.requestPermissions({
         permissions: ['backgroundLocation'],
       });
+      addLog(`Request result: backgroundLocation=${req.backgroundLocation}`);
       if (req.backgroundLocation !== 'granted') {
-        const confirmOpen = window.confirm(
-          language === 'ar'
-            ? 'لم يتم منح صلاحية تتبع الموقع بالخلفية. هل تود الانتقال إلى إعدادات الهاتف لتفعيلها؟'
-            : "Background location was not granted. Tracking will stop when you minimize the app. Open App Settings to set to 'Allow all the time'?"
-        );
-        if (confirmOpen) {
-          await BackgroundLocation.openAppSettings();
-        }
+        addLog('BackgroundLocation not granted. Opening app settings...');
+        await BackgroundLocation.openAppSettings();
       }
       runAllChecks();
     } catch (err: any) {
       console.warn('Failed to fix background location', err);
+      addLog(`Error (Background Location): ${err?.message || err}`);
       window.alert('Error (Background Location): ' + (err?.message || err));
     }
   };
 
   const fixNotifications = async () => {
+    addLog('Click: fixNotifications');
     try {
       const req = await BackgroundLocation.requestPermissions({
         permissions: ['notifications'],
       });
+      addLog(`Request result: notifications=${req.notifications}`);
       if (req.notifications !== 'granted') {
+        addLog('Notifications not granted. Opening app settings...');
         await BackgroundLocation.openAppSettings();
       }
       runAllChecks();
     } catch (err: any) {
       console.warn('Failed to fix notifications', err);
+      addLog(`Error (Notifications): ${err?.message || err}`);
       window.alert('Error (Notifications): ' + (err?.message || err));
     }
   };
 
   const fixGps = async () => {
+    addLog('Click: fixGps');
     try {
+      addLog('Opening location settings...');
       await BackgroundLocation.openLocationSettings();
       // Inform driver to refresh once turned on
       setTimeout(runAllChecks, 3000);
     } catch (err: any) {
       console.warn('Failed to open location settings', err);
+      addLog(`Error (GPS): ${err?.message || err}`);
       window.alert('Error (GPS): ' + (err?.message || err));
     }
   };
 
   const fixBattery = async () => {
+    addLog('Click: fixBattery');
     try {
+      addLog('Requesting battery optimization exemption...');
       await BackgroundLocation.requestBatteryOptimization();
       setTimeout(runAllChecks, 3000);
     } catch (err: any) {
       console.warn('Failed to request battery optimization disable', err);
+      addLog(`Error (Battery): ${err?.message || err}`);
       window.alert('Error (Battery): ' + (err?.message || err));
     }
   };
@@ -471,6 +483,31 @@ export default function LocationPermissionStepper({
             )}
           </div>
         )}
+
+        {/* Visual Logger */}
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '8px',
+            background: 'rgba(0,0,0,0.4)',
+            border: '1px dashed rgba(255,255,255,0.1)',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            color: '#10b981',
+            maxHeight: '80px',
+            overflowY: 'auto',
+            textAlign: 'left',
+            direction: 'ltr',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#a3a3a3' }}>Debug Console Output:</div>
+          {debugLogs.length === 0 ? (
+            <div style={{ color: '#666' }}>No logs yet (tap any button to debug).</div>
+          ) : (
+            debugLogs.map((log, i) => <div key={i}>{log}</div>)
+          )}
+        </div>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
           {!blocking && (
