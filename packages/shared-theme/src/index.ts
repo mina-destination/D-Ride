@@ -278,17 +278,100 @@ export interface UseMapLibreOptions {
   containerRef?: React.RefObject<HTMLDivElement>;
 }
 
+export function applyGoogleMapsDarkTheme(map: any) {
+  try {
+    const style = map.getStyle();
+    if (!style || !style.layers) return;
+
+    style.layers.forEach((layer: any) => {
+      // 1. Background (Land)
+      if (layer.id === 'background' || layer.id === 'land') {
+        try {
+          map.setPaintProperty(layer.id, 'background-color', '#242f3e');
+        } catch (e) {}
+      }
+
+      // 2. Water
+      if (layer.id.includes('water')) {
+        try {
+          if (layer.type === 'fill') {
+            map.setPaintProperty(layer.id, 'fill-color', '#17263c');
+          } else if (layer.type === 'line') {
+            map.setPaintProperty(layer.id, 'line-color', '#17263c');
+          }
+        } catch (e) {}
+      }
+
+      // 3. Greenery / Landuse / Parks
+      if (layer.id.includes('landuse') || layer.id.includes('park') || layer.id.includes('forest') || layer.id.includes('grass') || layer.id.includes('natural') || layer.id.includes('wood') || layer.id.includes('greenery')) {
+        try {
+          if (layer.type === 'fill') {
+            map.setPaintProperty(layer.id, 'fill-color', '#263c3f');
+          }
+        } catch (e) {}
+      }
+
+      // 4. Buildings
+      if (layer.id.includes('building')) {
+        try {
+          if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
+            map.setPaintProperty(layer.id, layer.type === 'fill' ? 'fill-color' : 'fill-extrusion-color', '#2b3544');
+            map.setPaintProperty(layer.id, layer.type === 'fill' ? 'fill-opacity' : 'fill-extrusion-opacity', 0.85);
+          }
+        } catch (e) {}
+      }
+
+      // 5. Roads
+      if (!layer.id.includes('route') && !layer.id.includes('marker') && !layer.id.includes('trip') && !layer.id.includes('user-location')) {
+        const isRoad = layer.id.includes('road') || 
+                      layer.id.includes('highway') || 
+                      layer.id.includes('street') || 
+                      layer.id.includes('path') || 
+                      layer.id.includes('track') || 
+                      layer.id.includes('motorway') || 
+                      layer.id.includes('trunk') || 
+                      layer.id.includes('primary') || 
+                      layer.id.includes('secondary') || 
+                      layer.id.includes('tertiary') || 
+                      layer.id.includes('link') || 
+                      layer.id.includes('railway') || 
+                      layer.id.includes('bridge') || 
+                      layer.id.includes('tunnel');
+
+        if (isRoad && layer.type === 'line') {
+          try {
+            const isCasing = layer.id.includes('casing') || layer.id.includes('outline') || layer.id.includes('stroke');
+            if (isCasing) {
+              map.setPaintProperty(layer.id, 'line-color', '#212a37');
+            } else {
+              if (layer.id.includes('motorway') || layer.id.includes('trunk')) {
+                map.setPaintProperty(layer.id, 'line-color', '#38414e');
+              } else if (layer.id.includes('primary') || layer.id.includes('secondary')) {
+                map.setPaintProperty(layer.id, 'line-color', '#2c384e');
+              } else {
+                map.setPaintProperty(layer.id, 'line-color', '#1f2835');
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 6. Labels / Text (Symbol)
+      if (layer.type === 'symbol') {
+        try {
+          map.setPaintProperty(layer.id, 'text-color', '#9ca5b1');
+          map.setPaintProperty(layer.id, 'text-halo-color', '#17202a');
+          map.setPaintProperty(layer.id, 'text-halo-width', 1.5);
+        } catch (e) {}
+      }
+    });
+  } catch (err) {
+    console.warn('Failed to style map layer:', err);
+  }
+}
+
 export function patchMapLabels(map: any) {
-  // Always dark mode — no need to check DOM classes
-  map.getStyle()?.layers?.forEach((layer: any) => {
-    if (layer.type === 'symbol') {
-      try {
-        map.setPaintProperty(layer.id, 'text-color', '#ffffff');
-        map.setPaintProperty(layer.id, 'text-halo-color', '#111827');
-        map.setPaintProperty(layer.id, 'text-halo-width', 1.5);
-      } catch {}
-    }
-  });
+  applyGoogleMapsDarkTheme(map);
 }
 
 export function setupRTLPlugin(maplibregl: any) {

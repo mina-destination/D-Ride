@@ -169,28 +169,6 @@ export function useDriverLocationTracking(
       }
 
       try {
-        const watchId = await Geolocation.watchPosition(watchOptions, (position, err) => {
-          if (err) {
-            handleFailure(err.message || 'Native Geolocation error');
-            return;
-          }
-          if (position?.coords) {
-            handleSuccess(
-              position.coords.latitude,
-              position.coords.longitude,
-              position.coords.speed,
-              position.coords.heading
-            );
-          } else {
-            handleFailure('No coordinates from native GPS');
-          }
-        });
-        geoWatchId.current = watchId;
-      } catch (err: any) {
-        handleFailure(err.message || 'Failed to watch native position');
-      }
-
-      try {
         if (bgLocationListenerRef.current) {
           bgLocationListenerRef.current.remove();
           bgLocationListenerRef.current = null;

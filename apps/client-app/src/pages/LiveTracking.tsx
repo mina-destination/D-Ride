@@ -9,6 +9,18 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
 
+function getBearing(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const y = Math.sin(deltaLambda) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  const bearingRad = Math.atan2(y, x);
+  const bearingDeg = (bearingRad * 180) / Math.PI;
+  return (bearingDeg + 360) % 360;
+}
+
 export default function LiveTrackingPage() {
   const { t, isRtl, language } = useTranslation();
   const { theme } = useTheme();
@@ -183,42 +195,96 @@ export default function LiveTrackingPage() {
 
       busMarkerRef.current = marker;
     } else {
-      // Smooth animated interpolation to prevent jumping markers
+      // Smooth animated interpolation along OSRM snapped road to prevent jumping markers
       const fromCoords = busMarkerRef.current.getLngLat();
       const from = { lat: fromCoords.lat, lng: fromCoords.lng };
       const to = { lat: location.lat, lng: location.lng };
-
-      // Update rotation immediately
-      const chevron = busMarkerRef.current.getElement().querySelector('#vehicle-chevron');
-      if (chevron) {
-        chevron.setAttribute('transform', `translate(24, 24) rotate(${heading}) translate(-24, -24)`);
-      }
 
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
       }
 
       const duration = 2000; // transition over 2 seconds
-      const start = performance.now();
 
-      const animateStep = (now: number) => {
-        const timeFraction = Math.min((now - start) / duration, 1);
-        // Easing function (easeInOutQuad)
-        const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
-
-        const currentLat = from.lat + (to.lat - from.lat) * t;
-        const currentLng = from.lng + (to.lng - from.lng) * t;
-
-        if (busMarkerRef.current) {
-          busMarkerRef.current.setLngLat([currentLng, currentLat]);
+      const animateAlongPath = (path: [number, number][]) => {
+        if (path.length < 2) {
+          path = [[from.lng, from.lat], [to.lng, to.lat]];
         }
 
-        if (timeFraction < 1) {
-          animFrameRef.current = requestAnimationFrame(animateStep);
+        // Calculate cumulative distances
+        const distances: number[] = [0];
+        let totalDist = 0;
+        for (let i = 1; i < path.length; i++) {
+          const p1 = path[i - 1];
+          const p2 = path[i];
+          const dx = p2[0] - p1[0];
+          const dy = p2[1] - p1[1];
+          const d = Math.sqrt(dx * dx + dy * dy);
+          totalDist += d;
+          distances.push(totalDist);
         }
+
+        const start = performance.now();
+
+        const animateStep = (now: number) => {
+          const timeFraction = Math.min((now - start) / duration, 1);
+          // Easing function (easeInOutQuad)
+          const t = timeFraction < 0.5 ? 2 * timeFraction * timeFraction : 1 - Math.pow(-2 * timeFraction + 2, 2) / 2;
+
+          const targetDist = t * totalDist;
+          let index = 0;
+          while (index < distances.length - 2 && distances[index + 1] < targetDist) {
+            index++;
+          }
+
+          const segStart = path[index];
+          const segEnd = path[index + 1];
+          const segDist = distances[index + 1] - distances[index];
+          const segProgress = segDist > 0 ? (targetDist - distances[index]) / segDist : 0;
+
+          const currentLng = segStart[0] + (segEnd[0] - segStart[0]) * segProgress;
+          const currentLat = segStart[1] + (segEnd[1] - segStart[1]) * segProgress;
+
+          const currentHeading = getBearing(segStart[1], segStart[0], segEnd[1], segEnd[0]);
+
+          if (busMarkerRef.current) {
+            busMarkerRef.current.setLngLat([currentLng, currentLat]);
+            const el = busMarkerRef.current.getElement();
+            const chevron = el.querySelector('#vehicle-chevron');
+            if (chevron) {
+              chevron.setAttribute('transform', `translate(24, 24) rotate(${currentHeading}) translate(-24, -24)`);
+            }
+          }
+
+          if (timeFraction < 1) {
+            animFrameRef.current = requestAnimationFrame(animateStep);
+          }
+        };
+
+        animFrameRef.current = requestAnimationFrame(animateStep);
       };
 
-      animFrameRef.current = requestAnimationFrame(animateStep);
+      const latDiff = Math.abs(from.lat - to.lat);
+      const lngDiff = Math.abs(from.lng - to.lng);
+      
+      if (latDiff < 0.00005 && lngDiff < 0.00005) {
+        // Very short distance change (~5m or less), straight line animate to avoid network overhead
+        animateAlongPath([[from.lng, from.lat], [to.lng, to.lat]]);
+      } else {
+        // Fetch road geometry from OSRM Routing API
+        fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.routes && data.routes[0]?.geometry?.coordinates) {
+              animateAlongPath(data.routes[0].geometry.coordinates);
+            } else {
+              animateAlongPath([[from.lng, from.lat], [to.lng, to.lat]]);
+            }
+          })
+          .catch(() => {
+            animateAlongPath([[from.lng, from.lat], [to.lng, to.lat]]);
+          });
+      }
     }
 
     map.flyTo({ center: busCoords, zoom: map.getZoom(), animate: true });

@@ -13,6 +13,7 @@ import DashboardPage from './pages/Dashboard';
 import BottomNav from './components/BottomNav';
 import ProfilePage from './pages/ProfilePage';
 import HelpPage from './pages/Help';
+import BackgroundReadinessGuard from './components/BackgroundReadinessGuard';
 
 
 // Protected Route Guard
@@ -68,7 +69,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <BackgroundReadinessGuard>{children}</BackgroundReadinessGuard>;
 }
 
 function AnonymousRoute({ children }: { children: React.ReactNode }) {

@@ -8,6 +8,7 @@ interface LocationPermissionStepperProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
+  blocking?: boolean;
 }
 
 interface PermissionChecks {
@@ -22,6 +23,7 @@ export default function LocationPermissionStepper({
   isOpen,
   onClose,
   onComplete,
+  blocking = false,
 }: LocationPermissionStepperProps) {
   const { t, language } = useTranslation();
   const [checks, setChecks] = useState<PermissionChecks>({
@@ -81,7 +83,10 @@ export default function LocationPermissionStepper({
 
   if (!isOpen) return null;
 
-  const isCriticalSuccess = checks.fineLocation && checks.backgroundLocation && checks.locationEnabled;
+  const isCriticalSuccess = checks.fineLocation && 
+                            checks.backgroundLocation && 
+                            checks.locationEnabled && 
+                            (!blocking || !checks.batteryOptimized);
   const isOemKiller = ['xiaomi', 'oppo', 'vivo', 'realme', 'oneplus', 'huawei', 'honor'].some(
     (oem) => oemManufacturer.includes(oem)
   );
@@ -463,28 +468,30 @@ export default function LocationPermissionStepper({
         )}
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              color: '#a3a3a3',
-              border: '1px solid rgba(255,255,255,0.1)',
-              padding: '10px',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
-            {language === 'ar' ? 'إلغاء' : 'Cancel'}
-          </button>
+          {!blocking && (
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                color: '#a3a3a3',
+                border: '1px solid rgba(255,255,255,0.1)',
+                padding: '10px',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              {language === 'ar' ? 'إلغاء' : 'Cancel'}
+            </button>
+          )}
           
           <button
             onClick={onComplete}
             disabled={checking || !isCriticalSuccess}
             style={{
-              flex: 2,
+              flex: blocking ? 1 : 2,
               background: isCriticalSuccess ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
               color: isCriticalSuccess ? 'var(--text-on-primary)' : 'rgba(255,255,255,0.3)',
               border: 'none',
@@ -495,7 +502,9 @@ export default function LocationPermissionStepper({
               cursor: isCriticalSuccess ? 'pointer' : 'not-allowed',
             }}
           >
-            {language === 'ar' ? 'بدء الوردية' : 'Start Shift'}
+            {blocking 
+              ? (language === 'ar' ? 'دخول لوحة القيادة' : 'Enter Dashboard')
+              : (language === 'ar' ? 'بدء الوردية' : 'Start Shift')}
           </button>
         </div>
       </div>

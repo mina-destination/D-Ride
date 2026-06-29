@@ -13,6 +13,18 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '../context/ThemeContext';
 
+function getBearing(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const y = Math.sin(deltaLambda) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  const bearingRad = Math.atan2(y, x);
+  const bearingDeg = (bearingRad * 180) / Math.PI;
+  return (bearingDeg + 360) % 360;
+}
+
 export default function FamilyTrackingPage() {
   const { t, isRtl, language } = useTranslation();
   const { theme } = useTheme();
@@ -52,41 +64,87 @@ export default function FamilyTrackingPage() {
       cancelAnimationFrame(animRef.current);
     }
 
-    const duration = 3000; // ms between updates
-    const startTime = performance.now();
+    const duration = 2000; // transition over 2 seconds
 
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    const animateAlongPath = (path: [number, number][]) => {
+      if (path.length < 2) {
+        path = [[start.lng, start.lat], [end.lng, end.lat]];
+      }
 
-      const currentLat = start.lat + (end.lat - start.lat) * progress;
-      const currentLng = start.lng + (end.lng - start.lng) * progress;
+      // Calculate cumulative distances
+      const distances: number[] = [0];
+      let totalDist = 0;
+      for (let i = 1; i < path.length; i++) {
+        const p1 = path[i - 1];
+        const p2 = path[i];
+        const dx = p2[0] - p1[0];
+        const dy = p2[1] - p1[1];
+        const d = Math.sqrt(dx * dx + dy * dy);
+        totalDist += d;
+        distances.push(totalDist);
+      }
 
-      // Interpolate heading
-      const startHeading = start.heading ?? 0;
-      const endHeading = end.heading ?? 0;
-      let diff = endHeading - startHeading;
-      if (diff > 180) diff -= 360;
-      if (diff < -180) diff += 360;
-      const currentHeading = startHeading + diff * progress;
+      const startTime = performance.now();
 
-      currentCoordsRef.current = { lat: currentLat, lng: currentLng, heading: currentHeading };
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const t = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-      if (busMarkerRef.current) {
-        busMarkerRef.current.setLngLat([currentLng, currentLat]);
-        const el = busMarkerRef.current.getElement();
-        const chevron = el.querySelector('#vehicle-chevron');
-        if (chevron) {
-          chevron.setAttribute('transform', `translate(24, 24) rotate(${currentHeading}) translate(-24, -24)`);
+        const targetDist = t * totalDist;
+        let index = 0;
+        while (index < distances.length - 2 && distances[index + 1] < targetDist) {
+          index++;
         }
-      }
 
-      if (progress < 1) {
-        animRef.current = requestAnimationFrame(animate);
-      }
+        const segStart = path[index];
+        const segEnd = path[index + 1];
+        const segDist = distances[index + 1] - distances[index];
+        const segProgress = segDist > 0 ? (targetDist - distances[index]) / segDist : 0;
+
+        const currentLng = segStart[0] + (segEnd[0] - segStart[0]) * segProgress;
+        const currentLat = segStart[1] + (segEnd[1] - segStart[1]) * segProgress;
+
+        const currentHeading = getBearing(segStart[1], segStart[0], segEnd[1], segEnd[0]);
+
+        currentCoordsRef.current = { lat: currentLat, lng: currentLng, heading: currentHeading };
+
+        if (busMarkerRef.current) {
+          busMarkerRef.current.setLngLat([currentLng, currentLat]);
+          const el = busMarkerRef.current.getElement();
+          const chevron = el.querySelector('#vehicle-chevron');
+          if (chevron) {
+            chevron.setAttribute('transform', `translate(24, 24) rotate(${currentHeading}) translate(-24, -24)`);
+          }
+        }
+
+        if (progress < 1) {
+          animRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      animRef.current = requestAnimationFrame(animate);
     };
 
-    animRef.current = requestAnimationFrame(animate);
+    const latDiff = Math.abs(start.lat - end.lat);
+    const lngDiff = Math.abs(start.lng - end.lng);
+    
+    if (latDiff < 0.00005 && lngDiff < 0.00005) {
+      animateAlongPath([[start.lng, start.lat], [end.lng, end.lat]]);
+    } else {
+      fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.routes && data.routes[0]?.geometry?.coordinates) {
+            animateAlongPath(data.routes[0].geometry.coordinates);
+          } else {
+            animateAlongPath([[start.lng, start.lat], [end.lng, end.lat]]);
+          }
+        })
+        .catch(() => {
+          animateAlongPath([[start.lng, start.lat], [end.lng, end.lat]]);
+        });
+    }
   };
 
   // Parse code from search query on mount or query change

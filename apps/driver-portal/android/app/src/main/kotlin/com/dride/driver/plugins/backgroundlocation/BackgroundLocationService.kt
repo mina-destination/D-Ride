@@ -6,9 +6,13 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.location.Location
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -16,7 +20,9 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -51,6 +57,78 @@ class BackgroundLocationService : Service() {
 
     private var lastSentLatitude: Double = 0.0
     private var lastSentLongitude: Double = 0.0
+
+    private var currentBatteryPercentage: Int = -1
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) {
+                currentBatteryPercentage = (level * 100) / scale
+                Log.d(TAG, "BatteryReceiver: percentage updated to $currentBatteryPercentage%")
+            }
+        }
+    }
+
+    private fun checkBackgroundPermissionsGranted(): Boolean {
+        val hasFine = ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        val hasCoarse = ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasBg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else true
+
+        return (hasFine || hasCoarse) && hasBg
+    }
+
+    private fun showPermissionAlertNotification(title: String, text: String) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = android.net.Uri.parse("package:$packageName")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            2002,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val channelId = "dride_alert_channel"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "D-Ride Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Critical alerts from D-Ride driver service"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(2002, notification)
+    }
 
     companion object {
         const val TAG = "BackgroundLocation"
@@ -88,6 +166,7 @@ class BackgroundLocationService : Service() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,7 +182,13 @@ class BackgroundLocationService : Service() {
                 vehicleId = prefs.getString(RestartReceiver.KEY_VEHICLE_ID, "") ?: ""
                 driverId = prefs.getString(RestartReceiver.KEY_DRIVER_ID, "") ?: ""
 
-                if (apiUrl.isNotEmpty() && token.isNotEmpty() && vehicleId.isNotEmpty() && driverId.isNotEmpty()) {
+                 if (apiUrl.isNotEmpty() && token.isNotEmpty() && vehicleId.isNotEmpty() && driverId.isNotEmpty()) {
+                    if (!checkBackgroundPermissionsGranted()) {
+                        showPermissionAlertNotification(
+                            "Location Permission Required",
+                            "D-Ride needs 'Allow all the time' location permission to track your shift. Tap here to enable."
+                        )
+                    }
                     lastSentLatitude = 0.0
                     lastSentLongitude = 0.0
                     lastSentTime = 0L
@@ -145,6 +230,13 @@ class BackgroundLocationService : Service() {
                 token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 vehicleId = intent.getStringExtra(EXTRA_VEHICLE_ID) ?: ""
                 driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: ""
+
+                 if (!checkBackgroundPermissionsGranted()) {
+                    showPermissionAlertNotification(
+                        "Location Permission Required",
+                        "D-Ride needs 'Allow all the time' location permission to track your shift. Tap here to enable."
+                    )
+                }
 
                 lastSentLatitude = 0.0
                 lastSentLongitude = 0.0
@@ -215,6 +307,11 @@ class BackgroundLocationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering battery receiver", e)
+        }
         stopLocationUpdates()
         stopNotificationUpdater()
         stopLocationThread()
@@ -448,15 +545,39 @@ class BackgroundLocationService : Service() {
             2000L
         ).apply {
             setMinUpdateIntervalMillis(1000L)
-            setMinUpdateDistanceMeters(0f)
+            setMinUpdateDistanceMeters(5f)
         }.build()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 val location = locationResult.lastLocation ?: return
+                
+                // Discard inaccurate points to stop jumping/drifting
+                if (location.accuracy > 20f) {
+                    Log.d(TAG, "Discarding inaccurate location: accuracy=${location.accuracy}m")
+                    return
+                }
+
+                // Fallback Speed calculation before updating lastLatitude/lastLongitude
+                if (location.hasSpeed()) {
+                    lastSpeed = location.speed
+                } else {
+                    val timeDeltaSec = if (lastLocationTime > 0L) (System.currentTimeMillis() - lastLocationTime) / 1000.0 else 0.0
+                    if (timeDeltaSec > 0.0 && lastLatitude != 0.0) {
+                        val dist = calculateDistance(lastLatitude, lastLongitude, location.latitude, location.longitude)
+                        val calculatedSpeed = (dist / timeDeltaSec).toFloat() // meters/sec
+                        if (calculatedSpeed in 0f..50f) {
+                            lastSpeed = calculatedSpeed
+                        } else {
+                            lastSpeed = 0f
+                        }
+                    } else {
+                        lastSpeed = 0f
+                    }
+                }
+
                 lastLatitude = location.latitude
                 lastLongitude = location.longitude
-                lastSpeed = if (location.hasSpeed()) location.speed else 0f
                 lastLocationTime = System.currentTimeMillis()
 
                 if (location.hasBearing()) {
@@ -474,26 +595,16 @@ class BackgroundLocationService : Service() {
                     }
                 }
 
-                // Throttling logic to restrict api uploads when static
                 val now = System.currentTimeMillis()
-                val isFirstUpdate = lastSentTime == 0L
-                val timeDiff = now - lastSentTime
-                val distDiff = if (isFirstUpdate) 0.0 else calculateDistance(
-                    lastSentLatitude, lastSentLongitude,
-                    location.latitude, location.longitude
-                )
-
-                if (isFirstUpdate || distDiff >= 5.0 || timeDiff >= 15000L) {
-                    lastSentLatitude = location.latitude
-                    lastSentLongitude = location.longitude
-                    lastSentTime = now
-                    sendLocationToApi(location)
-                }
+                lastSentLatitude = location.latitude
+                lastSentLongitude = location.longitude
+                lastSentTime = now
+                sendLocationToApi(location)
 
                 eventCallback?.invoke(
                     location.latitude,
                     location.longitude,
-                    location.speed,
+                    lastSpeed,
                     lastHeading
                 )
             }
@@ -510,6 +621,10 @@ class BackgroundLocationService : Service() {
             Log.d(TAG, "Fused location updates requested on background thread")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException: Location permission not granted", e)
+            showPermissionAlertNotification(
+                "Location Permission Required",
+                "D-Ride needs 'Allow all the time' location permission to track your shift. Tap here to enable."
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Error requesting Fused location updates", e)
         }
@@ -588,9 +703,11 @@ class BackgroundLocationService : Service() {
                 conn.connectTimeout = 10000
                 conn.readTimeout = 10000
 
-                val bm = getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
-                val batteryPct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-                val batteryJsonField = if (batteryPct >= 0) ",\"batteryPercentage\": $batteryPct" else ""
+                val finalBattery = if (currentBatteryPercentage >= 0) currentBatteryPercentage else {
+                    val bm = getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+                    bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                }
+                val batteryJsonField = if (finalBattery >= 0) ",\"batteryPercentage\": $finalBattery" else ""
 
                 val jsonBody = """
                     {
@@ -598,7 +715,7 @@ class BackgroundLocationService : Service() {
                         "driverId": "$driverId",
                         "longitude": ${location.longitude},
                         "latitude": ${location.latitude},
-                        "speedKmh": ${if (location.hasSpeed()) location.speed * 3.6 else 0},
+                        "speedKmh": ${lastSpeed * 3.6},
                         "headingDegrees": ${if (lastHeading > 0) lastHeading else 0}${batteryJsonField}
                     }
                 """.trimIndent()
