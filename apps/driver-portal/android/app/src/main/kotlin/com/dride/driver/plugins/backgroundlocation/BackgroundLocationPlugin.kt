@@ -260,8 +260,16 @@ class BackgroundLocationPlugin : Plugin() {
 
     @PluginMethod
     fun openLocationSettings(call: PluginCall) {
-        activity.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-        call.resolve()
+        try {
+            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            activity.runOnUiThread {
+                activity.startActivity(intent)
+            }
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open location settings", e)
+            call.reject("Failed to open location settings: ${e.message}")
+        }
     }
 
     @PluginMethod
@@ -276,29 +284,50 @@ class BackgroundLocationPlugin : Plugin() {
 
     @PluginMethod
     fun requestBatteryOptimization(call: PluginCall) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = android.net.Uri.parse("package:${activity.packageName}")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = android.net.Uri.parse("package:${activity.packageName}")
+                }
+                activity.runOnUiThread {
+                    activity.startActivity(intent)
+                }
             }
-            activity.startActivity(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to request battery optimization", e)
+            call.reject("Failed to request battery optimization: ${e.message}")
         }
-        call.resolve()
     }
 
     @PluginMethod
     fun openBatterySettings(call: PluginCall) {
-        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-        activity.startActivity(intent)
-        call.resolve()
+        try {
+            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            activity.runOnUiThread {
+                activity.startActivity(intent)
+            }
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open battery settings", e)
+            call.reject("Failed to open battery settings: ${e.message}")
+        }
     }
 
     @PluginMethod
     fun openAppSettings(call: PluginCall) {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = android.net.Uri.parse("package:${activity.packageName}")
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.parse("package:${activity.packageName}")
+            }
+            activity.runOnUiThread {
+                activity.startActivity(intent)
+            }
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open app settings", e)
+            call.reject("Failed to open app settings: ${e.message}")
         }
-        activity.startActivity(intent)
-        call.resolve()
     }
 
     /**

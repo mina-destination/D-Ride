@@ -103,8 +103,9 @@ export default function LocationPermissionStepper({
         await BackgroundLocation.openAppSettings();
       }
       runAllChecks();
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to fix fine location', err);
+      window.alert('Error (Location): ' + (err?.message || err));
     }
   };
 
@@ -129,8 +130,9 @@ export default function LocationPermissionStepper({
         }
       }
       runAllChecks();
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to fix background location', err);
+      window.alert('Error (Background Location): ' + (err?.message || err));
     }
   };
 
@@ -143,8 +145,9 @@ export default function LocationPermissionStepper({
         await BackgroundLocation.openAppSettings();
       }
       runAllChecks();
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to fix notifications', err);
+      window.alert('Error (Notifications): ' + (err?.message || err));
     }
   };
 
@@ -153,8 +156,9 @@ export default function LocationPermissionStepper({
       await BackgroundLocation.openLocationSettings();
       // Inform driver to refresh once turned on
       setTimeout(runAllChecks, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to open location settings', err);
+      window.alert('Error (GPS): ' + (err?.message || err));
     }
   };
 
@@ -162,8 +166,9 @@ export default function LocationPermissionStepper({
     try {
       await BackgroundLocation.requestBatteryOptimization();
       setTimeout(runAllChecks, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to request battery optimization disable', err);
+      window.alert('Error (Battery): ' + (err?.message || err));
     }
   };
 
