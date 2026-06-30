@@ -1,0 +1,15 @@
+appId: "com.dride.driver"
+---
+- clearState
+- launchApp
+# Verify app main onboarding or login screen has loaded
+- assertVisible: "Driver Portal"
+# Input driver ID credentials
+- tapOn: "Enter Driver ID"
+- inputText: "DRV-102938"
+- hideKeyboard
+# Execute Shift state transition
+- tapOn: "Start Shift"
+# Confirm transition successful by asserting visible state dashboard elements
+- assertVisible: "Shift Active"
+- assertVisible: "Go Offline"

@@ -1,0 +1,8 @@
+{
+  "name": "e2e-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:e2e-mobile": "maestro test maestro/flows/"
+  }
+}
