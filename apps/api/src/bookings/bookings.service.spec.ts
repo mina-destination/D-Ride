@@ -117,22 +117,34 @@ describe('BookingsService', () => {
   beforeEach(async () => {
     mockPrismaService = {
       booking: {
-        findUnique: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(mockBooking),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue(mockBooking),
+        update: jest.fn().mockResolvedValue(mockBooking),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      trip: {
+        findUnique: jest.fn().mockResolvedValue(mockTrip),
+        update: jest.fn().mockResolvedValue(mockTrip),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(mockUser),
+        update: jest.fn().mockResolvedValue(mockUser),
+        findFirst: jest.fn().mockResolvedValue(mockUser),
+      },
+      promoCode: {
+        findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn(),
-        updateMany: jest.fn(),
       },
-      trip: { findUnique: jest.fn(), update: jest.fn() },
-      user: { findUnique: jest.fn(), update: jest.fn(), findFirst: jest.fn() },
-      promoCode: { findUnique: jest.fn(), update: jest.fn() },
       transaction: {
-        create: jest.fn(),
-        findFirst: jest.fn(),
-        updateMany: jest.fn(),
+        create: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
-      liveVehicleLocation: { findUnique: jest.fn() },
+      liveVehicleLocation: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       $transaction: jest.fn(),
     };
 
