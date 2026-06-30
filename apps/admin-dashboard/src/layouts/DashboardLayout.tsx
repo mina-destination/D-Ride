@@ -123,6 +123,23 @@ export default function DashboardLayout() {
     { id: 3, title: 'Driver Checked-In', description: 'Youssef Ibrahim checked in passenger Ahmed Mansour', time: '1 hour ago', read: true },
     { id: 4, title: 'Vehicle Status Changed', description: 'Toyota HiAce (ط ر ق ٥٤٣٢) updated to Maintenance', time: '3 hours ago', read: true }
   ]);
+
+  // Load from local storage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('dride_admin_notifications');
+    if (stored) {
+      try {
+        setNotifications(JSON.parse(stored));
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  // Save to local storage on change
+  useEffect(() => {
+    localStorage.setItem('dride_admin_notifications', JSON.stringify(notifications));
+  }, [notifications]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Search Autocomplete States

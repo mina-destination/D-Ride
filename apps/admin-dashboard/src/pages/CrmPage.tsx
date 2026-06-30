@@ -89,6 +89,16 @@ export function CrmPage() {
     fetchData();
   }, []);
 
+  // Disconnect socket on unmount
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'tickets') {
       fetchTickets();
@@ -337,6 +347,12 @@ export function CrmPage() {
       setChatMessages(msgs);
     } catch (err) {
       console.error('Failed to load support ticket chat history:', err);
+    }
+
+    // Disconnect previous socket if any to prevent leaks and duplicate messages
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
     // 2. Setup WebSocket connection

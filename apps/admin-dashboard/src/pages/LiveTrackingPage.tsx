@@ -156,6 +156,11 @@ export function LiveTrackingPage() {
   const animationFramesRef = useRef<Record<string, number>>({});
   const lastCoordinatesRef = useRef<Record<string, { lat: number; lng: number }>>({});
   const socketRef = useRef<any>(null);
+  const vehiclesRef = useRef<LiveVehicle[]>([]);
+
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
 
   const fetchData = useCallback(async () => {
     if (!navigator.onLine) {
@@ -251,6 +256,15 @@ export function LiveTrackingPage() {
       reconnectionDelay: 2000,
     });
     socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('LiveTrackingPage connected to WebSocket server');
+      vehiclesRef.current.forEach(v => {
+        if (v.id) {
+          socket.emit('subscribeToVehicle', v.id);
+        }
+      });
+    });
 
     socket.on('vehicleLocationUpdate', (data: any) => {
       if (!data?.vehicleId || !data?.location) return;

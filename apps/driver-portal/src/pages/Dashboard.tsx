@@ -143,7 +143,7 @@ export default function DashboardPage() {
   const [scannerActive, setScannerActive] = useState(false);
   const [scanStatus, setScanStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [confirmStatusModal, setConfirmStatusModal] = useState<string | null>(null);
-  const lastNotifiedCountRef = useRef<number | null>(null);
+
 
   // Notifications & Permissions layout states
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
@@ -340,9 +340,13 @@ export default function DashboardPage() {
       const tripCount = activeUpcomingTrips.length;
       if (tripCount > 0) {
         const sessionSummaryKey = `dride_shifts_summary_notified_${user?._id || 'default'}`;
+        const lastCountKey = `dride_shifts_last_count_${user?._id || 'default'}`;
+        
         const alreadyNotifiedThisSession = sessionStorage.getItem(sessionSummaryKey);
+        const lastCountStored = sessionStorage.getItem(lastCountKey);
+        const lastCount = lastCountStored !== null ? parseInt(lastCountStored, 10) : null;
 
-        if (lastNotifiedCountRef.current === null) {
+        if (lastCount === null) {
           if (!alreadyNotifiedThisSession) {
             // Summary of all scheduled shifts on first load in this session
             const title = t('upcomingShiftsSummaryTitle');
@@ -359,9 +363,9 @@ export default function DashboardPage() {
             }
             sessionStorage.setItem(sessionSummaryKey, 'true');
           }
-        } else if (tripCount > lastNotifiedCountRef.current) {
+        } else if (tripCount > lastCount) {
           // Real-time alert when new shifts are added
-          const diff = tripCount - lastNotifiedCountRef.current;
+          const diff = tripCount - lastCount;
           const title = t('newShiftsAssignedTitle');
           const description = t('newShiftsAssignedDesc', { count: diff });
           addNotification(title, description);
@@ -375,8 +379,8 @@ export default function DashboardPage() {
             /* ignore */
           }
         }
+        sessionStorage.setItem(lastCountKey, tripCount.toString());
       }
-      lastNotifiedCountRef.current = tripCount;
       
       // Auto-update active trip if it was already selected
       if (activeTrip) {

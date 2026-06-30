@@ -82,6 +82,8 @@ export class PaymobService implements OnModuleInit {
     const bookingId =
       payload.obj.order.merchant_order_id || payload.obj.special_reference;
 
+    let skipNotification = false;
+
     // Step 2-4: Wrap standard booking confirmation update paths inside isolated transaction
     await this.prisma.$transaction(async (tx) => {
       const existingTx = await tx.transaction.findFirst({
@@ -91,6 +93,7 @@ export class PaymobService implements OnModuleInit {
         this.logger.warn(
           `Transaction already processed for order: ${orderId}. Skipping.`,
         );
+        skipNotification = true;
         return;
       }
 
@@ -106,6 +109,9 @@ export class PaymobService implements OnModuleInit {
         if (booking) {
           userId = booking.userId;
           bookingTripId = booking.tripId;
+          if (booking.status === 'CONFIRMED') {
+            skipNotification = true;
+          }
         } else {
           // Check if this reference is a WALLET_DEPOSIT transaction
           const walletTx = await tx.transaction.findUnique({
@@ -168,7 +174,7 @@ export class PaymobService implements OnModuleInit {
     // Step 5: Trigger notification side-effects outside transaction boundary
     // Note: Booking status already set to CONFIRMED inside the transaction above.
     // We only trigger notifications here, not another status update (avoids double-write).
-    if (success && bookingId) {
+    if (success && bookingId && !skipNotification) {
       try {
         const populated = await this.prisma.booking.findUnique({
           where: { id: bookingId },
