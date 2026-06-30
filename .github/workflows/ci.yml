@@ -27,9 +27,9 @@ jobs:
         run: npm run lint
 
       - name: Push database schema
-        run: npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss --force-reset
+        run: DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/dride_test}" npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss --force-reset
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://localhost:5432/dride_test' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run tests
         run: npm run test
