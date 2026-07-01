@@ -44,27 +44,89 @@ export function BookingsPage() {
   const [createLoading, setCreateLoading] = useState(false);
 
   const getTimelineEvents = (booking: any) => {
-    const events: { color: string; children: string }[] = [];
+    const events: { color: string; children: React.ReactNode }[] = [];
     if (booking.createdAt) {
-      events.push({ color: 'blue', children: `Booking created on ${dayjs(booking.createdAt).format('MMM D, YYYY h:mm A')}` });
+      events.push({
+        color: 'blue',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Booking Created</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              {dayjs(booking.createdAt).format('MMM D, YYYY h:mm A')}
+            </span>
+          </div>
+        )
+      });
     }
     if (booking.status === 'CONFIRMED' || booking.status === 'BOARDED' || booking.status === 'COMPLETED') {
-      events.push({ color: 'green', children: 'Booking confirmed' });
+      events.push({
+        color: 'green',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--success)' }}>Booking Confirmed</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Reservation secured on system</span>
+          </div>
+        )
+      });
     }
     if (booking.checkedIn) {
-      events.push({ color: 'blue', children: `Passenger checked in${booking.checkedInAt ? ` on ${dayjs(booking.checkedInAt).format('MMM D, YYYY h:mm A')}` : ''}` });
+      events.push({
+        color: 'blue',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--info)' }}>Passenger Boarded</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Checked in by driver {booking.checkedInAt ? `at ${dayjs(booking.checkedInAt).format('MMM D, YYYY h:mm A')}` : ''}
+            </span>
+          </div>
+        )
+      });
     }
     if (booking.status === 'COMPLETED') {
-      events.push({ color: 'gray', children: 'Trip completed' });
+      events.push({
+        color: 'gray',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Trip Completed</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Passenger reached destination</span>
+          </div>
+        )
+      });
     }
     if (booking.status === 'CANCELLED') {
-      events.push({ color: 'red', children: `Booking cancelled${booking.cancelledAt ? ` on ${dayjs(booking.cancelledAt).format('MMM D, YYYY h:mm A')}` : ''}` });
+      events.push({
+        color: 'red',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--danger)', textDecoration: 'line-through' }}>Booking Cancelled</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              {booking.cancelledAt ? `on ${dayjs(booking.cancelledAt).format('MMM D, YYYY h:mm A')}` : 'Cancelled by user or admin'}
+            </span>
+          </div>
+        )
+      });
     }
     if (booking.paymentStatus === 'SUCCESS') {
-      events.push({ color: 'green', children: 'Payment received' });
+      events.push({
+        color: 'green',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--success)' }}>Payment Cleared</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Transaction completed via payment gateway</span>
+          </div>
+        )
+      });
     }
     if (booking.qrVerificationToken && booking.verified) {
-      events.push({ color: 'purple', children: 'QR ticket verified' });
+      events.push({
+        color: 'purple',
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontWeight: 600, color: '#a855f7' }}>QR Ticket Validated</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Boarding authorization check succeeded</span>
+          </div>
+        )
+      });
     }
     return events;
   };
@@ -595,54 +657,54 @@ export function BookingsPage() {
 
             {/* Passenger profile */}
             <div>
-              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Passenger Profile</Title>
-              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <span><strong>Name:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.name || 'N/A'}</span></span>
-                <span><strong>Phone:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.phone || 'N/A'}</span></span>
-                <span style={{ gridColumn: '1 / -1' }}><strong>Email:</strong> <span style={{ color: 'white' }}>{activeBooking.userId?.email || 'N/A'}</span></span>
+              <Title level={5} style={{ color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Passenger Profile</Title>
+              <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <span><strong>Name:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.userId?.name || 'N/A'}</span></span>
+                <span><strong>Phone:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.userId?.phone || 'N/A'}</span></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>Email:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.userId?.email || 'N/A'}</span></span>
               </div>
             </div>
 
             {/* Trip details */}
             <div>
-              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Trip Schedule & Route</Title>
-              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span><strong>Route:</strong> <span style={{ color: 'white' }}>{activeBooking.tripId?.routeId?.name || 'N/A'}</span></span>
-                <span><strong>Departure:</strong> <span style={{ color: 'white' }}>{activeBooking.tripId?.departureTime ? new Date(activeBooking.tripId.departureTime).toLocaleString() : 'N/A'}</span></span>
-                <span><strong>Seats:</strong> <span style={{ color: 'white' }}>{activeBooking.seatNumbers?.join(', ') || 'N/A'}</span></span>
-                <span><strong>Pickup Stop:</strong> <span style={{ color: 'white' }}>{activeBooking.pickupCheckpoint?.name || 'N/A'}</span></span>
-                <span><strong>Dropoff Stop:</strong> <span style={{ color: 'white' }}>{activeBooking.dropoffCheckpoint?.name || 'N/A'}</span></span>
+              <Title level={5} style={{ color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Trip Schedule & Route</Title>
+              <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span><strong>Route:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.tripId?.routeId?.name || 'N/A'}</span></span>
+                <span><strong>Departure:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.tripId?.departureTime ? new Date(activeBooking.tripId.departureTime).toLocaleString() : 'N/A'}</span></span>
+                <span><strong>Seats:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.seatNumbers?.join(', ') || 'N/A'}</span></span>
+                <span><strong>Pickup Stop:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.pickupCheckpoint?.name || 'N/A'}</span></span>
+                <span><strong>Dropoff Stop:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.dropoffCheckpoint?.name || 'N/A'}</span></span>
               </div>
             </div>
 
             {/* Payment info */}
             <div>
-              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Payment Information</Title>
-              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <span><strong>Amount:</strong> <span style={{ color: 'white' }}>{activeBooking.amountEGP || 0} EGP</span></span>
-                <span><strong>Discount:</strong> <span style={{ color: 'white' }}>{activeBooking.discountEGP ? `${activeBooking.discountEGP} EGP` : 'None'}</span></span>
-                <span><strong>Promo Code:</strong> <span style={{ color: 'white' }}>{activeBooking.promoCode || 'None'}</span></span>
+              <Title level={5} style={{ color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Payment Information</Title>
+              <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <span><strong>Amount:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.amountEGP || 0} EGP</span></span>
+                <span><strong>Discount:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.discountEGP ? `${activeBooking.discountEGP} EGP` : 'None'}</span></span>
+                <span><strong>Promo Code:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.promoCode || 'None'}</span></span>
                 <span><strong>Payment Status:</strong> <Tag color={activeBooking.paymentStatus === 'SUCCESS' ? 'green' : 'gold'}>{activeBooking.paymentStatus || 'PENDING'}</Tag></span>
-                <span style={{ gridColumn: '1 / -1' }}><strong>Refund Status:</strong> <span style={{ color: 'white' }}>{activeBooking.refundStatus || 'N/A'}</span></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>Refund Status:</strong> <span style={{ color: 'var(--text-primary)' }}>{activeBooking.refundStatus || 'N/A'}</span></span>
               </div>
             </div>
 
             {/* Check-in & Boarding Info */}
             <div>
-              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0' }}>Check-in & Boarding</Title>
-              <div style={{ background: '#161922', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <Title level={5} style={{ color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Check-in & Boarding</Title>
+              <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <span><strong>Checked In:</strong> {activeBooking.checkedIn ? <Tag color="green">Yes</Tag> : <Tag color="default">No</Tag>}</span>
-                <span><strong>Boarding Number:</strong> <span style={{ color: 'white', fontFamily: 'monospace' }}>#{activeBooking.boardingNumber || 'N/A'}</span></span>
-                <span style={{ gridColumn: '1 / -1' }}><strong>QR Verification Token:</strong> <span style={{ color: 'white', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>{activeBooking.qrVerificationToken || 'N/A'}</span></span>
+                <span><strong>Boarding Number:</strong> <span style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>#{activeBooking.boardingNumber || 'N/A'}</span></span>
+                <span style={{ gridColumn: '1 / -1' }}><strong>QR Verification Token:</strong> <span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>{activeBooking.qrVerificationToken || 'N/A'}</span></span>
               </div>
             </div>
 
             {/* Timeline */}
             <div>
-              <Title level={5} style={{ color: 'white', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Title level={5} style={{ color: 'var(--text-primary)', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <History size={16} /> Booking Timeline
               </Title>
-              <div style={{ background: '#161922', padding: '12px 16px', borderRadius: '8px' }}>
+              <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', padding: '12px 16px', borderRadius: '8px' }}>
                 <Timeline items={getTimelineEvents(activeBooking)} />
               </div>
             </div>

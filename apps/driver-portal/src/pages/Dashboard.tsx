@@ -1758,7 +1758,7 @@ export default function DashboardPage() {
               margin: '0 auto',
               fontSize: '24px'
             }}>
-              🚨
+              <AlertTriangle size={24} />
             </div>
             <h4 className="title-outfit" style={{ fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>
               {t('confirmSosTitle')}

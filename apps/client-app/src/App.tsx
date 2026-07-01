@@ -25,6 +25,7 @@ import FamilyTrackingPage from './pages/FamilyTracking';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import './App.css';
+import { Shield } from 'lucide-react';
 
 function ScrollToHashElement() {
   const { pathname, hash } = useLocation();
@@ -87,13 +88,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         padding: '20px',
         textAlign: 'center'
       }}>
-        <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🚫</div>
+        <Shield size={48} className="text-red-500 mb-4 animate-pulse" />
         <h1 style={{ fontSize: '1.8rem', color: '#f5b731', margin: '0 0 10px 0' }}>Access Denied</h1>
         <p style={{ color: '#a3a3a3', maxWidth: '400px', margin: '0 0 20px 0' }}>
           Administrators are not permitted to use the passenger application portal.
         </p>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <a href="http://localhost:5174" style={{
+          <a href="http://localhost:5174" className="cursor-pointer transition-all duration-200 hover:brightness-95" style={{
             background: '#f5b731',
             color: '#000',
             padding: '10px 20px',
@@ -104,13 +105,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           }}>
             Go to Admin Dashboard
           </a>
-          <button onClick={logout} style={{
+          <button onClick={logout} className="cursor-pointer transition-all duration-200 hover:bg-white/10" style={{
             background: 'transparent',
             color: '#fff',
             border: '1px solid #333',
             padding: '10px 20px',
             borderRadius: '6px',
-            cursor: 'pointer',
             fontSize: '0.9rem',
             fontWeight: 'bold'
           }}>

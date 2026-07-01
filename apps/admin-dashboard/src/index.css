@@ -229,6 +229,17 @@ body {
   box-shadow: 0 4px 15px rgba(245, 183, 49, 0.08);
 }
 
+.sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 15%;
+  height: 70%;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
+}
+
 .sidebar-item-icon {
   font-size: 1.1rem;
   flex-shrink: 0;
@@ -2353,3 +2364,105 @@ select:focus,
     display: none !important;
   }
 }
+
+/* ============================================================
+   Ant Design Dark-Theme Harmonization Overrides
+   ============================================================ */
+
+/* ── Ant Timeline Dark Theme Harmonization ── */
+[data-theme="dark"] .ant-timeline {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-tail {
+  border-inline-start: 2px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-head {
+  background: var(--surface) !important;
+  border-color: var(--primary) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-head-blue {
+  border-color: var(--info) !important;
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-head-green {
+  border-color: var(--success) !important;
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-head-red {
+  border-color: var(--danger) !important;
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-head-gray {
+  border-color: var(--text-muted) !important;
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .ant-timeline .ant-timeline-item-content {
+  color: var(--text-secondary) !important;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Ant Modal / Drawer Dark Overrides ── */
+[data-theme="dark"] .ant-modal-content,
+[data-theme="dark"] .ant-modal-header {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .ant-modal-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .ant-modal-close {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .ant-modal-close:hover {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .ant-drawer-content,
+[data-theme="dark"] .ant-drawer-header {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .ant-drawer-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .ant-drawer-close {
+  color: var(--text-secondary) !important;
+}
+
+/* ── Ant Select / Dropdown Dark Overrides ── */
+[data-theme="dark"] .ant-select-dropdown {
+  background-color: var(--surface-elevated) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .ant-select-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .ant-select-item-option-selected {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .ant-select-item-option-active {
+  background-color: var(--surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+

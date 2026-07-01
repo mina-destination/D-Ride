@@ -58,7 +58,7 @@ function ProtectedRoute({ children, permission }: { children: React.ReactNode; p
         fontSize: '1.2rem',
         fontWeight: 600,
       }}>
-        ⏳ Verifying Authorization...
+        Verifying Authorization...
       </div>
     );
   }

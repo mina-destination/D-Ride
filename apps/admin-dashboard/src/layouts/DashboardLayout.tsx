@@ -506,7 +506,7 @@ export default function DashboardLayout() {
                             {item.icon ? (
                               <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>{item.icon}</span>
                             ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>🔍</span>
+                              <Search size={14} style={{ color: 'var(--text-muted)' }} />
                             )}
                             <span>{item.label}</span>
                           </div>

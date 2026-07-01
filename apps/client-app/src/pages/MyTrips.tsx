@@ -895,7 +895,10 @@ export default function MyTripsPage() {
                           {/* Pickup Info Bar */}
                           {booking.pickupCheckpoint && (
                             <div className="tc-pickup-bar" onClick={e => e.stopPropagation()}>
-                              <span className="tc-pickup-label">📍 {isAr ? 'نقطة الصعود' : 'Pickup Stop'}</span>
+                              <span className="tc-pickup-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <MapPin size={12} style={{ color: 'var(--primary)' }} />
+                                {isAr ? 'نقطة الصعود' : 'Pickup Stop'}
+                              </span>
                               <span className="tc-pickup-sep">|</span>
                               <span className="tc-pickup-detail">
                                 <User size={12} />

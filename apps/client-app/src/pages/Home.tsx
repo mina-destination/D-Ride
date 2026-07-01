@@ -5,7 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { routesAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
 import carSide from '../assets/car-side.png';
-import { Map, MapPin, Search, Ticket, Bus, Users, ArrowUpDown, X, RotateCcw, Armchair, Usb, Maximize, Shield } from 'lucide-react';
+import { Map, MapPin, Locate, Search, Ticket, Bus, Users, ArrowUpDown, X, RotateCcw, Armchair, Usb, Maximize, Shield } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
@@ -824,7 +824,15 @@ function RouteSearchForm() {
     <>
       <div className="from-to-container">
         {/* DETECT LOCATION & MAP ACTIONS */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: locationNotice ? '0.5rem' : '1rem' }}>
+        <div style={{
+          display: 'flex',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '10px',
+          padding: '4px',
+          marginBottom: locationNotice ? '0.5rem' : '1rem',
+          gap: '4px'
+        }}>
           <button
             type="button"
             onClick={handleDetectLocation}
@@ -835,9 +843,9 @@ function RouteSearchForm() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              padding: '10px 14px',
-              background: locationLoading ? 'rgba(245, 183, 49, 0.05)' : 'rgba(245, 183, 49, 0.1)',
-              border: '1px dashed var(--primary)',
+              padding: '8px 12px',
+              background: locationLoading ? 'rgba(245, 183, 49, 0.05)' : 'transparent',
+              border: 'none',
               borderRadius: '8px',
               color: 'var(--primary)',
               fontSize: '0.82rem',
@@ -846,11 +854,17 @@ function RouteSearchForm() {
               transition: 'all 0.2s',
               opacity: locationLoading ? 0.7 : 1
             }}
+            onMouseEnter={e => {
+              if (!locationLoading) e.currentTarget.style.background = 'rgba(245, 183, 49, 0.08)';
+            }}
+            onMouseLeave={e => {
+              if (!locationLoading) e.currentTarget.style.background = 'transparent';
+            }}
           >
             {locationLoading ? (
               <div className="btn-loading-spinner" />
             ) : (
-              <MapPin size={14} />
+              <Locate size={15} />
             )}
             {t('detectStation')}
           </button>
@@ -864,15 +878,21 @@ function RouteSearchForm() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              padding: '10px 14px',
-              background: 'rgba(245, 183, 49, 0.1)',
-              border: '1px solid var(--primary)',
+              padding: '8px 12px',
+              background: 'transparent',
+              border: 'none',
               borderRadius: '8px',
               color: 'var(--primary)',
               fontSize: '0.82rem',
               fontWeight: 'bold',
               cursor: 'pointer',
               transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(245, 183, 49, 0.08)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent';
             }}
           >
             <Map size={14} />
@@ -902,7 +922,7 @@ function RouteSearchForm() {
           <div className="from-to-field full-width">
             <label className="field-label">{t('whereAreYouBoarding')}</label>
             <div className={`field-select-wrapper custom-select-container ${shakeFields ? 'shake-animation' : ''}`}>
-              <MapPin size={16} className="field-icon-left" />
+              <Locate size={16} className="field-icon-left" style={{ color: 'var(--primary)' }} />
               <input
                 type="text"
                 className="field-input"
@@ -967,9 +987,12 @@ function RouteSearchForm() {
                             color: '#10B981',
                             background: 'rgba(16, 185, 129, 0.05)',
                             borderBottom: '1px solid var(--border)',
-                            letterSpacing: '0.05em'
+                            letterSpacing: '0.05em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}>
-                            📍 Addresses & Places
+                            <MapPin size={12} /> Addresses & Places
                           </div>
                         ) : (
                           <div style={{
@@ -980,9 +1003,12 @@ function RouteSearchForm() {
                             color: 'var(--primary)',
                             background: 'rgba(245, 183, 49, 0.05)',
                             borderBottom: '1px solid var(--border)',
-                            letterSpacing: '0.05em'
+                            letterSpacing: '0.05em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}>
-                            🏙️ {city}
+                            <Map size={12} /> {city}
                           </div>
                         )}
                         {items.map((item: any) => {
@@ -1117,9 +1143,12 @@ function RouteSearchForm() {
                             color: '#10B981',
                             background: 'rgba(16, 185, 129, 0.05)',
                             borderBottom: '1px solid var(--border)',
-                            letterSpacing: '0.05em'
+                            letterSpacing: '0.05em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}>
-                            📍 Addresses & Places
+                            <MapPin size={12} /> Addresses & Places
                           </div>
                         ) : (
                           <div style={{
@@ -1130,9 +1159,12 @@ function RouteSearchForm() {
                             color: '#EF4444',
                             background: 'rgba(239, 68, 68, 0.03)',
                             borderBottom: '1px solid var(--border)',
-                            letterSpacing: '0.05em'
+                            letterSpacing: '0.05em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}>
-                            🏙️ {city}
+                            <Map size={12} /> {city}
                           </div>
                         )}
                         {items.map((item: any) => {
@@ -1204,8 +1236,8 @@ function RouteSearchForm() {
                   fontWeight: 600,
                   color: 'var(--text-secondary)',
                   flex: 1,
-                  textAlign: 'left',
-                  marginLeft: '8px',
+                  textAlign: language === 'ar' ? 'right' : 'left',
+                  marginInlineStart: '8px',
                 }}
               >
                 {t(passengers === 1 ? 'seatCountSingular' : 'seatCountPlural', { count: passengers })}
@@ -1250,50 +1282,45 @@ function RouteSearchForm() {
       {/* ROW 5: ROUND TRIP */}
       <div className="from-to-row">
         <div className="from-to-field full-width">
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: isRoundTrip ? 'rgba(245, 183, 49, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-              border: isRoundTrip ? '1px solid rgba(245, 183, 49, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={isRoundTrip}
-              onChange={(e) => setIsRoundTrip(e.target.checked)}
-              style={{ display: 'none' }}
-            />
-            <div
-              style={{
-                width: '18px',
-                height: '18px',
-                borderRadius: '5px',
-                border: isRoundTrip ? '2px solid var(--primary)' : '2px solid rgba(255,255,255,0.2)',
-                background: isRoundTrip ? 'var(--primary)' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {isRoundTrip && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </div>
-            <RotateCcw size={14} style={{ color: isRoundTrip ? 'var(--primary)' : 'var(--text-muted)', transition: 'color 0.2s' }} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isRoundTrip ? 'var(--primary)' : 'var(--text-secondary)', flex: 1 }}>
-              {t('roundTripLabel')}
-            </span>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.25rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none', width: '100%' }}>
+              <input
+                type="checkbox"
+                checked={isRoundTrip}
+                onChange={(e) => setIsRoundTrip(e.target.checked)}
+                style={{ display: 'none' }}
+              />
+              {/* Toggle Switch */}
+              <div
+                style={{
+                  width: '38px',
+                  height: '20px',
+                  borderRadius: '9999px',
+                  background: isRoundTrip ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                  position: 'relative',
+                  transition: 'background-color 0.2s',
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    background: isRoundTrip ? '#1a1a2e' : '#FFFFFF',
+                    position: 'absolute',
+                    top: '3px',
+                    left: isRoundTrip ? '21px' : '3px',
+                    transition: 'left 0.2s, background-color 0.2s',
+                  }}
+                />
+              </div>
+              <RotateCcw size={14} style={{ color: isRoundTrip ? 'var(--primary)' : 'var(--text-muted)', transition: 'color 0.2s' }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isRoundTrip ? 'var(--primary)' : 'var(--text-secondary)', flex: 1 }}>
+                {t('roundTripLabel')}
+              </span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1525,7 +1552,7 @@ function RouteSearchForm() {
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
-  const { t, language } = useTranslation();
+  const { t, language, isRtl } = useTranslation();
 
 
   const seoTitle = language === 'ar'
@@ -1557,6 +1584,15 @@ export default function HomePage() {
             <p className="hero-subtitle">
               {t('heroSubtitle')}
             </p>
+            <div className="hero-car-preview-container" style={{ animation: 'float 8s ease-in-out infinite' }}>
+              <div style={{ transform: isRtl ? 'none' : 'scaleX(-1)', display: 'inline-block', width: '100%' }}>
+                <img 
+                  src={carSide} 
+                  alt="D-Ride Minibus" 
+                  className="hero-car-preview-image"
+                />
+              </div>
+            </div>
             <div className="hero-actions">
               {isAuthenticated ? (
                 <Link to="/my-trips" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -1571,24 +1607,16 @@ export default function HomePage() {
                 {t('learnMoreBtn')}
               </a>
             </div>
-            <div className="hero-car-preview-container" style={{ animation: 'float 8s ease-in-out infinite' }}>
-              <img 
-                src={carSide} 
-                alt="D-Ride Minibus" 
-                className="hero-car-preview-image"
-              />
-            </div>
           </div>
 
           <div className="hero-visual">
+            <div className="hero-title-section-new">
+              <h2 className="hero-card-title-new">{t('findYourRouteCardTitle')}</h2>
+              <p className="hero-card-subtitle-new">
+                {language === 'ar' ? 'أين ترغب في السفر اليوم؟' : 'Where would you like to travel today?'}
+              </p>
+            </div>
             <div className="hero-card glass">
-              <div className="hero-card-header">
-                <div className="hero-card-icon"><MapPin size={24} /></div>
-                <div>
-                  <div className="hero-card-title">{t('findYourRouteCardTitle')}</div>
-                  <div className="hero-card-subtitle">{t('selectYourDestinationCardSub')}</div>
-                </div>
-              </div>
               <RouteSearchForm />
             </div>
           </div>

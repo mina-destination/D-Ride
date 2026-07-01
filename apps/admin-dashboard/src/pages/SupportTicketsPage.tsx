@@ -362,7 +362,7 @@ export function SupportTicketsPage() {
                               {new Date(selectedTicket.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <Card size="small" style={{ background: 'var(--background)', border: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
+                          <Card size="small" style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '13px' }}>
                             {selectedTicket.message}
                           </Card>
                         </>
@@ -371,7 +371,7 @@ export function SupportTicketsPage() {
                     ...(selectedTicket.replies?.map((reply: any, idx: number) => ({
                       key: idx,
                       color: 'green' as const,
-                      dot: <Avatar size="small" style={{ background: '#10b981' }}>A</Avatar>,
+                      dot: <Avatar size="small" style={{ background: 'var(--primary)' }}>A</Avatar>,
                       children: (
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -380,13 +380,14 @@ export function SupportTicketsPage() {
                               {new Date(reply.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <Card size="small" style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.1)', color: 'var(--text-primary)', fontSize: '13px' }}>
-                            {reply.text}
+                          <Card size="small" style={{ background: 'rgba(245, 183, 49, 0.08)', border: '1px solid rgba(245, 183, 49, 0.15)', color: 'var(--text-primary)', fontSize: '13px' }}>
+                            {reply.message || reply.text}
                           </Card>
                         </>
                       ),
                     })) || []),
                   ]}
+                  style={{ color: 'var(--text-primary)' }}
                 />
               </div>
             </div>

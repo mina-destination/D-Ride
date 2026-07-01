@@ -620,10 +620,33 @@
 .hero-visual {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.75rem;
   animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
   opacity: 0;
+}
+
+.hero-title-section-new {
+  text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  width: 100%;
+}
+
+.hero-card-title-new {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 0.35rem 0;
+  letter-spacing: -0.02em;
+}
+
+.hero-card-subtitle-new {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .hero-card {
@@ -2744,13 +2767,17 @@ html[data-theme='light'] .tracking-sandbox-panel {
 .passenger-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 3px;
+  border-radius: 8px;
 }
 
 .passenger-control-btn {
-  background: var(--surface-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #ffffff;
   width: 28px;
   height: 28px;
   border-radius: 6px;
@@ -2758,25 +2785,26 @@ html[data-theme='light'] .tracking-sandbox-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 0.9rem;
   transition: var(--transition-base);
 }
 
 .passenger-control-btn:hover:not(:disabled) {
-  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--primary);
-  background: rgba(245, 183, 49, 0.05);
 }
 
 .passenger-control-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
 .passenger-count {
   font-size: 0.85rem;
   font-weight: 700;
-  min-width: 20px;
+  color: #ffffff;
+  min-width: 22px;
   text-align: center;
 }
 
@@ -3060,6 +3088,10 @@ html[data-theme='light'] .tracking-sandbox-panel {
 
 .swap-btn-rotated {
   transform: rotate(180deg);
+}
+
+.swap-button.swap-btn-rotated:hover {
+  transform: rotate(180deg) scale(1.1);
 }
 
 .shake-animation {
@@ -5369,4 +5401,29 @@ html[data-theme='light'] .tracking-sandbox-panel {
     white-space: nowrap;
   }
 }
+
+/* RTL Form Overrides */
+[dir="rtl"] .field-icon-left {
+  right: 12px;
+  left: auto !important;
+}
+
+[dir="rtl"] .field-select,
+[dir="rtl"] .field-input {
+  padding: 10px 36px 10px 12px !important;
+}
+
+[dir="rtl"] .custom-dropdown-item:hover {
+  padding-left: 14px !important;
+  padding-right: 18px !important;
+}
+
+[dir="rtl"] .custom-dropdown-item.keyboard-active {
+  border-left: none !important;
+  border-right: 3px solid var(--primary) !important;
+  padding-left: 14px !important;
+  padding-right: 15px !important;
+}
+
+
 
