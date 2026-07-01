@@ -1729,3 +1729,26 @@ textarea:focus-visible {
     border-color: var(--border);
   }
 }
+
+/* 3D premium tilt hover effect for the van */
+.hero-car-preview-container {
+  margin-top: 2.5rem;
+  perspective: 1000px;
+  display: inline-block;
+}
+
+.hero-car-preview-image {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.4));
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.8s ease;
+  transform: rotateY(-3deg) rotateX(2deg);
+  transform-style: preserve-3d;
+}
+
+.hero-car-preview-container:hover .hero-car-preview-image,
+.hero-car-preview-image:hover {
+  transform: rotateY(-18deg) rotateX(5deg) scale(1.06) translateY(-8px);
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.65));
+}

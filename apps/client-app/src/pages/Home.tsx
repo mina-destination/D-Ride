@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { routesAPI, tripsAPI } from '../services/api';
 import logo from '../assets/d-ride-logo.jpeg';
-import { Map, MapPin, Search, Ticket, Bus, CreditCard, Snowflake, Zap, Users, ArrowUpDown, X, RotateCcw } from 'lucide-react';
+import carSide from '../assets/car-side.png';
+import { Map, MapPin, Search, Ticket, Bus, Users, ArrowUpDown, X, RotateCcw, Armchair, Usb, Maximize, Shield } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
@@ -1570,6 +1571,13 @@ export default function HomePage() {
                 {t('learnMoreBtn')}
               </a>
             </div>
+            <div className="hero-car-preview-container" style={{ animation: 'float 8s ease-in-out infinite' }}>
+              <img 
+                src={carSide} 
+                alt="D-Ride Minibus" 
+                className="hero-car-preview-image"
+              />
+            </div>
           </div>
 
           <div className="hero-visual">
@@ -1659,36 +1667,45 @@ export default function HomePage() {
           <div className="feature-card glass delay-1 animate-fade-in-up">
             <div className="feature-icon"><MapPin size={28} /></div>
             <div>
-              <h3 className="feature-title">{t('featureGpsTitle')}</h3>
+              <h3 className="feature-title">{t('featureLiveTrackingTitle')}</h3>
               <p className="feature-desc">
-                {t('featureGpsDesc')}
+                {t('featureLiveTrackingDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-2 animate-fade-in-up">
-            <div className="feature-icon"><CreditCard size={28} /></div>
+            <div className="feature-icon"><Armchair size={28} /></div>
             <div>
-              <h3 className="feature-title">{t('featurePaymentTitle')}</h3>
+              <h3 className="feature-title">{t('featureMemoryFoamTitle')}</h3>
               <p className="feature-desc">
-                {t('featurePaymentDesc')}
+                {t('featureMemoryFoamDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-3 animate-fade-in-up">
-            <div className="feature-icon"><Snowflake size={28} /></div>
+            <div className="feature-icon"><Usb size={28} /></div>
             <div>
-              <h3 className="feature-title">{t('featureComfortTitle')}</h3>
+              <h3 className="feature-title">{t('featureUsbTitle')}</h3>
               <p className="feature-desc">
-                {t('featureComfortDesc')}
+                {t('featureUsbDesc')}
               </p>
             </div>
           </div>
           <div className="feature-card glass delay-4 animate-fade-in-up">
-            <div className="feature-icon"><Zap size={28} /></div>
+            <div className="feature-icon"><Maximize size={28} /></div>
             <div>
-              <h3 className="feature-title">{t('featurePricingTitle')}</h3>
+              <h3 className="feature-title">{t('featureSpaciousComfortTitle')}</h3>
               <p className="feature-desc">
-                {t('featurePricingDesc')}
+                {t('featureSpaciousComfortDesc')}
+              </p>
+            </div>
+          </div>
+          <div className="feature-card glass delay-5 animate-fade-in-up">
+            <div className="feature-icon"><Shield size={28} /></div>
+            <div>
+              <h3 className="feature-title">{t('featureDashCamTitle')}</h3>
+              <p className="feature-desc">
+                {t('featureDashCamDesc')}
               </p>
             </div>
           </div>
